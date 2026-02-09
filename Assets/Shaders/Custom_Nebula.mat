@@ -27,14 +27,14 @@ Material:
     m_Ints: []
     m_Floats:
     - _Animate: 1
-    - _Density: 0.8
-    - _Octaves: 4
-    - _Persistence: 0.5
-    - _Scale: 1.2
-    - _Sharpness: 1.5
-    - _Speed: 0.05
-    - _StarBrightness: 1.2
-    - _StarScale: 80
+    - _Density: 0.767
+    - _Octaves: 3.04
+    - _Persistence: 0.55
+    - _Scale: 1.28
+    - _Sharpness: 1.56
+    - _Speed: 0.149
+    - _StarBrightness: 0.953
+    - _StarScale: 63.6
     - _StarThreshold: 0.992
     m_Colors:
     - _ColorBright: {r: 0.6, g: 0.4, b: 0.9, a: 1}

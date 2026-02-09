@@ -1,0 +1,61 @@
+PhotonTrail 设置和调试指南
+============================
+
+问题：看不到光晕和吸收效果
+
+步骤1：检查 TrailRenderer 材质
+--------------------------------
+1. 在 Hierarchy 中找到 Player -> Trail (子物体)
+2. 选中 Trail，在 Inspector 中查看 TrailRenderer 组件
+3. Materials 列表中的材质必须使用 "Custom/PhotonTrail" shader
+4. 如果材质是默认的 (Default-Particle 等)，需要：
+   a) 创建新材质：Assets -> Create -> Material
+   b) 将 Shader 设置为 "Custom/PhotonTrail"
+   c) 将这个材质拖到 TrailRenderer 的 Materials 槽中
+
+步骤2：检查 PhotonTrailController
+----------------------------------
+1. 在 Player GameObject 上应该有 PhotonTrailController 组件
+2. Trail 字段应该指向 Trail 子物体（或留空自动查找）
+3. 启用 debugDrawOverlap = true，在 Scene 视图可以看到橙色检测球体
+4. 启用 debugLog = true，在 Console 可以看到检测信息
+
+步骤3：测试模式
+---------------
+1. 在 PhotonTrailController 中启用 testMode = true
+2. 设置 testAbsorb = 0.5
+3. 运行游戏，应该能看到吸收条纹（即使没有 AbsorptionVolume）
+4. 如果测试模式有效，说明 shader 和 MaterialPropertyBlock 工作正常
+
+步骤4：检查 AbsorptionVolume
+------------------------------
+1. 创建空 GameObject，添加 Collider (Box/Sphere)
+2. Collider 必须勾选 "Is Trigger"
+3. 添加 AbsorptionVolume 组件
+4. 设置 absorptionStrength = 0.7 或更高
+5. 将物体放在玩家路径上
+6. 确保 PhotonTrailController 的 overlapRadius 足够大（默认 2.0）
+
+步骤5：检查光晕效果
+-------------------
+1. 光晕效果应该总是可见（即使 _Absorb = 0）
+2. 在材质 Inspector 中调整：
+   - Glow Intensity: 2.5 (默认，可以增加到 3-4)
+   - Glow Falloff: 1.5 (默认，降低到 1.0 会让光晕更明显)
+3. 如果看不到光晕，可能是：
+   - TrailRenderer 的 Width 太小（在 TrailRenderer 组件中增加 Start Width/End Width）
+   - 材质没有使用 PhotonTrail shader
+
+常见问题：
+---------
+Q: 为什么看不到吸收效果？
+A: 确保 TrailRenderer 的材质使用 "Custom/PhotonTrail" shader，不是默认材质
+
+Q: 为什么看不到光晕？
+A: 光晕在边缘，如果 trail 太细可能不明显。增加 TrailRenderer 的 Width，或增加 Glow Intensity
+
+Q: 如何确认检测到 AbsorptionVolume？
+A: 启用 debugDrawOverlap 和 debugLog，查看 Scene 视图和 Console
+
+Q: MaterialPropertyBlock 不工作？
+A: TrailRenderer 需要每帧设置 PropertyBlock。确保 PhotonTrailController 在 LateUpdate 中运行

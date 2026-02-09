@@ -1,0 +1,69 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Custom_CosmicWeb
+  m_Shader: {fileID: 4800000, guid: 56558c9b9d3713f41b12fdad5300a4ea, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: 3000
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _Animate: 1
+    - _DensityScale: 2.42
+    - _EdgeSoft: 0.646
+    - _FilamentBias: 0.546
+    - _FilamentThickness: 0.75
+    - _GrainAmount: 0
+    - _GrainScale: 96
+    - _NetEdgeSharpness: 0.578
+    - _NodeStrength: 0.838
+    - _Octaves: 3.71
+    - _OverallBrightness: 1.5
+    - _Persistence: 0.585
+    - _RidgedSharpness: 2.094
+    - _Scale: 3
+    - _Speed: 0.15
+    - _StarClusterBrightness: 1.5
+    - _StarPointAmount: 0.431
+    - _StarPointBrightness: 2.03
+    - _StarPointScale: 400
+    - _StarPointThreshold: 0.9704
+    - _StepSize: 0.06
+    - _Steps: 119
+    - _StrandVariationAmount: 0.583
+    - _StrandVariationScale: 11.48
+    - _VeinAmount: 0.714
+    - _VeinCoherence: 0.457
+    - _VeinScale: 3.7
+    - _VeinSharpness: 1.52
+    - _VeinThreshold: 0.679
+    - _VolumeSize: 5
+    - _WebContrast: 1.4
+    - _WebDetailAmount: 0.35
+    - _WebDetailScale: 1
+    m_Colors:
+    - _ColorCore: {r: 0.98742133, g: 0.8518158, b: 0.319825, a: 1}
+    - _ColorCoreHot: {r: 1, g: 1, b: 1, a: 1}
+    - _ColorMagenta: {r: 0.6, g: 0.15, b: 0.5, a: 1}
+    - _ColorOrange: {r: 0.95, g: 0.4, b: 0.2, a: 1}
+    - _ColorPurple: {r: 0.25, g: 0.08, b: 0.35, a: 1}
+    - _ColorVein: {r: 1, g: 0.85, b: 0.5, a: 1}
+    - _ColorVoid: {r: 0.02, g: 0.01, b: 0.05, a: 1}
+  m_BuildTextureStacks: []
