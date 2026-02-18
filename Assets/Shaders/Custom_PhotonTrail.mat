@@ -30,17 +30,21 @@ Material:
     m_Ints: []
     m_Floats:
     - _Absorb: 0.477
-    - _EdgeFadePower: 4.6
-    - _EdgeFadeWidth: 0.405
-    - _EndFadeWidth: 0.385
-    - _GlowFalloff: 5.29
-    - _GlowIntensity: 1.08
+    - _EdgeFadePower: 2.45
+    - _EdgeFadeWidth: 0.42
+    - _EdgeSoftness: 3
+    - _EmissionSoftness: 1.5
+    - _EmissionStrength: 1.5
+    - _EndFadeWidth: 0.46
+    - _GlowFalloff: 6.18
+    - _GlowIntensity: 2.37
     - _NoiseScale: 4
     - _NoiseSpeed: 1
     - _StripeFrequency: 8
-    - _StripeSharpness: 0.1
+    - _StripeSharpness: 0.82
     - _UseTintShift: 3.99
     m_Colors:
-    - _Color: {r: 1, g: 1, b: 0.5, a: 1}
+    - _Color: {r: 0.6949685, g: 0.9291817, b: 1, a: 1}
+    - _EmissionColor: {r: 0.72, g: 0.94, b: 1, a: 1}
     - _TintShift: {r: 0.3, g: 0.5, b: 1, a: 0.2}
   m_BuildTextureStacks: []

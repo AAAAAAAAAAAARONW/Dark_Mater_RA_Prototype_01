@@ -8,9 +8,14 @@ Shader "Custom/PhotonTrail"
         [Header(Glow)]
         _GlowIntensity ("Glow intensity", Range(0, 5)) = 2.5
         _GlowFalloff ("Glow falloff", Range(0.1, 10)) = 1.5
+        [Header(Emission)]
+        _EmissionColor ("Emission color", Color) = (0.75, 0.95, 1.0, 1)
+        _EmissionStrength ("Emission strength", Range(0, 8)) = 2.2
+        _EmissionSoftness ("Emission softness", Range(0.2, 4)) = 1.4
         [Header(Edge Fade)]
         _EdgeFadeWidth ("Edge fade width", Range(0.01, 0.5)) = 0.15
         _EdgeFadePower ("Edge fade power", Range(0.5, 6)) = 2
+        _EdgeSoftness ("Edge softness", Range(0.2, 3)) = 1.3
         _EndFadeWidth ("End fade width", Range(0.0, 0.5)) = 0.12
 
         [Header(Absorption)]
@@ -48,8 +53,12 @@ Shader "Custom/PhotonTrail"
             float4 _TintShift;
             float _GlowIntensity;
             float _GlowFalloff;
+            float4 _EmissionColor;
+            float _EmissionStrength;
+            float _EmissionSoftness;
             float _EdgeFadeWidth;
             float _EdgeFadePower;
+            float _EdgeSoftness;
             float _EndFadeWidth;
 
             float hash(float2 p)
@@ -107,26 +116,34 @@ Shader "Custom/PhotonTrail"
                 fixed4 baseTex = tex2D(_MainTex, i.uv);
                 fixed4 col = _Color * baseTex * i.color;
 
-                // Edge fade (both sides): alpha softly fades to 0 near edges
+                // Softer side-edge transition
                 // UV.x across width: 0 (left edge) -> 1 (right edge)
                 float edgeDist = min(i.uv.x, 1.0 - i.uv.x); // 0 at edges, 0.5 at center
-                float edgeFade = smoothstep(0.0, _EdgeFadeWidth, edgeDist);
-                edgeFade = pow(edgeFade, _EdgeFadePower);
+                float edgeWidth = max(_EdgeFadeWidth, 0.001);
+                float edge01 = saturate(edgeDist / edgeWidth);
+                float edgeFade = pow(edge01, 1.0 / max(_EdgeSoftness, 0.001));
+                edgeFade = pow(edgeFade, 1.0 / max(_EdgeFadePower, 0.001));
+                edgeFade = smoothstep(0.0, 1.0, edgeFade);
 
                 // End fade (along trail length): fade at head/tail to avoid rectangular ends
                 float endDist = min(i.uv.y, 1.0 - i.uv.y); // 0 at ends, 0.5 at middle
-                float endFade = smoothstep(0.0, _EndFadeWidth, endDist);
+                float endFade = smoothstep(0.0, max(_EndFadeWidth, 0.0001), endDist);
+                endFade = smoothstep(0.0, 1.0, endFade);
 
                 col.a *= edgeFade * endFade;
 
-                // Glow effect at edges (UV.x = across trail width)
+                // Glow + emission for a more self-illuminated look
                 float centerDist = abs(i.uv.x - 0.5) * 2.0; // 0 at center, 1 at edge
-                float edgeFactor = 1.0 - centerDist; // 1 at edge, 0 at center
-                float glow = pow(edgeFactor, _GlowFalloff);
+                float bodyFactor = saturate(1.0 - centerDist); // 1 at center, 0 at edge
+                float glow = pow(bodyFactor, _GlowFalloff);
+                float edgeHalo = pow(saturate(1.0 - edge01), _EmissionSoftness);
+                float emissionMask = saturate(glow + edgeHalo * 0.5);
+                float3 emission = _EmissionColor.rgb * (_EmissionStrength * emissionMask);
                 float glowMult = 1.0 + glow * _GlowIntensity;
                 col.rgb *= glowMult;
+                col.rgb += emission;
                 // Slight alpha boost at edges, but keep fade-to-transparent
-                col.a *= (1.0 + glow * _GlowIntensity * 0.2);
+                col.a *= (1.0 + emissionMask * _GlowIntensity * 0.12);
 
                 // UV.y = along trail (0 at one end, 1 at other)
                 float along = i.uv.y;

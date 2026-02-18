@@ -12,6 +12,10 @@ public class PhotonTrailController : MonoBehaviour
     [Header("Trail")]
     [Tooltip("TrailRenderer to drive (e.g. child 'Trail'). If null, uses first in children.")]
     [SerializeField] TrailRenderer trail;
+    [Tooltip("Trail color when not absorbed (bright light blue).")]
+    [SerializeField] Color initialTrailColor = new Color(0.55f, 0.92f, 1f, 1f);
+    [Tooltip("Trail color after absorption (red).")]
+    [SerializeField] Color absorbedTrailColor = new Color(1f, 0.18f, 0.18f, 1f);
 
     [Header("Combination")]
     [Tooltip("Combine multiple overlapping volumes: Max = strongest wins, Sum = stack (clamped to 1)")]
@@ -50,6 +54,14 @@ public class PhotonTrailController : MonoBehaviour
     Color _currentTintShift = Color.clear;
     bool _currentUseTint;
 
+    void ApplyTrailColor()
+    {
+        if (_trailRenderer == null) return;
+        Color targetColor = Color.Lerp(initialTrailColor, absorbedTrailColor, _currentAbsorb);
+        _trailRenderer.startColor = targetColor;
+        _trailRenderer.endColor = targetColor;
+    }
+
     /// <summary>Current absorption value (0..1), ramping up and persistent.</summary>
     public float CurrentAbsorb => _currentAbsorb;
 
@@ -76,6 +88,7 @@ public class PhotonTrailController : MonoBehaviour
                 // Initialize absorption to 0 (override any material default)
                 _trailMaterialInstance.SetFloat(AbsorbId, 0f);
             }
+            ApplyTrailColor();
         }
         _block = new MaterialPropertyBlock();
     }
@@ -276,6 +289,7 @@ public class PhotonTrailController : MonoBehaviour
             _block.SetColor(TintShiftId, _currentTintShift);
             _trailRenderer.SetPropertyBlock(_block);
         }
+        ApplyTrailColor();
         
         // Also check if material uses correct shader (use sharedMaterial to avoid edit mode issues)
         if (_trailRenderer.sharedMaterial != null)

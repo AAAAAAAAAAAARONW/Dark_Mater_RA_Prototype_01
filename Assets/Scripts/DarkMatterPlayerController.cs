@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 /// <summary>
@@ -76,6 +77,10 @@ public class DarkMatterPlayerController : MonoBehaviour
     bool _isReturningToEntryHeight;
     float _targetFollowYaw;
     float _targetFollowPitch;
+    bool _lockLookInput;
+    float _cinematicPitchOffset;
+    float _externalSpeedMultiplier = 1f;
+    float _externalOrbitDistanceMultiplier = 1f;
 
     void Awake()
     {
@@ -113,7 +118,8 @@ public class DarkMatterPlayerController : MonoBehaviour
         ApplyDarkMatterBend(dt);
 
         // 3. 持续向前移动（后续碰撞/重力可在此处或 FixedUpdate 中影响 movementDirection）
-        Vector3 move = movementDirection * (speed * dt);
+        float finalSpeed = speed * _externalSpeedMultiplier;
+        Vector3 move = movementDirection * (finalSpeed * dt);
         _controller.Move(move);
 
         // 4. 切回默认跟随视角：Z 或 手柄 A，触发后平滑过渡（不闪现）
@@ -121,7 +127,12 @@ public class DarkMatterPlayerController : MonoBehaviour
             StartReturnToFollowView();
 
         // 5. 相机旋转：键鼠仅 A/D（水平）；手柄仅右摇杆（水平+垂直），左摇杆不参与视角
-        if (_isReturningToFollowView)
+        // 可被触发器临时锁定（用于过场镜头）。
+        if (_lockLookInput)
+        {
+            // 过场期间冻结视角输入和自动回正逻辑
+        }
+        else if (_isReturningToFollowView)
         {
             float step = followViewReturnSpeed * dt;
             cameraYaw = Mathf.MoveTowardsAngle(cameraYaw, _targetFollowYaw, step);
@@ -275,8 +286,10 @@ public class DarkMatterPlayerController : MonoBehaviour
         if (cameraTransform == null) return;
 
         // 世界空间：相机始终在离玩家 orbitDistance 的位置，方向由 yaw/pitch 决定
-        Vector3 offsetDir = Quaternion.Euler(cameraPitch, cameraYaw, 0f) * Vector3.back;
-        Vector3 cameraWorldPos = transform.position + offsetDir * orbitDistance;
+        float finalPitch = Mathf.Clamp(cameraPitch + _cinematicPitchOffset, pitchMin, pitchMax);
+        Vector3 offsetDir = Quaternion.Euler(finalPitch, cameraYaw, 0f) * Vector3.back;
+        float finalOrbitDistance = orbitDistance * _externalOrbitDistanceMultiplier;
+        Vector3 cameraWorldPos = transform.position + offsetDir * finalOrbitDistance;
 
         // 相机是子物体：把目标世界位置转成相对玩家的本地位置，随玩家一起移动
         cameraTransform.localPosition = transform.InverseTransformPoint(cameraWorldPos);
@@ -302,4 +315,91 @@ public class DarkMatterPlayerController : MonoBehaviour
     /// 当前速度（只读）。
     /// </summary>
     public float Speed => speed;
+
+    /// <summary>
+    /// 锁定/解锁玩家视角输入（用于触发器过场）。
+    /// </summary>
+    public void SetLookInputLocked(bool locked)
+    {
+        _lockLookInput = locked;
+        if (locked)
+            _isReturningToFollowView = false;
+    }
+
+    /// <summary>
+    /// 平滑调整过场俯仰偏移（叠加在普通 cameraPitch 上）。
+    /// 正值通常表现为“相机更向下看”。
+    /// </summary>
+    public IEnumerator TweenCinematicPitchOffset(float targetOffset, float duration)
+    {
+        float from = _cinematicPitchOffset;
+        float to = targetOffset;
+        float d = Mathf.Max(0.01f, duration);
+        float elapsed = 0f;
+        while (elapsed < d)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / d);
+            float eased = t * t * (3f - 2f * t); // SmoothStep
+            _cinematicPitchOffset = Mathf.Lerp(from, to, eased);
+            yield return null;
+        }
+        _cinematicPitchOffset = to;
+    }
+
+    /// <summary>
+    /// 设置外部速度倍率（1=原速，0.5=减速到一半，2=两倍速）。
+    /// </summary>
+    public void SetExternalSpeedMultiplier(float multiplier)
+    {
+        _externalSpeedMultiplier = Mathf.Max(0f, multiplier);
+    }
+
+    /// <summary>
+    /// 平滑设置外部速度倍率。
+    /// </summary>
+    public IEnumerator TweenExternalSpeedMultiplier(float targetMultiplier, float duration)
+    {
+        float from = _externalSpeedMultiplier;
+        float to = Mathf.Max(0f, targetMultiplier);
+        float d = Mathf.Max(0.01f, duration);
+        float elapsed = 0f;
+        while (elapsed < d)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / d);
+            float eased = t * t * (3f - 2f * t);
+            _externalSpeedMultiplier = Mathf.Lerp(from, to, eased);
+            yield return null;
+        }
+        _externalSpeedMultiplier = to;
+    }
+
+    /// <summary>
+    /// 设置外部镜头距离倍率（1=原距离，&lt;1 更近，&gt;1 更远）。
+    /// </summary>
+    public void SetExternalOrbitDistanceMultiplier(float multiplier)
+    {
+        _externalOrbitDistanceMultiplier = Mathf.Max(0.05f, multiplier);
+    }
+
+    /// <summary>
+    /// 平滑设置外部镜头距离倍率。
+    /// </summary>
+    public IEnumerator TweenExternalOrbitDistanceMultiplier(float targetMultiplier, float duration)
+    {
+        float from = _externalOrbitDistanceMultiplier;
+        float to = Mathf.Max(0.05f, targetMultiplier);
+        float d = Mathf.Max(0.01f, duration);
+        float elapsed = 0f;
+        while (elapsed < d)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / d);
+            float eased = t * t * (3f - 2f * t);
+            _externalOrbitDistanceMultiplier = Mathf.Lerp(from, to, eased);
+            yield return null;
+        }
+        _externalOrbitDistanceMultiplier = to;
+    }
 }

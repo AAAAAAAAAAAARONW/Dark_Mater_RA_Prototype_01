@@ -1,0 +1,93 @@
+Macro -> Galaxy 单相机双层叠化（方案 C）设置指南
+=============================================
+
+目标
+----
+把“宇宙网穿进银河”的视觉做成两套世界叠化，不依赖真实尺度缩放，也不需要双相机切换。
+
+你会得到：
+1) 一个主相机同时看到 Macro/Galaxy 两套 Layer
+2) 脚本按 transition01(0..1) 控制两组对象可见度与光强
+3) 配合 FOV 变化得到“穿越尺度”感
+
+
+一、准备 Layer
+-------------
+建议新增两个 Layer（Project Settings -> Tags and Layers）：
+- CosmicWeb   （宏观结构：体积/粒子/丝状线框）
+- GalaxyWorld （微观结构：星点/尘埃盘/旋臂）
+
+然后把对应对象分到这两个 Layer。
+
+
+二、准备 1 台主 Camera
+--------------------
+1) Main Camera（唯一相机）
+   - 挂载脚本：MacroMicroTransitionController
+   - Culling Mask 里至少包含 CosmicWeb + GalaxyWorld
+
+
+三、场景结构建议
+-------------------
+建议创建两个根节点：
+- MacroRoot  （下面放宇宙网相关对象）
+- GalaxyRoot （下面放银河相关对象）
+
+在 Main Camera 上找到 MacroMicroTransitionController：
+
+- Target Camera       -> Main Camera（通常可自动获取）
+- Shared Camera Rig   -> 可选；拖你的相机锚点（建议和玩家相机跟随点一致）
+- Macro Root          -> 拖 MacroRoot
+- Galaxy Root         -> 拖 GalaxyRoot
+- Macro Layers        -> 设为 CosmicWeb
+- Galaxy Layers       -> 设为 GalaxyWorld
+- Transition Duration -> 例如 3~6 秒
+- Toggle Key          -> 默认 T
+
+FOV 建议起点（可后续微调）：
+- Macro FOV Range  : (70, 38)  // 过渡前更广
+- Galaxy FOV Range : (32, 58)  // 过渡后更贴近银河镜头
+
+光照建议起点：
+- Macro Light Exposure  : (1.0, 0.0)
+- Galaxy Light Exposure : (0.0, 1.0)
+
+
+四、运行方式
+-----------
+运行后：
+- 按 T 会在 Macro <-> Galaxy 间切换叠化
+- 也可在别的脚本中调用：
+  - StartTransitionToGalaxy()
+  - StartTransitionToMacro()
+  - StartTransition(target01)
+  - SetTransitionImmediate(value01)
+
+
+五、关键对齐（最重要）
+--------------------
+为了让“穿越入口”看起来真实，务必做下面这件事：
+
+把银河入口（比如银河中心亮核/旋臂起始）放在 CosmicWeb 某个节点位置，
+并在 Shared Camera Rig 下确保两套世界的构图重心一致。
+
+简化理解：
+- Macro 的“丝状节点” = Galaxy 的“入口门”
+- 叠化时用户会感知为同一结构被放大/深入，而不是切场景。
+
+
+六、常见问题排查
+--------------
+Q1: 画面黑屏
+A1: 检查 Main Camera 上是否挂了 MacroMicroTransitionController，
+    且 Culling Mask 包含 CosmicWeb / GalaxyWorld。
+
+Q2: 只看到一套世界
+A2: 检查 Layer 分配、MacroRoot/GalaxyRoot 绑定、transition01 是否固定在 0 或 1。
+
+Q3: 过渡太“硬”
+A3: 增加 Transition Duration；调整 transitionEase 曲线中段更平滑；
+    同时微调 FOV Range，让透视变化更自然。
+
+Q4: 两个世界“对不上”
+A4: 使用 Shared Camera Rig 保持镜头锚点一致；并重新摆放银河入口到宏观节点上。
