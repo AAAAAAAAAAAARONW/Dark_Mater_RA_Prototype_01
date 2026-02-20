@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 705507994}
-  m_IndirectSpecularColor: {r: 0.2683376, g: 0.10393404, b: 0.499915, a: 1}
+  m_IndirectSpecularColor: {r: 0.11053679, g: 0.0021688545, b: 0.28334534, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -632,7 +632,7 @@ MonoBehaviour:
   usePollingFallback: 1
   pollingInterval: 0.1
   autoAddKinematicRigidbody: 1
-  transitionDuration: 3
+  transitionDuration: 5
   enterZoomMultiplier: 0.505
   exitZoomMultiplier: 1
   zoomBlendDuration: 3
@@ -651,9 +651,9 @@ MonoBehaviour:
   filamentOpaqueValue: 1
   filamentHiddenValue: 0
   filamentBlendDuration: 3
-  enterTopDownPitchOffset: 85
+  enterTopDownPitchOffset: 90
   lookDownPitchOffset: 90
-  enterLookDownDuration: 1.5
+  enterLookDownDuration: 5
   lookDownBlendDuration: 5
   lookDownHoldDuration: 3
   lookUpBlendDuration: 5
@@ -729,7 +729,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 460240358}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 1.12, y: 0.71, z: 261.1}
+  m_LocalPosition: {x: 1.12, y: 0.71, z: 282.6}
   m_LocalScale: {x: 87.16527, y: 87.16527, z: 54.996292}
   m_Children: []
   m_Father: {fileID: 0}
@@ -841,12 +841,12 @@ GameObject:
   - component: {fileID: 484458615}
   - component: {fileID: 484458614}
   m_Layer: 0
-  m_Name: Sphere
+  m_Name: Quasar Experiment
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!135 &484458614
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -1405,7 +1405,7 @@ GameObject:
   - component: {fileID: 544252542}
   - component: {fileID: 544252545}
   - component: {fileID: 544252546}
-  m_Layer: 0
+  m_Layer: 10
   m_Name: Player
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1471,7 +1471,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 544252541}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 211}
+  m_LocalPosition: {x: 0, y: 0, z: 131.3}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 1656927677}
@@ -1918,7 +1918,7 @@ GameObject:
   - component: {fileID: 963194227}
   - component: {fileID: 963194226}
   - component: {fileID: 963194229}
-  m_Layer: 0
+  m_Layer: 10
   m_Name: Main Camera
   m_TagString: MainCamera
   m_Icon: {fileID: 0}
@@ -2104,22 +2104,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4f231c4fb786f3946a6b90b886c48677, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_EventSystem: {fileID: 0}
-  m_InputOverride: {fileID: 0}
-  m_DefaultInput: {fileID: 0}
-  m_PrevActionTime: 0
-  m_LastMoveVector: {x: 0, y: 0}
-  m_ConsecutiveMoveCount: 0
-  m_LastMousePosition: {x: 0, y: 0}
-  m_MousePosition: {x: 0, y: 0}
-  m_CurrentFocusedGameObject: {fileID: 0}
-  m_HorizontalAxis: Horizontal
-  m_VerticalAxis: Vertical
-  m_SubmitButton: Submit
-  m_CancelButton: Cancel
-  m_InputActionsPerSecond: 10
-  m_RepeatDelay: 0.5
-  m_ForceModuleActive: 0
 --- !u!114 &1055645601
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2132,14 +2116,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 76c392e42b5098c458856cdf6ecaaaa1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_SystemInputModules: []
-  m_CurrentInputModule: {fileID: 0}
-  m_FirstSelected: {fileID: 0}
-  m_sendNavigationEvents: 1
-  m_DragThreshold: 10
-  m_CurrentSelected: {fileID: 0}
-  m_HasFocus: 1
-  m_SelectionGuard: 0
 --- !u!4 &1055645602
 Transform:
   m_ObjectHideFlags: 0
@@ -2379,7 +2355,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1177279077}
   - component: {fileID: 1177279078}
-  m_Layer: 0
+  m_Layer: 10
   m_Name: Trail
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2717,8 +2693,8 @@ GameObject:
   m_Component:
   - component: {fileID: 1220965815}
   - component: {fileID: 1220965816}
-  m_Layer: 0
-  m_Name: Trail (1)
+  m_Layer: 10
+  m_Name: Absorbtion Trail
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -4077,7 +4053,7 @@ GameObject:
   - component: {fileID: 1656927680}
   - component: {fileID: 1656927679}
   - component: {fileID: 1656927678}
-  m_Layer: 0
+  m_Layer: 10
   m_Name: Indicator
   m_TagString: Untagged
   m_Icon: {fileID: 0}

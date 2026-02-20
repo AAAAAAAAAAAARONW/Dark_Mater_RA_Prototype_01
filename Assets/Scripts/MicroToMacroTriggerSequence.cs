@@ -130,7 +130,7 @@ public class MicroToMacroTriggerSequence : MonoBehaviour
         enterTopDownPitchOffset = Mathf.Clamp(enterTopDownPitchOffset, 0f, 90f);
         enterLookDownDuration = Mathf.Max(0.2f, enterLookDownDuration);
         lookDownBlendDuration = Mathf.Max(0.01f, lookDownBlendDuration);
-        lookDownHoldDuration = 3f;
+        lookDownHoldDuration = Mathf.Max(0f, lookDownHoldDuration);
         lookUpBlendDuration = Mathf.Max(0.01f, lookUpBlendDuration);
         lookUpStartDelay = Mathf.Max(0f, lookUpStartDelay);
         pollingInterval = Mathf.Max(0.02f, pollingInterval);
@@ -278,9 +278,9 @@ public class MicroToMacroTriggerSequence : MonoBehaviour
 
         if (inside)
         {
-            // 进入：先关掉 Micro，只显示 Macro；相机 TOP-DOWN + Zoom In（Zoom 已在 SetInsideState 里启动）
+            // 进入：先保持 Macro 可见；相机 TOP-DOWN + Zoom In（Zoom 已在 SetInsideState 里启动）
             transitionController.RebuildCaches();
-            transitionController.SetTransitionImmediate(0f); // 关掉 MicroLevel，只显示 Macro
+            transitionController.SetTransitionImmediate(0f); // 先关闭 MicroLevel，仅显示 MacroLevel
 
             if (useFlareBeforeSwitch && flareFlash != null)
             {
@@ -292,6 +292,9 @@ public class MicroToMacroTriggerSequence : MonoBehaviour
             Log("Enter: starting camera top-down + zoom in");
             yield return playerController.TweenCinematicPitchOffset(enterTopDownPitchOffset, enterLookDownDuration);
 
+            // 相机达到 90°(Top-Down) 后再打开 Micro、关闭 Macro
+            transitionController.SetTransitionImmediate(1f);
+
             if (_filamentRoutine != null) StopCoroutine(_filamentRoutine);
             _filamentRoutine = StartCoroutine(TweenFilamentTransparency(filamentHiddenValue, Mathf.Max(0.01f, filamentBlendDuration)));
 
@@ -299,13 +302,11 @@ public class MicroToMacroTriggerSequence : MonoBehaviour
             if (lookUpStartDelay > 0f)
                 yield return new WaitForSeconds(lookUpStartDelay);
 
-            // 相机回归正常位置时：打开 MicroLevel，关掉 Macro；同时 Zoom Out + 抬头
-            transitionController.StartTransition(1f, transitionDuration); // 打开 Micro，关掉 Macro
+            // 保持 Micro 可见，仅做“慢抬头回正”
+            transitionController.SetTransitionImmediate(1f);
             if (_filamentRoutine != null) StopCoroutine(_filamentRoutine);
             _filamentRoutine = StartCoroutine(TweenFilamentTransparency(filamentOpaqueValue, Mathf.Max(0.01f, filamentBlendDuration)));
 
-            if (_zoomRoutine != null) StopCoroutine(_zoomRoutine);
-            _zoomRoutine = StartCoroutine(playerController.TweenExternalOrbitDistanceMultiplier(exitZoomMultiplier, zoomBlendDuration)); // 回归时 Zoom Out
             yield return playerController.TweenCinematicPitchOffset(0f, lookUpBlendDuration);
         }
         else
