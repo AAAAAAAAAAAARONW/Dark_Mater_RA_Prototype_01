@@ -286,7 +286,9 @@ public class DarkMatterPlayerController : MonoBehaviour
         if (cameraTransform == null) return;
 
         // 世界空间：相机始终在离玩家 orbitDistance 的位置，方向由 yaw/pitch 决定
-        float finalPitch = Mathf.Clamp(cameraPitch + _cinematicPitchOffset, pitchMin, pitchMax);
+        // 过场俯仰时允许到 90°（顶视），否则会被 pitchMax(80) 限制
+        float pitchMaxEffective = (_cinematicPitchOffset > 1f) ? 90f : pitchMax;
+        float finalPitch = Mathf.Clamp(cameraPitch + _cinematicPitchOffset, pitchMin, pitchMaxEffective);
         Vector3 offsetDir = Quaternion.Euler(finalPitch, cameraYaw, 0f) * Vector3.back;
         float finalOrbitDistance = orbitDistance * _externalOrbitDistanceMultiplier;
         Vector3 cameraWorldPos = transform.position + offsetDir * finalOrbitDistance;

@@ -59,8 +59,13 @@ public class MicroToMacroTriggerSequence : MonoBehaviour
     [SerializeField] float filamentBlendDuration = 3f;
 
     [Header("Camera Look-Down Sequence")]
-    [Tooltip("低头偏移角（正值通常更向下看）")]
+    [Tooltip("进入 Trigger 时俯视角度（顶视 TOP-DOWN，建议 85~90°）；与 Zoom In 同时进行")]
+    [Range(0f, 90f)]
+    [SerializeField] float enterTopDownPitchOffset = 85f;
+    [Tooltip("离开 Trigger 时低头偏移角（仅用于离开）")]
     [SerializeField] float lookDownPitchOffset = 25f;
+    [Tooltip("进入时缓慢低头到 Top-Down 的时长（建议 1~2 秒）")]
+    [SerializeField] float enterLookDownDuration = 1.5f;
     [SerializeField] float lookDownBlendDuration = 0.35f;
     [Tooltip("低头保持时长（按需求固定 3 秒）")]
     [SerializeField] float lookDownHoldDuration = 3f;
@@ -122,6 +127,8 @@ public class MicroToMacroTriggerSequence : MonoBehaviour
         filamentOpaqueValue = Mathf.Clamp01(filamentOpaqueValue);
         filamentHiddenValue = Mathf.Clamp01(filamentHiddenValue);
         filamentBlendDuration = Mathf.Max(0.01f, filamentBlendDuration);
+        enterTopDownPitchOffset = Mathf.Clamp(enterTopDownPitchOffset, 0f, 90f);
+        enterLookDownDuration = Mathf.Max(0.2f, enterLookDownDuration);
         lookDownBlendDuration = Mathf.Max(0.01f, lookDownBlendDuration);
         lookDownHoldDuration = 3f;
         lookUpBlendDuration = Mathf.Max(0.01f, lookUpBlendDuration);
@@ -158,7 +165,11 @@ public class MicroToMacroTriggerSequence : MonoBehaviour
 
         if (playerController == null)
             playerController = FindObjectOfType<DarkMatterPlayerController>();
-        if (playerController == null || _triggerCollider == null) return;
+        if (transitionController == null)
+            transitionController = FindObjectOfType<MacroMicroTransitionController>();
+        if (flareFlash == null && transitionController != null)
+            flareFlash = transitionController.GetComponent<CameraFlareFlash>();
+        if (playerController == null || transitionController == null || _triggerCollider == null) return;
 
         Vector3 p = playerController.transform.position;
         Vector3 closest = _triggerCollider.ClosestPoint(p);
@@ -168,9 +179,13 @@ public class MicroToMacroTriggerSequence : MonoBehaviour
 
         if (!_hasInitializedState)
         {
-            _isInside = isInside;
             _hasInitializedState = true;
-            ApplyStateImmediate(_isInside, "InitPolling");
+            _isInside = isInside;
+            // 若初始就在 trigger 内，也走完整进入动画（缓慢 Top-Down + Zoom In），不跳过
+            if (isInside)
+                SetInsideState(true, "InitPolling");
+            else
+                ApplyStateImmediate(false, "InitPolling");
         }
 
         if (isInside != _isInside)
@@ -212,11 +227,22 @@ public class MicroToMacroTriggerSequence : MonoBehaviour
         if (_isInside == inside) return;
         _isInside = inside;
 
+        if (transitionController == null)
+            transitionController = FindObjectOfType<MacroMicroTransitionController>();
+        if (playerController == null)
+            playerController = FindObjectOfType<DarkMatterPlayerController>();
+        if (transitionController == null || playerController == null)
+        {
+            Debug.LogWarning("[MicroToMacroTriggerSequence] Cannot run transition: transitionController or playerController is null.");
+            return;
+        }
+
         if (_zoomRoutine != null) StopCoroutine(_zoomRoutine);
         if (_speedRoutine != null) StopCoroutine(_speedRoutine);
         float targetZoom = inside ? enterZoomMultiplier : exitZoomMultiplier;
         float targetSpeed = inside ? enterSpeedMultiplier : exitSpeedMultiplier;
-        _zoomRoutine = StartCoroutine(playerController.TweenExternalOrbitDistanceMultiplier(targetZoom, zoomBlendDuration));
+        float zoomDur = inside ? enterLookDownDuration : zoomBlendDuration; // 进入时与缓慢低头同速
+        _zoomRoutine = StartCoroutine(playerController.TweenExternalOrbitDistanceMultiplier(targetZoom, zoomDur));
         _speedRoutine = StartCoroutine(playerController.TweenExternalSpeedMultiplier(targetSpeed, speedBlendDuration));
 
         if (_stateRoutine != null) StopCoroutine(_stateRoutine);
@@ -227,6 +253,10 @@ public class MicroToMacroTriggerSequence : MonoBehaviour
 
     void ApplyStateImmediate(bool inside, string source)
     {
+        if (transitionController == null)
+            transitionController = FindObjectOfType<MacroMicroTransitionController>();
+        if (transitionController == null || playerController == null) return;
+
         transitionController.RebuildCaches();
         transitionController.SetTransitionImmediate(inside ? 1f : 0f);
         playerController.SetExternalOrbitDistanceMultiplier(inside ? enterZoomMultiplier : exitZoomMultiplier);
@@ -246,28 +276,60 @@ public class MicroToMacroTriggerSequence : MonoBehaviour
         if (lockLookInputDuringLookDown)
             playerController.SetLookInputLocked(true);
 
-        // 先把相机旋转到位，再开始 Layer 切换
-        yield return playerController.TweenCinematicPitchOffset(lookDownPitchOffset, lookDownBlendDuration);
-
-        if (useFlareBeforeSwitch && flareFlash != null)
+        if (inside)
         {
-            flareFlash.PlayFlash(flareDuration, flarePeakAlpha, flareColor);
-            yield return new WaitForSeconds(flareLeadTime);
+            // 进入：先关掉 Micro，只显示 Macro；相机 TOP-DOWN + Zoom In（Zoom 已在 SetInsideState 里启动）
+            transitionController.RebuildCaches();
+            transitionController.SetTransitionImmediate(0f); // 关掉 MicroLevel，只显示 Macro
+
+            if (useFlareBeforeSwitch && flareFlash != null)
+            {
+                flareFlash.PlayFlash(flareDuration, flarePeakAlpha, flareColor);
+                yield return new WaitForSeconds(flareLeadTime);
+            }
+
+            // 缓慢 Top-Down + Zoom In（Zoom 已由 SetInsideState 启动）
+            Log("Enter: starting camera top-down + zoom in");
+            yield return playerController.TweenCinematicPitchOffset(enterTopDownPitchOffset, enterLookDownDuration);
+
+            if (_filamentRoutine != null) StopCoroutine(_filamentRoutine);
+            _filamentRoutine = StartCoroutine(TweenFilamentTransparency(filamentHiddenValue, Mathf.Max(0.01f, filamentBlendDuration)));
+
+            yield return new WaitForSeconds(lookDownHoldDuration);
+            if (lookUpStartDelay > 0f)
+                yield return new WaitForSeconds(lookUpStartDelay);
+
+            // 相机回归正常位置时：打开 MicroLevel，关掉 Macro；同时 Zoom Out + 抬头
+            transitionController.StartTransition(1f, transitionDuration); // 打开 Micro，关掉 Macro
+            if (_filamentRoutine != null) StopCoroutine(_filamentRoutine);
+            _filamentRoutine = StartCoroutine(TweenFilamentTransparency(filamentOpaqueValue, Mathf.Max(0.01f, filamentBlendDuration)));
+
+            if (_zoomRoutine != null) StopCoroutine(_zoomRoutine);
+            _zoomRoutine = StartCoroutine(playerController.TweenExternalOrbitDistanceMultiplier(exitZoomMultiplier, zoomBlendDuration)); // 回归时 Zoom Out
+            yield return playerController.TweenCinematicPitchOffset(0f, lookUpBlendDuration);
         }
+        else
+        {
+            // 离开：低头 -> 切回 Macro -> 保持 -> 抬头
+            yield return playerController.TweenCinematicPitchOffset(lookDownPitchOffset, lookDownBlendDuration);
 
-        transitionController.RebuildCaches();
-        float targetTransition = inside ? 1f : 0f; // inside=Micro, outside=Macro
-        transitionController.StartTransition(targetTransition, transitionDuration);
+            if (useFlareBeforeSwitch && flareFlash != null)
+            {
+                flareFlash.PlayFlash(flareDuration, flarePeakAlpha, flareColor);
+                yield return new WaitForSeconds(flareLeadTime);
+            }
 
-        if (_filamentRoutine != null) StopCoroutine(_filamentRoutine);
-        float targetFilament = inside ? filamentHiddenValue : filamentOpaqueValue;
-        float blendDuration = Mathf.Max(0.01f, filamentBlendDuration);
-        _filamentRoutine = StartCoroutine(TweenFilamentTransparency(targetFilament, blendDuration));
+            transitionController.RebuildCaches();
+            transitionController.StartTransition(0f, transitionDuration); // 关 Micro，开 Macro
 
-        yield return new WaitForSeconds(lookDownHoldDuration);
-        if (lookUpStartDelay > 0f)
-            yield return new WaitForSeconds(lookUpStartDelay);
-        yield return playerController.TweenCinematicPitchOffset(0f, lookUpBlendDuration);
+            if (_filamentRoutine != null) StopCoroutine(_filamentRoutine);
+            _filamentRoutine = StartCoroutine(TweenFilamentTransparency(filamentOpaqueValue, Mathf.Max(0.01f, filamentBlendDuration)));
+
+            yield return new WaitForSeconds(lookDownHoldDuration);
+            if (lookUpStartDelay > 0f)
+                yield return new WaitForSeconds(lookUpStartDelay);
+            yield return playerController.TweenCinematicPitchOffset(0f, lookUpBlendDuration);
+        }
 
         if (lockLookInputDuringLookDown)
             playerController.SetLookInputLocked(false);
@@ -281,7 +343,7 @@ public class MicroToMacroTriggerSequence : MonoBehaviour
 
         var renderers = yellowFilamentRenderers;
         if ((renderers == null || renderers.Length == 0) && autoFindYellowFilamentRenderers)
-            renderers = FindObjectsOfType<Renderer>(true);
+            renderers = FindObjectsOfType<Renderer>(); // Unity 2019: no includeInactive overload; only active objects are found
         if (renderers == null) return;
 
         var unique = new HashSet<Material>();

@@ -10,8 +10,10 @@ using UnityEngine;
 public class PhotonTrailController : MonoBehaviour
 {
     [Header("Trail")]
-    [Tooltip("TrailRenderer to drive (e.g. child 'Trail'). If null, uses first in children.")]
+    [Tooltip("TrailRenderer to drive (e.g. child 'Trail'). If null, uses first in children (including inactive).")]
     [SerializeField] TrailRenderer trail;
+    [Tooltip("If set, overlap detection uses this position (e.g. Player) instead of this object. Use when this script is on Camera but trail follows player.")]
+    [SerializeField] Transform overlapPositionSource;
     [Tooltip("Trail color when not absorbed (bright light blue).")]
     [SerializeField] Color initialTrailColor = new Color(0.55f, 0.92f, 1f, 1f);
     [Tooltip("Trail color after absorption (red).")]
@@ -76,7 +78,7 @@ public class PhotonTrailController : MonoBehaviour
     void Awake()
     {
         if (trail == null)
-            trail = GetComponentInChildren<TrailRenderer>();
+            trail = GetComponentInChildren<TrailRenderer>(true);
         if (trail != null)
         {
             _trailRenderer = trail;
@@ -97,7 +99,7 @@ public class PhotonTrailController : MonoBehaviour
     {
         // Only find TrailRenderer in edit mode, don't create material instances
         if (trail == null)
-            trail = GetComponentInChildren<TrailRenderer>();
+            trail = GetComponentInChildren<TrailRenderer>(true);
         // Don't create material instances in edit mode - only in runtime
         // Material instance creation happens in Awake() and LateUpdate() during runtime
     }
@@ -119,11 +121,13 @@ public class PhotonTrailController : MonoBehaviour
         if (_trailRenderer == null)
         {
             if (trail == null)
-                trail = GetComponentInChildren<TrailRenderer>();
+                trail = GetComponentInChildren<TrailRenderer>(true);
             if (trail != null)
                 _trailRenderer = trail;
             if (_trailRenderer == null) return;
         }
+
+        Vector3 overlapOrigin = (overlapPositionSource != null ? overlapPositionSource : transform).position;
 
         // Ensure material instance exists (only at runtime)
         if (Application.isPlaying && _trailMaterialInstance == null && _trailRenderer.sharedMaterial != null)
@@ -136,8 +140,7 @@ public class PhotonTrailController : MonoBehaviour
 
         _volumes.Clear();
         // Use QueryTriggerInteraction.Collide to detect trigger colliders
-        // Also try without QueryTriggerInteraction in case volumes aren't triggers
-        int nHit = Physics.OverlapSphereNonAlloc(transform.position, overlapRadius, _overlapBuffer, -1, QueryTriggerInteraction.Collide);
+        int nHit = Physics.OverlapSphereNonAlloc(overlapOrigin, overlapRadius, _overlapBuffer, -1, QueryTriggerInteraction.Collide);
         
         // Also check all AbsorptionVolumes in scene if overlap doesn't work
         if (nHit == 0 && !testMode)
@@ -148,10 +151,9 @@ public class PhotonTrailController : MonoBehaviour
             {
                 if (vol != null && vol.gameObject.activeInHierarchy)
                 {
-                    float dist = Vector3.Distance(transform.position, vol.transform.position);
-                    // Check if player is inside volume's collider bounds
+                    float dist = Vector3.Distance(overlapOrigin, vol.transform.position);
                     Collider col = vol.GetComponent<Collider>();
-                    if (col != null && col.bounds.Contains(transform.position))
+                    if (col != null && col.bounds.Contains(overlapOrigin))
                     {
                         if (!_volumes.Contains(vol))
                             _volumes.Add(vol);

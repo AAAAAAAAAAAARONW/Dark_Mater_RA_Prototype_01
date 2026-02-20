@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Custom_PhotonTrail
+  m_Name: PhotonTrail
   m_Shader: {fileID: 4800000, guid: 32d1b4c0a2826a54c8fdcb32c7806284, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
