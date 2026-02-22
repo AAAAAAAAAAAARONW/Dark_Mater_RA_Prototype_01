@@ -4,8 +4,8 @@ using System.Collections.Generic;
 /// <summary>
 /// 单相机宏观/微观叠化控制器：
 /// - 一个相机同时观察 Macro/Galaxy 两套 Layer
-/// - 通过 Renderer/Light 的可见度与光强控制实现“宏观->微观”叠化
-/// - 可选绑定 sharedCameraRig，保证入口对齐时镜头稳定
+/// - 通过 Renderer/Light 的可见度与光强控制实现"宏观->微观"叠化
+/// - Camera transform/FOV/blends are handled by Cinemachine
 /// </summary>
 [RequireComponent(typeof(Camera))]
 public class MacroMicroTransitionControllerTest : MonoBehaviour
@@ -31,8 +31,6 @@ public class MacroMicroTransitionControllerTest : MonoBehaviour
 
     [Header("Single Camera")]
     [SerializeField] Camera targetCamera;
-    [Tooltip("可选：相机跟随这个锚点（位置+旋转）。")]
-    [SerializeField] Transform sharedCameraRig;
 
     [Header("Layer Setup")]
     [Tooltip("宏观世界根节点（宇宙网）")]
@@ -58,6 +56,8 @@ public class MacroMicroTransitionControllerTest : MonoBehaviour
     [SerializeField] KeyCode toggleKey = KeyCode.T;
 
     [Header("FOV Change")]
+    [Tooltip("Allow FOV override (disabled by default - Cinemachine handles FOV). Only enable if needed for legacy compatibility.")]
+    [SerializeField] bool allowFovOverride = false;
     [Tooltip("Macro FOV: X=过渡前, Y=过渡后")]
     [SerializeField] Vector2 macroFovRange = new Vector2(70f, 38f);
     [Tooltip("Galaxy FOV: X=过渡前, Y=过渡后")]
@@ -145,11 +145,6 @@ public class MacroMicroTransitionControllerTest : MonoBehaviour
             else StartTransitionToMacro();
         }
 
-        if (sharedCameraRig != null)
-        {
-            transform.SetPositionAndRotation(sharedCameraRig.position, sharedCameraRig.rotation);
-        }
-
         if (_isAnimating)
         {
             float p = Mathf.Clamp01((Time.time - _animStart) / transitionDuration);
@@ -157,8 +152,6 @@ public class MacroMicroTransitionControllerTest : MonoBehaviour
             ApplyTransitionImmediate(Mathf.Lerp(_animFrom, _animTo, eased));
             if (p >= 1f) _isAnimating = false;
         }
-
-        ApplyCameraMask();
     }
 
     public void RebuildCaches()
@@ -247,7 +240,8 @@ public class MacroMicroTransitionControllerTest : MonoBehaviour
     {
         transition01 = Mathf.Clamp01(value01);
 
-        if (targetCamera != null)
+        // FOV control is gated - Cinemachine handles FOV by default
+        if (allowFovOverride && targetCamera != null)
             targetCamera.fieldOfView = Mathf.Lerp(macroFovRange.x, galaxyFovRange.y, transition01);
 
         float curveT = Mathf.Clamp01(visibilityWeightCurve.Evaluate(transition01));
