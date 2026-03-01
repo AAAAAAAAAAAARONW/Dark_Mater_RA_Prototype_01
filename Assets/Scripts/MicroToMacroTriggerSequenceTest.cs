@@ -8,22 +8,30 @@ using Cinemachine;
 /// - 进入：切到 Micro
 /// - 离开：切回 Macro
 /// - 两种情况下都执行一次镜头动作：低头 -> 保持 3 秒 -> 回正
+///
+/// Updated: vcamMacro and vcamMicro are now CinemachineFreeLook.
+///          vcamTopDown remains CinemachineVirtualCamera.
+///          SetLookInputLocked -> SetCameraInputLocked.
 /// </summary>
 [RequireComponent(typeof(Collider))]
 public class MicroToMacroTriggerSequenceTest : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] MacroMicroTransitionControllerTest transitionController;
-    [SerializeField] DarkMatterPlayerController playerController;
+    [SerializeField] DarkMatterPlayerControllerTest playerController;
     [SerializeField] CameraFlareFlash flareFlash;
     [Tooltip("Cinemachine Brain component (on Main Camera)")]
     [SerializeField] CinemachineBrain cinemachineBrain;
-    [Tooltip("Virtual Camera for Macro view (normal gameplay)")]
-    [SerializeField] CinemachineVirtualCamera vcamMacro;
-    [Tooltip("Virtual Camera for Micro/Galaxy view")]
-    [SerializeField] CinemachineVirtualCamera vcamMicro;
+
+    // ── CHANGED: vcamMacro and vcamMicro are now FreeLook cameras ──
+    [Tooltip("FreeLook Camera for Macro view (normal gameplay)")]
+    [SerializeField] CinemachineFreeLook vcamMacro;
+    [Tooltip("FreeLook Camera for Micro/Galaxy view")]
+    [SerializeField] CinemachineFreeLook vcamMicro;
+    // ── UNCHANGED: TopDown remains a standard Virtual Camera ──
     [Tooltip("Virtual Camera for Top-Down look-down sequence")]
     [SerializeField] CinemachineVirtualCamera vcamTopDown;
+
     Collider _triggerCollider;
 
     [Header("Filter")]
@@ -80,7 +88,7 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
     [SerializeField] float lookDownHoldDuration = 3f;
     [Tooltip("抬头回正时长（建议比低头更长，避免突然）")]
     [SerializeField] float lookUpBlendDuration = 1.2f;
-    [Tooltip("抬头前的短暂停顿，增强“缓抬头”感")]
+    [Tooltip("抬头前的短暂停顿，增强缓抬头感")]
     [SerializeField] float lookUpStartDelay = 0.12f;
     [SerializeField] bool lockLookInputDuringLookDown = true;
 
@@ -173,7 +181,7 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
         _nextPollingTime = Time.time + pollingInterval;
 
         if (playerController == null)
-            playerController = FindObjectOfType<DarkMatterPlayerController>();
+            playerController = FindObjectOfType<DarkMatterPlayerControllerTest>();
         if (transitionController == null)
             transitionController = FindObjectOfType<MacroMicroTransitionControllerTest>();
         if (flareFlash == null && transitionController != null)
@@ -192,7 +200,6 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
         {
             _hasInitializedState = true;
             _isInside = isInside;
-            // 若初始就在 trigger 内，也走完整进入动画（缓慢 Top-Down + Zoom In），不跳过
             if (isInside)
                 SetInsideState(true, "InitPolling");
             else
@@ -217,7 +224,7 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
         }
 
         if (playerController == null)
-            playerController = sourceObject.GetComponentInParent<DarkMatterPlayerController>();
+            playerController = sourceObject.GetComponentInParent<DarkMatterPlayerControllerTest>();
         if (transitionController == null)
             transitionController = FindObjectOfType<MacroMicroTransitionControllerTest>();
         if (flareFlash == null && transitionController != null)
@@ -243,7 +250,7 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
         if (transitionController == null)
             transitionController = FindObjectOfType<MacroMicroTransitionControllerTest>();
         if (playerController == null)
-            playerController = FindObjectOfType<DarkMatterPlayerController>();
+            playerController = FindObjectOfType<DarkMatterPlayerControllerTest>();
         if (cinemachineBrain == null)
             cinemachineBrain = FindObjectOfType<CinemachineBrain>();
         if (transitionController == null || playerController == null)
@@ -255,15 +262,13 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
         if (_speedRoutine != null) StopCoroutine(_speedRoutine);
         float targetSpeed = inside ? enterSpeedMultiplier : exitSpeedMultiplier;
         _speedRoutine = StartCoroutine(playerController.TweenExternalSpeedMultiplier(targetSpeed, speedBlendDuration));
-        
-        // Zoom is handled by Cinemachine camera distance (VCam_Micro has different distance than VCam_Macro)
-        // If needed, we can still use playerController method as fallback, but Cinemachine should handle it
+
         float targetZoom = inside ? enterZoomMultiplier : exitZoomMultiplier; // For logging only
 
         if (_stateRoutine != null) StopCoroutine(_stateRoutine);
         _stateRoutine = StartCoroutine(PlayStateSequence(inside));
 
-        Log($"State -> {(inside ? "INSIDE/Micro" : "OUTSIDE/Macro")} via {source}, transition={transitionDuration:0.00}s, zoom={targetZoom:0.00}, speed={targetSpeed:0.00}, flare={(useFlareBeforeSwitch ? "on" : "off")}, switchAfterLookDown=true");
+        Log($"State -> {(inside ? "INSIDE/Micro" : "OUTSIDE/Macro")} via {source}, transition={transitionDuration:0.00}s, zoom={targetZoom:0.00}, speed={targetSpeed:0.00}, flare={(useFlareBeforeSwitch ? "on" : "off")}");
     }
 
     void ApplyStateImmediate(bool inside, string source)
@@ -275,8 +280,7 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
         transitionController.RebuildCaches();
         transitionController.SetTransitionImmediate(inside ? 1f : 0f);
         playerController.SetExternalSpeedMultiplier(inside ? enterSpeedMultiplier : exitSpeedMultiplier);
-        
-        // Set Cinemachine camera priorities for immediate state
+
         if (inside)
         {
             SetCameraPriority(vcamMicro, 20);
@@ -289,7 +293,7 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
             SetCameraPriority(vcamMicro, 0);
             SetCameraPriority(vcamTopDown, 0);
         }
-        
+
         if (_stateRoutine != null)
         {
             StopCoroutine(_stateRoutine);
@@ -301,14 +305,14 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
 
     IEnumerator PlayStateSequence(bool inside)
     {
+        // CHANGED: SetLookInputLocked → SetCameraInputLocked
         if (lockLookInputDuringLookDown)
-            playerController.SetLookInputLocked(true);
+            playerController.SetCameraInputLocked(true);
 
         if (inside)
         {
-            // Enter: Macro -> TopDown (blend enterLookDownDuration), switch visuals to Micro, hold, TopDown -> Micro (blend lookUpBlendDuration)
             transitionController.RebuildCaches();
-            transitionController.SetTransitionImmediate(0f); // Start with Macro visible only
+            transitionController.SetTransitionImmediate(0f);
 
             if (useFlareBeforeSwitch && flareFlash != null)
             {
@@ -316,12 +320,10 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
                 yield return new WaitForSeconds(flareLeadTime);
             }
 
-            // Switch to TopDown camera (blend duration matches enterLookDownDuration)
             Log("Enter: starting camera top-down transition");
-            SetCameraPriority(vcamTopDown, 20); // Activate TopDown (higher priority than Macro's 10)
-            yield return new WaitForSeconds(enterLookDownDuration); // Wait for blend to complete
+            SetCameraPriority(vcamTopDown, 20);
+            yield return new WaitForSeconds(enterLookDownDuration);
 
-            // After TopDown is reached, switch visuals to Micro
             transitionController.SetTransitionImmediate(1f);
 
             if (_filamentRoutine != null) StopCoroutine(_filamentRoutine);
@@ -331,22 +333,19 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
             if (lookUpStartDelay > 0f)
                 yield return new WaitForSeconds(lookUpStartDelay);
 
-            // Switch from TopDown to Micro camera (blend duration matches lookUpBlendDuration)
-            transitionController.SetTransitionImmediate(1f); // Keep Micro visible
+            transitionController.SetTransitionImmediate(1f);
             if (_filamentRoutine != null) StopCoroutine(_filamentRoutine);
             _filamentRoutine = StartCoroutine(TweenFilamentTransparency(filamentOpaqueValue, Mathf.Max(0.01f, filamentBlendDuration)));
 
-            SetCameraPriority(vcamMicro, 20); // Activate Micro
-            SetCameraPriority(vcamTopDown, 0); // Deactivate TopDown
-            yield return new WaitForSeconds(lookUpBlendDuration); // Wait for blend to complete
+            SetCameraPriority(vcamMicro, 20);
+            SetCameraPriority(vcamTopDown, 0);
+            yield return new WaitForSeconds(lookUpBlendDuration);
         }
         else
         {
-            // Exit: Micro -> TopDown (blend lookDownBlendDuration), flare, visual transition to Macro, hold, TopDown -> Macro (blend lookUpBlendDuration)
-            // Switch from Micro to TopDown
-            SetCameraPriority(vcamTopDown, 20); // Activate TopDown
-            SetCameraPriority(vcamMicro, 0); // Deactivate Micro
-            yield return new WaitForSeconds(lookDownBlendDuration); // Wait for blend to complete
+            SetCameraPriority(vcamTopDown, 20);
+            SetCameraPriority(vcamMicro, 0);
+            yield return new WaitForSeconds(lookDownBlendDuration);
 
             if (useFlareBeforeSwitch && flareFlash != null)
             {
@@ -355,7 +354,7 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
             }
 
             transitionController.RebuildCaches();
-            transitionController.StartTransition(0f, transitionDuration); // Visual transition: Micro -> Macro
+            transitionController.StartTransition(0f, transitionDuration);
 
             if (_filamentRoutine != null) StopCoroutine(_filamentRoutine);
             _filamentRoutine = StartCoroutine(TweenFilamentTransparency(filamentOpaqueValue, Mathf.Max(0.01f, filamentBlendDuration)));
@@ -363,18 +362,27 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
             yield return new WaitForSeconds(lookDownHoldDuration);
             if (lookUpStartDelay > 0f)
                 yield return new WaitForSeconds(lookUpStartDelay);
-            
-            // Switch from TopDown to Macro
-            SetCameraPriority(vcamMacro, 10); // Activate Macro (default priority)
-            SetCameraPriority(vcamTopDown, 0); // Deactivate TopDown
-            yield return new WaitForSeconds(lookUpBlendDuration); // Wait for blend to complete
+
+            SetCameraPriority(vcamMacro, 10);
+            SetCameraPriority(vcamTopDown, 0);
+            yield return new WaitForSeconds(lookUpBlendDuration);
         }
 
+        // CHANGED: SetLookInputLocked → SetCameraInputLocked
         if (lockLookInputDuringLookDown)
-            playerController.SetLookInputLocked(false);
+            playerController.SetCameraInputLocked(false);
+
         _stateRoutine = null;
     }
-    
+
+    // ── CHANGED: Two overloads — one for FreeLook, one for VirtualCamera ──
+
+    void SetCameraPriority(CinemachineFreeLook vcam, int priority)
+    {
+        if (vcam != null)
+            vcam.Priority = priority;
+    }
+
     void SetCameraPriority(CinemachineVirtualCamera vcam, int priority)
     {
         if (vcam != null)
@@ -388,7 +396,7 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
 
         var renderers = yellowFilamentRenderers;
         if ((renderers == null || renderers.Length == 0) && autoFindYellowFilamentRenderers)
-            renderers = FindObjectsOfType<Renderer>(); // Unity 2019: no includeInactive overload; only active objects are found
+            renderers = FindObjectsOfType<Renderer>();
         if (renderers == null) return;
 
         var unique = new HashSet<Material>();
