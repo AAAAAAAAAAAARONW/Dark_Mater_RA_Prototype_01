@@ -97,6 +97,28 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
 
     bool _isInside;
     bool _hasInitializedState;
+
+    [Tooltip("Layer reported when player is inside this trigger. Use for multiple micro zones (e.g. Micro, Micro2).")]
+    [SerializeField] UniverseLayer layerWhenInside = UniverseLayer.Micro;
+
+    [Header("Micro travel slider (optional)")]
+    [Tooltip("When player is inside this trigger, the micro slider uses this as its max (0 = use tracker default). Set to the journey length in ly for this zone so the bar goes 0→1 as the player crosses the zone.")]
+    [SerializeField] float microSliderMaxLightYearsWhenInside = 0f;
+
+    /// <summary>
+    /// Max light years for the micro slider when player is inside this trigger. 0 = use UniverseTravelTracker default.
+    /// </summary>
+    public float MicroSliderMaxLightYearsWhenInside => microSliderMaxLightYearsWhenInside;
+
+    /// <summary>
+    /// True when the player is currently inside this trigger. Used by UniverseTravelTracker with multiple triggers.
+    /// </summary>
+    public bool IsPlayerInside => _isInside;
+
+    /// <summary>
+    /// Current scale layer (Macro = outside, layerWhenInside = inside). Used by e.g. UniverseTravelTracker.
+    /// </summary>
+    public UniverseLayer CurrentLayer => _isInside ? layerWhenInside : UniverseLayer.Macro;
     Coroutine _stateRoutine;
     Coroutine _zoomRoutine;
     Coroutine _speedRoutine;
