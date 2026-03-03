@@ -7,13 +7,13 @@ using Cinemachine;
 /// 
 /// Movement:
 ///   - Player moves continuously forward at adjustable speed
-///   - Left stick vertical (Vertical axis) = speed up/down
+///   - Left stick vertical / W/S = speed up/down
 ///   - Movement direction is NEVER changed by player input
 ///   - Dark matter objects bend the path; direction recovers after leaving influence
 ///
 /// Camera (via Cinemachine FreeLook):
-///   - Right stick = orbit camera around player (horizontal + vertical)
-///   - A button (Submit) = smoothly reset camera to behind-player view
+///   - Right stick / Mouse = orbit camera around player (horizontal + vertical)
+///   - A button (Submit) / Space = smoothly reset camera to behind-player view
 ///   - Camera input can be locked externally (e.g. during cinematic transitions)
 ///   - VCam_TopDown has no orbit input; handled by Cinemachine priority switching
 ///
@@ -51,15 +51,19 @@ public class DarkMatterPlayerControllerTest : MonoBehaviour
     [SerializeField] CinemachineFreeLook vcamMicro;
 
     [Header("Cinemachine - Input Sensitivity")]
-    [Tooltip("Right stick horizontal sensitivity (degrees/sec equivalent)")]
+    [Tooltip("Right stick horizontal sensitivity")]
     [SerializeField] float xSensitivity = 300f;
     [Tooltip("Right stick vertical sensitivity (FreeLook Y axis is 0-1, keep this small ~1-3)")]
     [SerializeField] float ySensitivity = 2f;
 
-    [Header("Cinemachine - Reset View (A Button)")]
-    [Tooltip("Speed at which X axis (horizontal) returns to 0 when A is pressed (units/sec)")]
+    [Header("Cinemachine - Input Deadband")]
+    [Tooltip("Minimum stick value before camera input is registered. Prevents drift from idle/unplugged controller.")]
+    [SerializeField] float stickDeadband = 0.1f;
+
+    [Header("Cinemachine - Reset View (A Button / Space)")]
+    [Tooltip("Speed at which X axis (horizontal) returns to 0 when reset is pressed (units/sec)")]
     [SerializeField] float resetXSpeed = 180f;
-    [Tooltip("Speed at which Y axis (vertical) returns to 0.5 when A is pressed (units/sec)")]
+    [Tooltip("Speed at which Y axis (vertical) returns to 0.5 when reset is pressed (units/sec)")]
     [SerializeField] float resetYSpeed = 1.5f;
     [Tooltip("Dead zone to restore on both axes after reset completes")]
     [SerializeField] float normalDeadZoneWidth = 0.3f;
@@ -115,9 +119,19 @@ public class DarkMatterPlayerControllerTest : MonoBehaviour
         movementDirection = movementDirection.normalized;
         _defaultMovementDirection = movementDirection;
 
-        // Register custom input axis handler for Cinemachine
-        // This redirects right stick input to FreeLook cameras
-        CinemachineCore.GetInputAxis = GetCinemachineAxis;
+        // Block Cinemachine's built-in input — we drive axes directly in Update()
+        // to avoid Mouse X/Y fallback spinning on project reload
+        CinemachineCore.GetInputAxis = (axisName) => 0f;
+    }
+
+    void OnEnable()
+    {
+        CinemachineCore.GetInputAxis = (axisName) => 0f;
+    }
+
+    void OnDisable()
+    {
+        CinemachineCore.GetInputAxis = null;
     }
 
     void Update()
@@ -136,11 +150,15 @@ public class DarkMatterPlayerControllerTest : MonoBehaviour
         float finalSpeed = speed * _externalSpeedMultiplier;
         _controller.Move(movementDirection * (finalSpeed * dt));
 
-        // 4. Camera reset: A button (Submit)
-        if (Input.GetButtonDown("Submit"))
+        // 4. Drive FreeLook camera axes directly from right stick + mouse
+        if (!_cameraInputLocked && !_isResettingView)
+            DriveFreeLookInput(dt);
+
+        // 5. Camera reset: A button (Submit) or Space
+        if (Input.GetButtonDown("Submit") || Input.GetKeyDown(KeyCode.Space))
             _isResettingView = true;
 
-        // 5. Smooth reset view if active
+        // 6. Smooth reset view if active
         if (_isResettingView)
             TickResetView(dt);
     }
@@ -150,30 +168,42 @@ public class DarkMatterPlayerControllerTest : MonoBehaviour
     // ─────────────────────────────────────────────
 
     /// <summary>
-    /// Custom input provider for Cinemachine. Called by Cinemachine every frame.
-    /// Redirects right stick axes to "Mouse X" / "Mouse Y" which FreeLook reads by default.
-    /// Input is blocked during cinematic lock or active view reset.
+    /// Directly drives FreeLook m_XAxis and m_YAxis from right stick + mouse every frame.
+    /// Bypasses CinemachineCore.GetInputAxis entirely to avoid Mouse X/Y fallback on reload.
+    /// Controller input uses deadband to prevent drift. Mouse input always applied.
     /// </summary>
-    float GetCinemachineAxis(string axisName)
+    void DriveFreeLookInput(float dt)
     {
-        // Block input during lock or while reset animation is playing
-        if (_cameraInputLocked || _isResettingView)
-            return 0f;
+        // Controller input with deadband
+        float rawStickX = Input.GetAxis("RightStickX");
+        float rawStickY = Input.GetAxis("RightStickY");
+        float stickX = Mathf.Abs(rawStickX) > stickDeadband ? rawStickX * xSensitivity * dt : 0f;
+        float stickY = Mathf.Abs(rawStickY) > stickDeadband ? rawStickY * ySensitivity * dt : 0f;
 
-        switch (axisName)
+        // Mouse input — no deadband needed, GetAxisRaw avoids Unity's smoothing
+        float mouseX = Input.GetAxisRaw("Mouse X") * xSensitivity * dt;
+        float mouseY = Input.GetAxisRaw("Mouse Y") * ySensitivity * dt;
+
+        // Combine — whichever is larger wins (only one input device active at a time)
+        float xInput = Mathf.Abs(stickX) > Mathf.Abs(mouseX) ? stickX : mouseX;
+        float yInput = Mathf.Abs(stickY) > Mathf.Abs(mouseY) ? stickY : mouseY;
+
+        if (vcamMacro != null)
         {
-            case "Mouse X":
-                return Input.GetAxis("RightStickX") * xSensitivity * Time.deltaTime;
-            case "Mouse Y":
-                return Input.GetAxis("RightStickY") * ySensitivity * Time.deltaTime;
-            default:
-                return Input.GetAxis(axisName);
+            vcamMacro.m_XAxis.Value += xInput;
+            vcamMacro.m_YAxis.Value = Mathf.Clamp01(vcamMacro.m_YAxis.Value + yInput);
+        }
+
+        if (vcamMicro != null)
+        {
+            vcamMicro.m_XAxis.Value += xInput;
+            vcamMicro.m_YAxis.Value = Mathf.Clamp01(vcamMicro.m_YAxis.Value + yInput);
         }
     }
 
     /// <summary>
     /// Smoothly drives both FreeLook cameras back to behind-player position.
-    /// X axis → 0 (behind player), Y axis → 0.5 (middle ring).
+    /// X axis -> 0 (behind player), Y axis -> 0.5 (middle ring).
     /// Temporarily zeroes dead zones so Composer recenters the player exactly.
     /// Restores dead zones when reset completes.
     /// </summary>
@@ -184,9 +214,7 @@ public class DarkMatterPlayerControllerTest : MonoBehaviour
 
         if (vcamMacro != null)
         {
-            // Zero dead zones so Composer recenters player precisely during reset
             SetDeadZones(vcamMacro, 0f, 0f);
-
             vcamMacro.m_XAxis.Value = Mathf.MoveTowardsAngle(vcamMacro.m_XAxis.Value, 0f, resetXSpeed * dt);
             vcamMacro.m_YAxis.Value = Mathf.MoveTowards(vcamMacro.m_YAxis.Value, 0.5f, resetYSpeed * dt);
             xDone &= Mathf.Abs(Mathf.DeltaAngle(vcamMacro.m_XAxis.Value, 0f)) < 0.5f;
@@ -195,9 +223,7 @@ public class DarkMatterPlayerControllerTest : MonoBehaviour
 
         if (vcamMicro != null)
         {
-            // Zero dead zones so Composer recenters player precisely during reset
             SetDeadZones(vcamMicro, 0f, 0f);
-
             vcamMicro.m_XAxis.Value = Mathf.MoveTowardsAngle(vcamMicro.m_XAxis.Value, 0f, resetXSpeed * dt);
             vcamMicro.m_YAxis.Value = Mathf.MoveTowards(vcamMicro.m_YAxis.Value, 0.5f, resetYSpeed * dt);
             xDone &= Mathf.Abs(Mathf.DeltaAngle(vcamMicro.m_XAxis.Value, 0f)) < 0.5f;
@@ -206,7 +232,6 @@ public class DarkMatterPlayerControllerTest : MonoBehaviour
 
         if (xDone && yDone)
         {
-            // Reset complete — restore normal dead zones to prevent jiggle
             if (vcamMacro != null) SetDeadZones(vcamMacro, normalDeadZoneWidth, normalDeadZoneHeight);
             if (vcamMicro != null) SetDeadZones(vcamMicro, normalDeadZoneWidth, normalDeadZoneHeight);
             _isResettingView = false;
@@ -387,12 +412,12 @@ public class DarkMatterPlayerControllerTest : MonoBehaviour
 
     /// <summary>
     /// Lock/unlock camera orbit input. Use during cinematic sequences.
-    /// When locked, right stick input is ignored by Cinemachine.
+    /// When locked, both mouse and right stick input are ignored.
     /// </summary>
     public void SetCameraInputLocked(bool locked)
     {
         _cameraInputLocked = locked;
-        if (locked) _isResettingView = false; // cancel any in-progress reset
+        if (locked) _isResettingView = false;
     }
 
     /// <summary>
