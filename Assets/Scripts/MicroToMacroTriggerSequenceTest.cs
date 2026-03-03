@@ -12,6 +12,7 @@ using Cinemachine;
 /// Updated: vcamMacro and vcamMicro are now CinemachineFreeLook.
 ///          vcamTopDown remains CinemachineVirtualCamera.
 ///          SetLookInputLocked -> SetCameraInputLocked.
+///          Added UniverseJourneyTracker integration.
 /// </summary>
 [RequireComponent(typeof(Collider))]
 public class MicroToMacroTriggerSequenceTest : MonoBehaviour
@@ -102,23 +103,27 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
     [SerializeField] UniverseLayer layerWhenInside = UniverseLayer.Micro;
 
     [Header("Micro travel slider (optional)")]
-    [Tooltip("When player is inside this trigger, the micro slider uses this as its max (0 = use tracker default). Set to the journey length in ly for this zone so the bar goes 0→1 as the player crosses the zone.")]
+    [Tooltip("When player is inside this trigger, the micro slider uses this as its max (0 = use tracker default).")]
     [SerializeField] float microSliderMaxLightYearsWhenInside = 0f;
 
-    /// <summary>
-    /// Max light years for the micro slider when player is inside this trigger. 0 = use UniverseTravelTracker default.
-    /// </summary>
+    // ── JOURNEY TRACKER ──
+    [Header("Universe Journey Tracker")]
+    [Tooltip("Assign the GameObject that has UniverseJourneyTracker on it.")]
+    [SerializeField] UniverseJourneyTracker journeyTracker;
+    [Tooltip("Journey phase to set when player ENTERS this trigger (e.g. IntermGalaxy).")]
+    [SerializeField] UniverseJourneyTracker.JourneyPhase phaseOnEnter = UniverseJourneyTracker.JourneyPhase.IntermGalaxy;
+    [Tooltip("Journey phase to set when player EXITS this trigger (e.g. CosmicWeb2).")]
+    [SerializeField] UniverseJourneyTracker.JourneyPhase phaseOnExit = UniverseJourneyTracker.JourneyPhase.CosmicWeb2;
+
+    /// <summary>Max light years for the micro slider when player is inside this trigger.</summary>
     public float MicroSliderMaxLightYearsWhenInside => microSliderMaxLightYearsWhenInside;
 
-    /// <summary>
-    /// True when the player is currently inside this trigger. Used by UniverseTravelTracker with multiple triggers.
-    /// </summary>
+    /// <summary>True when the player is currently inside this trigger.</summary>
     public bool IsPlayerInside => _isInside;
 
-    /// <summary>
-    /// Current scale layer (Macro = outside, layerWhenInside = inside). Used by e.g. UniverseTravelTracker.
-    /// </summary>
+    /// <summary>Current scale layer (Macro = outside, layerWhenInside = inside).</summary>
     public UniverseLayer CurrentLayer => _isInside ? layerWhenInside : UniverseLayer.Macro;
+
     Coroutine _stateRoutine;
     Coroutine _zoomRoutine;
     Coroutine _speedRoutine;
@@ -210,6 +215,8 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
             flareFlash = transitionController.GetComponent<CameraFlareFlash>();
         if (cinemachineBrain == null)
             cinemachineBrain = FindObjectOfType<CinemachineBrain>();
+        if (journeyTracker == null)
+            journeyTracker = FindObjectOfType<UniverseJourneyTracker>();
         if (playerController == null || transitionController == null || _triggerCollider == null) return;
 
         Vector3 p = playerController.transform.position;
@@ -231,7 +238,7 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
         if (isInside != _isInside)
         {
             if (debugVerbose)
-                Log($"Polling state changed -> inside={isInside}, insideByClosest={isInsideByClosest}, insideByBounds={isInsideByBounds}");
+                Log($"Polling state changed -> inside={isInside}");
             SetInsideState(isInside, "Polling");
         }
     }
@@ -253,6 +260,8 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
             flareFlash = transitionController.GetComponent<CameraFlareFlash>();
         if (cinemachineBrain == null)
             cinemachineBrain = FindObjectOfType<CinemachineBrain>();
+        if (journeyTracker == null)
+            journeyTracker = FindObjectOfType<UniverseJourneyTracker>();
 
         if (playerController == null || transitionController == null)
         {
@@ -275,6 +284,8 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
             playerController = FindObjectOfType<DarkMatterPlayerControllerTest>();
         if (cinemachineBrain == null)
             cinemachineBrain = FindObjectOfType<CinemachineBrain>();
+        if (journeyTracker == null)
+            journeyTracker = FindObjectOfType<UniverseJourneyTracker>();
         if (transitionController == null || playerController == null)
         {
             Debug.LogWarning("[MicroToMacroTriggerSequence] Cannot run transition: transitionController or playerController is null.");
@@ -285,12 +296,25 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
         float targetSpeed = inside ? enterSpeedMultiplier : exitSpeedMultiplier;
         _speedRoutine = StartCoroutine(playerController.TweenExternalSpeedMultiplier(targetSpeed, speedBlendDuration));
 
-        float targetZoom = inside ? enterZoomMultiplier : exitZoomMultiplier; // For logging only
+        float targetZoom = inside ? enterZoomMultiplier : exitZoomMultiplier;
+
+        // ── JOURNEY TRACKER: set phase immediately in both directions
+        // Enter: pins to micro phase, suspending auto-detect during transition
+        // Exit:  unpins and switches back to cosmic web phase immediately
+        if (inside)
+        {
+            journeyTracker?.SetPhase(phaseOnEnter);  // pins immediately
+        }
+        else
+        {
+            journeyTracker?.UnpinPhase();            // resume auto-detect
+            journeyTracker?.SetPhase(phaseOnExit);   // switch scale now, not mid-coroutine
+        }
 
         if (_stateRoutine != null) StopCoroutine(_stateRoutine);
         _stateRoutine = StartCoroutine(PlayStateSequence(inside));
 
-        Log($"State -> {(inside ? "INSIDE/Micro" : "OUTSIDE/Macro")} via {source}, transition={transitionDuration:0.00}s, zoom={targetZoom:0.00}, speed={targetSpeed:0.00}, flare={(useFlareBeforeSwitch ? "on" : "off")}");
+        Log($"State -> {(inside ? "INSIDE/Micro" : "OUTSIDE/Macro")} via {source}");
     }
 
     void ApplyStateImmediate(bool inside, string source)
@@ -315,6 +339,8 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
             SetCameraPriority(vcamMicro, 0);
             SetCameraPriority(vcamTopDown, 0);
         }
+        // Journey phase is NOT set here — ApplyStateImmediate runs on scene init
+        // and must not override the tracker's default starting phase.
 
         if (_stateRoutine != null)
         {
@@ -327,7 +353,6 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
 
     IEnumerator PlayStateSequence(bool inside)
     {
-        // CHANGED: SetLookInputLocked → SetCameraInputLocked
         if (lockLookInputDuringLookDown)
             playerController.SetCameraInputLocked(true);
 
@@ -347,6 +372,8 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
             yield return new WaitForSeconds(enterLookDownDuration);
 
             transitionController.SetTransitionImmediate(1f);
+
+            // Phase already pinned in SetInsideState — no need to set again here
 
             if (_filamentRoutine != null) StopCoroutine(_filamentRoutine);
             _filamentRoutine = StartCoroutine(TweenFilamentTransparency(filamentHiddenValue, Mathf.Max(0.01f, filamentBlendDuration)));
@@ -378,6 +405,8 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
             transitionController.RebuildCaches();
             transitionController.StartTransition(0f, transitionDuration);
 
+            // Phase already switched in SetInsideState — no duplicate call needed
+
             if (_filamentRoutine != null) StopCoroutine(_filamentRoutine);
             _filamentRoutine = StartCoroutine(TweenFilamentTransparency(filamentOpaqueValue, Mathf.Max(0.01f, filamentBlendDuration)));
 
@@ -390,25 +419,20 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
             yield return new WaitForSeconds(lookUpBlendDuration);
         }
 
-        // CHANGED: SetLookInputLocked → SetCameraInputLocked
         if (lockLookInputDuringLookDown)
             playerController.SetCameraInputLocked(false);
 
         _stateRoutine = null;
     }
 
-    // ── CHANGED: Two overloads — one for FreeLook, one for VirtualCamera ──
-
     void SetCameraPriority(CinemachineFreeLook vcam, int priority)
     {
-        if (vcam != null)
-            vcam.Priority = priority;
+        if (vcam != null) vcam.Priority = priority;
     }
 
     void SetCameraPriority(CinemachineVirtualCamera vcam, int priority)
     {
-        if (vcam != null)
-            vcam.Priority = priority;
+        if (vcam != null) vcam.Priority = priority;
     }
 
     void BuildFilamentMaterialCache()
@@ -442,7 +466,7 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
         if (_filamentMaterials.Count > 0)
             _currentFilamentTransparency = _filamentMaterials[0].GetFloat("_Transparency");
         else if (debugLog)
-            Debug.LogWarning("[MicroToMacroTriggerSequence] No Yellow Filament materials found for _Transparency animation.");
+            Debug.LogWarning("[MicroToMacroTriggerSequence] No Yellow Filament materials found.");
     }
 
     void ApplyFilamentTransparencyImmediate(float value)
