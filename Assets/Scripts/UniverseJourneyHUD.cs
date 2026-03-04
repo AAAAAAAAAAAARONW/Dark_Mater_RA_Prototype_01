@@ -244,8 +244,8 @@ public class UniverseJourneyHUD : MonoBehaviour
     {
         if (microBarPanel == null) return;
 
-        bool inMicro = tracker.CurrentPhase != UniverseJourneyTracker.JourneyPhase.CosmicWeb1
-                    && tracker.CurrentPhase != UniverseJourneyTracker.JourneyPhase.CosmicWeb2;
+        bool inMicro = tracker.CurrentPhase != UniverseJourneyTracker.JourneyPhase.CosmicWeb1;
+                   // && tracker.CurrentPhase != UniverseJourneyTracker.JourneyPhase.CosmicWeb2;
 
         microBarPanel.gameObject.SetActive(inMicro);
         if (!inMicro) return;

@@ -28,11 +28,11 @@ public class UniverseJourneyTracker : MonoBehaviour
     public enum JourneyPhase
     {
         CosmicWeb1 = 0,  // Quasar → Intermediate Galaxy  (~7B ly remaining at start)
-        IntermGalaxy = 1,  // Through Intermediate Galaxy   (~3.0001B ly remaining)
-        CosmicWeb2 = 2,  // Intermediate Galaxy → Milky Way (~3B ly remaining)
-        MilkyWay = 3,  // Milky Way edge → Solar System  (~24K ly remaining)
-        SolarSystem = 4,  // Solar System → Earth           (~1 ly remaining)
-        Earth = 5,  // Earth → Pasadena               (~1e-12 ly remaining)
+        //IntermGalaxy = 1,  // Through Intermediate Galaxy   (~3.0001B ly remaining)
+        //CosmicWeb2 = 2,  // Intermediate Galaxy → Milky Way (~3B ly remaining)
+        MilkyWay = 1,  // Milky Way edge → Solar System  (~24K ly remaining)
+        SolarSystem = 2,  // Solar System → Earth           (~1 ly remaining)
+        Earth = 3,  // Earth → Pasadena               (~1e-12 ly remaining)
     }
 
     [Serializable]
@@ -90,19 +90,19 @@ public class UniverseJourneyTracker : MonoBehaviour
             lyPerUnityUnit           = 3e7
         },
         // IntermGalaxy: Through Intermediate Galaxy (~100K ly)
-        new PhaseData {
+        /*new PhaseData {
             displayName              = "Intermediate Galaxy",
             remainingDistanceAtStart = 6.000100024e9,
             remainingDistanceAtEnd   = 6.000000024e9,
             lyPerUnityUnit           = 1e3
         },
         // CosmicWeb2: Intermediate Galaxy → Milky Way (6B ly)
-        new PhaseData {
+        /*new PhaseData {
             displayName              = "Cosmic Web",
             remainingDistanceAtStart = 6.000000024e9,
             remainingDistanceAtEnd   = 2.4e4,
             lyPerUnityUnit           = 6e7
-        },
+        },*/
         // MilkyWay: Milky Way edge → Solar System (24K ly)
         new PhaseData {
             displayName              = "Milky Way",

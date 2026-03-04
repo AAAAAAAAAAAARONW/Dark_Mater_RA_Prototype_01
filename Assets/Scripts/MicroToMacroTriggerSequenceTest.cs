@@ -111,9 +111,9 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
     [Tooltip("Assign the GameObject that has UniverseJourneyTracker on it.")]
     [SerializeField] UniverseJourneyTracker journeyTracker;
     [Tooltip("Journey phase to set when player ENTERS this trigger (e.g. IntermGalaxy).")]
-    [SerializeField] UniverseJourneyTracker.JourneyPhase phaseOnEnter = UniverseJourneyTracker.JourneyPhase.IntermGalaxy;
+    [SerializeField] UniverseJourneyTracker.JourneyPhase phaseOnEnter = UniverseJourneyTracker.JourneyPhase.MilkyWay;
     [Tooltip("Journey phase to set when player EXITS this trigger (e.g. CosmicWeb2).")]
-    [SerializeField] UniverseJourneyTracker.JourneyPhase phaseOnExit = UniverseJourneyTracker.JourneyPhase.CosmicWeb2;
+    [SerializeField] UniverseJourneyTracker.JourneyPhase phaseOnExit = UniverseJourneyTracker.JourneyPhase.SolarSystem;
 
     /// <summary>Max light years for the micro slider when player is inside this trigger.</summary>
     public float MicroSliderMaxLightYearsWhenInside => microSliderMaxLightYearsWhenInside;
