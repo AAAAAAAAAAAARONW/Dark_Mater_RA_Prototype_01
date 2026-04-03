@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6ccf98e95d262524da091c2fa80ec078, type: 3}
+  m_Name: Macro
+  m_EditorClassIdentifier: 
+  layerId: Macro
+  universeLayer: 0
+  requireTag: 0
+  targetTag: Player
+  usePollingFallback: 1
+  pollingInterval: 0.1
+  autoAddKinematicRigidbody: 1
+  transitionDuration: 3
+  enterSpeedMultiplier: 0.3
+  exitSpeedMultiplier: 1
+  speedBlendDuration: 3
+  useFlareBeforeSwitch: 1
+  flareColor: {r: 1, g: 1, b: 1, a: 1}
+  flarePeakAlpha: 1
+  flareDuration: 2
+  flareLeadTime: 0.08
+  driveYellowFilamentTransparency: 1
+  autoFindYellowFilamentRenderers: 1
+  yellowFilamentRenderers: []
+  yellowFilamentShaderName: Custom/YellowFilamentNebulaVolume
+  filamentOpaqueValue: 1
+  filamentHiddenValue: 0
+  filamentBlendDuration: 3
+  lockLookInputDuringLookDown: 1
+  enterLookDownDuration: 5
+  lookDownBlendDuration: 5
+  lookDownHoldDuration: 3
+  lookUpBlendDuration: 5
+  lookUpStartDelay: 0.12
+  microSliderMaxLightYearsWhenInside: 0
+  phaseOnEnter: 0
+  phaseOnExit: 1
+  debugLog: 1
+  debugVerbose: 0
