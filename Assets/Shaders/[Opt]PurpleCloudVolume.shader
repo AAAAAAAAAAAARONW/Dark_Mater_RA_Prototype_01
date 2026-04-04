@@ -224,7 +224,7 @@ Shader "Custom/PurpleCloudVolume"
 
                 float travel = tFar - tNear;
 
-                // World-space travel for step count ¡ª same logic as before
+                // World-space travel for step count â€” same logic as before
                 float3 pObjNear  = ro + rd * tNear;
                 float3 pObjFar   = ro + rd * tFar;
                 float3 pWorldNear = mul(unity_ObjectToWorld, float4(pObjNear, 1.0)).xyz;
@@ -235,13 +235,13 @@ Shader "Custom/PurpleCloudVolume"
                 int steps   = min(128, max((int)_Steps, max(10, stepsByDistance)));
                 float stepLen = travel / (float)steps;
 
-                // ©¤©¤ Precompute world-space axes (unchanged from original) ©¤©¤
+                // â”€â”€ Precompute world-space axes (unchanged from original) â”€â”€
                 float3 centerW = mul(unity_ObjectToWorld, float4(0, 0, 0, 1)).xyz;
                 float3 axisX   = normalize(mul((float3x3)unity_ObjectToWorld, float3(1, 0, 0)));
                 float3 axisY   = normalize(mul((float3x3)unity_ObjectToWorld, float3(0, 1, 0)));
                 float3 axisZ   = normalize(mul((float3x3)unity_ObjectToWorld, float3(0, 0, 1)));
 
-                // ©¤©¤ OPT 1: Linearize pMeters ¡ª precompute base + per-step delta ©¤©¤
+                // â”€â”€ OPT 1: Linearize pMeters â€” precompute base + per-step delta â”€â”€
                 // pObj(s) = ro + rd * (tNear + (s + 0.5) * stepLen)
                 //         = pObjBase + pObjStep * s
                 // pWorld and pMeters are both linear in s, so we can replace the
@@ -260,7 +260,7 @@ Shader "Custom/PurpleCloudVolume"
                                             dot(pWorldStep, axisY),
                                             dot(pWorldStep, axisZ));
 
-                // ©¤©¤ OPT 2: Hoist loop-invariant constants out of the loop ©¤©¤
+                // â”€â”€ OPT 2: Hoist loop-invariant constants out of the loop â”€â”€
                 float absorbFactor  = _Absorption * stepLen * 2.2;   // was inside loop
                 float emissiveBase  = 0.35 * _Emission;              // was inside loop
                 float emissiveLumMul = _InnerGlow * _Emission;       // was inside loop

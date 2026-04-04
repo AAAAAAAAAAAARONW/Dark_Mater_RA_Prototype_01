@@ -4,6 +4,7 @@
 /// </summary>
 public enum UniverseLayer
 {
-    Macro = 0,
-    Micro = 1
+    Quasar = 0,
+    Macro = 1,
+    Micro = 2
 }
