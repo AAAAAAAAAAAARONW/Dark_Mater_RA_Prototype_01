@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 6
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Custom_GhostFilamentVolume
+  m_Shader: {fileID: 4800000, guid: f02a6242e4448c74eb48cd3ff005c443, type: 3}
+  m_ShaderKeywords: 
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Floats:
+    - _Absorption: 1.9
+    - _Density: 1.55
+    - _DetailScale: 4.2
+    - _EdgeFade: 3
+    - _Emission: 0.28
+    - _FeatureSize: 0.8
+    - _FilamentContrast: 2.8
+    - _FilamentThinness: 4.6
+    - _FilamentThreshold: 0.58
+    - _Octaves: 4
+    - _Opacity: 0.72
+    - _SoftFog: 0.3
+    - _Sparsity: 0.52
+    - _StepWorldLength: 0.055
+    - _Steps: 44
+    - _TintAmount: 0.12
+    m_Colors:
+    - _BrightColor: {r: 0.89150953, g: 0.5, b: 1, a: 1}
+    - _DarkColor: {r: 0.4606433, g: 0, b: 1, a: 1}
+    - _MidColor: {r: 0.7264151, g: 0, b: 0.7259146, a: 1}
+    - _TintColor: {r: 0.75, g: 0.72, b: 0.82, a: 1}
