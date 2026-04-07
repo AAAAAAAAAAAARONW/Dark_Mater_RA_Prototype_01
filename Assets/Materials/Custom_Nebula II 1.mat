@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Custom_Nebula II
+  m_Name: Custom_Nebula II 1
   m_Shader: {fileID: 4800000, guid: 13ea7e944ac4e2b49920964dbf0963c0, type: 3}
   m_ShaderKeywords: 
   m_LightmapFlags: 4
@@ -27,11 +27,11 @@ Material:
     - _Scale: 1.2
     - _Sharpness: 1.5
     - _Speed: 0.05
-    - _StarBrightness: 2.662
-    - _StarScale: 150.6
-    - _StarThreshold: 0.9614
+    - _StarBrightness: 1.2
+    - _StarScale: 80
+    - _StarThreshold: 0.9825
     m_Colors:
-    - _ColorBright: {r: 0.43003032, g: 0, b: 0.5566038, a: 1}
+    - _ColorBright: {r: 0.5330188, g: 0.8735328, b: 1, a: 1}
     - _ColorDark: {r: 0, g: 0, b: 0, a: 1}
-    - _ColorMid: {r: 0.20552222, g: 0.11372549, b: 0.23529412, a: 1}
+    - _ColorMid: {r: 0.11458706, g: 0.12513158, b: 0.23584908, a: 1}
     - _ColorStar: {r: 1, g: 0.95, b: 1, a: 1}

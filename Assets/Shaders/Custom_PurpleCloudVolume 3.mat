@@ -20,7 +20,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs: []
     m_Floats:
-    - _Absorption: 0.55
+    - _Absorption: 1.64
     - _AlphaFog: 1.25
     - _Anisotropy: 1.05
     - _BoundaryBreakup: 0.55
@@ -37,7 +37,7 @@ Material:
     - _InnerGlow: 0.7
     - _Opacity: 0.86
     - _StepWorldLength: 0.05
-    - _Steps: 48
+    - _Steps: 16
     m_Colors:
     - _BaseColor: {r: 1, g: 0.42153382, b: 0, a: 1}
     - _HighlightColor: {r: 1, g: 0.9137255, b: 0, a: 1}
