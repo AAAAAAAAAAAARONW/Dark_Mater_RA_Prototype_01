@@ -21,14 +21,14 @@ Material:
     m_TexEnvs: []
     m_Floats:
     - _Coverage: 0.42
-    - _Density: 1.56
+    - _Density: 1.99
     - _DetailScale: 2.93
     - _EdgeFade: 8
-    - _EdgeWidth: 0.22
+    - _EdgeWidth: 0.519
     - _FlowSpeed: 0
     - _LayerSharpness: 5.85
     - _NoiseScale: 0.46
-    - _Opacity: 0.331
+    - _Opacity: 0.324
     - _RimPower: 7.47
     - _Softness: 1.836
     m_Colors:
