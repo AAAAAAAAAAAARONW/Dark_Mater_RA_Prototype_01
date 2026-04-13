@@ -33,6 +33,12 @@ Shader "Custom/PhotonTrail"
         _EdgeSoftness   ("Edge Softness",    Range(0.1, 5)) = 1.3
         _EndFadeWidth   ("End Fade Width",   Range(0, 0.5)) = 0.12
 
+        // Head indicator
+        [Toggle] _ShowHead ("Show Head", Float) = 1
+        _HeadWidth      ("Head Width",      Range(0, 0.15)) = 0.04
+        _HeadColor      ("Head Color",      Color) = (1, 1, 1, 1)
+        _HeadBrightness ("Head Brightness", Range(0, 3)) = 1.8
+
         // Absorption / Stripe
         _AbsorptionAmount       ("Absorption Amount",            Range(0, 1)) = 0
         _StripeFrequency        ("Stripe Frequency (along trail)",Range(0.1, 64)) = 8
@@ -46,7 +52,7 @@ Shader "Custom/PhotonTrail"
     SubShader
     {
         Tags { "Queue"="Transparent" "RenderType"="Transparent" "IgnoreProjector"="True" }
-        Blend SrcAlpha One          // Additive — great for glowing photon trails
+        Blend SrcAlpha One
         ZWrite Off
         Cull Off
 
@@ -59,7 +65,6 @@ Shader "Custom/PhotonTrail"
 
             #include "UnityCG.cginc"
 
-            // ── Uniforms ────────────────────────────────────────────────
             sampler2D _MainTex;
             float4    _MainTex_ST;
             sampler2D _SpectrumTex;
@@ -86,6 +91,11 @@ Shader "Custom/PhotonTrail"
             float  _EdgeSoftness;
             float  _EndFadeWidth;
 
+            float  _ShowHead;
+            float  _HeadWidth;
+            float4 _HeadColor;
+            float  _HeadBrightness;
+
             float  _AbsorptionAmount;
             float  _StripeFrequency;
             float  _StripeSharpness;
@@ -94,7 +104,6 @@ Shader "Custom/PhotonTrail"
             float  _UseTintShift;
             float4 _TintWhereAbsorbed;
 
-            // ── Vertex I/O ───────────────────────────────────────────────
             struct appdata
             {
                 float4 vertex : POSITION;
@@ -109,7 +118,6 @@ Shader "Custom/PhotonTrail"
                 float4 color  : COLOR;
             };
 
-            // ── Simple noise helpers ─────────────────────────────────────
             float hash(float2 p)
             {
                 p = frac(p * float2(127.1, 311.7));
@@ -128,7 +136,6 @@ Shader "Custom/PhotonTrail"
                     f.y);
             }
 
-            // ── Vertex ──────────────────────────────────────────────────
             v2f vert(appdata v)
             {
                 v2f o;
@@ -138,69 +145,92 @@ Shader "Custom/PhotonTrail"
                 return o;
             }
 
-            // ── Fragment ─────────────────────────────────────────────────
             fixed4 frag(v2f i) : SV_Target
             {
                 float2 uv = i.uv;
-                // Unity TrailRenderer UV convention (corrected):
+                // Unity TrailRenderer UV convention:
                 //   uv.x = along the LENGTH  (0 = head, 1 = tail)
                 //   uv.y = across the WIDTH  (0 = one edge, 1 = other edge)
+                //
+                // Spectrum across WIDTH (uv.y):
+                //   uv.y = 0 → UV (transparent violet)   ← REVERSED from before
+                //   uv.y = 1 → IR (transparent red)
 
-                // ── 1. Spectrum across WIDTH (uv.y) ───────────────────────
-                float specT = frac((uv.y + _SpectrumOffset) * _SpectrumScale);
+                // ── 1. Spectrum across WIDTH (uv.y), UV→IR direction ──────
+                // Flip uv.y so uv.y=0 → IR end of texture, uv.y=1 → UV end
+                // Texture is generated UV→IR (t=0=UV), so we invert here
+                float specT = frac(((1.0 - uv.y) + _SpectrumOffset) * _SpectrumScale);
+                // specT=0 → UV end, specT=1 → IR end
                 float4 specColor = tex2D(_SpectrumTex, float2(specT, 0.5));
-
                 float4 baseColor = lerp(_Color * i.color, specColor * i.color, _UseSpectrum);
 
-                float irFactor = pow(saturate((specT - 0.82) * 6.0), 2.0);
+                // UV glow at top edge (uv.y=1, specT=0), IR glow at bottom edge (uv.y=0, specT=1)
                 float uvFactor = pow(saturate((0.18 - specT) * 6.0), 2.0);
-                baseColor.rgb += _IRGlowColor.rgb * irFactor * _IRGlowStrength * _UseSpectrum * 0.3;
+                float irFactor = pow(saturate((specT - 0.82) * 6.0), 2.0);
                 baseColor.rgb += _UVGlowColor.rgb * uvFactor * _UVGlowStrength * _UseSpectrum * 0.3;
+                baseColor.rgb += _IRGlowColor.rgb * irFactor * _IRGlowStrength * _UseSpectrum * 0.3;
 
-                // ── 3. Texture sample ────────────────────────────────────
+                // ── 2. Texture sample ─────────────────────────────────────
                 float4 texSample = tex2D(_MainTex, uv);
                 baseColor *= texSample;
 
-                // ── 4. Glow — brightest at centre of width (uv.y = 0.5) ──
+                // ── 3. Glow — brightest at centre of width ────────────────
                 float centreY  = abs(uv.y - 0.5) * 2.0;
                 float glowMask = pow(saturate(1.0 - centreY), _GlowFalloff);
                 float glow     = glowMask * _GlowIntensity;
 
-                // ── 5. Soft edge fade across WIDTH (uv.y) ────────────────
+                // ── 4. Soft edge fade across WIDTH ────────────────────────
                 float edgeY    = min(uv.y, 1.0 - uv.y);
                 float edgeFade = saturate(edgeY / max(_EdgeFadeWidth, 0.0001));
                 edgeFade = pow(edgeFade, _EdgeFadePower);
                 edgeFade = smoothstep(0, _EdgeSoftness * 0.2, edgeFade);
 
-                // ── 6. Tail fade along LENGTH (uv.x) — head visible, tail fades
+                // ── 5. Tail fade along LENGTH (uv.x) ─────────────────────
                 float endFade = saturate((1.0 - uv.x) / max(_EndFadeWidth, 0.0001));
 
-                // ── 7. Emission — always driven by spectrum colour so it doesn't
-                //    override the rainbow with the fixed blue _EmissionColor
+                // ── 6. Head — white covers full width of cap region ──────
+                float headGlow  = 0.0;
+                float headAlpha = 1.0;
+                if (_ShowHead > 0.5)
+                {
+                    float headT = saturate(1.0 - uv.x / max(_HeadWidth, 0.0001));
+                    headT = headT * headT * (3.0 - 2.0 * headT); // smoothstep
+
+                    // White covers ALL color bands — no glowMask, full width
+                    headGlow  = headT * _HeadBrightness;
+
+                    // Alpha boost so cap reads as solid
+                    headAlpha = 1.0 + headT * 1.5;
+                }
+
+                // ── 7. Emission ───────────────────────────────────────────
                 float emitMask = pow(glowMask, _EmissionSoftness);
                 float4 emitCol = lerp(_EmissionColor, baseColor, max(_UseSpectrum, 0.8));
                 float3 emission = emitCol.rgb * emitMask * _EmissionStrength;
 
-                // ── 7. Absorption / stripes ──────────────────────────────
-                // Stripes along LENGTH (uv.x) — absorption lines cutting across all bands
-                float stripe   = sin(uv.x * _StripeFrequency * 3.14159 * 2.0) * 0.5 + 0.5;
-                stripe         = smoothstep(0.5 - _StripeSharpness, 0.5 + _StripeSharpness, stripe);
+                // ── 8. Absorption stripes along LENGTH ────────────────────
+                float stripe = sin(uv.x * _StripeFrequency * 3.14159 * 2.0) * 0.5 + 0.5;
+                stripe = smoothstep(0.5 - _StripeSharpness, 0.5 + _StripeSharpness, stripe);
 
-                float noise    = smoothNoise(uv * _NoiseScale + _Time.y * _NoiseSpeed * 0.1);
-                float absorp   = saturate(_AbsorptionAmount * (stripe * 0.6 + noise * 0.4));
+                float noise  = smoothNoise(uv * _NoiseScale + _Time.y * _NoiseSpeed * 0.1);
+                float absorp = saturate(_AbsorptionAmount * (stripe * 0.6 + noise * 0.4));
 
                 float4 absorbedColor = lerp(baseColor,
                     _TintWhereAbsorbed + float4(baseColor.rgb * _UseTintShift * 0.05, 0),
                     absorp);
 
-                // ── 8. Assemble ──────────────────────────────────────────
-                float4 col  = absorbedColor;
-                col.rgb    += emission;
-                col.rgb    *= (1.0 + glow * 0.5);
+                // ── 9. Assemble ───────────────────────────────────────────
+                float4 col = absorbedColor;
+                col.rgb   += emission;
+                col.rgb   *= (1.0 + glow * 0.5);
+
+                // Head bump — additive white tip, alpha boosted at tip
+                col.rgb   += _HeadColor.rgb * headGlow;
 
                 float alpha = col.a
                             * edgeFade
                             * endFade
+                            * headAlpha
                             * (1.0 - absorp * 0.8);
 
                 col.a = saturate(alpha);
