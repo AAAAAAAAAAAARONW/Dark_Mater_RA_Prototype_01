@@ -39,8 +39,8 @@ Material:
     - _StepWorldLength: 0.0736
     - _Steps: 16
     m_Colors:
-    - _BaseColor: {r: 1, g: 0.94641244, b: 0, a: 1}
-    - _HighlightColor: {r: 1, g: 0.9137255, b: 0, a: 1}
-    - _MidColor: {r: 0.8426008, g: 1, b: 0, a: 1}
+    - _BaseColor: {r: 0.95159245, g: 0, b: 1, a: 1}
+    - _HighlightColor: {r: 0.5980997, g: 0, b: 1, a: 1}
+    - _MidColor: {r: 0.6225395, g: 0, b: 1, a: 1}
     - _RimColor: {r: 0.5377358, g: 0, b: 0.4957847, a: 1}
     - _SeedOffset: {r: 3.2, g: -1.7, b: 5.4, a: 0}

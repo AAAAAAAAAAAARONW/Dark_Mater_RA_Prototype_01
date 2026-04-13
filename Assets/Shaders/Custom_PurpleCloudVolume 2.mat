@@ -20,27 +20,27 @@ Material:
     serializedVersion: 3
     m_TexEnvs: []
     m_Floats:
-    - _Absorption: 3.38
-    - _AlphaFog: 1.25
+    - _Absorption: 6
+    - _AlphaFog: 2.408
     - _Anisotropy: 1.05
-    - _BoundaryBreakup: 0.55
-    - _CloudSoftness: 1.35
-    - _Coverage: 0.56
-    - _Density: 1.9
-    - _DetailScale: 3
-    - _DetailWeight: 0.45
-    - _EdgeFade: 8
+    - _BoundaryBreakup: 1
+    - _CloudSoftness: 0.2
+    - _Coverage: 1
+    - _Density: 5.89
+    - _DetailScale: 7.79
+    - _DetailWeight: 0.767
+    - _EdgeFade: 0.73
     - _EdgeWidth: 0.24
-    - _Emission: 1.3
-    - _Erode: 0.38
-    - _FeatureSize: 1
-    - _InnerGlow: 0.7
-    - _Opacity: 0.86
+    - _Emission: 6
+    - _Erode: 0
+    - _FeatureSize: 1.27
+    - _InnerGlow: 2
+    - _Opacity: 1
     - _StepWorldLength: 0.05
     - _Steps: 16
     m_Colors:
-    - _BaseColor: {r: 1, g: 0.74302983, b: 0, a: 1}
-    - _HighlightColor: {r: 1, g: 0.91442966, b: 0, a: 1}
-    - _MidColor: {r: 0.6320754, g: 0.41349682, b: 0, a: 1}
-    - _RimColor: {r: 0.9, g: 0.34999996, b: 0.86, a: 1}
+    - _BaseColor: {r: 1, g: 0.9922409, b: 0, a: 1}
+    - _HighlightColor: {r: 1, g: 0.922361, b: 0, a: 1}
+    - _MidColor: {r: 1, g: 0.9771164, b: 0, a: 1}
+    - _RimColor: {r: 0.80139065, g: 1, b: 0, a: 1}
     - _SeedOffset: {r: 3.2, g: -1.7, b: 5.4, a: 0}
