@@ -39,14 +39,11 @@ Shader "Custom/PhotonTrail"
         _HeadColor      ("Head Color",      Color) = (1, 1, 1, 1)
         _HeadBrightness ("Head Brightness", Range(0, 3)) = 1.8
 
-        // Absorption / Stripe
-        _AbsorptionAmount       ("Absorption Amount",            Range(0, 1)) = 0
-        _StripeFrequency        ("Stripe Frequency (along trail)",Range(0.1, 64)) = 8
-        _StripeSharpness        ("Stripe Sharpness",             Range(0.01, 1)) = 0.1
-        _NoiseScale             ("Noise Scale",                  Range(0.1, 16)) = 4
-        _NoiseSpeed             ("Noise Speed",                  Range(0, 5))   = 1
-        _UseTintShift           ("Use Tint Shift",               Range(0, 10))  = 3.99
-        _TintWhereAbsorbed      ("Tint Where Absorbed",          Color) = (0.1, 0.1, 0.3, 1)
+        // Lyman-alpha absorption lines
+        [Toggle] _UseAbsorptionLine ("Use Absorption Lines", Float) = 0
+        _AbsorptionLineTex ("Absorption Line Texture", 2D) = "black" {}
+        _AbsorptionLineStrength ("Absorption Line Strength", Range(0, 1)) = 1.0
+        _AbsorptionLineWidth ("Line Softness", Range(0.5, 4.0)) = 1.5
     }
 
     SubShader
@@ -96,13 +93,10 @@ Shader "Custom/PhotonTrail"
             float4 _HeadColor;
             float  _HeadBrightness;
 
-            float  _AbsorptionAmount;
-            float  _StripeFrequency;
-            float  _StripeSharpness;
-            float  _NoiseScale;
-            float  _NoiseSpeed;
-            float  _UseTintShift;
-            float4 _TintWhereAbsorbed;
+            float  _UseAbsorptionLine;
+            sampler2D _AbsorptionLineTex;
+            float  _AbsorptionLineStrength;
+            float  _AbsorptionLineWidth;
 
             struct appdata
             {
@@ -208,16 +202,20 @@ Shader "Custom/PhotonTrail"
                 float4 emitCol = lerp(_EmissionColor, baseColor, max(_UseSpectrum, 0.8));
                 float3 emission = emitCol.rgb * emitMask * _EmissionStrength;
 
-                // ── 8. Absorption stripes along LENGTH ────────────────────
-                float stripe = sin(uv.x * _StripeFrequency * 3.14159 * 2.0) * 0.5 + 0.5;
-                stripe = smoothstep(0.5 - _StripeSharpness, 0.5 + _StripeSharpness, stripe);
+                // ── 8. Lyman-alpha absorption lines ───────────────────────
+                // Sample the absorption texture at this pixel's wavelength (specT).
+                // The texture stores per-wavelength absorption strength in the red channel.
+                // Lines are parallel to color bands — same wavelength darkened all along
+                // the trail length simultaneously.
+                float absorp = 0.0;
+                if (_UseAbsorptionLine > 0.5)
+                {
+                    float lineStrength = tex2D(_AbsorptionLineTex, float2(specT, 0.5)).r;
+                    absorp = lineStrength * _AbsorptionLineStrength;
+                }
 
-                float noise  = smoothNoise(uv * _NoiseScale + _Time.y * _NoiseSpeed * 0.1);
-                float absorp = saturate(_AbsorptionAmount * (stripe * 0.6 + noise * 0.4));
-
-                float4 absorbedColor = lerp(baseColor,
-                    _TintWhereAbsorbed + float4(baseColor.rgb * _UseTintShift * 0.05, 0),
-                    absorp);
+                // Darken the color at absorbed wavelengths — absorption removes light
+                float4 absorbedColor = baseColor * (1.0 - absorp);
 
                 // ── 9. Assemble ───────────────────────────────────────────
                 float4 col = absorbedColor;
@@ -230,8 +228,7 @@ Shader "Custom/PhotonTrail"
                 float alpha = col.a
                             * edgeFade
                             * endFade
-                            * headAlpha
-                            * (1.0 - absorp * 0.8);
+                            * headAlpha;
 
                 col.a = saturate(alpha);
                 return col;
