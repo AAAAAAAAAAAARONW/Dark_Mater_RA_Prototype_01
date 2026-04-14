@@ -25,26 +25,26 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Floats:
     - _Absorption: 1.64
-    - _AlphaFog: 1.25
+    - _AlphaFog: 1.71
     - _Anisotropy: 1.05
-    - _BoundaryBreakup: 0.55
-    - _CloudSoftness: 1.35
-    - _Coverage: 0.56
+    - _BoundaryBreakup: 0.575
+    - _CloudSoftness: 1.67
+    - _Coverage: 0.675
     - _Density: 1.9
     - _DetailScale: 3
     - _DetailWeight: 0.45
     - _EdgeFade: 8
-    - _EdgeWidth: 0.24
+    - _EdgeWidth: 0.327
     - _Emission: 2.5
-    - _Erode: 0.38
-    - _FeatureSize: 1
+    - _Erode: 0.545
+    - _FeatureSize: 1.49
     - _InnerGlow: 0.7
     - _Opacity: 0.86
     - _StepWorldLength: 0.05
     - _Steps: 16
     m_Colors:
-    - _BaseColor: {r: 1, g: 0.42153382, b: 0, a: 1}
+    - _BaseColor: {r: 1, g: 0.5267917, b: 0, a: 1}
     - _HighlightColor: {r: 1, g: 0.9137255, b: 0, a: 1}
-    - _MidColor: {r: 1, g: 0.6521739, b: 0, a: 1}
-    - _RimColor: {r: 0.9, g: 0.34999996, b: 0.86, a: 1}
+    - _MidColor: {r: 1, g: 0.79884464, b: 0, a: 1}
+    - _RimColor: {r: 1, g: 0, b: 0.88550186, a: 1}
     - _SeedOffset: {r: 3.2, g: -1.7, b: 5.4, a: 0}
