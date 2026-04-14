@@ -52,6 +52,9 @@ public class BuildDebugOverlay : MonoBehaviour
     [Header("Hotkeys")]
     [SerializeField] private KeyCode toggleOverlayKey = KeyCode.F1;
     [SerializeField] private KeyCode forceExportKey = KeyCode.F2;
+    [Tooltip("Gamepad button name (Input Manager) that toggles minimized/expanded. " +
+             "Default 'Cancel' = B on Xbox / Circle on PS.")]
+    [SerializeField] private string gamepadCollapseButton = "Cancel";
 
     [Header("Logging")]
     [SerializeField] private bool logInputToConsole = false;
@@ -90,6 +93,17 @@ public class BuildDebugOverlay : MonoBehaviour
         if (Input.GetKeyDown(forceExportKey))
         {
             FlushCsvStatus();
+        }
+
+        // Gamepad B button — toggle minimized/expanded (overlay must be visible)
+        if (_showOverlay && !string.IsNullOrEmpty(gamepadCollapseButton))
+        {
+            try
+            {
+                if (Input.GetButtonDown(gamepadCollapseButton))
+                    _minimized = !_minimized;
+            }
+            catch { /* axis not defined in Input Manager — silently ignore */ }
         }
 
         float dt = Mathf.Max(Time.unscaledDeltaTime, 0.00001f);
@@ -149,7 +163,9 @@ public class BuildDebugOverlay : MonoBehaviour
         _sb.AppendLine("<b>BUILD DEBUG OVERLAY</b>");
         _sb.Append("<color=#9FE4FF>Unity</color>: ").Append(_unityVersionText).Append("  |  ");
         _sb.Append("<color=#9FE4FF>RenderPipeline</color>: ").AppendLine(_renderPipelineText);
-        _sb.Append("<color=#8FD3FF>Hotkeys</color>: ").Append(toggleOverlayKey).Append(" show/hide, ").Append(forceExportKey).AppendLine(" force CSV flush");
+        _sb.Append("<color=#8FD3FF>Hotkeys</color>: ").Append(toggleOverlayKey).Append(" show/hide, ")
+           .Append(forceExportKey).Append(" force CSV flush, ")
+           .Append(gamepadCollapseButton).AppendLine(" (gamepad B) collapse/expand");
         _sb.Append("<color=#A0FFA0>Controller</color>: ").Append(connectedControllerCount > 0 ? "Connected" : "Not Connected");
         _sb.Append(" (").Append(connectedControllerCount).AppendLine(")");
         _sb.Append("Device: ").AppendLine(controllerNamePreview);

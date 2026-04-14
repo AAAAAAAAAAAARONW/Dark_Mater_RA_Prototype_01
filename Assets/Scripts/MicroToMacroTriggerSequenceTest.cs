@@ -311,7 +311,15 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
             journeyTracker?.SetPhase(phaseOnExit);   // switch scale now, not mid-coroutine
         }
 
-        if (_stateRoutine != null) StopCoroutine(_stateRoutine);
+        if (_stateRoutine != null)
+        {
+            StopCoroutine(_stateRoutine);
+            // PlayStateSequence locks camera at the top and unlocks at the bottom.
+            // StopCoroutine skips the bottom, so we must unlock manually here
+            // to prevent the camera from getting permanently frozen.
+            playerController?.SetCameraInputLocked(false);
+            _stateRoutine = null;
+        }
         _stateRoutine = StartCoroutine(PlayStateSequence(inside));
 
         Log($"State -> {(inside ? "INSIDE/Micro" : "OUTSIDE/Macro")} via {source}");
