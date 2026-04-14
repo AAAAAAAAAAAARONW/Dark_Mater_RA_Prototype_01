@@ -3,7 +3,7 @@ Shader "Custom/PurpleCloudVolume"
     Properties
     {
         [Header(Volume)]
-        _Steps ("Raymarch Steps", Range(16, 128)) = 48
+        _Steps ("Raymarch Steps", Range(16, 128)) = 32
         _StepWorldLength ("Step World Length", Range(0.01, 0.2)) = 0.08
         _Density ("Density", Range(0.1, 6.0)) = 1.9
         _Absorption ("Absorption", Range(0.2, 6.0)) = 1.4
@@ -32,6 +32,10 @@ Shader "Custom/PurpleCloudVolume"
         [Header(Static Variation)]
         _SeedOffset ("Seed Offset", Vector) = (3.2, -1.7, 5.4, 0)
         _Anisotropy ("Vertical Stretch", Range(0.3, 2.0)) = 1.05
+
+        [Header(Noise Texture)]
+        // Assign via: Tools > Laxi > Bake Cloud Noise Texture (32^3)
+        [NoScaleOffset] _NoiseTex ("Noise Texture 3D", 3D) = "" {}
     }
 
     SubShader
@@ -73,68 +77,47 @@ Shader "Custom/PurpleCloudVolume"
             float4 _RimColor;
 
             float4 _SeedOffset;
-            float _Anisotropy;
+            float  _Anisotropy;
 
-            struct appdata
+            sampler3D _NoiseTex;
+
+            // ---------------------------------------------------------------------------
+            // Texture-based noise  (32^3 RGBA32, baked by BakeCloudNoise.cs)
+            //
+            // Channel layout (4 independent noise fields, different seeds):
+            //   R — macro FBM + detail   (seed 0)
+            //   G — erosion              (seed +17,+13,+7)
+            //   B — breakup              (seed -11,+31,-19)
+            //   A — spare
+            //
+            // NTILE_INV = 1/32 maps p-space coords to [0,1]^3 texture UVs.
+            // Texture tiles every 32 units in p-space; seamless due to periodic baking.
+            //
+            // 32^3 RGBA32 = 128 KB — fits in GPU L2 texture cache, eliminating VRAM
+            // stalls that caused the 9–30 fps variance with the 64^3 (1 MB) texture.
+            // ---------------------------------------------------------------------------
+            #define NTILE_INV 0.03125   // 1.0 / 32.0
+            #define FBM3_NORM 1.1173    // 1.0 / (0.5 + 0.26 + 0.1352)
+
+            float4 sampleNoise(float3 p)   { return tex3D(_NoiseTex, frac(p * NTILE_INV)); }
+            float  noiseR(float3 p)        { return sampleNoise(p).r; }
+            float  noiseG(float3 p)        { return sampleNoise(p).g; }
+            float  noiseB(float3 p)        { return sampleNoise(p).b; }
+
+            // 3-octave FBM using R channel at 3 different scales (3 tex3D fetches).
+            // Normalization precomputed: 1 / (0.5 + 0.26 + 0.1352) = 1.1173
+            float fbm3(float3 p)
             {
-                float4 vertex : POSITION;
-            };
+                return (noiseR(p) * 0.500 + noiseR(p * 2.0) * 0.260 + noiseR(p * 4.0) * 0.1352) * FBM3_NORM;
+            }
 
+            struct appdata { float4 vertex : POSITION; };
             struct v2f
             {
-                float4 pos : SV_POSITION;
+                float4 pos       : SV_POSITION;
                 float3 rayOrigin : TEXCOORD0;
-                float3 rayDir : TEXCOORD1;
+                float3 rayDir    : TEXCOORD1;
             };
-
-            float hash31(float3 p)
-            {
-                p = frac(p * 0.3183099 + 0.1);
-                p *= 17.0;
-                return frac(p.x * p.y * p.z * (p.x + p.y + p.z));
-            }
-
-            float noise3(float3 p)
-            {
-                float3 i = floor(p);
-                float3 f = frac(p);
-                f = f * f * (3.0 - 2.0 * f);
-
-                float n000 = hash31(i);
-                float n100 = hash31(i + float3(1, 0, 0));
-                float n010 = hash31(i + float3(0, 1, 0));
-                float n110 = hash31(i + float3(1, 1, 0));
-                float n001 = hash31(i + float3(0, 0, 1));
-                float n101 = hash31(i + float3(1, 0, 1));
-                float n011 = hash31(i + float3(0, 1, 1));
-                float n111 = hash31(i + float3(1, 1, 1));
-
-                float nx00 = lerp(n000, n100, f.x);
-                float nx10 = lerp(n010, n110, f.x);
-                float nx01 = lerp(n001, n101, f.x);
-                float nx11 = lerp(n011, n111, f.x);
-                float nxy0 = lerp(nx00, nx10, f.y);
-                float nxy1 = lerp(nx01, nx11, f.y);
-                return lerp(nxy0, nxy1, f.z);
-            }
-
-            float fbm(float3 p)
-            {
-                float s = 0.0;
-                float a = 0.5;
-                float f = 1.0;
-                float n = 0.0;
-
-                [unroll(5)]
-                for (int i = 0; i < 5; i++)
-                {
-                    s += noise3(p * f) * a;
-                    n += a;
-                    f *= 2.0;
-                    a *= 0.52;
-                }
-                return s / max(0.0001, n);
-            }
 
             void rayBox(float3 ro, float3 rd, out float tNear, out float tFar)
             {
@@ -143,10 +126,8 @@ Shader "Custom/PurpleCloudVolume"
                 if (abs(rdSafe.y) < 1e-6) rdSafe.y = 1e-6 * sign(rdSafe.y + 1e-7);
                 if (abs(rdSafe.z) < 1e-6) rdSafe.z = 1e-6 * sign(rdSafe.z + 1e-7);
 
-                float3 boxMin = float3(-0.5, -0.5, -0.5);
-                float3 boxMax = float3(0.5,  0.5,  0.5);
-                float3 t0 = (boxMin - ro) / rdSafe;
-                float3 t1 = (boxMax - ro) / rdSafe;
+                float3 t0 = (float3(-0.5, -0.5, -0.5) - ro) / rdSafe;
+                float3 t1 = (float3( 0.5,  0.5,  0.5) - ro) / rdSafe;
                 float3 tmin = min(t0, t1);
                 float3 tmax = max(t0, t1);
 
@@ -154,32 +135,47 @@ Shader "Custom/PurpleCloudVolume"
                 tFar  = min(min(tmax.x, tmax.y), tmax.z);
 
                 if (tNear > tFar) tFar = tNear;
-                if (tFar < 0.0) { tNear = 1e6; tFar = 0.0; return; }
+                if (tFar  < 0.0) { tNear = 1e6; tFar = 0.0; return; }
                 if (tNear < 0.0) tNear = 0.0;
             }
 
-            float sampleCloudDensity(float3 pObj, float3 pMeters, out float lum)
+            // earlyExitThr: precomputed once in frag(), avoids recomputing per step.
+            float sampleCloudDensity(float3 pObj, float3 pMeters, float invFeatureSize,
+                                     float earlyExitThr, out float lum)
             {
-                float3 q = pMeters / max(_FeatureSize, 0.001);
+                float3 q = pMeters * invFeatureSize;
                 q.y *= _Anisotropy;
                 q += _SeedOffset.xyz;
 
-                float macro   = fbm(q * 0.85);
-                float detail  = fbm(q * _DetailScale + float3(4.1, -2.5, 7.3));
-                float erosion = noise3(q * (_DetailScale * 2.1) + float3(-6.2, 5.4, -3.8));
+                // FETCHes 0-2: 3-octave FBM via R channel at three scales
+                float macro = fbm3(q * 0.85);
+
+                // Early exit for empty space — skips 3 remaining fetches.
+                [branch]
+                if (macro < earlyExitThr)
+                {
+                    lum = 0.0;
+                    return 0.0;
+                }
+
+                // FETCH 3: detail (R channel, different UV)
+                float detail = noiseR(q * _DetailScale + float3(4.1, -2.5, 7.3));
 
                 float baseShape = macro * 0.95 + detail * 0.55;
                 baseShape = saturate((baseShape - (0.34 + _Coverage * 0.38)) * (1.8 + _CloudSoftness));
+
+                // FETCH 4: erosion (G channel = independent seed, correct 2.1x scale)
+                float erosion   = noiseG(q * (_DetailScale * 2.1) + float3(-6.2, 5.4, -3.8));
                 float erodeMask = saturate((erosion - (0.40 + _Erode * 0.35)) * 3.0);
                 baseShape *= lerp(1.0, erodeMask, _Erode);
 
-                float3 absP   = abs(pObj.xyz);
-                float maxAxis = max(absP.x, max(absP.y, absP.z));
-                float toBoundary = saturate((0.5 - maxAxis) / max(0.001, _EdgeWidth));
+                float3 absP       = abs(pObj.xyz);
+                float  maxAxis    = max(absP.x, max(absP.y, absP.z));
+                float  toBoundary = saturate((0.5 - maxAxis) / max(0.001, _EdgeWidth));
 
-                float edgeNoiseA = noise3(q * 0.45 + float3(12.3, -4.2,  8.7));
-                float edgeNoiseB = noise3(q * 0.82 + float3(-6.4,  9.1, -3.3));
-                float breakup    = saturate(lerp(1.0, edgeNoiseA * 0.65 + edgeNoiseB * 0.55, _BoundaryBreakup));
+                // FETCH 5: breakup (B channel = independent seed)
+                float breakupNoise = noiseB(q * 0.63 + float3(12.3, -4.2, 8.7));
+                float breakup = saturate(lerp(1.0, breakupNoise, _BoundaryBreakup));
 
                 float edge    = pow(saturate(toBoundary * breakup), _EdgeFade);
                 float density = pow(saturate(baseShape * edge), _CloudSoftness);
@@ -224,34 +220,35 @@ Shader "Custom/PurpleCloudVolume"
 
                 float travel = tFar - tNear;
 
-                // World-space travel for step count — same logic as before
-                float3 pObjNear  = ro + rd * tNear;
-                float3 pObjFar   = ro + rd * tFar;
+                float3 pObjNear   = ro + rd * tNear;
+                float3 pObjFar    = ro + rd * tFar;
                 float3 pWorldNear = mul(unity_ObjectToWorld, float4(pObjNear, 1.0)).xyz;
                 float3 pWorldFar  = mul(unity_ObjectToWorld, float4(pObjFar,  1.0)).xyz;
-                float worldTravel = length(pWorldFar - pWorldNear);
+                float  worldTravel = length(pWorldFar - pWorldNear);
 
+                // _Steps is a HARD MAXIMUM.  stepsByDistance adapts to short ray paths
+                // (avoids wasting steps when the ray barely clips the volume).
+                // Previously max() let stepsByDistance override _Steps → 120+ steps on
+                // large volumes → the main cause of the 9–30 fps variance.
                 int stepsByDistance = (int)ceil(worldTravel / max(0.01, _StepWorldLength));
-                int steps   = min(128, max((int)_Steps, max(10, stepsByDistance)));
+                int steps     = clamp(stepsByDistance, 10, (int)_Steps);
                 float stepLen = travel / (float)steps;
 
-                // ── Precompute world-space axes (unchanged from original) ──
+                // Jitter ray start to break up banding and allow lower step counts.
+                float jitter = frac(sin(dot(i.pos.xy, float2(12.9898, 78.233))) * 43758.5453);
+                tNear += jitter * stepLen;
+
                 float3 centerW = mul(unity_ObjectToWorld, float4(0, 0, 0, 1)).xyz;
                 float3 axisX   = normalize(mul((float3x3)unity_ObjectToWorld, float3(1, 0, 0)));
                 float3 axisY   = normalize(mul((float3x3)unity_ObjectToWorld, float3(0, 1, 0)));
                 float3 axisZ   = normalize(mul((float3x3)unity_ObjectToWorld, float3(0, 0, 1)));
 
-                // ── OPT 1: Linearize pMeters — precompute base + per-step delta ──
-                // pObj(s) = ro + rd * (tNear + (s + 0.5) * stepLen)
-                //         = pObjBase + pObjStep * s
-                // pWorld and pMeters are both linear in s, so we can replace the
-                // per-step matrix multiply + 3 dot products with 3 additions.
-                float3 pObjBase  = ro + rd * (tNear + 0.5 * stepLen);
-                float3 pObjStep  = rd * stepLen;
-
+                // Linearize pMeters — precompute base + per-step delta to avoid matrix
+                // multiply and 3 dot products inside the loop.
+                float3 pObjBase   = ro + rd * (tNear + 0.5 * stepLen);
+                float3 pObjStep   = rd * stepLen;
                 float3 pWorldBase = mul(unity_ObjectToWorld, float4(pObjBase, 1.0)).xyz;
                 float3 pWorldStep = mul((float3x3)unity_ObjectToWorld, pObjStep);
-
                 float3 offsetBase = pWorldBase - centerW;
                 float3 pMetersBase = float3(dot(offsetBase, axisX),
                                             dot(offsetBase, axisY),
@@ -260,10 +257,12 @@ Shader "Custom/PurpleCloudVolume"
                                             dot(pWorldStep, axisY),
                                             dot(pWorldStep, axisZ));
 
-                // ── OPT 2: Hoist loop-invariant constants out of the loop ──
-                float absorbFactor  = _Absorption * stepLen * 2.2;   // was inside loop
-                float emissiveBase  = 0.35 * _Emission;              // was inside loop
-                float emissiveLumMul = _InnerGlow * _Emission;       // was inside loop
+                float invFeatureSize  = rcp(max(_FeatureSize, 0.001));
+                float absorbFactor    = _Absorption * stepLen * 2.2;
+                float emissiveBase    = 0.35 * _Emission;
+                float emissiveLumMul  = _InnerGlow * _Emission;
+                // Precompute early-exit threshold (moved out of per-step branch math)
+                float earlyExitThr    = ((0.34 + _Coverage * 0.38) - 0.4 * rcp(1.8 + _CloudSoftness)) / 0.95;
 
                 float3 accColor = 0.0;
                 float  accAlpha = 0.0;
@@ -273,20 +272,20 @@ Shader "Custom/PurpleCloudVolume"
                 {
                     if (s >= steps) break;
 
-                    // pObj: still needed for boundary (abs + length in object space)
                     float3 pObj    = pObjBase + pObjStep * s;
-                    // pMeters: 3 adds instead of matrix mul + 3 dots
                     float3 pMeters = pMetersBase + pMetersStep * s;
 
                     float lum;
-                    float d = sampleCloudDensity(pObj, pMeters, lum) * _Density;
+                    float d = sampleCloudDensity(pObj, pMeters, invFeatureSize, earlyExitThr, lum) * _Density;
+
+                    [branch]
+                    if (d < 0.001) continue;
+
                     float3 cloudCol = sampleCloudColor(d, lum);
+                    float  alphaStep = 1.0 - exp(-d * absorbFactor);
+                    float  emissive  = emissiveBase + lum * emissiveLumMul;
 
-                    float alphaStep = 1.0 - exp(-d * absorbFactor);
-                    float emissive  = (emissiveBase + lum * emissiveLumMul);
-                    float3 litCol   = cloudCol * emissive;
-
-                    accColor += (1.0 - accAlpha) * alphaStep * litCol;
+                    accColor += (1.0 - accAlpha) * alphaStep * cloudCol * emissive;
                     accAlpha += (1.0 - accAlpha) * alphaStep;
                     if (accAlpha > 0.985) break;
                 }
