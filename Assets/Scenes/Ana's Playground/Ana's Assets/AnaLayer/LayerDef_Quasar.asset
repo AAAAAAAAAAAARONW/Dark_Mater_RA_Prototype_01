@@ -17,7 +17,7 @@ MonoBehaviour:
   isDefaultLayer: 1
   transitionDuration: 3
   enterSpeedMultiplier: 0.3
-  exitSpeedMultiplier: 1
+  exitSpeedMultiplier: 2
   speedBlendDuration: 3
   useFlareBeforeSwitch: 1
   flareColor: {r: 1, g: 1, b: 1, a: 1}
@@ -39,6 +39,6 @@ MonoBehaviour:
   lookBackHoldDuration: 4
   lookBackBlendDuration: 3
   microSliderMaxLightYearsWhenInside: 0
-  phaseOnEnter: 1
-  phaseOnExit: 0
+  phaseOnEnter: 0
+  phaseOnExit: 1
   debugLog: 1

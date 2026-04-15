@@ -2,11 +2,14 @@ using System.Collections;
 using UnityEngine;
 
 /// <summary>
-/// Listens to LayerStateManagerTest.OnLayerChanged and tells
-/// RenderLayerTransitionController which group to crossfade to.
+/// Drives RenderLayerTransitionController crossfades.
 ///
-/// Respects flareLeadTime — waits before starting the crossfade
-/// so the flare fires first.
+/// No longer reacts to OnLayerChanged directly for transitions.
+/// CameraLayerResponder calls CrossfadeTo() at the right moment in its
+/// coroutine — when the camera reaches TopDown — so the render swap
+/// happens while the player is looking down, not before.
+///
+/// Still handles startup snap via Start().
 ///
 /// Attach to any persistent GameObject (e.g. GameManager).
 /// </summary>
@@ -15,6 +18,11 @@ public class VisualLayerResponder : MonoBehaviour
     [Header("References")]
     [SerializeField] LayerStateManagerTest stateManager;
     [SerializeField] RenderLayerTransitionController transitionController;
+
+    [Header("Transition")]
+    [Tooltip("If true, previous layer hides and new layer shows at exactly the same frame — no crossfade. " +
+             "If false, uses transitionDuration from the LayerDefinitionTest asset.")]
+    [SerializeField] bool instantSwap = true;
 
     [Header("Debug")]
     [SerializeField] bool debugLog = true;
@@ -31,58 +39,48 @@ public class VisualLayerResponder : MonoBehaviour
 
     void Start()
     {
-        // Snap to the default layer's render group on startup
+        // Snap to the starting layer immediately on play
         if (transitionController == null || stateManager == null) return;
-        string defaultId = stateManager.CurrentLayerId;
         transitionController.RebuildCaches();
-        transitionController.SetImmediately(defaultId);
+        transitionController.SetImmediately(stateManager.CurrentLayerId);
         if (debugLog)
-            Debug.Log($"[VisualLayerResponder] Initialized — snapped to '{defaultId}'.");
+            Debug.Log($"[VisualLayerResponder] Initialized — snapped to '{stateManager.CurrentLayerId}'.");
     }
 
-    void OnEnable()
-    {
-        if (stateManager != null)
-            stateManager.OnLayerChanged += HandleLayerChanged;
-    }
+    // ── Public API — called by CameraLayerResponder at the right moment ────────
 
-    void OnDisable()
+    /// <summary>
+    /// Trigger the crossfade to the given layer's render group.
+    /// Called by CameraLayerResponder when the camera reaches TopDown,
+    /// so the swap happens while the player is looking down.
+    /// </summary>
+    public void CrossfadeTo(LayerDefinitionTest layerDef)
     {
-        if (stateManager != null)
-            stateManager.OnLayerChanged -= HandleLayerChanged;
-    }
-
-    void HandleLayerChanged(LayerDefinitionTest previous, LayerDefinitionTest current)
-    {
-        if (current == null) return;
-        if (transitionController == null)
-        {
-            Debug.LogWarning("[VisualLayerResponder] RenderLayerTransitionController not assigned.");
-            return;
-        }
+        if (layerDef == null || transitionController == null) return;
 
         if (_transitionRoutine != null)
             StopCoroutine(_transitionRoutine);
 
-        _transitionRoutine = StartCoroutine(RunTransition(current));
+        _transitionRoutine = StartCoroutine(RunCrossfade(layerDef));
     }
 
-    IEnumerator RunTransition(LayerDefinitionTest current)
+    IEnumerator RunCrossfade(LayerDefinitionTest layerDef)
     {
-        // Wait for flare lead time before starting crossfade
-        if (current.useFlareBeforeSwitch && current.flareLeadTime > 0f)
+        if (instantSwap)
         {
+            transitionController.SetImmediately(layerDef.layerId);
             if (debugLog)
-                Debug.Log($"[VisualLayerResponder] Waiting {current.flareLeadTime}s for flare.");
-            yield return new WaitForSeconds(current.flareLeadTime);
+                Debug.Log($"[VisualLayerResponder] Instant swap to '{layerDef.layerId}'.");
+        }
+        else
+        {
+            transitionController.CrossfadeTo(layerDef.layerId, layerDef.transitionDuration);
+            if (debugLog)
+                Debug.Log($"[VisualLayerResponder] Crossfading to '{layerDef.layerId}' " +
+                          $"over {layerDef.transitionDuration}s.");
         }
 
-        transitionController.CrossfadeTo(current.layerId, current.transitionDuration);
-
-        if (debugLog)
-            Debug.Log($"[VisualLayerResponder] Crossfading to '{current.layerId}' " +
-                      $"over {current.transitionDuration}s.");
-
         _transitionRoutine = null;
+        yield break;
     }
 }

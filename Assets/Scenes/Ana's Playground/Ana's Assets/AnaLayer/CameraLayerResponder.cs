@@ -24,6 +24,7 @@ public class CameraLayerResponder : MonoBehaviour
     [Header("References")]
     [SerializeField] LayerStateManagerTest stateManager;
     [SerializeField] DarkMatterPlayerControllerTest playerController;
+    [SerializeField] VisualLayerResponder visualResponder;
 
     [Header("Cinemachine Cameras")]
     [Tooltip("Normal gameplay camera (Macro / forward-facing)")]
@@ -53,6 +54,8 @@ public class CameraLayerResponder : MonoBehaviour
             stateManager = FindObjectOfType<LayerStateManagerTest>();
         if (playerController == null)
             playerController = FindObjectOfType<DarkMatterPlayerControllerTest>();
+        if (visualResponder == null)
+            visualResponder = FindObjectOfType<VisualLayerResponder>();
     }
 
     void OnEnable()
@@ -143,7 +146,7 @@ public class CameraLayerResponder : MonoBehaviour
         if (debugLog)
             Debug.Log($"[CameraLayerResponder] '{current.layerId}' — look-down enter sequence.");
 
-        // 1. Look down
+        // 1. Switch to TopDown — previous layer still fully visible
         SetPriority(vcamTopDown, PriorityHigh);
         SetPriority(vcamMicro, PriorityOff);
         SetPriority(vcamMacro, PriorityNormal);
@@ -151,14 +154,18 @@ public class CameraLayerResponder : MonoBehaviour
 
         yield return new WaitForSeconds(current.enterLookDownDuration);
 
-        // 2. Hold
+        // 2. Camera is now looking down — trigger render crossfade here
+        //    Previous layer fades out, new layer fades in while player can't see either
+        visualResponder?.CrossfadeTo(current);
+
+        // 3. Hold at top-down while crossfade plays
         yield return new WaitForSeconds(current.lookDownHoldDuration);
 
-        // 3. Pause before looking up
+        // 4. Pause before looking up
         if (current.lookUpStartDelay > 0f)
             yield return new WaitForSeconds(current.lookUpStartDelay);
 
-        // 4. Come up into Micro camera
+        // 5. Come up into new layer camera — new render layer is already active
         SetPriority(vcamMicro, PriorityHigh);
         SetPriority(vcamTopDown, PriorityOff);
 
@@ -173,7 +180,7 @@ public class CameraLayerResponder : MonoBehaviour
         if (debugLog)
             Debug.Log($"[CameraLayerResponder] '{current.layerId}' — look-down exit sequence.");
 
-        // 1. Look down
+        // 1. Switch to TopDown — previous layer still fully visible
         SetPriority(vcamTopDown, PriorityHigh);
         SetPriority(vcamMicro, PriorityOff);
         SetPriority(vcamMacro, PriorityNormal);
@@ -181,14 +188,17 @@ public class CameraLayerResponder : MonoBehaviour
 
         yield return new WaitForSeconds(current.lookDownBlendDuration);
 
-        // 2. Hold
+        // 2. Camera is looking down — trigger render crossfade to default layer
+        visualResponder?.CrossfadeTo(current);
+
+        // 3. Hold while crossfade plays
         yield return new WaitForSeconds(current.lookDownHoldDuration);
 
-        // 3. Pause before looking up
+        // 4. Pause before looking up
         if (current.lookUpStartDelay > 0f)
             yield return new WaitForSeconds(current.lookUpStartDelay);
 
-        // 4. Come up into Macro camera
+        // 5. Come up into Macro camera — new layer already active
         SetPriority(vcamMacro, PriorityHigh);
         SetPriority(vcamTopDown, PriorityOff);
 
