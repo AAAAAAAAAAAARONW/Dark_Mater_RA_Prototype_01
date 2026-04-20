@@ -4,19 +4,20 @@ using UnityEditor;
 /// <summary>
 /// Bakes a 32^3 seamlessly-tiling RGBA32 Texture3D for PurpleCloudVolume.shader.
 ///
-/// Channel layout (4 independent noise fields, different seeds):
-///   R  —  macro FBM + detail  (seed 0)
-///   G  —  erosion             (seed +17,+13,+7)
-///   B  —  breakup             (seed -11,+31,-19)
-///   A  —  spare / future use  (seed +41,-23,+37)
+/// Channel layout (optimized for minimum per-step texture fetches in the shader):
+///   R  —  3-octave FBM (pre-baked; shader does 1 fetch instead of 3 for macro shape)
+///   G  —  erosion single-octave      (seed +17,+13,+7)
+///   B  —  breakup single-octave      (seed -11,+31,-19)
+///   A  —  2-octave detail FBM        (seed +41,-23,+37 at 3x scale, decorrelated from R)
 ///
-/// Each channel is a fully independent, seamlessly-tiling value-noise field.
-/// Hardware trilinear filtering on the 32^3 texture replaces 8×hash31+7×lerp
-/// per noise sample with a single TMU fetch.
+/// R channel stores pre-computed weighted sum: oct1*0.5 + oct2*0.26 + oct3*0.1352
+/// (normalized to [0,1]).  The 2x and 4x octaves tile correctly because 32 mod 2 = 0
+/// and 32 mod 4 = 0 — all octave periods divide the texture size evenly.
 ///
-/// 32^3 RGBA32 = 128 KB — fits in GPU L2 texture cache, avoiding VRAM stalls
-/// that caused the 9–30 fps variance seen with the 64^3 (1 MB) texture.
+/// This cuts the shader's hot-path from 6 tex3D fetches/step down to 4,
+/// and the early-exit path from 3 fetches down to 1.
 ///
+/// 32^3 RGBA32 = 128 KB — fits in GPU L2 texture cache.
 /// Run once via: Tools > Laxi > Bake Cloud Noise Texture (32^3)
 /// Auto-assigns the result to every Custom/PurpleCloudVolume material.
 /// </summary>
@@ -25,10 +26,14 @@ public static class BakeCloudNoise
     const int    SIZE     = 32;
     const string OUT_PATH = "Assets/Shaders/CloudNoiseTex3D.asset";
 
+    // Must match FBM3_NORM in the shader.
+    const float FBM3_NORM = 1.0f / (0.500f + 0.260f + 0.1352f);  // ≈ 1.1173
+
     static float Frac(float x) => x - Mathf.Floor(x);
 
-    // Matches the hash31() in the shader, but coordinates are wrapped modulo SIZE
-    // so the texture tiles seamlessly with period SIZE in every axis.
+    // Seamlessly-tiling value noise.  Coordinates are wrapped modulo SIZE so the
+    // texture tiles with period SIZE in every axis (and period SIZE/k for k-times
+    // scaled octaves, which also divide SIZE evenly when k ∈ {2,4}).
     static float Hash31Periodic(int xi, int yi, int zi)
     {
         int x = ((xi % SIZE) + SIZE) % SIZE;
@@ -58,14 +63,31 @@ public static class BakeCloudNoise
         {
             int idx = x + y * SIZE + z * SIZE * SIZE;
 
-            // Four fully independent noise fields (different seeds, same formula).
-            // Different seeds give decorrelated noise at the same spatial scale,
-            // preserving the original shader's erosion / breakup appearance.
+            // R: pre-baked 3-octave FBM — shader samples once to get what used to
+            //    require 3 separate tex3D calls (fbm3 at octaves 1x/2x/4x).
+            float oct1   = Hash31Periodic(x,     y,     z    );
+            float oct2   = Hash31Periodic(x * 2, y * 2, z * 2);
+            float oct3   = Hash31Periodic(x * 4, y * 4, z * 4);
+            float macroR = Mathf.Clamp01((oct1 * 0.500f + oct2 * 0.260f + oct3 * 0.1352f) * FBM3_NORM);
+
+            // G: erosion (unchanged — single-octave, independent seed)
+            float eroG   = Hash31Periodic(x + 17, y + 13, z +  7);
+
+            // B: breakup (unchanged — single-octave, independent seed)
+            float brkB   = Hash31Periodic(x - 11, y + 31, z - 19);
+
+            // A: 2-octave detail FBM at ~3x internal scale, decorrelated from R.
+            //    Shader samples A at base UV (q * 1.0) to get detail equivalent to
+            //    sampling a 1x noise field at q * 3 — saves the _DetailScale multiply.
+            float det1   = Hash31Periodic(x * 3 + 41, y * 3 - 23, z * 3 + 37);
+            float det2   = Hash31Periodic(x * 6 + 41, y * 6 - 23, z * 6 + 37);
+            float detA   = Mathf.Clamp01(det1 * 0.65f + det2 * 0.35f);
+
             pixels[idx] = new Color32(
-                (byte)(Hash31Periodic(x,       y,       z      ) * 255),  // R: macro+detail
-                (byte)(Hash31Periodic(x + 17,  y + 13,  z +  7 ) * 255),  // G: erosion
-                (byte)(Hash31Periodic(x - 11,  y + 31,  z - 19 ) * 255),  // B: breakup
-                (byte)(Hash31Periodic(x + 41,  y - 23,  z + 37 ) * 255)   // A: spare
+                (byte)(macroR * 255f),
+                (byte)(eroG   * 255f),
+                (byte)(brkB   * 255f),
+                (byte)(detA   * 255f)
             );
         }
 
@@ -94,6 +116,7 @@ public static class BakeCloudNoise
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         Debug.Log($"[BakeCloudNoise] {SIZE}^3 noise texture baked → {OUT_PATH}  " +
-                  $"(auto-assigned to {count} PurpleCloudVolume material(s))");
+                  $"(auto-assigned to {count} PurpleCloudVolume material(s))\n" +
+                  $"Channel layout: R=FBM3(1x+2x+4x), G=erosion, B=breakup, A=detailFBM2(3x+6x)");
     }
 }

@@ -84,32 +84,27 @@ Shader "Custom/PurpleCloudVolume"
             // ---------------------------------------------------------------------------
             // Texture-based noise  (32^3 RGBA32, baked by BakeCloudNoise.cs)
             //
-            // Channel layout (4 independent noise fields, different seeds):
-            //   R — macro FBM + detail   (seed 0)
-            //   G — erosion              (seed +17,+13,+7)
-            //   B — breakup              (seed -11,+31,-19)
-            //   A — spare
+            // Channel layout (optimised for minimum per-step fetches):
+            //   R — 3-octave FBM pre-baked (1x+2x+4x, normalised to [0,1])
+            //   G — erosion single-octave   (seed +17,+13,+7)
+            //   B — breakup single-octave   (seed -11,+31,-19)
+            //   A — 2-octave detail FBM at 3x internal scale (decorrelated from R)
             //
-            // NTILE_INV = 1/32 maps p-space coords to [0,1]^3 texture UVs.
-            // Texture tiles every 32 units in p-space; seamless due to periodic baking.
+            // Per-step fetch budget (after optimisation):
+            //   Early-exit path : 1 fetch  (was 3)
+            //   Dense path      : 4 fetches (was 6)
             //
-            // 32^3 RGBA32 = 128 KB — fits in GPU L2 texture cache, eliminating VRAM
-            // stalls that caused the 9–30 fps variance with the 64^3 (1 MB) texture.
+            // NTILE_INV = 1/32 maps world-space coords to [0,1]^3 texture UVs.
+            // 32^3 RGBA32 = 128 KB — fits in GPU L2 texture cache.
+            // After changing this shader re-bake via: Tools > Laxi > Bake Cloud Noise Texture (32^3)
             // ---------------------------------------------------------------------------
             #define NTILE_INV 0.03125   // 1.0 / 32.0
-            #define FBM3_NORM 1.1173    // 1.0 / (0.5 + 0.26 + 0.1352)
 
             float4 sampleNoise(float3 p)   { return tex3D(_NoiseTex, frac(p * NTILE_INV)); }
             float  noiseR(float3 p)        { return sampleNoise(p).r; }
             float  noiseG(float3 p)        { return sampleNoise(p).g; }
             float  noiseB(float3 p)        { return sampleNoise(p).b; }
-
-            // 3-octave FBM using R channel at 3 different scales (3 tex3D fetches).
-            // Normalization precomputed: 1 / (0.5 + 0.26 + 0.1352) = 1.1173
-            float fbm3(float3 p)
-            {
-                return (noiseR(p) * 0.500 + noiseR(p * 2.0) * 0.260 + noiseR(p * 4.0) * 0.1352) * FBM3_NORM;
-            }
+            float  noiseA(float3 p)        { return sampleNoise(p).a; }
 
             struct appdata { float4 vertex : POSITION; };
             struct v2f
@@ -147,8 +142,8 @@ Shader "Custom/PurpleCloudVolume"
                 q.y *= _Anisotropy;
                 q += _SeedOffset.xyz;
 
-                // FETCHes 0-2: 3-octave FBM via R channel at three scales
-                float macro = fbm3(q * 0.85);
+                // FETCH 0: pre-baked 3-octave FBM from R channel (was 3 fetches via fbm3).
+                float macro = noiseR(q * 0.85);
 
                 // Early exit for empty space — skips 3 remaining fetches.
                 [branch]
@@ -158,13 +153,15 @@ Shader "Custom/PurpleCloudVolume"
                     return 0.0;
                 }
 
-                // FETCH 3: detail (R channel, different UV)
-                float detail = noiseR(q * _DetailScale + float3(4.1, -2.5, 7.3));
+                // FETCH 1: detail from A channel (pre-baked 2-octave FBM at ~3x scale).
+                // A is baked at 3x internal frequency, so sample at q*(_DetailScale/3)
+                // to keep the same apparent detail scale as the old R-channel path.
+                float detail = noiseA(q * (_DetailScale * 0.333) + float3(4.1, -2.5, 7.3));
 
                 float baseShape = macro * 0.95 + detail * 0.55;
                 baseShape = saturate((baseShape - (0.34 + _Coverage * 0.38)) * (1.8 + _CloudSoftness));
 
-                // FETCH 4: erosion (G channel = independent seed, correct 2.1x scale)
+                // FETCH 2: erosion (G channel = independent seed)
                 float erosion   = noiseG(q * (_DetailScale * 2.1) + float3(-6.2, 5.4, -3.8));
                 float erodeMask = saturate((erosion - (0.40 + _Erode * 0.35)) * 3.0);
                 baseShape *= lerp(1.0, erodeMask, _Erode);
@@ -173,7 +170,7 @@ Shader "Custom/PurpleCloudVolume"
                 float  maxAxis    = max(absP.x, max(absP.y, absP.z));
                 float  toBoundary = saturate((0.5 - maxAxis) / max(0.001, _EdgeWidth));
 
-                // FETCH 5: breakup (B channel = independent seed)
+                // FETCH 3: breakup (B channel = independent seed)
                 float breakupNoise = noiseB(q * 0.63 + float3(12.3, -4.2, 8.7));
                 float breakup = saturate(lerp(1.0, breakupNoise, _BoundaryBreakup));
 
@@ -267,11 +264,12 @@ Shader "Custom/PurpleCloudVolume"
                 float3 accColor = 0.0;
                 float  accAlpha = 0.0;
 
+                // Dynamic upper bound avoids wasting iterations beyond actual step count.
+                // Clamped to 128 at the property level so the compiler can still bound
+                // the loop statically for platforms that require it.
                 [loop]
-                for (int s = 0; s < 128; s++)
+                for (int s = 0; s < steps; s++)
                 {
-                    if (s >= steps) break;
-
                     float3 pObj    = pObjBase + pObjStep * s;
                     float3 pMeters = pMetersBase + pMetersStep * s;
 
@@ -281,12 +279,13 @@ Shader "Custom/PurpleCloudVolume"
                     [branch]
                     if (d < 0.001) continue;
 
-                    float3 cloudCol = sampleCloudColor(d, lum);
+                    float3 cloudCol  = sampleCloudColor(d, lum);
                     float  alphaStep = 1.0 - exp(-d * absorbFactor);
                     float  emissive  = emissiveBase + lum * emissiveLumMul;
 
-                    accColor += (1.0 - accAlpha) * alphaStep * cloudCol * emissive;
-                    accAlpha += (1.0 - accAlpha) * alphaStep;
+                    float transmit   = 1.0 - accAlpha;
+                    accColor += transmit * alphaStep * cloudCol * emissive;
+                    accAlpha += transmit * alphaStep;
                     if (accAlpha > 0.985) break;
                 }
 

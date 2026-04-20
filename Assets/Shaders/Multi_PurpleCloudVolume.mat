@@ -1,0 +1,50 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 6
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Multi_PurpleCloudVolume
+  m_Shader: {fileID: 4800000, guid: 16781009325a81346a8b064fa550bd9d, type: 3}
+  m_ShaderKeywords: 
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _NoiseTex:
+        m_Texture: {fileID: 11700000, guid: 2b488130c4ff4584c841cd9211213982, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Floats:
+    - _Absorption: 1.64
+    - _AlphaFog: 1.71
+    - _Anisotropy: 1.05
+    - _BoundaryBreakup: 0.575
+    - _CloudSoftness: 1.67
+    - _Coverage: 0.675
+    - _Density: 1.9
+    - _DetailScale: 3
+    - _DetailWeight: 0.45
+    - _EdgeFade: 8
+    - _EdgeWidth: 0.327
+    - _Emission: 2.5
+    - _Erode: 0.545
+    - _FeatureSize: 1.49
+    - _InnerGlow: 0.7
+    - _Opacity: 0.86
+    - _StepWorldLength: 0.05
+    - _Steps: 16
+    m_Colors:
+    - _BaseColor: {r: 1, g: 0.5267917, b: 0, a: 1}
+    - _HighlightColor: {r: 1, g: 0.9137255, b: 0, a: 1}
+    - _MidColor: {r: 1, g: 0.79884464, b: 0, a: 1}
+    - _RimColor: {r: 1, g: 0, b: 0.88550186, a: 1}
+    - _SeedOffset: {r: 3.2, g: -1.7, b: 5.4, a: 0}

@@ -4,5 +4,8 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/Pre-Vertival Slice.unity
+    guid: a86c6f709485fca4786b08ac9272b0b1
   m_configObjects: {}

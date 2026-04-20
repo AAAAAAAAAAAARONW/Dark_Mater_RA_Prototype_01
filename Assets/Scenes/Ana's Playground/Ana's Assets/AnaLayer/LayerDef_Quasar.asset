@@ -17,7 +17,7 @@ MonoBehaviour:
   isDefaultLayer: 1
   transitionDuration: 3
   enterSpeedMultiplier: 0.3
-  exitSpeedMultiplier: 2
+  exitSpeedMultiplier: 4
   speedBlendDuration: 3
   useFlareBeforeSwitch: 1
   flareColor: {r: 1, g: 1, b: 1, a: 1}

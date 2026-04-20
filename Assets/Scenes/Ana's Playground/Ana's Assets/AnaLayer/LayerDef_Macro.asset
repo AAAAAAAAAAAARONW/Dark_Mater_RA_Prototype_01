@@ -16,7 +16,7 @@ MonoBehaviour:
   universeLayer: 1
   isDefaultLayer: 0
   transitionDuration: 3
-  enterSpeedMultiplier: 2
+  enterSpeedMultiplier: 4
   exitSpeedMultiplier: 1
   speedBlendDuration: 3
   useFlareBeforeSwitch: 1
