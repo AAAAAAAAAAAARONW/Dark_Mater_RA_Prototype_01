@@ -5,9 +5,10 @@ using TMPro;
 
 /// <summary>
 /// Universe Journey HUD
-/// - Log-scale node chain: Quasar (left) → Earth (right), dots only
+/// - Log-scale node chain: Quasar (left) -> Earth (right), dots only
 /// - Moving dot indicator slides along the track line showing exact progress
-/// - Micro bar (sliced image) appears below track when inside non-Cosmic-Web phases
+/// - Micro bar (sliced image) appears below track when inside zone phases
+///   (Galaxy, MilkyWay, SolarSystem, Earth) — hidden during Quasar and CosmicWeb traversal
 /// - Milestone popups fade in/out
 /// </summary>
 public class UniverseJourneyHUD : MonoBehaviour
@@ -55,8 +56,8 @@ public class UniverseJourneyHUD : MonoBehaviour
     float _containerWidth;
     float _usableWidth;
     float _microBarTotalWidth;
-    float _labelUpdateTimer;        // throttle label updates to reduce layout thrashing
-    const float LabelUpdateInterval = 0.2f;  // update text at most 5x per second
+    float _labelUpdateTimer;
+    const float LabelUpdateInterval = 0.2f;
     bool _initialized;
 
     Coroutine _milestoneCoroutine;
@@ -90,8 +91,6 @@ public class UniverseJourneyHUD : MonoBehaviour
 
         BuildNodeChain();
 
-        // Fix label shaking: disable auto-sizing on micro bar label so
-        // changing text length doesn't cause layout recalculation every frame
         if (microBarLabel != null)
         {
             microBarLabel.enableAutoSizing = false;
@@ -135,8 +134,6 @@ public class UniverseJourneyHUD : MonoBehaviour
 
         double[] logDist = new double[count];
         double total = 0;
-        // Use a minimum log floor so even tiny phases (Solar System, Earth)
-        // get a visible segment on the bar rather than collapsing to a point
         const double MIN_LOG = 2.0;
         for (int i = 0; i < count; i++)
         {
@@ -191,7 +188,6 @@ public class UniverseJourneyHUD : MonoBehaviour
             progressLine.sizeDelta = new Vector2(0f, progressLine.sizeDelta.y);
         }
 
-        // FIX 1: Cache micro bar width here after ForceUpdateCanvases
         if (microBarBackground != null)
             _microBarTotalWidth = microBarBackground.rectTransform.rect.width;
     }
@@ -244,15 +240,19 @@ public class UniverseJourneyHUD : MonoBehaviour
     {
         if (microBarPanel == null) return;
 
-        bool inMicro = tracker.CurrentPhase != UniverseJourneyTracker.JourneyPhase.CosmicWeb1;
-                   // && tracker.CurrentPhase != UniverseJourneyTracker.JourneyPhase.CosmicWeb2;
+        // Show micro bar only when inside a zone phase
+        // Hidden during wide traversal phases (Quasar, CosmicWeb1, CosmicWeb2)
+        UniverseJourneyTracker.JourneyPhase phase = tracker.CurrentPhase;
+        bool inMicro = phase == UniverseJourneyTracker.JourneyPhase.Galaxy
+                    || phase == UniverseJourneyTracker.JourneyPhase.MilkyWay
+                    || phase == UniverseJourneyTracker.JourneyPhase.SolarSystem
+                    || phase == UniverseJourneyTracker.JourneyPhase.Earth;
 
         microBarPanel.gameObject.SetActive(inMicro);
         if (!inMicro) return;
 
         if (microBarFillRT != null && _microBarTotalWidth > 0f)
         {
-            // FIX 1: Use cached width instead of reading rect.width every frame
             float fillWidth = _microBarTotalWidth * tracker.PhaseProgress;
             microBarFillRT.anchorMin = new Vector2(0, 0f);
             microBarFillRT.anchorMax = new Vector2(0, 1f);
@@ -263,8 +263,6 @@ public class UniverseJourneyHUD : MonoBehaviour
 
         if (microBarLabel != null)
         {
-            // Throttle: only update text a few times per second
-            // Changing TMP text every frame causes layout recalculation = shaking
             _labelUpdateTimer -= Time.deltaTime;
             if (_labelUpdateTimer <= 0f)
             {
@@ -289,19 +287,17 @@ public class UniverseJourneyHUD : MonoBehaviour
         if (distanceText != null)
             distanceText.text = tracker.FormattedRemainingDistance;
 
-        // FIX 3: ScaleLabel was assuming 60 units/sec fixed speed.
-        // Now reads actual player speed from tracker instead.
         if (scaleText != null)
             scaleText.text = tracker.ScaleLabel;
     }
 
     float GetCurrentProgressX()
     {
-        int currentIndex = (int)tracker.CurrentPhase;
+        if (_nodeNormalizedX == null || _nodeNormalizedX.Length == 0) return 0f;
 
-        float endNodeX = currentIndex < _nodeNormalizedX.Length
-            ? _nodeNormalizedX[currentIndex] * _usableWidth
-            : _usableWidth;
+        int currentIndex = Mathf.Clamp((int)tracker.CurrentPhase, 0, _nodeNormalizedX.Length - 1);
+
+        float endNodeX = _nodeNormalizedX[currentIndex] * _usableWidth;
 
         float prevNodeX = currentIndex > 0
             ? _nodeNormalizedX[currentIndex - 1] * _usableWidth
@@ -313,7 +309,6 @@ public class UniverseJourneyHUD : MonoBehaviour
     void OnPhaseChanged(UniverseJourneyTracker.JourneyPhase newPhase,
                         UniverseJourneyTracker.PhaseData data)
     {
-        // Re-cache micro bar width in case layout changed
         if (microBarBackground != null)
             _microBarTotalWidth = microBarBackground.rectTransform.rect.width;
     }

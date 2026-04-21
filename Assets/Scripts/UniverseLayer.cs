@@ -9,5 +9,6 @@ public enum UniverseLayer
     Micro = 2,
     MilkyWay = 3,
     SolarSystem = 4,
-    Earth = 5
+    Earth = 5,
+    CosmicWeb = 6
 }

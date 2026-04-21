@@ -29,11 +29,12 @@ MonoBehaviour:
   filamentOpaqueValue: 1
   filamentHiddenValue: 0
   filamentBlendDuration: 3
-  lockLookInputDuringLookDown: 1
+  lockLookInputDuringLookDown: 0
   lookDownHoldDuration: 5
   lookUpStartDelay: 0.12
   useLookBackSequence: 0
   lookBackHoldDuration: 4
+  lookBackOrbitCountdown: 5
   lookBackOrbitDuration: 2.5
   microSliderMaxLightYearsWhenInside: 0
   phaseOnEnter: 1

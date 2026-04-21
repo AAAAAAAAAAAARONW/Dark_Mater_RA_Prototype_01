@@ -12,11 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2f203ab8c1edb7e4daa1e509eaaf79b8, type: 3}
   m_Name: LD_MilkyWay
   m_EditorClassIdentifier: 
-  layerId: Macro
+  layerId: MilkyWay
   universeLayer: 3
   isDefaultLayer: 0
   transitionDuration: 3
-  zoneSpeedMultiplier: 2
+  zoneSpeedMultiplier: 0.5
   returnSpeedMultiplier: 4
   speedBlendDuration: 3
   useFlareBeforeSwitch: 1
@@ -30,7 +30,7 @@ MonoBehaviour:
   filamentHiddenValue: 0
   filamentBlendDuration: 3
   lockLookInputDuringLookDown: 1
-  lookDownHoldDuration: 3
+  lookDownHoldDuration: 2
   lookUpStartDelay: 0.12
   useLookBackSequence: 0
   lookBackHoldDuration: 4

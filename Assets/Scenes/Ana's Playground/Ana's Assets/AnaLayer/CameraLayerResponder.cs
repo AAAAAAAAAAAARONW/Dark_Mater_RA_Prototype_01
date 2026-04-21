@@ -36,12 +36,16 @@ public class CameraLayerResponder : MonoBehaviour
     [Header("Cinemachine Cameras")]
     [Tooltip("Normal gameplay camera (Macro / forward-facing)")]
     [SerializeField] CinemachineFreeLook vcamMacro;
-    [Tooltip("Inside zone camera (Micro / Galaxy)")]
+    [Tooltip("Inside zone camera (Micro / Galaxy / MilkyWay)")]
     [SerializeField] CinemachineFreeLook vcamMicro;
     [Tooltip("Backward-facing camera for Quasar / entry sequence")]
     [SerializeField] CinemachineFreeLook vcamLookBack;
     [Tooltip("Top-down camera used as a transition cover between layers")]
     [SerializeField] CinemachineVirtualCamera vcamTopDown;
+    [Tooltip("Close-up camera for Solar System zoom-in")]
+    [SerializeField] CinemachineFreeLook vcamSolarSystem;
+    [Tooltip("Final camera for Earth arrival")]
+    [SerializeField] CinemachineFreeLook vcamEarth;
 
     [Header("Cinemachine Blender Settings")]
     [Tooltip("Assign the Main Camera Blends asset here - used to read blend durations at runtime.")]
@@ -55,7 +59,7 @@ public class CameraLayerResponder : MonoBehaviour
     CinemachineBrain _brain;
 
     // Priority constants
-    const int PriorityHigh = 20;
+    const int PriorityHigh = 50;
     const int PriorityNormal = 10;
     const int PriorityOff = 0;
 
@@ -128,6 +132,11 @@ public class CameraLayerResponder : MonoBehaviour
 
     IEnumerator PlaySequence(LayerDefinitionTest previous, LayerDefinitionTest current)
     {
+        if (debugLog)
+            Debug.Log("[CameraLayerResponder] PlaySequence - previous="
+                + (previous != null ? previous.layerId : "NULL")
+                + " current=" + current.layerId);
+
         if (current.lockLookInputDuringLookDown)
             playerController.SetCameraInputLocked(true);
 
@@ -238,11 +247,14 @@ public class CameraLayerResponder : MonoBehaviour
         visualResponder?.CrossfadeTo(current);
 
         // If orbit is still running, wait for it to finish
+        // Using a while loop instead of yield return _orbitRoutine
+        // to avoid Unity's "another coroutine is already waiting" error
         if (_orbitRoutine != null)
         {
             if (debugLog)
                 Debug.Log("[CameraLayerResponder] Orbit still in progress - waiting.");
-            yield return _orbitRoutine;
+            while (_orbitRoutine != null)
+                yield return null;
         }
         // Fallback: orbit never started (trigger fired before countdown), run it now
         else if (vcamLookBack.m_XAxis.Value != 180f)
@@ -260,19 +272,24 @@ public class CameraLayerResponder : MonoBehaviour
     }
 
     /// <summary>
-    /// Normal zone entry (Micro/Galaxy/MilkyWay etc):
-    /// look down, crossfade renders, come up into vcamMicro.
+    /// Normal zone entry (Micro/Galaxy/MilkyWay/SolarSystem/Earth):
+    /// look down, crossfade renders, come up into the correct zone camera.
     /// </summary>
     IEnumerator LookDownEnterSequence(LayerDefinitionTest current)
     {
         if (debugLog)
             Debug.Log("[CameraLayerResponder] '" + current.layerId + "' - look-down enter sequence.");
 
+        // Resolve which zone camera to use for this layer
+        CinemachineFreeLook zoneVcam = ResolveZoneCamera(current.layerId);
+
         // 1. Blend to topdown
         SetPriority(vcamTopDown, PriorityHigh);
         SetPriority(vcamMicro, PriorityOff);
         SetPriority(vcamMacro, PriorityNormal);
         SetPriority(vcamLookBack, PriorityOff);
+        SetPriority(vcamSolarSystem, PriorityOff);
+        SetPriority(vcamEarth, PriorityOff);
 
         // Wait for blend - player can no longer see either layer
         yield return new WaitForSeconds(GetBlendDuration(vcamMacro, vcamTopDown));
@@ -287,11 +304,11 @@ public class CameraLayerResponder : MonoBehaviour
         if (current.lookUpStartDelay > 0f)
             yield return new WaitForSeconds(current.lookUpStartDelay);
 
-        // 5. Blend up into new layer camera
-        SetPriority(vcamMicro, PriorityHigh);
+        // 5. Blend up into the correct zone camera
+        SetPriority(zoneVcam, PriorityHigh);
         SetPriority(vcamTopDown, PriorityOff);
 
-        yield return new WaitForSeconds(GetBlendDuration(vcamTopDown, vcamMicro));
+        yield return new WaitForSeconds(GetBlendDuration(vcamTopDown, zoneVcam));
     }
 
     /// <summary>
@@ -364,6 +381,20 @@ public class CameraLayerResponder : MonoBehaviour
 
         Debug.LogWarning("[CameraLayerResponder] Could not resolve blend duration - defaulting to 1s.");
         return 1f;
+    }
+
+    /// <summary>
+    /// Returns the correct zone camera for a given layerId.
+    /// Defaults to vcamMicro for Macro, Micro, Galaxy, MilkyWay.
+    /// </summary>
+    CinemachineFreeLook ResolveZoneCamera(string layerId)
+    {
+        switch (layerId)
+        {
+            case "SolarSystem": return vcamSolarSystem != null ? vcamSolarSystem : vcamMicro;
+            case "Earth": return vcamEarth != null ? vcamEarth : vcamMicro;
+            default: return vcamMicro;
+        }
     }
 
     void SetPriority(CinemachineFreeLook vcam, int priority)

@@ -25,4 +25,6 @@ MonoBehaviour:
     definition: {fileID: 11400000, guid: 395053e3531dac84fa71ea9cc8d944d9, type: 2}
   - layerId: Earth
     definition: {fileID: 11400000, guid: 97eb0a43cfacc784290569d4b0e7a5b1, type: 2}
+  - layerId: CosmicWeb
+    definition: {fileID: 11400000, guid: 3ff37047c73eb904bba22d53735e5263, type: 2}
   logOnResolveFailure: 1
