@@ -6,5 +6,8 @@ public enum UniverseLayer
 {
     Quasar = 0,
     Macro = 1,
-    Micro = 2
+    Micro = 2,
+    MilkyWay = 3,
+    SolarSystem = 4,
+    Earth = 5
 }

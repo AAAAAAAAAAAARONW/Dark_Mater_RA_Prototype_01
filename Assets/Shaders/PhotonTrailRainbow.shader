@@ -182,19 +182,35 @@ Shader "Custom/PhotonTrail"
                 // ── 5. Tail fade along LENGTH (uv.x) ─────────────────────
                 float endFade = saturate((1.0 - uv.x) / max(_EndFadeWidth, 0.0001));
 
-                // ── 6. Head — white covers full width of cap region ──────
+                // ── 6. Head — shader-driven semicircle cap ────────────────
+                // Entirely in UV space — no geometry needed, looks round at any speed.
+                //
+                // The cap is a semicircle: pixels inside the circle are kept,
+                // pixels outside are clipped. Center is at (uv.x=0, uv.y=0.5).
+                //
+                //   headLocal = 1 at the very tip, 0 at the end of the cap region
+                //   centreY   = 0 at trail centre, 1 at edges
+                //   dist      = distance from tip in UV space
+                //   anything outside dist=1 gets clipped → semicircle shape
                 float headGlow  = 0.0;
                 float headAlpha = 1.0;
+                float headClip  = 1.0;
                 if (_ShowHead > 0.5)
                 {
-                    float headT = saturate(1.0 - uv.x / max(_HeadWidth, 0.0001));
-                    headT = headT * headT * (3.0 - 2.0 * headT); // smoothstep
+                    float headLocal  = saturate(1.0 - uv.x / max(_HeadWidth, 0.0001));
+                    float centreY    = abs(uv.y - 0.5) * 2.0; // 0=centre, 1=edge
 
-                    // White covers ALL color bands — no glowMask, full width
-                    headGlow  = headT * _HeadBrightness;
+                    // Circular distance from tip — pure UV math, no geometry dependency
+                    float dist = sqrt(headLocal * headLocal + centreY * centreY);
+
+                    // Clip pixels outside the circle — sharp but anti-aliased edge
+                    headClip = saturate((1.0 - dist) * 40.0);
+
+                    // Bright white glow inside the cap
+                    headGlow = headLocal * _HeadBrightness * headClip;
 
                     // Alpha boost so cap reads as solid
-                    headAlpha = 1.0 + headT * 1.5;
+                    headAlpha = 1.0 + headLocal * headClip * 1.5;
                 }
 
                 // ── 7. Emission ───────────────────────────────────────────
@@ -221,14 +237,14 @@ Shader "Custom/PhotonTrail"
                 float4 col = absorbedColor;
                 col.rgb   += emission;
                 col.rgb   *= (1.0 + glow * 0.5);
-
-                // Head bump — additive white tip, alpha boosted at tip
                 col.rgb   += _HeadColor.rgb * headGlow;
 
+                // headClip cuts the rectangle corners into a semicircle shape
                 float alpha = col.a
                             * edgeFade
                             * endFade
-                            * headAlpha;
+                            * headAlpha
+                            * headClip;
 
                 col.a = saturate(alpha);
                 return col;

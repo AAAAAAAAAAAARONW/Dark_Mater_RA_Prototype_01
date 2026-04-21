@@ -19,4 +19,10 @@ MonoBehaviour:
     definition: {fileID: 11400000, guid: 33163106a395cc34bb568e247779cbdf, type: 2}
   - layerId: Quasar
     definition: {fileID: 11400000, guid: 487146c0744799544b5bb6eaacb0437c, type: 2}
+  - layerId: MilkyWay
+    definition: {fileID: 11400000, guid: 3a4c998db1f02744fbef3b29d976e257, type: 2}
+  - layerId: SolarSystem
+    definition: {fileID: 11400000, guid: 395053e3531dac84fa71ea9cc8d944d9, type: 2}
+  - layerId: Earth
+    definition: {fileID: 11400000, guid: 97eb0a43cfacc784290569d4b0e7a5b1, type: 2}
   logOnResolveFailure: 1

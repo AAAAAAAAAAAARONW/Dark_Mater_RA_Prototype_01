@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2f203ab8c1edb7e4daa1e509eaaf79b8, type: 3}
-  m_Name: LayerDef_Micro
+  m_Name: LD_Macro
   m_EditorClassIdentifier: 
-  layerId: Micro
-  universeLayer: 2
+  layerId: Macro
+  universeLayer: 1
   isDefaultLayer: 0
   transitionDuration: 3
-  enterSpeedMultiplier: 2
-  exitSpeedMultiplier: 4
+  zoneSpeedMultiplier: 2
+  returnSpeedMultiplier: 1
   speedBlendDuration: 3
   useFlareBeforeSwitch: 1
   flareColor: {r: 1, g: 1, b: 1, a: 1}
@@ -30,15 +30,12 @@ MonoBehaviour:
   filamentHiddenValue: 0
   filamentBlendDuration: 3
   lockLookInputDuringLookDown: 1
-  enterLookDownDuration: 5
-  lookDownBlendDuration: 5
-  lookDownHoldDuration: 3
-  lookUpBlendDuration: 5
+  lookDownHoldDuration: 5
   lookUpStartDelay: 0.12
   useLookBackSequence: 0
   lookBackHoldDuration: 4
-  lookBackBlendDuration: 3
+  lookBackOrbitDuration: 2.5
   microSliderMaxLightYearsWhenInside: 0
-  phaseOnEnter: 2
-  phaseOnExit: 3
+  phaseOnEnter: 1
+  phaseOnExit: 2
   debugLog: 1

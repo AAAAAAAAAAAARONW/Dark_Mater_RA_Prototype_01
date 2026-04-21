@@ -78,6 +78,8 @@ public class PhotonSpectrumTrail : MonoBehaviour
 
     [Header("Trail Renderer Gradient")]
     public bool applyGradientToTrail = true;
+    [Tooltip("Lower = more vertices = smoother head cap at high speed. 0.05 is a good balance.")]
+    [Range(0.01f, 1f)] public float minVertexDistance = 0.05f;
 
     // ── Private ───────────────────────────────────────────────────────────────
 
@@ -238,12 +240,14 @@ public class PhotonSpectrumTrail : MonoBehaviour
             mat.SetTexture(SpectrumTexProp, _spectrumTex);
             mat.SetFloat(UseSpectrumProp, 1f);
             mat.SetFloat(ShowHeadProp, showHead ? 1f : 0f);
-            // In Meteor mode, head glow covers exactly the cap region
             float shaderHeadWidth = (trailShape == TrailShape.Meteor) ? meteorHeadFraction : headWidth;
             mat.SetFloat(HeadWidthProp, shaderHeadWidth);
             mat.SetColor(HeadColorProp, headColor);
             mat.SetFloat(HeadBrightProp, headBrightness);
         }
+
+        // Lower minVertexDistance = more vertices near the head = smoother cap at high speed
+        _trail.minVertexDistance = minVertexDistance;
 
         ApplyTrailShape();
 
@@ -267,30 +271,10 @@ public class PhotonSpectrumTrail : MonoBehaviour
                 break;
 
             case TrailShape.Meteor:
-                // widthCurve: time=0 = head (newest), time=1 = tail (oldest)
-                // Cap region: 0 → meteorHeadFraction  — semicircle profile
-                // Body region: meteorHeadFraction → 1  — stays at full width 1
-                //
-                // Circular width formula for cap:
-                //   localT = 0 at tip, 1 where cap meets body
-                //   w = sqrt(1 - (1 - localT)^2)  — quarter circle shape
-                int capSteps = 16;
-                int bodySteps = 4;
-
-                for (int s = 0; s <= capSteps; s++)
-                {
-                    float t = (s / (float)capSteps) * meteorHeadFraction;
-                    float localT = s / (float)capSteps;  // 0 at tip → 1 at join
-                    float w = Mathf.Sqrt(1f - (1f - localT) * (1f - localT));
-                    curve.AddKey(t, w);
-                }
-
-                // Body: full width from cap join to tail
-                for (int s = 1; s <= bodySteps; s++)
-                {
-                    float t = meteorHeadFraction + (s / (float)bodySteps) * (1f - meteorHeadFraction);
-                    curve.AddKey(t, 1f);
-                }
+                // WidthCurve stays flat — the rounded cap is drawn entirely by
+                // the shader's circular UV clip. No geometry manipulation needed.
+                curve.AddKey(0f, 1f);
+                curve.AddKey(1f, 1f);
                 break;
         }
 

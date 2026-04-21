@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2f203ab8c1edb7e4daa1e509eaaf79b8, type: 3}
-  m_Name: LayerDef_Macro
+  m_Name: LD_SolarSystem
   m_EditorClassIdentifier: 
   layerId: Macro
-  universeLayer: 1
+  universeLayer: 4
   isDefaultLayer: 0
   transitionDuration: 3
-  enterSpeedMultiplier: 4
-  exitSpeedMultiplier: 1
+  zoneSpeedMultiplier: 1
+  returnSpeedMultiplier: 2
   speedBlendDuration: 3
   useFlareBeforeSwitch: 1
   flareColor: {r: 1, g: 1, b: 1, a: 1}
@@ -30,15 +30,13 @@ MonoBehaviour:
   filamentHiddenValue: 0
   filamentBlendDuration: 3
   lockLookInputDuringLookDown: 1
-  enterLookDownDuration: 5
-  lookDownBlendDuration: 5
   lookDownHoldDuration: 3
-  lookUpBlendDuration: 5
   lookUpStartDelay: 0.12
   useLookBackSequence: 0
   lookBackHoldDuration: 4
-  lookBackBlendDuration: 3
+  lookBackOrbitCountdown: 5
+  lookBackOrbitDuration: 2.5
   microSliderMaxLightYearsWhenInside: 0
-  phaseOnEnter: 1
-  phaseOnExit: 2
+  phaseOnEnter: 5
+  phaseOnExit: 6
   debugLog: 1
