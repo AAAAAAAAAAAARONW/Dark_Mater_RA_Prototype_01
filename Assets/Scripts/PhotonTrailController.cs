@@ -18,6 +18,8 @@ public class PhotonTrailController : MonoBehaviour
     [SerializeField] Color initialTrailColor = new Color(0.55f, 0.92f, 1f, 1f);
     [Tooltip("Trail color after absorption (red).")]
     [SerializeField] Color absorbedTrailColor = new Color(1f, 0.18f, 0.18f, 1f);
+    [Tooltip("Lower value helps keep trail behind high-priority transparent volumes.")]
+    [SerializeField] int trailSortingOrder = 0;
 
     [Header("Combination")]
     [Tooltip("Combine multiple overlapping volumes: Max = strongest wins, Sum = stack (clamped to 1)")]
@@ -82,6 +84,7 @@ public class PhotonTrailController : MonoBehaviour
         if (trail != null)
         {
             _trailRenderer = trail;
+            _trailRenderer.sortingOrder = trailSortingOrder;
             // Create material instance to ensure we can modify it (only at runtime)
             if (Application.isPlaying && _trailRenderer.sharedMaterial != null)
             {
@@ -126,6 +129,8 @@ public class PhotonTrailController : MonoBehaviour
                 _trailRenderer = trail;
             if (_trailRenderer == null) return;
         }
+
+        _trailRenderer.sortingOrder = trailSortingOrder;
 
         Vector3 overlapOrigin = (overlapPositionSource != null ? overlapPositionSource : transform).position;
 

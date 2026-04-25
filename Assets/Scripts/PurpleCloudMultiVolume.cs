@@ -15,6 +15,14 @@ public class PurpleCloudMultiVolume : MonoBehaviour
     [Tooltip("Source sub-volumes (max 4). Transforms must use Custom/PurpleCloudVolume.")]
     public Transform[] subVolumes = new Transform[0];
 
+    [Header("Render Priority (CosmicWeb on top)")]
+    [Tooltip("If enabled, force this renderer to draw after most transparent effects.")]
+    [SerializeField] bool forceHighRenderPriority = true;
+    [Tooltip("Sorting Layer name used when forceHighRenderPriority is enabled.")]
+    [SerializeField] string sortingLayerName = "Default";
+    [Tooltip("Higher value renders later within the same sorting layer.")]
+    [SerializeField] int sortingOrder = 500;
+
     // Cached property IDs — computed once, reused every frame.
     static readonly int[] s_matIDs =
     {
@@ -32,6 +40,7 @@ public class PurpleCloudMultiVolume : MonoBehaviour
     {
         _renderer = GetComponent<MeshRenderer>();
         _mpb      = new MaterialPropertyBlock();
+        ApplyRenderPriority();
     }
 
     void LateUpdate() => PushMatrices();
@@ -53,6 +62,23 @@ public class PurpleCloudMultiVolume : MonoBehaviour
         }
 
         _renderer.SetPropertyBlock(_mpb);
+    }
+
+    void OnValidate()
+    {
+        if (_renderer == null) _renderer = GetComponent<MeshRenderer>();
+        ApplyRenderPriority();
+    }
+
+    void ApplyRenderPriority()
+    {
+        if (_renderer == null || !forceHighRenderPriority) return;
+
+        int layerId = SortingLayer.NameToID(sortingLayerName);
+        if (layerId != 0 || sortingLayerName == "Default")
+            _renderer.sortingLayerID = layerId;
+
+        _renderer.sortingOrder = sortingOrder;
     }
 
     // Resizes and repositions this cube to the world-space AABB of all sub-volumes.

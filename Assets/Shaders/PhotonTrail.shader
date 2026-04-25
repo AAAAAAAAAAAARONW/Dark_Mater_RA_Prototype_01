@@ -29,7 +29,7 @@ Shader "Custom/PhotonTrail"
     }
     SubShader
     {
-        Tags { "Queue"="Transparent" "RenderType"="Transparent" "IgnoreProjector"="True" }
+        Tags { "Queue"="Transparent-50" "RenderType"="Transparent" "IgnoreProjector"="True" }
         Blend SrcAlpha One
         ZWrite Off
         Cull Off
