@@ -7,20 +7,20 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Coreyellow_mat
+  m_Name: DM_1_mat
   m_Shader: {fileID: 4800000, guid: ad822d0f57b02394f81503963d0df141, type: 3}
   m_ShaderKeywords: 
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
-  m_CustomRenderQueue: 3300
+  m_CustomRenderQueue: -1
   stringTagMap: {}
   disabledShaderPasses: []
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
     - _BakedTex:
-        m_Texture: {fileID: 11700000, guid: 3882a26384889194ebf0b60d51e02e44, type: 2}
+        m_Texture: {fileID: 11700000, guid: bf1d1880e0db88c43914307d3f5d7af6, type: 2}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Floats:

@@ -84,6 +84,39 @@ public class LayerDefinitionTest : ScriptableObject
     [Header("Debug")]
     public bool debugLog = true;
 
+    [Header("Nebula Shader")]
+    [Tooltip("Enable layer-driven tweening for Custom/Nebula shader parameters.")]
+    public bool driveNebulaShader = false;
+    [Tooltip("Blend duration for Nebula shader params when this layer becomes active.")]
+    public float nebulaBlendDuration = 3f;
+
+    [Header("Nebula Colors")]
+    public Color nebulaColorDark = new Color(0.08f, 0.02f, 0.18f, 1f);
+    public Color nebulaColorMid = new Color(0.3f, 0.15f, 0.5f, 1f);
+    public Color nebulaColorBright = new Color(0.6f, 0.4f, 0.9f, 1f);
+    public Color nebulaColorStar = new Color(1f, 0.95f, 1f, 1f);
+
+    [Header("Nebula Noise")]
+    public float nebulaScale = 1.2f;
+    public float nebulaOctaves = 4f;
+    public float nebulaPersistence = 0.5f;
+    public float nebulaDensity = 0.8f;
+    public float nebulaSharpness = 1.5f;
+
+    [Header("Nebula Stars")]
+    public float nebulaStarScale = 80f;
+    public float nebulaStarThreshold = 0.992f;
+    public float nebulaStarBrightness = 1.2f;
+
+    [Header("Nebula Animation")]
+    [Tooltip("1 = enable animation, 0 = disable animation.")]
+    public float nebulaAnimate = 1f;
+    public float nebulaSpeed = 0.05f;
+
+    [Header("Editor Preview")]
+    [Tooltip("When enabled, changing this asset in Inspector previews Nebula params in Editor (not Play mode).")]
+    public bool enableEditorNebulaPreview = false;
+
     // Helpers
 
     /// <summary>
@@ -122,5 +155,21 @@ public class LayerDefinitionTest : ScriptableObject
         lookBackHoldDuration = Mathf.Max(0f, lookBackHoldDuration);
         lookBackOrbitCountdown = Mathf.Max(0f, lookBackOrbitCountdown);
         lookBackOrbitDuration = Mathf.Max(0.1f, lookBackOrbitDuration);
+
+        nebulaBlendDuration = Mathf.Max(0.01f, nebulaBlendDuration);
+        nebulaScale = Mathf.Clamp(nebulaScale, 0.5f, 4f);
+        nebulaOctaves = Mathf.Clamp(nebulaOctaves, 1f, 6f);
+        nebulaPersistence = Mathf.Clamp(nebulaPersistence, 0.2f, 0.9f);
+        nebulaDensity = Mathf.Clamp(nebulaDensity, 0.2f, 2f);
+        nebulaSharpness = Mathf.Clamp(nebulaSharpness, 0.5f, 4f);
+        nebulaStarScale = Mathf.Clamp(nebulaStarScale, 20f, 200f);
+        nebulaStarThreshold = Mathf.Clamp(nebulaStarThreshold, 0.95f, 0.999f);
+        nebulaStarBrightness = Mathf.Clamp(nebulaStarBrightness, 0.5f, 3f);
+        nebulaAnimate = nebulaAnimate >= 0.5f ? 1f : 0f;
+        nebulaSpeed = Mathf.Clamp(nebulaSpeed, 0f, 0.5f);
+
+#if UNITY_EDITOR
+        LayerDefinitionTestEditorPreview.ApplyIfEnabled(this);
+#endif
     }
 }
