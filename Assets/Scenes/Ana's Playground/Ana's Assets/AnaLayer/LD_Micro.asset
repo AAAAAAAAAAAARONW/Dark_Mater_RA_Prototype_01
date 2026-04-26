@@ -43,17 +43,17 @@ MonoBehaviour:
   driveNebulaShader: 1
   nebulaBlendDuration: 3
   nebulaColorDark: {r: 0.26415092, g: 0.028657887, b: 0.17856164, a: 1}
-  nebulaColorMid: {r: 0.45946068, g: 0.5566038, b: 0.5221293, a: 1}
-  nebulaColorBright: {r: 1, g: 0.6745283, b: 0.80914956, a: 1}
-  nebulaColorStar: {r: 1, g: 0.9490196, b: 0.9557579, a: 1}
-  nebulaScale: 0.5
-  nebulaOctaves: 4
+  nebulaColorMid: {r: 0.38937342, g: 0.4716981, b: 0.44206125, a: 1}
+  nebulaColorBright: {r: 0.9339623, g: 0.71809363, b: 0.8065217, a: 1}
+  nebulaColorStar: {r: 1, g: 0.8759071, b: 0.19339621, a: 1}
+  nebulaScale: 2
+  nebulaOctaves: 5
   nebulaPersistence: 0.5
   nebulaDensity: 0.8
   nebulaSharpness: 1.5
-  nebulaStarScale: 80
-  nebulaStarThreshold: 0.992
-  nebulaStarBrightness: 1.2
+  nebulaStarScale: 120
+  nebulaStarThreshold: 0.95
+  nebulaStarBrightness: 3
   nebulaAnimate: 1
   nebulaSpeed: 0.05
   enableEditorNebulaPreview: 0

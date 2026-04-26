@@ -51,9 +51,9 @@ MonoBehaviour:
   nebulaPersistence: 0.5
   nebulaDensity: 0.8
   nebulaSharpness: 1.5
-  nebulaStarScale: 80
+  nebulaStarScale: 20
   nebulaStarThreshold: 0.992
-  nebulaStarBrightness: 1.2
+  nebulaStarBrightness: 0.5
   nebulaAnimate: 1
   nebulaSpeed: 0.05
   enableEditorNebulaPreview: 0
