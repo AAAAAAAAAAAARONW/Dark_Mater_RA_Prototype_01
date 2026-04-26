@@ -4,13 +4,13 @@ using UnityEngine;
 /// Generates a full electromagnetic spectrum gradient texture and applies it
 /// to the PhotonTrail material on this GameObject's TrailRenderer.
 ///
-/// Changes in this version:
-///   - Preset only applies when enum value changes — sliders stay editable after switching
-///   - Meteor shape: sets TrailRenderer.widthCurve to taper head to a point
-///   - Spectrum distribution: Equal (all colors same width) or PhysicsBased (nm proportional)
+/// [ExecuteAlways] keeps the texture live in edit mode.
+/// OnDrawGizmos draws a preview strip in the Scene view so you can see
+/// the spectrum without entering Play mode.
 ///
 /// Attach to the same GameObject as your TrailRenderer.
 /// </summary>
+[ExecuteAlways]
 [RequireComponent(typeof(TrailRenderer))]
 public class PhotonSpectrumTrail : MonoBehaviour
 {
@@ -76,7 +76,11 @@ public class PhotonSpectrumTrail : MonoBehaviour
     [Tooltip("How much of the trail length the rounded cap occupies. 0.1 = short cap, 0.4 = long cap.")]
     [Range(0.05f, 0.5f)] public float meteorHeadFraction = 0.15f;
 
-    [Header("Trail Renderer Gradient")]
+    [Header("Absorption Lines")]
+    [Tooltip("Master switch for absorption lines. Must match LymanAlphaAbsorptionController.")]
+    public bool useAbsorptionLines = false;
+    [Tooltip("Global darkness multiplier on all absorption lines.")]
+    [Range(0f, 1f)] public float absorptionLineStrength = 1f;
     public bool applyGradientToTrail = true;
     [Tooltip("Lower = more vertices = smoother head cap at high speed. 0.05 is a good balance.")]
     [Range(0.01f, 1f)] public float minVertexDistance = 0.05f;
@@ -85,7 +89,9 @@ public class PhotonSpectrumTrail : MonoBehaviour
 
     TrailRenderer _trail;
     Texture2D _spectrumTex;
-    SpectrumPreset _lastPreset = (SpectrumPreset)(-1); // force apply on first run
+    // Serialized so Unity's Preset system saves/restores it alongside preset enum.
+    // This prevents OnValidate from re-applying preset defaults after a Preset load.
+    [SerializeField, HideInInspector] SpectrumPreset _lastPreset = (SpectrumPreset)(-1);
 
     static readonly int SpectrumTexProp = Shader.PropertyToID("_SpectrumTex");
     static readonly int UseSpectrumProp = Shader.PropertyToID("_UseSpectrum");
@@ -93,6 +99,8 @@ public class PhotonSpectrumTrail : MonoBehaviour
     static readonly int HeadColorProp = Shader.PropertyToID("_HeadColor");
     static readonly int HeadBrightProp = Shader.PropertyToID("_HeadBrightness");
     static readonly int ShowHeadProp = Shader.PropertyToID("_ShowHead");
+    static readonly int UseAbsorptionProp = Shader.PropertyToID("_UseAbsorptionLine");
+    static readonly int AbsorptionStrengthProp = Shader.PropertyToID("_AbsorptionLineStrength");
 
     // Physics-based stop positions (cumulative nm fractions within visible spectrum)
     // Violet 70nm, Blue 45nm, Cyan 25nm, Green 45nm, Yellow 25nm, Orange 35nm, Red 125nm
@@ -105,7 +113,9 @@ public class PhotonSpectrumTrail : MonoBehaviour
     void Awake()
     {
         _trail = GetComponent<TrailRenderer>();
-        ApplyPresetIfChanged();
+        // Mark preset as already applied so entering Play mode never
+        // overwrites inspector values. Only actual dropdown changes trigger re-apply.
+        _lastPreset = preset;
         BuildAndApply();
     }
 
@@ -113,6 +123,13 @@ public class PhotonSpectrumTrail : MonoBehaviour
     {
         // Clear any leftover editor vertices so UVs start clean
         if (_trail != null) _trail.Clear();
+    }
+
+    void Update()
+    {
+        // Push head + absorption params every frame so inspector changes are instant.
+        // This is cheap (just float/color writes) — texture rebuild only happens when needed.
+        PushLiveParams();
     }
 
     void OnEnable()
@@ -126,15 +143,18 @@ public class PhotonSpectrumTrail : MonoBehaviour
 
     void OnDestroy()
     {
-        if (_spectrumTex != null) Destroy(_spectrumTex);
+        if (_spectrumTex == null) return;
+        if (Application.isPlaying)
+            Destroy(_spectrumTex);
+        else
+            DestroyImmediate(_spectrumTex);
     }
 
     [ContextMenu("Rebuild Spectrum Texture")]
     public void RebuildFromMenu()
     {
         if (_trail == null) _trail = GetComponent<TrailRenderer>();
-        _lastPreset = (SpectrumPreset)(-1); // force re-apply
-        ApplyPresetIfChanged();
+        _lastPreset = preset; // don't re-apply preset values, just rebuild texture
         BuildAndApply();
         Debug.Log("[PhotonSpectrumTrail] Rebuilt.");
     }
@@ -230,6 +250,11 @@ public class PhotonSpectrumTrail : MonoBehaviour
 
     // ── Build & Apply ─────────────────────────────────────────────────────────
 
+    [Header("Material Control")]
+    [Tooltip("If true, script writes head settings to the material at runtime. " +
+             "Turn OFF if you want to control head settings via the material asset / Preset instead.")]
+    public bool overrideHeadSettingsOnMaterial = true;
+
     void BuildAndApply()
     {
         _spectrumTex = GenerateSpectrumTexture();
@@ -239,12 +264,9 @@ public class PhotonSpectrumTrail : MonoBehaviour
         {
             mat.SetTexture(SpectrumTexProp, _spectrumTex);
             mat.SetFloat(UseSpectrumProp, 1f);
-            mat.SetFloat(ShowHeadProp, showHead ? 1f : 0f);
-            float shaderHeadWidth = (trailShape == TrailShape.Meteor) ? meteorHeadFraction : headWidth;
-            mat.SetFloat(HeadWidthProp, shaderHeadWidth);
-            mat.SetColor(HeadColorProp, headColor);
-            mat.SetFloat(HeadBrightProp, headBrightness);
         }
+
+        PushLiveParams();
 
         // Lower minVertexDistance = more vertices near the head = smoother cap at high speed
         _trail.minVertexDistance = minVertexDistance;
@@ -253,6 +275,29 @@ public class PhotonSpectrumTrail : MonoBehaviour
 
         if (applyGradientToTrail)
             _trail.colorGradient = BuildTrailGradient();
+    }
+
+    /// <summary>
+    /// Writes head and absorption params to the material every frame.
+    /// Cheap — no texture rebuild. Keeps inspector sliders live.
+    /// </summary>
+    void PushLiveParams()
+    {
+        if (_trail == null) return;
+        Material mat = Application.isPlaying ? _trail.material : _trail.sharedMaterial;
+        if (mat == null) return;
+
+        if (overrideHeadSettingsOnMaterial)
+        {
+            mat.SetFloat(ShowHeadProp, showHead ? 1f : 0f);
+            float shaderHeadWidth = (trailShape == TrailShape.Meteor) ? meteorHeadFraction : headWidth;
+            mat.SetFloat(HeadWidthProp, shaderHeadWidth);
+            mat.SetColor(HeadColorProp, headColor);
+            mat.SetFloat(HeadBrightProp, headBrightness);
+        }
+
+        mat.SetFloat(UseAbsorptionProp, useAbsorptionLines ? 1f : 0f);
+        mat.SetFloat(AbsorptionStrengthProp, absorptionLineStrength);
     }
 
     // ── Trail Shape ───────────────────────────────────────────────────────────
@@ -426,5 +471,107 @@ public class PhotonSpectrumTrail : MonoBehaviour
             }
         );
         return grad;
+    }
+
+    // ── Editor Preview ────────────────────────────────────────────────────────
+
+    [Header("Editor Preview")]
+    [Tooltip("Show spectrum preview strip in the Scene view without entering Play mode.")]
+    public bool showEditorPreview = true;
+    [Tooltip("Length of the preview strip in world units.")]
+    public float previewLength = 4f;
+    [Tooltip("Width of the preview strip in world units.")]
+    public float previewWidth = 0.4f;
+    [Tooltip("How many color slices to draw across the width (more = smoother).")]
+    [Range(8, 64)] public int previewSlices = 32;
+
+    void OnDrawGizmos()
+    {
+        if (!showEditorPreview) return;
+        if (!Application.isEditor) return;
+
+        // Rebuild texture if needed so preview reflects current settings
+        if (_spectrumTex == null)
+        {
+            if (_trail == null) _trail = GetComponent<TrailRenderer>();
+            ApplyPresetIfChanged();
+            _spectrumTex = GenerateSpectrumTexture();
+        }
+
+        Vector3 origin = transform.position;
+        Vector3 forward = transform.forward;
+        Vector3 right = transform.right;
+
+        float sliceWidth = previewWidth / previewSlices;
+
+        // Draw the spectrum across the width (matching uv.y axis in shader)
+        // Each slice is one color band, sampled from the spectrum texture
+        for (int s = 0; s < previewSlices; s++)
+        {
+            // t goes from 0 (UV end) to 1 (IR end) across the width
+            float t0 = s / (float)previewSlices;
+            float t1 = (s + 1) / (float)previewSlices;
+            float tMid = (t0 + t1) * 0.5f;
+
+            // Sample the spectrum texture at this width position
+            // Invert because uv.y=0 is UV edge (one side), =1 is IR edge (other side)
+            Color col = SampleSpectrum(1f - tMid);
+            col.a = 1f;
+
+            Gizmos.color = col;
+
+            // Offset from centre: slice s is at (s - half) * sliceWidth
+            float offsetCentre = (tMid - 0.5f) * previewWidth;
+            Vector3 sliceCentre = origin + right * offsetCentre;
+
+            // Draw a thin quad slice as two triangles via a line-based rectangle
+            Vector3 p0 = sliceCentre - right * (sliceWidth * 0.5f);
+            Vector3 p1 = sliceCentre + right * (sliceWidth * 0.5f);
+            Vector3 p0f = p0 + forward * previewLength;
+            Vector3 p1f = p1 + forward * previewLength;
+
+            // DrawLine outlines — visible as coloured bands in scene view
+            Gizmos.DrawLine(p0, p0f);
+            Gizmos.DrawLine(p0, p1);
+            Gizmos.DrawLine(p0f, p1f);
+            Gizmos.DrawLine(p1, p1f);
+
+            // Fill via a wire cube scaled to the slice dimensions
+            Vector3 centre = (p0 + p1f) * 0.5f;
+            Vector3 size = new Vector3(sliceWidth, 0.001f, previewLength);
+
+#if UNITY_EDITOR
+            // Use DrawMesh for a filled preview (editor only)
+            UnityEditor.Handles.color = col;
+            UnityEditor.Handles.DrawSolidRectangleWithOutline(
+                new Vector3[]
+                {
+                    p0,
+                    p0 + forward * previewLength,
+                    p1 + forward * previewLength,
+                    p1
+                },
+                col, new Color(0, 0, 0, 0)
+            );
+#endif
+        }
+
+        // Draw head semicircle outline if head is enabled
+        if (showHead)
+        {
+#if UNITY_EDITOR
+            UnityEditor.Handles.color = headColor;
+            float radius = previewWidth * 0.5f;
+            UnityEditor.Handles.DrawWireArc(origin, transform.up, -right, 180f, radius);
+            UnityEditor.Handles.DrawLine(origin - right * radius, origin + right * radius);
+#endif
+        }
+
+        // Label
+#if UNITY_EDITOR
+        UnityEditor.Handles.color = Color.white;
+        UnityEditor.Handles.Label(origin + transform.up * (previewWidth * 0.5f + 0.1f),
+            $"Spectrum Preview [{preset}]");
+#endif
     }
 }

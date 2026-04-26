@@ -40,11 +40,11 @@ MonoBehaviour:
   phaseOnEnter: 0
   phaseOnExit: 1
   debugLog: 1
-  driveNebulaShader: 1
+  driveNebulaShader: 0
   nebulaBlendDuration: 3
   nebulaColorDark: {r: 0.048320316, g: 0, b: 0.13207549, a: 1}
-  nebulaColorMid: {r: 0.14714608, g: 0.082324676, b: 0.23584908, a: 1}
-  nebulaColorBright: {r: 0.6, g: 0.4, b: 0.9, a: 1}
+  nebulaColorMid: {r: 0.14485262, g: 0.0745372, b: 0.23584908, a: 1}
+  nebulaColorBright: {r: 0.56717455, g: 0.38047346, b: 0.8490566, a: 1}
   nebulaColorStar: {r: 1, g: 0.95, b: 1, a: 1}
   nebulaScale: 1.2
   nebulaOctaves: 4

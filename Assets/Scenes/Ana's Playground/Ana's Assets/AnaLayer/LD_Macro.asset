@@ -46,10 +46,10 @@ MonoBehaviour:
   nebulaColorMid: {r: 0.3, g: 0.15, b: 0.5, a: 1}
   nebulaColorBright: {r: 0.3984375, g: 0, b: 1, a: 1}
   nebulaColorStar: {r: 1, g: 0.82575756, b: 0, a: 1}
-  nebulaScale: 4
+  nebulaScale: 2
   nebulaOctaves: 4
   nebulaPersistence: 0.2
-  nebulaDensity: 0.8
+  nebulaDensity: 1
   nebulaSharpness: 0.5
   nebulaStarScale: 20
   nebulaStarThreshold: 0.95

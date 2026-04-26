@@ -35,7 +35,7 @@ Shader "Custom/PhotonTrail"
 
         // Head indicator
         [Toggle] _ShowHead ("Show Head", Float) = 1
-        _HeadWidth      ("Head Width",      Range(0, 0.15)) = 0.04
+        _HeadWidth      ("Head Width",      Range(0, 0.5)) = 0.04
         _HeadColor      ("Head Color",      Color) = (1, 1, 1, 1)
         _HeadBrightness ("Head Brightness", Range(0, 3)) = 1.8
 

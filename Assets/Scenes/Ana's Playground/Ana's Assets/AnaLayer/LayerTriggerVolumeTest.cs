@@ -1,4 +1,7 @@
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 /// <summary>
 /// Test version of LayerTriggerVolume.
@@ -21,6 +24,11 @@ public class LayerTriggerVolumeTest : MonoBehaviour
     [Header("Filter")]
     [SerializeField] bool requireTag = true;
     [SerializeField] string targetTag = "Player";
+
+    [Header("Debug")]
+    [Tooltip("If enabled, always draw this trigger gizmo + layer name text in editor.")]
+    [SerializeField] bool showDebugGizmo = true;
+    [SerializeField] Color gizmoColor = new Color(0.3f, 0.9f, 1f, 0.35f);
 
     Collider _collider;
 
@@ -54,5 +62,51 @@ public class LayerTriggerVolumeTest : MonoBehaviour
         if (go == null) return false;
         if (requireTag && !go.CompareTag(targetTag)) return false;
         return true;
+    }
+
+    void OnDrawGizmos()
+    {
+        if (!showDebugGizmo) return;
+
+        var c = GetComponent<Collider>();
+        if (c == null) return;
+
+        Gizmos.color = gizmoColor;
+        DrawColliderGizmo(c);
+
+#if UNITY_EDITOR
+        Handles.color = Color.white;
+        Handles.Label(GetLabelPosition(c), string.IsNullOrEmpty(layerId) ? "(no layerId)" : layerId);
+#endif
+    }
+
+    static void DrawColliderGizmo(Collider c)
+    {
+        if (c is BoxCollider box)
+        {
+            Matrix4x4 old = Gizmos.matrix;
+            Gizmos.matrix = box.transform.localToWorldMatrix;
+            Gizmos.DrawWireCube(box.center, box.size);
+            Gizmos.matrix = old;
+            return;
+        }
+
+        if (c is SphereCollider sphere)
+        {
+            Matrix4x4 old = Gizmos.matrix;
+            Gizmos.matrix = sphere.transform.localToWorldMatrix;
+            Gizmos.DrawWireSphere(sphere.center, sphere.radius);
+            Gizmos.matrix = old;
+            return;
+        }
+
+        // Fallback for capsule/mesh/other collider types.
+        Gizmos.DrawWireCube(c.bounds.center, c.bounds.size);
+    }
+
+    static Vector3 GetLabelPosition(Collider c)
+    {
+        Bounds b = c.bounds;
+        return new Vector3(b.center.x, b.max.y + 0.35f, b.center.z);
     }
 }
