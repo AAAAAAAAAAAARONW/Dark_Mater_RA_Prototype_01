@@ -1,351 +1,717 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
 /// <summary>
-/// Universe Journey HUD
-/// - Log-scale node chain: Quasar (left) -> Earth (right), dots only
-/// - Moving dot indicator slides along the track line showing exact progress
-/// - Micro bar (sliced image) appears below track when inside zone phases
-///   (Galaxy, MilkyWay, SolarSystem, Earth) — hidden during Quasar and CosmicWeb traversal
-/// - Milestone popups fade in/out
+/// Universe Journey HUD — vertical bar, bottom (Quasar) to top (Earth).
+///
+/// Two states:
+///   Macro — full journey visible, nodes at log-scale positions.
+///   Micro — current phase expands, past/future compress to clusters.
+///
+/// Driven entirely by UniverseJourneyTracker (position-based, no extra wiring).
+/// Switches state automatically when a phase with isMacroPhase=false becomes active.
+///
+/// Setup: see setup guide in comments at bottom of file.
 /// </summary>
 public class UniverseJourneyHUD : MonoBehaviour
 {
-    [Header("Data")]
+    // ─────────────────────────────────────────────────────────────────────────
+    // PHASE HUD CONFIG
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Serializable]
+    public class PhaseHUDConfig
+    {
+        [Tooltip("True = show full journey bar when this phase is active.\n" +
+                 "False = zoom into this phase (micro view).")]
+        public bool isMacroPhase = true;
+
+        [Tooltip("Optional icon sprite. Leave null to use auto-generated circle.")]
+        public Sprite icon;
+
+        [Tooltip("Overrides the display name from UniverseJourneyTracker.\n" +
+                 "Leave blank to use the tracker's displayName.")]
+        public string displayNameOverride;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // INSPECTOR
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Header("References")]
     [SerializeField] UniverseJourneyTracker tracker;
 
-    [Header("Node Chain")]
-    [SerializeField] RectTransform nodeContainer;
-    [SerializeField] GameObject nodePrefab;
-    [SerializeField] float chainPadding = 24f;
-    [SerializeField] RectTransform trackLine;
-    [SerializeField] RectTransform progressLine;
-    [SerializeField] RectTransform indicatorDot;
+    [Tooltip("Empty RectTransform that acts as the parent for all node GameObjects.\n" +
+             "Should be 2px wide, trackHeight tall, anchored bottom-center of the bar.")]
+    [SerializeField] RectTransform trackContainer;
 
-    [Header("Micro Bar")]
-    [SerializeField] RectTransform microBarPanel;
-    [SerializeField] Image microBarBackground;
-    [SerializeField] RectTransform microBarFillRT;
-    [SerializeField] TMP_Text microBarLabel;
+    [Tooltip("The dark background line behind the track.\n" +
+             "Image component, 2px wide, stretch-height inside trackContainer.")]
+    [SerializeField] Image trackBackground;
 
-    [Header("Info Text")]
-    [SerializeField] TMP_Text phaseNameText;
+    [Tooltip("The gradient fill RawImage. Anchor: bottom-center, pivot: (0.5, 0).\n" +
+             "Width: 4px. Height: driven by script.")]
+    [SerializeField] RawImage fillImage;
+
+    [Tooltip("TMP_Text showing remaining distance (e.g. '10.4B ly to Earth').")]
     [SerializeField] TMP_Text distanceText;
-    [SerializeField] TMP_Text scaleText;
 
-    [Header("Milestone Popup")]
-    [SerializeField] RectTransform milestonePopup;
-    [SerializeField] TMP_Text milestoneText;
-    [SerializeField] float milestoneDisplayDuration = 3f;
-    [SerializeField] float milestoneFadeDuration = 0.4f;
+    [Tooltip("TMP_Text showing current phase name.")]
+    [SerializeField] TMP_Text phaseNameText;
 
-    [Header("Node Visuals")]
-    [SerializeField] Color nodeInactiveColor = new Color(1f, 1f, 1f, 0.25f);
-    [SerializeField] Color nodeActiveColor = new Color(1f, 0.9f, 0.4f, 1f);
-    [SerializeField] Color nodeCompleteColor = new Color(0.5f, 1f, 0.7f, 1f);
-    [SerializeField] float nodePulseScale = 1.3f;
-    [SerializeField] float nodePulseSpeed = 2f;
-    [SerializeField] float nodeSize = 12f;
+    [Header("Phase Configuration (7 entries, one per JourneyPhase)")]
+    [SerializeField]
+    PhaseHUDConfig[] phaseConfigs = new PhaseHUDConfig[]
+    {
+        // Index 0 — Quasar
+        new PhaseHUDConfig { isMacroPhase = true,  displayNameOverride = "Quasar"       },
+        // Index 1 — CosmicWeb1
+        new PhaseHUDConfig { isMacroPhase = true,  displayNameOverride = "Cosmic Web"   },
+        // Index 2 — Galaxy
+        new PhaseHUDConfig { isMacroPhase = false, displayNameOverride = "Galaxy"       },
+        // Index 3 — CosmicWeb2
+        new PhaseHUDConfig { isMacroPhase = true,  displayNameOverride = "Cosmic Web"   },
+        // Index 4 — MilkyWay
+        new PhaseHUDConfig { isMacroPhase = false, displayNameOverride = "Milky Way"    },
+        // Index 5 — SolarSystem
+        new PhaseHUDConfig { isMacroPhase = false, displayNameOverride = "Solar System" },
+        // Index 6 — Earth
+        new PhaseHUDConfig { isMacroPhase = false, displayNameOverride = "Earth"        },
+    };
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // TRACK VISUAL SETTINGS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Header("Track")]
+    [Tooltip("Height of the track in Unity UI pixels. Match your TrackContainer height.")]
+    [SerializeField] float trackHeight = 350f;
+
+    [Tooltip("Gradient colors from Quasar (index 0) to Earth (last index).\n" +
+             "Baked into a Texture2D at startup — no shader needed.")]
+    [SerializeField]
+    Color[] gradientColors = new Color[]
+    {
+        new Color(0.267f, 0.133f, 0.667f, 1f), // violet  — Quasar
+        new Color(0.114f, 0.478f, 0.620f, 1f), // blue    — early CW
+        new Color(0.114f, 0.620f, 0.459f, 1f), // teal    — late CW
+        new Color(0.980f, 0.780f, 0.459f, 1f), // amber   — Galaxy area
+        new Color(0.800f, 0.200f, 0.133f, 1f), // red     — Earth
+    };
+
+    [Header("Nodes")]
+    [SerializeField] float nodeActiveDiameter = 20f;
+    [SerializeField] float nodeDefaultDiameter = 12f;
+    [SerializeField] float nodeMicroDiameter = 7f;
+    [SerializeField] Color colorDone = new Color(0.114f, 0.620f, 0.459f, 1f); // teal
+    [SerializeField] Color colorActive = new Color(0.980f, 0.780f, 0.459f, 1f); // amber
+    [SerializeField] Color colorFuture = new Color(0.082f, 0.082f, 0.141f, 1f); // very dark
+    [SerializeField] float activePulseSpeed = 2.5f;
+    [SerializeField] float activePulseAmount = 0.08f;
+
+    [Header("Labels")]
+    [Tooltip("Font for node labels. Assign a TextMeshPro font asset.")]
+    [SerializeField] TMP_FontAsset labelFont;
+    [SerializeField] float labelFontSize = 8f;
+    [Tooltip("X offset of label from node center (pixels).")]
+    [SerializeField] float labelOffsetX = 8f;
+    [Tooltip("Width of each node label RectTransform.")]
+    [SerializeField] float labelWidth = 62f;
+
+    [Header("Transition")]
+    [Tooltip("Duration of the macro ↔ micro smooth transition in seconds.")]
+    [SerializeField] float transitionDuration = 0.5f;
+    [Tooltip("Fraction of trackHeight reserved for the compressed past/future clusters in micro mode.")]
+    [Range(0.08f, 0.30f)]
+    [SerializeField] float microCompressedFraction = 0.18f;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PRIVATE STATE
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const int NODE_COUNT = 7;
+    const double MIN_LOG = 2.0; // floor for log10 calculation (same as HUD tracker)
 
     RectTransform[] _nodeRTs;
     Image[] _nodeImages;
-    float[] _nodeNormalizedX;
+    TMP_Text[] _nodeLabels;
+    float[] _macroPositionsY;
 
-    float _containerWidth;
-    float _usableWidth;
-    float _microBarTotalWidth;
-    float _labelUpdateTimer;
-    const float LabelUpdateInterval = 0.2f;
+    Texture2D _gradientTex;
+    Sprite _defaultCircleSprite;
+    bool _isMacroState = true;
+    Coroutine _transitionCoroutine;
     bool _initialized;
 
-    Coroutine _milestoneCoroutine;
-    CanvasGroup _milestoneCanvasGroup;
+    float _labelUpdateTimer;
+    const float LABEL_INTERVAL = 0.15f;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // UNITY LIFECYCLE
+    // ─────────────────────────────────────────────────────────────────────────
 
     void Awake()
     {
-        if (milestonePopup != null)
-        {
-            _milestoneCanvasGroup = milestonePopup.GetComponent<CanvasGroup>();
-            if (_milestoneCanvasGroup == null)
-                _milestoneCanvasGroup = milestonePopup.gameObject.AddComponent<CanvasGroup>();
-            _milestoneCanvasGroup.alpha = 0f;
-            milestonePopup.gameObject.SetActive(false);
-        }
-
-        if (microBarPanel != null)
-            microBarPanel.gameObject.SetActive(false);
+        BuildGradientTexture();
+        _defaultCircleSprite = CreateCircleSprite(64);
     }
 
     void Start()
     {
         if (tracker == null)
         {
-            Debug.LogWarning("[UniverseJourneyHUD] Tracker not assigned.");
+            Debug.LogWarning("[UniverseJourneyHUD] UniverseJourneyTracker not assigned.");
+            return;
+        }
+        if (trackContainer == null)
+        {
+            Debug.LogWarning("[UniverseJourneyHUD] TrackContainer not assigned.");
             return;
         }
 
-        tracker.OnMilestoneReached += ShowMilestonePopup;
-        tracker.OnPhaseChanged += OnPhaseChanged;
+        BuildNodes();
+        CalculateMacroPositions();
+        SetNodePositionsImmediate(_macroPositionsY);
+        UpdateFill();
+        UpdateDistanceText();
 
-        BuildNodeChain();
-
-        if (microBarLabel != null)
-        {
-            microBarLabel.enableAutoSizing = false;
-            microBarLabel.overflowMode = TMPro.TextOverflowModes.Ellipsis;
-        }
-
+        tracker.OnPhaseChanged += HandlePhaseChanged;
         _initialized = true;
     }
 
     void OnDestroy()
     {
-        if (tracker == null) return;
-        tracker.OnMilestoneReached -= ShowMilestonePopup;
-        tracker.OnPhaseChanged -= OnPhaseChanged;
+        if (tracker != null)
+            tracker.OnPhaseChanged -= HandlePhaseChanged;
+        if (_gradientTex != null)
+            Destroy(_gradientTex);
+        if (_defaultCircleSprite != null)
+            Destroy(_defaultCircleSprite.texture);
     }
 
     void Update()
     {
         if (!_initialized) return;
+
+        UpdateFill();
         UpdateNodeVisuals();
-        UpdateProgressLine();
-        UpdateIndicatorDot();
-        UpdateMicroBar();
-        UpdateInfoText();
+
+        _labelUpdateTimer -= Time.deltaTime;
+        if (_labelUpdateTimer <= 0f)
+        {
+            _labelUpdateTimer = LABEL_INTERVAL;
+            UpdateDistanceText();
+        }
     }
 
-    void BuildNodeChain()
+    // ─────────────────────────────────────────────────────────────────────────
+    // GRADIENT TEXTURE
+    // Built once at Awake. No shader needed — works in Built-in RP.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    void BuildGradientTexture()
     {
-        if (nodeContainer == null || nodePrefab == null) return;
-
-        Canvas.ForceUpdateCanvases();
-        _containerWidth = nodeContainer.rect.width;
-        _usableWidth = _containerWidth - chainPadding * 2f;
-
-        var phases = tracker.Phases;
-        int count = phases.Length;
-
-        _nodeRTs = new RectTransform[count];
-        _nodeImages = new Image[count];
-        _nodeNormalizedX = new float[count];
-
-        double[] logDist = new double[count];
-        double total = 0;
-        const double MIN_LOG = 2.0;
-        for (int i = 0; i < count; i++)
+        const int texHeight = 256;
+        _gradientTex = new Texture2D(2, texHeight, TextureFormat.RGBA32, false)
         {
-            double raw = System.Math.Log10(System.Math.Max(phases[i].TotalDistanceLy, 1));
-            logDist[i] = System.Math.Max(raw, MIN_LOG);
-            total += logDist[i];
-        }
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Bilinear
+        };
 
-        double cumulative = 0;
-        for (int i = 0; i < count; i++)
+        for (int y = 0; y < texHeight; y++)
         {
-            cumulative += logDist[i];
-            _nodeNormalizedX[i] = (float)(cumulative / total);
+            float t = (float)y / (texHeight - 1);
+            Color c = SampleGradient(t);
+            _gradientTex.SetPixel(0, y, c);
+            _gradientTex.SetPixel(1, y, c);
         }
+        _gradientTex.Apply();
 
-        for (int i = 0; i < count; i++)
+        if (fillImage != null)
         {
-            GameObject go = Instantiate(nodePrefab, nodeContainer);
-            RectTransform rt = go.GetComponent<RectTransform>();
-
-            rt.sizeDelta = new Vector2(nodeSize, nodeSize);
-            rt.anchorMin = new Vector2(0, 0.5f);
-            rt.anchorMax = new Vector2(0, 0.5f);
-            rt.pivot = new Vector2(0.5f, 0.5f);
-            rt.anchoredPosition = new Vector2(chainPadding + _nodeNormalizedX[i] * _usableWidth, 0f);
-
-            _nodeRTs[i] = rt;
-            _nodeImages[i] = go.GetComponent<Image>();
-
-            foreach (var tmp in go.GetComponentsInChildren<TMP_Text>())
-                tmp.gameObject.SetActive(false);
-
-            if (_nodeImages[i] != null)
-                _nodeImages[i].color = nodeInactiveColor;
+            fillImage.texture = _gradientTex;
+            fillImage.uvRect = new Rect(0f, 0f, 1f, 0.001f);
         }
-
-        if (trackLine != null)
-        {
-            trackLine.anchorMin = new Vector2(0, 0.5f);
-            trackLine.anchorMax = new Vector2(0, 0.5f);
-            trackLine.pivot = new Vector2(0, 0.5f);
-            trackLine.anchoredPosition = new Vector2(chainPadding, 0f);
-            trackLine.sizeDelta = new Vector2(_usableWidth, trackLine.sizeDelta.y);
-        }
-
-        if (progressLine != null)
-        {
-            progressLine.anchorMin = new Vector2(0, 0.5f);
-            progressLine.anchorMax = new Vector2(0, 0.5f);
-            progressLine.pivot = new Vector2(0, 0.5f);
-            progressLine.anchoredPosition = new Vector2(chainPadding, 0f);
-            progressLine.sizeDelta = new Vector2(0f, progressLine.sizeDelta.y);
-        }
-
-        if (microBarBackground != null)
-            _microBarTotalWidth = microBarBackground.rectTransform.rect.width;
     }
+
+    Color SampleGradient(float t)
+    {
+        if (gradientColors == null || gradientColors.Length == 0) return Color.white;
+        if (gradientColors.Length == 1) return gradientColors[0];
+        float scaled = t * (gradientColors.Length - 1);
+        int lo = Mathf.FloorToInt(scaled);
+        int hi = Mathf.Min(lo + 1, gradientColors.Length - 1);
+        return Color.Lerp(gradientColors[lo], gradientColors[hi], scaled - lo);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // NODE CREATION
+    // Creates 7 node GameObjects inside trackContainer at Start().
+    // ─────────────────────────────────────────────────────────────────────────
+
+    void BuildNodes()
+    {
+        _nodeRTs = new RectTransform[NODE_COUNT];
+        _nodeImages = new Image[NODE_COUNT];
+        _nodeLabels = new TMP_Text[NODE_COUNT];
+
+        for (int i = 0; i < NODE_COUNT; i++)
+        {
+            // ── Node root ──
+            var nodeGO = new GameObject($"Node_{(UniverseJourneyTracker.JourneyPhase)i}");
+            nodeGO.transform.SetParent(trackContainer, false);
+
+            var rt = nodeGO.AddComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0f); // bottom-centre of track
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = Vector2.one * nodeDefaultDiameter;
+            _nodeRTs[i] = rt;
+
+            // ── Icon image ──
+            var img = nodeGO.AddComponent<Image>();
+            img.color = (i == 0) ? colorActive : colorFuture;
+            img.sprite = (phaseConfigs != null && i < phaseConfigs.Length && phaseConfigs[i].icon != null)
+                ? phaseConfigs[i].icon
+                : _defaultCircleSprite;
+            _nodeImages[i] = img;
+
+            // ── Label (to the right of node) ──
+            var labelGO = new GameObject("Label");
+            labelGO.transform.SetParent(nodeGO.transform, false);
+
+            var labelRT = labelGO.AddComponent<RectTransform>();
+            labelRT.anchorMin = new Vector2(1f, 0.5f);
+            labelRT.anchorMax = new Vector2(1f, 0.5f);
+            labelRT.pivot = new Vector2(0f, 0.5f);
+            labelRT.anchoredPosition = new Vector2(labelOffsetX, 0f);
+            labelRT.sizeDelta = new Vector2(labelWidth, 16f);
+
+            var lbl = labelGO.AddComponent<TextMeshProUGUI>();
+            lbl.fontSize = labelFontSize;
+            lbl.color = colorFuture;
+            lbl.alignment = TextAlignmentOptions.Left;
+            lbl.overflowMode = TextOverflowModes.Ellipsis;
+            lbl.enableWordWrapping = false;
+            if (labelFont != null) lbl.font = labelFont;
+            lbl.text = GetPhaseName(i);
+            _nodeLabels[i] = lbl;
+        }
+    }
+
+    string GetPhaseName(int i)
+    {
+        if (phaseConfigs != null && i < phaseConfigs.Length &&
+            !string.IsNullOrEmpty(phaseConfigs[i].displayNameOverride))
+            return phaseConfigs[i].displayNameOverride;
+
+        if (tracker?.Phases != null && i < tracker.Phases.Length)
+            return tracker.Phases[i].displayName;
+
+        return $"Phase {i}";
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // LOG-SCALE POSITION CALCULATION
+    // ─────────────────────────────────────────────────────────────────────────
+
+    void CalculateMacroPositions()
+    {
+        _macroPositionsY = new float[NODE_COUNT];
+
+        double[] logSpans = new double[NODE_COUNT];
+        double totalLog = 0.0;
+
+        for (int i = 0; i < NODE_COUNT; i++)
+        {
+            double span = (tracker?.Phases != null && i < tracker.Phases.Length)
+                ? tracker.Phases[i].TotalDistanceLy : 1.0;
+            logSpans[i] = Math.Max(Math.Log10(Math.Max(span, 1.0)), MIN_LOG);
+            totalLog += logSpans[i];
+        }
+
+        double cumulative = 0.0;
+        for (int i = 0; i < NODE_COUNT; i++)
+        {
+            // Node positioned at start of its phase segment
+            _macroPositionsY[i] = (float)(cumulative / totalLog) * trackHeight;
+            cumulative += logSpans[i];
+        }
+    }
+
+    float[] CalculateMicroPositions(int activeIndex)
+    {
+        var positions = new float[NODE_COUNT];
+        float compressed = trackHeight * microCompressedFraction;
+        float expandedStart = compressed;
+        float expandedEnd = trackHeight - compressed;
+        float padding = 8f;
+
+        int pastCount = activeIndex;
+        int futureCount = NODE_COUNT - 1 - activeIndex;
+
+        // Past nodes — bottom compressed zone
+        for (int i = 0; i < pastCount; i++)
+        {
+            float t = pastCount <= 1 ? 0.5f : (float)i / (pastCount - 1);
+            positions[i] = Mathf.Lerp(padding, compressed - padding, t);
+        }
+
+        // Active node — bottom edge of expanded section
+        positions[activeIndex] = expandedStart + padding;
+
+        // Future nodes — top compressed zone
+        for (int j = 0; j < futureCount; j++)
+        {
+            int i = activeIndex + 1 + j;
+            float t = futureCount <= 1 ? 0.5f : (float)j / (futureCount - 1);
+            positions[i] = Mathf.Lerp(expandedEnd + padding, trackHeight - padding, t);
+        }
+
+        return positions;
+    }
+
+    void SetNodePositionsImmediate(float[] positions)
+    {
+        for (int i = 0; i < NODE_COUNT && i < positions.Length; i++)
+        {
+            if (_nodeRTs[i] != null)
+                _nodeRTs[i].anchoredPosition = new Vector2(0f, positions[i]);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // STATE TRANSITION — smooth coroutine
+    // ─────────────────────────────────────────────────────────────────────────
+
+    void HandlePhaseChanged(UniverseJourneyTracker.JourneyPhase newPhase,
+                            UniverseJourneyTracker.PhaseData data)
+    {
+        int index = (int)newPhase;
+        bool wantMacro = (phaseConfigs == null || index >= phaseConfigs.Length)
+                            || phaseConfigs[index].isMacroPhase;
+
+        if (wantMacro != _isMacroState)
+        {
+            _isMacroState = wantMacro;
+            if (_transitionCoroutine != null) StopCoroutine(_transitionCoroutine);
+            _transitionCoroutine = StartCoroutine(TransitionToState(wantMacro, index));
+        }
+
+        // Refresh labels in case displayNameOverride changed
+        for (int i = 0; i < NODE_COUNT; i++)
+            if (_nodeLabels[i] != null)
+                _nodeLabels[i].text = GetPhaseName(i);
+    }
+
+    IEnumerator TransitionToState(bool toMacro, int activeIndex)
+    {
+        // Snapshot current positions
+        var startPositions = new float[NODE_COUNT];
+        for (int i = 0; i < NODE_COUNT; i++)
+            startPositions[i] = _nodeRTs[i] != null ? _nodeRTs[i].anchoredPosition.y : 0f;
+
+        float[] targetPositions = toMacro
+            ? _macroPositionsY
+            : CalculateMicroPositions(activeIndex);
+
+        float elapsed = 0f;
+        while (elapsed < transitionDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / transitionDuration));
+            for (int i = 0; i < NODE_COUNT; i++)
+            {
+                if (_nodeRTs[i] == null) continue;
+                _nodeRTs[i].anchoredPosition = new Vector2(
+                    0f,
+                    Mathf.Lerp(startPositions[i], targetPositions[i], t)
+                );
+            }
+            yield return null;
+        }
+
+        SetNodePositionsImmediate(targetPositions);
+        _transitionCoroutine = null;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FILL BAR UPDATE
+    // ─────────────────────────────────────────────────────────────────────────
+
+    void UpdateFill()
+    {
+        if (fillImage == null || tracker == null) return;
+
+        float progress = Mathf.Clamp01(tracker.TotalProgressLog);
+        float fillH = progress * trackHeight;
+        var fillRT = fillImage.rectTransform;
+
+        fillRT.sizeDelta = new Vector2(fillRT.sizeDelta.x, fillH);
+
+        // Sample the correct portion of the gradient texture.
+        // uvRect height = progress means: show bottom 'progress' fraction of texture.
+        // Since gradient goes violet (y=0) → red (y=1), this shows
+        // the correct color range up to current journey progress.
+        float uvH = Mathf.Max(progress, 0.001f);
+        fillImage.uvRect = new Rect(0f, 0f, 1f, uvH);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // NODE VISUALS — color, size, label visibility
+    // ─────────────────────────────────────────────────────────────────────────
 
     void UpdateNodeVisuals()
     {
-        int currentIndex = (int)tracker.CurrentPhase;
-        float pulse = 1f + Mathf.Sin(Time.time * nodePulseSpeed) * (nodePulseScale - 1f) * 0.5f;
+        if (tracker == null) return;
+        int activeIndex = (int)tracker.CurrentPhase;
+        float pulse = 1f + Mathf.Sin(Time.time * activePulseSpeed) * activePulseAmount;
 
-        for (int i = 0; i < _nodeImages.Length; i++)
+        for (int i = 0; i < NODE_COUNT; i++)
         {
             if (_nodeImages[i] == null) continue;
 
-            if (i < currentIndex)
+            bool isDone = i < activeIndex;
+            bool isActive = i == activeIndex;
+            bool isMicro = !_isMacroState;
+
+            // ── Color ──
+            Color targetColor;
+            Color labelColor;
+            if (isDone)
             {
-                _nodeImages[i].color = nodeCompleteColor;
-                _nodeRTs[i].localScale = Vector3.one;
+                targetColor = colorDone;
+                labelColor = new Color(colorDone.r, colorDone.g, colorDone.b, 0.4f);
             }
-            else if (i == currentIndex)
+            else if (isActive)
             {
-                _nodeImages[i].color = nodeActiveColor;
-                _nodeRTs[i].localScale = Vector3.one * pulse;
+                targetColor = colorActive;
+                labelColor = colorActive;
             }
             else
             {
-                _nodeImages[i].color = nodeInactiveColor;
-                _nodeRTs[i].localScale = Vector3.one;
+                targetColor = colorFuture;
+                labelColor = new Color(0.13f, 0.13f, 0.22f, 0.6f);
             }
+
+            _nodeImages[i].color = targetColor;
+            if (_nodeLabels[i] != null) _nodeLabels[i].color = labelColor;
+
+            // ── Size ──
+            float diameter;
+            if (isActive)
+                diameter = nodeActiveDiameter * pulse;
+            else if (isMicro)
+                diameter = nodeMicroDiameter;
+            else
+                diameter = nodeDefaultDiameter;
+
+            _nodeRTs[i].sizeDelta = Vector2.one * diameter;
+
+            // ── Label visibility ──
+            // In micro mode hide labels for non-active nodes to reduce clutter
+            if (_nodeLabels[i] != null)
+                _nodeLabels[i].gameObject.SetActive(!isMicro || isActive);
         }
     }
 
-    void UpdateProgressLine()
+    // ─────────────────────────────────────────────────────────────────────────
+    // DISTANCE TEXT
+    // ─────────────────────────────────────────────────────────────────────────
+
+    void UpdateDistanceText()
     {
-        if (progressLine == null || _nodeNormalizedX == null) return;
-        float currentX = GetCurrentProgressX();
-        progressLine.sizeDelta = new Vector2(currentX, progressLine.sizeDelta.y);
-    }
-
-    void UpdateIndicatorDot()
-    {
-        if (indicatorDot == null || _nodeNormalizedX == null) return;
-        float currentX = GetCurrentProgressX();
-        indicatorDot.anchorMin = new Vector2(0, 0.5f);
-        indicatorDot.anchorMax = new Vector2(0, 0.5f);
-        indicatorDot.pivot = new Vector2(0.5f, 0.5f);
-        indicatorDot.anchoredPosition = new Vector2(chainPadding + currentX, 0f);
-    }
-
-    void UpdateMicroBar()
-    {
-        if (microBarPanel == null) return;
-
-        // Show micro bar only when inside a zone phase
-        // Hidden during wide traversal phases (Quasar, CosmicWeb1, CosmicWeb2)
-        UniverseJourneyTracker.JourneyPhase phase = tracker.CurrentPhase;
-        bool inMicro = phase == UniverseJourneyTracker.JourneyPhase.Galaxy
-                    || phase == UniverseJourneyTracker.JourneyPhase.MilkyWay
-                    || phase == UniverseJourneyTracker.JourneyPhase.SolarSystem
-                    || phase == UniverseJourneyTracker.JourneyPhase.Earth;
-
-        microBarPanel.gameObject.SetActive(inMicro);
-        if (!inMicro) return;
-
-        if (microBarFillRT != null && _microBarTotalWidth > 0f)
-        {
-            float fillWidth = _microBarTotalWidth * tracker.PhaseProgress;
-            microBarFillRT.anchorMin = new Vector2(0, 0f);
-            microBarFillRT.anchorMax = new Vector2(0, 1f);
-            microBarFillRT.pivot = new Vector2(0, 0.5f);
-            microBarFillRT.anchoredPosition = Vector2.zero;
-            microBarFillRT.sizeDelta = new Vector2(fillWidth, 0f);
-        }
-
-        if (microBarLabel != null)
-        {
-            _labelUpdateTimer -= Time.deltaTime;
-            if (_labelUpdateTimer <= 0f)
-            {
-                _labelUpdateTimer = LabelUpdateInterval;
-
-                double remainingInPhase = System.Math.Max(0,
-                    tracker.CurrentPhaseTotalLy - tracker.PhaseDistanceLy);
-
-                microBarLabel.text = tracker.CurrentPhaseName
-                                   + "   "
-                                   + UniverseJourneyTracker.FormatDistance(remainingInPhase)
-                                   + " remaining";
-            }
-        }
-    }
-
-    void UpdateInfoText()
-    {
-        if (phaseNameText != null)
-            phaseNameText.text = tracker.CurrentPhaseName;
-
-        if (distanceText != null)
+        if (distanceText != null && tracker != null)
             distanceText.text = tracker.FormattedRemainingDistance;
 
-        if (scaleText != null)
-            scaleText.text = tracker.ScaleLabel;
+        if (phaseNameText != null && tracker != null)
+            phaseNameText.text = tracker.CurrentPhaseName;
     }
 
-    float GetCurrentProgressX()
+    // ─────────────────────────────────────────────────────────────────────────
+    // HELPERS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Generates a white anti-aliased circle sprite at runtime.
+    /// Used as the default node icon when no sprite is assigned.
+    /// </summary>
+    static Sprite CreateCircleSprite(int diameter)
     {
-        if (_nodeNormalizedX == null || _nodeNormalizedX.Length == 0) return 0f;
+        var tex = new Texture2D(diameter, diameter, TextureFormat.RGBA32, false);
+        tex.filterMode = FilterMode.Bilinear;
+        tex.wrapMode = TextureWrapMode.Clamp;
 
-        int currentIndex = Mathf.Clamp((int)tracker.CurrentPhase, 0, _nodeNormalizedX.Length - 1);
+        float r = diameter * 0.5f;
+        float cx = r - 0.5f;
+        float cy = r - 0.5f;
 
-        float endNodeX = _nodeNormalizedX[currentIndex] * _usableWidth;
+        for (int x = 0; x < diameter; x++)
+            for (int y = 0; y < diameter; y++)
+            {
+                float dx = x - cx;
+                float dy = y - cy;
+                float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                float alpha = Mathf.Clamp01(r - dist + 0.5f); // soft edge
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+            }
+        tex.Apply();
 
-        float prevNodeX = currentIndex > 0
-            ? _nodeNormalizedX[currentIndex - 1] * _usableWidth
-            : 0f;
-
-        return Mathf.Lerp(prevNodeX, endNodeX, tracker.PhaseProgress);
+        return Sprite.Create(
+            tex,
+            new Rect(0, 0, diameter, diameter),
+            new Vector2(0.5f, 0.5f),
+            diameter
+        );
     }
 
-    void OnPhaseChanged(UniverseJourneyTracker.JourneyPhase newPhase,
-                        UniverseJourneyTracker.PhaseData data)
-    {
-        if (microBarBackground != null)
-            _microBarTotalWidth = microBarBackground.rectTransform.rect.width;
-    }
+    // ─────────────────────────────────────────────────────────────────────────
+    // EDITOR VALIDATION
+    // ─────────────────────────────────────────────────────────────────────────
 
-    void ShowMilestonePopup(string label)
+#if UNITY_EDITOR
+    void OnValidate()
     {
-        if (milestonePopup == null || milestoneText == null) return;
-        if (_milestoneCoroutine != null) StopCoroutine(_milestoneCoroutine);
-        milestoneText.text = label;
-        _milestoneCoroutine = StartCoroutine(MilestonePopupRoutine());
-    }
-
-    IEnumerator MilestonePopupRoutine()
-    {
-        milestonePopup.gameObject.SetActive(true);
-
-        float t = 0f;
-        while (t < milestoneFadeDuration)
+        // Keep phaseConfigs exactly 7 entries
+        if (phaseConfigs == null || phaseConfigs.Length != NODE_COUNT)
         {
-            t += Time.deltaTime;
-            _milestoneCanvasGroup.alpha = Mathf.Clamp01(t / milestoneFadeDuration);
-            yield return null;
-        }
-        _milestoneCanvasGroup.alpha = 1f;
-
-        yield return new WaitForSeconds(milestoneDisplayDuration);
-
-        t = 0f;
-        while (t < milestoneFadeDuration)
-        {
-            t += Time.deltaTime;
-            _milestoneCanvasGroup.alpha = 1f - Mathf.Clamp01(t / milestoneFadeDuration);
-            yield return null;
+            var old = phaseConfigs ?? Array.Empty<PhaseHUDConfig>();
+            phaseConfigs = new PhaseHUDConfig[NODE_COUNT];
+            for (int i = 0; i < NODE_COUNT; i++)
+                phaseConfigs[i] = (i < old.Length && old[i] != null)
+                    ? old[i]
+                    : new PhaseHUDConfig();
         }
 
-        _milestoneCanvasGroup.alpha = 0f;
-        milestonePopup.gameObject.SetActive(false);
-        _milestoneCoroutine = null;
+        trackHeight = Mathf.Max(100f, trackHeight);
+        transitionDuration = Mathf.Max(0.1f, transitionDuration);
+        microCompressedFraction = Mathf.Clamp(microCompressedFraction, 0.08f, 0.30f);
+        nodeActiveDiameter = Mathf.Max(8f, nodeActiveDiameter);
+        nodeDefaultDiameter = Mathf.Max(4f, nodeDefaultDiameter);
+        nodeMicroDiameter = Mathf.Max(4f, nodeMicroDiameter);
     }
+#endif
 }
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * SETUP GUIDE — follow these steps in order
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * STEP 1 — HIERARCHY
+ * ──────────────────
+ * Create this structure in your scene under your existing Canvas:
+ *
+ *   Canvas
+ *   └── JourneyHUD                    [GameObject]
+ *       ├── Background                [GameObject]
+ *       └── HUDContent                [GameObject]
+ *           ├── TrackContainer        [GameObject]
+ *           │   ├── TrackBackground   [GameObject]
+ *           │   └── FillBar           [GameObject]
+ *           ├── DistanceText          [GameObject]
+ *           └── PhaseNameText         [GameObject]
+ *
+ * STEP 2 — RECTTRANSFORM SETTINGS
+ * ─────────────────────────────────
+ * JourneyHUD:
+ *   Anchor preset: Left, Stretch (top and bottom)
+ *   Width: 88
+ *   Left: 0, Top: 0, Bottom: 0
+ *   Pivot: (0, 0.5)
+ *
+ * Background (Image component):
+ *   Anchor: Stretch all
+ *   Color: RGBA (8, 8, 15, 240) — near black
+ *   Image Type: Simple
+ *   Raycast Target: OFF
+ *
+ * HUDContent (RectTransform only):
+ *   Anchor: Stretch all, Padding: 12px all sides
+ *
+ * TrackContainer (RectTransform only):
+ *   Anchor: Middle-center
+ *   Width: 2
+ *   Height: 350         ← must match trackHeight field on the script
+ *   Pos X: -20          ← offset left to leave room for labels on the right
+ *   Anchor Min/Max Y: set to centre (0.5, 0.5)
+ *   Pivot: (0.5, 0.5)
+ *
+ * TrackBackground (Image component):
+ *   Anchor: Stretch (all four sides to 0)
+ *   Color: RGBA (20, 20, 36, 255)
+ *   Raycast Target: OFF
+ *
+ * FillBar (RawImage component):
+ *   Anchor Min: (0.5, 0)   ← anchored to BOTTOM centre
+ *   Anchor Max: (0.5, 0)
+ *   Pivot: (0.5, 0)
+ *   Width: 4
+ *   Height: 0              ← script sets this each frame
+ *   Pos X: 0, Pos Y: 0
+ *   Raycast Target: OFF
+ *
+ * DistanceText (TextMeshProUGUI):
+ *   Anchor: Bottom-centre of HUDContent
+ *   Font Size: 14
+ *   Alignment: Centre
+ *   Color: RGBA (220, 220, 240, 255)
+ *   Height: 20
+ *   Pos Y: 14 (above bottom edge)
+ *
+ * PhaseNameText (TextMeshProUGUI):
+ *   Anchor: Bottom-centre, just above DistanceText
+ *   Font Size: 8
+ *   Alignment: Centre
+ *   Color: RGBA (150, 150, 190, 255)
+ *   Pos Y: 32
+ *
+ * STEP 3 — ADD THE SCRIPT
+ * ────────────────────────
+ * Add UniverseJourneyHUD.cs to the JourneyHUD GameObject.
+ *
+ * STEP 4 — ASSIGN REFERENCES
+ * ───────────────────────────
+ * In the Inspector, drag:
+ *   Tracker          → your UniverseJourneyTracker GameObject
+ *   Track Container  → the TrackContainer RectTransform
+ *   Track Background → the TrackBackground Image component
+ *   Fill Image       → the FillBar RawImage component
+ *   Distance Text    → the DistanceText TMP_Text component
+ *   Phase Name Text  → the PhaseNameText TMP_Text component
+ *
+ * STEP 5 — CONFIGURE PHASE SETTINGS
+ * ───────────────────────────────────
+ * In Phase Configuration (7 entries):
+ *   [0] Quasar       isMacroPhase ✓   icon: drag your quasar sprite (or leave null)
+ *   [1] Cosmic Web   isMacroPhase ✓   icon: drag your cosmic web sprite
+ *   [2] Galaxy       isMacroPhase ✗   icon: drag your galaxy sprite
+ *   [3] Cosmic Web   isMacroPhase ✓   icon: (reuse cosmic web sprite)
+ *   [4] Milky Way    isMacroPhase ✗   icon: drag your milky way sprite
+ *   [5] Solar System isMacroPhase ✗   icon: drag your solar system sprite
+ *   [6] Earth        isMacroPhase ✗   icon: drag your earth sprite
+ *
+ * STEP 6 — MATCH TRACK HEIGHT
+ * ─────────────────────────────
+ * Set trackHeight on the script = the Height of your TrackContainer (default 350).
+ * If you change TrackContainer height, update this field to match.
+ *
+ * STEP 7 — VERIFY IN PLAY MODE
+ * ──────────────────────────────
+ * Press Play. You should see:
+ *   • 7 nodes appear along the track (bottom = Quasar, top = Earth)
+ *   • The violet-to-red gradient fill growing upward as the player moves
+ *   • The active node pulsing in amber
+ *   • When the player enters Galaxy/MilkyWay/SolarSystem/Earth:
+ *       the bar smoothly transitions to micro view (current phase expands)
+ *   • When returning to a Cosmic Web phase: bar transitions back to macro view
+ *
+ * COMMON ISSUES
+ * ──────────────
+ * Nodes not visible:  Check TrackContainer is assigned and has correct height.
+ * Fill not growing:   Check FillBar RawImage pivot is (0.5, 0) and anchor is bottom.
+ * Labels cut off:     Increase labelWidth or reduce labelFontSize in the inspector.
+ * No transition:      Confirm JourneyLayerResponder fires OnPhaseChanged on the tracker.
+ */

@@ -3,16 +3,18 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Universe Journey Tracker
+/// Universe Journey Tracker — trigger-driven progress.
 ///
-/// Updated phase structure:
-///   Quasar       13B → 11B ly   (starting layer, same scale as CosmicWeb1)
-///   CosmicWeb1   11B → 7B  ly
-///   Galaxy        7B → 6.9B ly  (intermediate galaxy, ~100K ly)
-///   CosmicWeb2   6.9B → 24K ly
-///   MilkyWay     24K → 1   ly
-///   SolarSystem    1 → 1e-12 ly
-///   Earth       1e-12 → 0
+/// Progress is computed from the player's Z position relative to
+/// consecutive layer trigger transforms. No lyPerUnityUnit needed.
+///
+/// Setup:
+///   1. Assign Player Transform.
+///   2. Assign Layer Triggers in journey order (Quasar door → CW door →
+///      Galaxy door → CW2 door → MilkyWay door → SolarSystem door → Earth).
+///      These are the door/plane triggers that already exist in your scene.
+///   3. Phase Data array still drives display names and distance labels.
+///      lyPerUnityUnit fields are no longer used and can be ignored.
 /// </summary>
 public class UniverseJourneyTracker : MonoBehaviour
 {
@@ -34,15 +36,23 @@ public class UniverseJourneyTracker : MonoBehaviour
     [Serializable]
     public class PhaseData
     {
-        [Tooltip("Display name shown in HUD")]
+        [Tooltip("Display name shown in HUD.")]
         public string displayName;
-        [Tooltip("Remaining distance at which this phase BEGINS (ly).")]
+
+        [Tooltip("Remaining distance at which this phase BEGINS (ly). " +
+                 "Used only for the distance label — does not drive progress.")]
         public double remainingDistanceAtStart;
-        [Tooltip("Remaining distance at which this phase ENDS (ly).")]
+
+        [Tooltip("Remaining distance at which this phase ENDS (ly). " +
+                 "Used only for the distance label — does not drive progress.")]
         public double remainingDistanceAtEnd;
-        [Tooltip("Light years per Unity world unit travelled in this phase.")]
+
+        [Tooltip("Legacy field — kept for compatibility with LymanAlphaAbsorptionController.\n" +
+                 "No longer used to drive HUD progress (now trigger-based).\n" +
+                 "Set to 0 to disable, or keep your existing value for other scripts.")]
         public double lyPerUnityUnit;
 
+        /// <summary>Total ly span of this phase (for HUD label only).</summary>
         public double TotalDistanceLy => remainingDistanceAtStart - remainingDistanceAtEnd;
     }
 
@@ -53,10 +63,15 @@ public class UniverseJourneyTracker : MonoBehaviour
     [Serializable]
     public class MilestoneData
     {
-        [Tooltip("Display emoji + label e.g. '🌟 First Stars Form'")]
+        [Tooltip("Display label e.g. '🌟 First Stars Form'")]
         public string label;
-        [Tooltip("Milestone fires when remaining distance (ly) drops BELOW this value.")]
+
+        [Tooltip("Optional icon sprite shown in milestone popup.")]
+        public Sprite icon;
+
+        [Tooltip("Fires when remaining distance (ly) drops BELOW this value.")]
         public double remainingDistanceThresholdLy;
+
         [HideInInspector] public bool triggered;
     }
 
@@ -67,100 +82,100 @@ public class UniverseJourneyTracker : MonoBehaviour
     [Header("Player")]
     [SerializeField] Transform playerTransform;
 
-    [Header("Journey")]
-    [Tooltip("Total journey distance in light years (Quasar to Earth).")]
-    [SerializeField] double totalJourneyLy = 13.000100024e9;
+    [Header("Layer Triggers (6 doors + 1 arrival point = 7 total)")]
+    [Tooltip("Do NOT include a Quasar trigger — Quasar is the default start state.\n" +
+             "Player Z at Start() is used automatically as Quasar phase start.\n\n" +
+             "[0] Cosmic Web door\n" +
+             "[1] Galaxy door\n" +
+             "[2] Cosmic Web 2 door\n" +
+             "[3] Milky Way door\n" +
+             "[4] Solar System door\n" +
+             "[5] Earth door\n" +
+             "[6] Earth arrival point (empty GameObject at end of Earth phase)")]
+    [SerializeField] Transform[] layerTriggers;
 
-    [Header("Phase Data")]
-    [Tooltip("One entry per JourneyPhase enum value, in order from furthest to closest.")]
+    [Header("Journey")]
+    [Tooltip("Total journey distance in light years (for display only).")]
+    [SerializeField] double totalJourneyLy = 13_000_100_024e3;
+
+    [Header("Phase Data (7 entries, one per JourneyPhase)")]
     [SerializeField]
     PhaseData[] phases = new PhaseData[]
     {
-        // Quasar: 13B → 11B ly (2B ly)
-        new PhaseData {
-            displayName              = "Quasar",
-            remainingDistanceAtStart = 13.0e9,
-            remainingDistanceAtEnd   = 11.0e9,
-            lyPerUnityUnit           = 3e7
-        },
-        // CosmicWeb1: 11B → 7B ly (4B ly)
-        new PhaseData {
-            displayName              = "Cosmic Web",
-            remainingDistanceAtStart = 11.0e9,
-            remainingDistanceAtEnd   = 7.0e9,
-            lyPerUnityUnit           = 3e7
-        },
-        // Galaxy: 7B → 6.9B ly (~100K ly intermediate galaxy)
-        new PhaseData {
-            displayName              = "Galaxy",
-            remainingDistanceAtStart = 7.0e9,
-            remainingDistanceAtEnd   = 6.9999e9,
-            lyPerUnityUnit           = 1e3
-        },
-        // CosmicWeb2: 6.9B → 24K ly (~6.9B ly)
-        new PhaseData {
-            displayName              = "Cosmic Web",
-            remainingDistanceAtStart = 6.9999e9,
-            remainingDistanceAtEnd   = 2.4e4,
-            lyPerUnityUnit           = 6e7
-        },
-        // MilkyWay: 24K → 1 ly
-        new PhaseData {
-            displayName              = "Milky Way",
-            remainingDistanceAtStart = 2.4e4,
-            remainingDistanceAtEnd   = 1.0,
-            lyPerUnityUnit           = 240
-        },
-        // SolarSystem: 1 → 1e-12 ly
-        new PhaseData {
-            displayName              = "Solar System",
-            remainingDistanceAtStart = 1.0,
-            remainingDistanceAtEnd   = 1e-12,
-            lyPerUnityUnit           = 0.01
-        },
-        // Earth: 1e-12 → 0
-        new PhaseData {
-            displayName              = "Earth",
-            remainingDistanceAtStart = 1e-12,
-            remainingDistanceAtEnd   = 0,
-            lyPerUnityUnit           = 1e-14
-        },
+        new PhaseData { displayName="Quasar",
+            remainingDistanceAtStart=13.0e9,  remainingDistanceAtEnd=11.0e9,
+            lyPerUnityUnit=3e7  },
+        new PhaseData { displayName="Cosmic Web",
+            remainingDistanceAtStart=11.0e9,  remainingDistanceAtEnd=7.0e9,
+            lyPerUnityUnit=3e7  },
+        new PhaseData { displayName="Galaxy",
+            remainingDistanceAtStart=7.0e9,   remainingDistanceAtEnd=6.9999e9,
+            lyPerUnityUnit=1e3  },
+        new PhaseData { displayName="Cosmic Web",
+            remainingDistanceAtStart=6.9999e9,remainingDistanceAtEnd=2.4e4,
+            lyPerUnityUnit=6e7  },
+        new PhaseData { displayName="Milky Way",
+            remainingDistanceAtStart=2.4e4,   remainingDistanceAtEnd=1.0,
+            lyPerUnityUnit=240  },
+        new PhaseData { displayName="Solar System",
+            remainingDistanceAtStart=1.0,     remainingDistanceAtEnd=1e-12,
+            lyPerUnityUnit=0.01 },
+        new PhaseData { displayName="Earth",
+            remainingDistanceAtStart=1e-12,   remainingDistanceAtEnd=0,
+            lyPerUnityUnit=1e-14 },
     };
 
     [Header("Milestones")]
     [SerializeField]
     MilestoneData[] milestones = new MilestoneData[]
     {
-        // Quasar / CosmicWeb1
-        new MilestoneData { label = "🌟 First Stars Form",   remainingDistanceThresholdLy = 12.5e9 },
-        new MilestoneData { label = "🌌 Milky Way Forms",    remainingDistanceThresholdLy = 11.0e9 },
-        // CosmicWeb2
-        new MilestoneData { label = "☀️ Sun Born",           remainingDistanceThresholdLy = 4.6e9  },
-        new MilestoneData { label = "🌍 Earth Born",         remainingDistanceThresholdLy = 4.5e9  },
-        new MilestoneData { label = "🦕 Dinosaurs Roam",     remainingDistanceThresholdLy = 2.3e8  },
-        new MilestoneData { label = "🧑 Humans Appear",      remainingDistanceThresholdLy = 3e5    },
-        // Milky Way
-        new MilestoneData { label = "📡 First Radio Signal", remainingDistanceThresholdLy = 120    },
+        new MilestoneData { label="🌟 First Stars Form",
+            remainingDistanceThresholdLy=12.5e9 },
+        new MilestoneData { label="🌌 Milky Way Forms",
+            remainingDistanceThresholdLy=11.0e9 },
+        new MilestoneData { label="💥 Cosmic Noon — Peak Star Formation",
+            remainingDistanceThresholdLy=10.5e9 },
+        new MilestoneData { label="🌑 Dark Energy Takes Over",
+            remainingDistanceThresholdLy=7.5e9  },
+        new MilestoneData { label="☀️ Sun Born",
+            remainingDistanceThresholdLy=4.6e9  },
+        new MilestoneData { label="🌍 Earth Born",
+            remainingDistanceThresholdLy=4.5e9  },
+        new MilestoneData { label="🦕 Dinosaurs Roam",
+            remainingDistanceThresholdLy=2.3e8  },
+        new MilestoneData { label="🧑 Humans Appear",
+            remainingDistanceThresholdLy=3e5    },
+        new MilestoneData { label="📡 First Radio Signal",
+            remainingDistanceThresholdLy=120    },
     };
 
     // ─────────────────────────────────────────────
     // EVENTS
     // ─────────────────────────────────────────────
 
+    /// <summary>Fired when the active phase changes.</summary>
     public event Action<JourneyPhase, PhaseData> OnPhaseChanged;
-    public event Action<string> OnMilestoneReached;
+
+    /// <summary>Fired when a milestone is crossed. Args: label, icon sprite.</summary>
+    public event Action<string, Sprite> OnMilestoneReached;
 
     // ─────────────────────────────────────────────
     // PRIVATE STATE
     // ─────────────────────────────────────────────
 
-    [System.NonSerialized] JourneyPhase _currentPhase;
-    [System.NonSerialized] double _remainingDistanceLy;
-    [System.NonSerialized] double _phaseDistanceTravelled;
-    [System.NonSerialized] bool _phasePinned;
-    Vector3 _lastPlayerPosition;
-    float _smoothedSpeedUnitsPerSec;
+    JourneyPhase _currentPhase;
+    bool _phasePinned;
     bool _initialized;
+
+    // Trigger Z positions computed at Start()
+    float[] _triggerZ;          // one per trigger transform
+    float _currentPhaseStartZ;
+    float _currentPhaseEndZ;
+
+    // Log-scale weights per phase (computed once, used for TotalProgressLog)
+    double[] _logWeights;
+    double _totalLogWeight;
+    const double MIN_LOG = 2.0;
 
     // ─────────────────────────────────────────────
     // UNITY LIFECYCLE
@@ -169,81 +184,144 @@ public class UniverseJourneyTracker : MonoBehaviour
     void Awake()
     {
         _currentPhase = JourneyPhase.Quasar;
-        _remainingDistanceLy = totalJourneyLy;
-        _phaseDistanceTravelled = 0;
     }
 
     void Start()
     {
-        if (playerTransform != null)
-        {
-            _lastPlayerPosition = playerTransform.position;
-            _initialized = true;
-        }
-        else
-        {
-            Debug.LogWarning("[UniverseJourneyTracker] Player Transform not assigned.");
-        }
+        if (!ValidateSetup()) return;
+
+        BuildTriggerZCache();
+        BuildLogWeights();
+        SetPhaseInternal(_currentPhase, fireEvent: false);
+
+        _initialized = true;
     }
 
     void Update()
     {
-        if (!_initialized || playerTransform == null) return;
+        if (!_initialized) return;
 
-        Vector3 currentPos = playerTransform.position;
-        float unityDelta = Vector3.Distance(currentPos, _lastPlayerPosition);
-        _lastPlayerPosition = currentPos;
+        if (!_phasePinned)
+            DetectPhaseFromTriggerZ();
 
-        _smoothedSpeedUnitsPerSec = Mathf.Lerp(
-            _smoothedSpeedUnitsPerSec,
-            unityDelta / Mathf.Max(Time.deltaTime, 0.0001f),
-            Time.deltaTime * 5f
-        );
-
-        if (unityDelta > 0f)
-        {
-            PhaseData phase = GetPhaseData(_currentPhase);
-            double lyDelta = unityDelta * phase.lyPerUnityUnit;
-
-            _remainingDistanceLy = Math.Max(0, _remainingDistanceLy - lyDelta);
-            _phaseDistanceTravelled += lyDelta;
-
-            DetectPhaseFromRemaining();
-            CheckMilestones();
-        }
+        CheckMilestones();
     }
 
-    void DetectPhaseFromRemaining()
+    // ─────────────────────────────────────────────
+    // SETUP VALIDATION
+    // ─────────────────────────────────────────────
+
+    bool ValidateSetup()
     {
-        if (_phasePinned) return;
+        if (playerTransform == null)
+        {
+            Debug.LogWarning("[Tracker] Player Transform not assigned.");
+            return false;
+        }
+
+        // Need exactly 7 transforms:
+        //   [0]-[5] = the 6 phase door triggers (CW, Galaxy, CW2, MW, Solar, Earth)
+        //   [6]     = Earth arrival empty GameObject
+        // Quasar has NO trigger door — the player starts there automatically.
+        const int needed = 7;
+        if (layerTriggers == null || layerTriggers.Length < needed)
+        {
+            Debug.LogWarning(
+                $"[Tracker] Need {needed} Layer Triggers " +
+                "(6 phase doors + 1 Earth arrival point). " +
+                $"Got {layerTriggers?.Length ?? 0}. " +
+                "Do NOT add a Quasar trigger — player starts there automatically.");
+            return false;
+        }
+
+        return true;
+    }
+
+    // ─────────────────────────────────────────────
+    // TRIGGER Z CACHE
+    // ─────────────────────────────────────────────
+
+    void BuildTriggerZCache()
+    {
+        // Build an 8-entry Z array so phase i spans _triggerZ[i] to _triggerZ[i+1]:
+        //   _triggerZ[0] = Quasar start   (player spawn Z — no door needed)
+        //   _triggerZ[1] = CW door        (layerTriggers[0])
+        //   _triggerZ[2] = Galaxy door    (layerTriggers[1])
+        //   _triggerZ[3] = CW2 door       (layerTriggers[2])
+        //   _triggerZ[4] = MW door        (layerTriggers[3])
+        //   _triggerZ[5] = Solar door     (layerTriggers[4])
+        //   _triggerZ[6] = Earth door     (layerTriggers[5])
+        //   _triggerZ[7] = Earth arrival  (layerTriggers[6])
+
+        _triggerZ = new float[layerTriggers.Length + 1];
+        _triggerZ[0] = playerTransform.position.z; // Quasar start = spawn Z
+
+        for (int i = 0; i < layerTriggers.Length; i++)
+            _triggerZ[i + 1] = layerTriggers[i] != null
+                ? layerTriggers[i].position.z
+                : _triggerZ[i];
+
+        Debug.Log("[Tracker] Z cache:\n" +
+                  $"  [0] Quasar start (spawn): {_triggerZ[0]:F1}\n" +
+                  $"  [1] CW door:              {_triggerZ[1]:F1}\n" +
+                  $"  [2] Galaxy door:          {_triggerZ[2]:F1}\n" +
+                  $"  [3] CW2 door:             {_triggerZ[3]:F1}\n" +
+                  $"  [4] MW door:              {_triggerZ[4]:F1}\n" +
+                  $"  [5] Solar door:           {_triggerZ[5]:F1}\n" +
+                  $"  [6] Earth door:           {_triggerZ[6]:F1}\n" +
+                  $"  [7] Earth arrival:        {_triggerZ[7]:F1}");
+    }
+
+    void SetPhaseInternal(JourneyPhase phase, bool fireEvent)
+    {
+        _currentPhase = phase;
+        int i = (int)phase; // phase i spans _triggerZ[i] to _triggerZ[i+1]
+
+        _currentPhaseStartZ = (i < _triggerZ.Length) ? _triggerZ[i] : _triggerZ[_triggerZ.Length - 1];
+        _currentPhaseEndZ = (i + 1 < _triggerZ.Length) ? _triggerZ[i + 1] : _triggerZ[_triggerZ.Length - 1];
+
+        if (fireEvent)
+            OnPhaseChanged?.Invoke(_currentPhase, GetPhaseData(_currentPhase));
+
+        Debug.Log($"[Tracker] Phase: {_currentPhase} | Z: {_currentPhaseStartZ:F1} to {_currentPhaseEndZ:F1}");
+    }
+
+
+    // ─────────────────────────────────────────────
+    // LOG WEIGHTS (for TotalProgressLog)
+    // ─────────────────────────────────────────────
+
+    void BuildLogWeights()
+    {
+        _logWeights = new double[phases.Length];
+        _totalLogWeight = 0.0;
 
         for (int i = 0; i < phases.Length; i++)
         {
-            double start = phases[i].remainingDistanceAtStart;
-            double end = phases[i].remainingDistanceAtEnd;
+            double span = phases[i].TotalDistanceLy;
+            _logWeights[i] = Math.Max(Math.Log10(Math.Max(span, 1.0)), MIN_LOG);
+            _totalLogWeight += _logWeights[i];
+        }
+    }
 
-            if (_remainingDistanceLy <= start && _remainingDistanceLy > end)
+    // ─────────────────────────────────────────────
+    // PHASE AUTO-DETECTION FROM Z
+    // ─────────────────────────────────────────────
+
+    void DetectPhaseFromTriggerZ()
+    {
+        float playerZ = playerTransform.position.z;
+
+        // Walk triggers to find which phase window the player is in.
+        // We go from last to first so the highest-Z trigger wins.
+        for (int i = phases.Length - 1; i >= 0; i--)
+        {
+            if (i < _triggerZ.Length && playerZ >= _triggerZ[i])
             {
                 JourneyPhase detected = (JourneyPhase)i;
                 if (detected != _currentPhase)
-                {
-                    _currentPhase = detected;
-                    _phaseDistanceTravelled = 0;
-                    OnPhaseChanged?.Invoke(_currentPhase, GetPhaseData(_currentPhase));
-                    Debug.Log($"[Tracker] Phase: {_currentPhase}, Remaining: {_remainingDistanceLy:e2}");
-                }
+                    SetPhaseInternal(detected, fireEvent: true);
                 return;
-            }
-        }
-
-        if (_remainingDistanceLy <= 0)
-        {
-            JourneyPhase last = (JourneyPhase)(phases.Length - 1);
-            if (_currentPhase != last)
-            {
-                _currentPhase = last;
-                _phaseDistanceTravelled = 0;
-                OnPhaseChanged?.Invoke(_currentPhase, GetPhaseData(_currentPhase));
             }
         }
     }
@@ -254,12 +332,13 @@ public class UniverseJourneyTracker : MonoBehaviour
 
     void CheckMilestones()
     {
+        double remaining = RemainingDistanceLy;
         foreach (var m in milestones)
         {
-            if (!m.triggered && _remainingDistanceLy <= m.remainingDistanceThresholdLy)
+            if (!m.triggered && remaining <= m.remainingDistanceThresholdLy)
             {
                 m.triggered = true;
-                OnMilestoneReached?.Invoke(m.label);
+                OnMilestoneReached?.Invoke(m.label, m.icon);
             }
         }
     }
@@ -268,45 +347,84 @@ public class UniverseJourneyTracker : MonoBehaviour
     // PUBLIC API
     // ─────────────────────────────────────────────
 
+    /// <summary>
+    /// Called by JourneyLayerResponder when a layer trigger fires.
+    /// Pins the phase so auto-detection doesn't override it mid-transition.
+    /// </summary>
     public void SetPhase(JourneyPhase newPhase)
     {
         _phasePinned = true;
         if (newPhase == _currentPhase) return;
-        _currentPhase = newPhase;
-        _phaseDistanceTravelled = 0;
-        OnPhaseChanged?.Invoke(_currentPhase, GetPhaseData(_currentPhase));
+        SetPhaseInternal(newPhase, fireEvent: true);
     }
 
+    /// <summary>
+    /// Called by JourneyLayerResponder when returning to a default/macro layer.
+    /// Resumes Z-based auto-detection.
+    /// </summary>
     public void UnpinPhase()
     {
         _phasePinned = false;
     }
 
+    /// <summary>
+    /// Progress through the current phase (0→1), driven by player Z position.
+    /// </summary>
     public float PhaseProgress
     {
         get
         {
-            PhaseData d = GetPhaseData(_currentPhase);
-            double phaseTotalLy = d.TotalDistanceLy;
-            if (phaseTotalLy <= 0) return 0f;
-            return Mathf.Clamp01((float)(_phaseDistanceTravelled / phaseTotalLy));
+            if (!_initialized || playerTransform == null) return 0f;
+
+            float span = _currentPhaseEndZ - _currentPhaseStartZ;
+            if (Mathf.Abs(span) < 0.001f) return 0f;
+
+            float t = (playerTransform.position.z - _currentPhaseStartZ) / span;
+            return Mathf.Clamp01(t);
         }
     }
 
+    /// <summary>
+    /// Total journey progress (0→1) on a log scale.
+    /// Drives the gradient fill bar height in UniverseJourneyHUD.
+    /// </summary>
     public float TotalProgressLog
     {
         get
         {
-            if (_remainingDistanceLy <= 0) return 1f;
-            if (totalJourneyLy <= 0) return 0f;
-            double logTotal = Math.Log10(Math.Max(totalJourneyLy, 1));
-            double logRemaining = Math.Log10(Math.Max(_remainingDistanceLy, 1));
-            return Mathf.Clamp01((float)((logTotal - logRemaining) / logTotal));
+            if (_logWeights == null || _totalLogWeight <= 0.0) return 0f;
+
+            int idx = (int)_currentPhase;
+            double completed = 0.0;
+
+            for (int i = 0; i < idx && i < _logWeights.Length; i++)
+                completed += _logWeights[i];
+
+            double current = idx < _logWeights.Length
+                ? _logWeights[idx] * PhaseProgress
+                : 0.0;
+
+            return Mathf.Clamp01((float)((completed + current) / _totalLogWeight));
         }
     }
 
-    public double RemainingDistanceLy => _remainingDistanceLy;
-    public double PhaseDistanceLy => _phaseDistanceTravelled;
+    /// <summary>
+    /// Remaining journey distance in ly, interpolated from phase data.
+    /// Used for the distance label only — not for driving progress.
+    /// </summary>
+    public double RemainingDistanceLy
+    {
+        get
+        {
+            PhaseData d = GetPhaseData(_currentPhase);
+            double remaining = d.remainingDistanceAtStart
+                - d.TotalDistanceLy * PhaseProgress;
+            return Math.Max(0.0, remaining);
+        }
+    }
+
+    // ── Convenience properties ────────────────────────────────────────
+
     public JourneyPhase CurrentPhase => _currentPhase;
     public string CurrentPhaseName => GetPhaseData(_currentPhase).displayName;
     public double CurrentPhaseTotalLy => GetPhaseData(_currentPhase).TotalDistanceLy;
@@ -314,16 +432,15 @@ public class UniverseJourneyTracker : MonoBehaviour
     public MilestoneData[] Milestones => milestones;
 
     public string FormattedRemainingDistance =>
-        FormatDistance(_remainingDistanceLy) + " to Earth";
-
-    public string FormattedPhaseDistance => FormatDistance(_phaseDistanceTravelled);
+        FormatDistance(RemainingDistanceLy) + " to Earth";
 
     public string ScaleLabel
     {
         get
         {
+            // Shows the real-world scale of the current phase for the HUD
             PhaseData d = GetPhaseData(_currentPhase);
-            return "1 m = " + FormatDistance(d.lyPerUnityUnit);
+            return FormatDistance(d.TotalDistanceLy) + " phase";
         }
     }
 
@@ -331,7 +448,7 @@ public class UniverseJourneyTracker : MonoBehaviour
     {
         int i = (int)phase;
         if (phases == null || i < 0 || i >= phases.Length)
-            return new PhaseData { displayName = "Unknown", lyPerUnityUnit = 1 };
+            return new PhaseData { displayName = "Unknown" };
         return phases[i];
     }
 
@@ -341,21 +458,31 @@ public class UniverseJourneyTracker : MonoBehaviour
         if (ly >= 1e6) return (ly / 1e6).ToString("0.##") + "M ly";
         if (ly >= 1e3) return (ly / 1e3).ToString("0.##") + "K ly";
         if (ly >= 1.0) return ly.ToString("0.##") + " ly";
-        double lightMin = ly * 525960.0;
-        if (lightMin >= 1.0) return lightMin.ToString("0.#") + " light-min";
-        double lightSec = lightMin * 60.0;
-        if (lightSec >= 1.0) return lightSec.ToString("0.#") + " light-sec";
-        double km = lightSec * 299792.0;
-        return km.ToString("0.##") + " km";
+        double lm = ly * 525960.0;
+        if (lm >= 1.0) return lm.ToString("0.#") + " light-min";
+        double ls = lm * 60.0;
+        if (ls >= 1.0) return ls.ToString("0.#") + " light-sec";
+        return (ls * 299792.0).ToString("0.##") + " km";
     }
 
     public void ResetJourney()
     {
-        _remainingDistanceLy = totalJourneyLy;
-        _phaseDistanceTravelled = 0;
         _currentPhase = JourneyPhase.Quasar;
+        _phasePinned = false;
+        if (_initialized) SetPhaseInternal(JourneyPhase.Quasar, fireEvent: true);
         foreach (var m in milestones) m.triggered = false;
-        if (playerTransform != null)
-            _lastPlayerPosition = playerTransform.position;
     }
+
+#if UNITY_EDITOR
+    void OnValidate()
+    {
+        if (phases != null && phases.Length != 7)
+            Debug.LogWarning("[Tracker] phases array should have exactly 7 entries.");
+
+        if (layerTriggers != null && layerTriggers.Length != 7)
+            Debug.LogWarning("[Tracker] layerTriggers should have exactly 7 entries: " +
+                             "6 phase doors (CW, Galaxy, CW2, MW, Solar, Earth) + 1 Earth arrival point. " +
+                             "Do NOT add a Quasar door.");
+    }
+#endif
 }
