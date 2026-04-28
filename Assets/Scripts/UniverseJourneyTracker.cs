@@ -47,9 +47,12 @@ public class UniverseJourneyTracker : MonoBehaviour
                  "Used only for the distance label — does not drive progress.")]
         public double remainingDistanceAtEnd;
 
-        [Tooltip("Legacy field — kept for compatibility with LymanAlphaAbsorptionController.\n" +
-                 "No longer used to drive HUD progress (now trigger-based).\n" +
-                 "Set to 0 to disable, or keep your existing value for other scripts.")]
+        [Tooltip("Used by LymanAlphaAbsorptionController and other visual scripts.\n\n" +
+                 "For the Journey HUD distance calculation, the EFFECTIVE ly/unit is\n" +
+                 "auto-computed at runtime as:\n" +
+                 "  phaseTotalDistanceLy ÷ phaseZSpan\n\n" +
+                 "Run [ContextMenu → Debug: Log ly/unit Rates] at Play time to see\n" +
+                 "the actual computed values for your scene's trigger layout.")]
         public double lyPerUnityUnit;
 
         /// <summary>Total ly span of this phase (for HUD label only).</summary>
@@ -319,6 +322,12 @@ public class UniverseJourneyTracker : MonoBehaviour
     double _totalLogWeight;
     const double MIN_LOG = 2.0;
 
+    // Effective ly-per-Unity-unit for each phase.
+    // Derived at runtime from phases[i].TotalDistanceLy / phaseZSpan[i].
+    // This is the physical scale factor that makes distance-per-frame different
+    // in CosmicWeb (billions of ly/unit) vs SolarSystem (0.01 ly/unit).
+    double[] _lyPerUnit;
+
     // ─────────────────────────────────────────────
     // UNITY LIFECYCLE
     // ─────────────────────────────────────────────
@@ -333,6 +342,7 @@ public class UniverseJourneyTracker : MonoBehaviour
         if (!ValidateSetup()) return;
 
         BuildTriggerZCache();
+        BuildLyPerUnitCache();
         BuildLogWeights();
         SetPhaseInternal(_currentPhase, fireEvent: false);
 
@@ -412,6 +422,45 @@ public class UniverseJourneyTracker : MonoBehaviour
                   $"  [5] Solar door:           {_triggerZ[5]:F1}\n" +
                   $"  [6] Earth door:           {_triggerZ[6]:F1}\n" +
                   $"  [7] Earth arrival:        {_triggerZ[7]:F1}");
+    }
+
+    // ─────────────────────────────────────────────
+    // LY-PER-UNIT CACHE
+    // ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Computes the effective ly/unit scale for each phase from the actual scene
+    /// trigger Z spans and the designer-set phase ly distances.
+    ///
+    /// This is what makes the distance display physically meaningful:
+    ///   CosmicWeb  — ~30 M ly per Unity unit (billions drop fast)
+    ///   MilkyWay   — ~248 ly per Unity unit  (thousands change slowly)
+    ///   SolarSystem— ~0.009 ly per Unity unit (sub-ly crawl)
+    ///
+    /// If a phase has zero Z span (collapsed trigger), its scale is set to 0
+    /// and it contributes nothing to RemainingDistanceLy.
+    /// </summary>
+    void BuildLyPerUnitCache()
+    {
+        _lyPerUnit = new double[phases.Length];
+        var sb = new System.Text.StringBuilder("[Tracker] Effective ly/unit per phase:\n");
+
+        for (int i = 0; i < phases.Length; i++)
+        {
+            double zSpan = (i + 1 < _triggerZ.Length)
+                ? Math.Abs(_triggerZ[i + 1] - _triggerZ[i])
+                : 0.0;
+
+            _lyPerUnit[i] = (zSpan > 0.0001)
+                ? phases[i].TotalDistanceLy / zSpan
+                : 0.0;
+
+            sb.AppendLine($"  [{(JourneyPhase)i,-12}] " +
+                          $"Z-span={zSpan,7:F1}  " +
+                          $"{FormatDistance(phases[i].TotalDistanceLy),10} total  " +
+                          $"{FormatDistance(_lyPerUnit[i])}/unit");
+        }
+        Debug.Log(sb.ToString());
     }
 
     void SetPhaseInternal(JourneyPhase phase, bool fireEvent)
@@ -546,17 +595,43 @@ public class UniverseJourneyTracker : MonoBehaviour
     }
 
     /// <summary>
-    /// Remaining journey distance in ly.
-    /// Always derived from raw Z so it stays accurate even when a phase is pinned
-    /// (e.g. inside a Galaxy or MilkyWay micro-layer).
+    /// Remaining journey distance in light-years to Earth.
+    ///
+    /// Formula:
+    ///   remaining  =  remaining_Z_in_current_phase × ly/unit[current]
+    ///              +  Σ( full_Z_span[i] × ly/unit[i] )  for every future phase i
+    ///
+    /// The ly/unit scale is DIFFERENT per phase (see BuildLyPerUnitCache), so:
+    ///   • In CosmicWeb  the number drops by ~30 M ly per Unity unit
+    ///   • In MilkyWay   it drops by ~248 ly per Unity unit
+    ///   • In SolarSystem it drops by ~0.009 ly per Unity unit
+    ///
+    /// Always reads raw player Z — unaffected by phase pinning.
     /// </summary>
     public double RemainingDistanceLy
     {
         get
         {
+            if (_lyPerUnit == null || _triggerZ == null) return 0.0;
             var (idx, t) = RawZProgress();
-            PhaseData d = GetPhaseData((JourneyPhase)idx);
-            return Math.Max(0.0, d.remainingDistanceAtStart - d.TotalDistanceLy * t);
+
+            double remaining = 0.0;
+
+            // ── Remaining fraction of the CURRENT phase ──────────────────────
+            if (idx < _lyPerUnit.Length && idx + 1 < _triggerZ.Length)
+            {
+                double zSpan = Math.Abs(_triggerZ[idx + 1] - _triggerZ[idx]);
+                remaining += zSpan * (1.0 - t) * _lyPerUnit[idx];
+            }
+
+            // ── Full span of every FUTURE phase ──────────────────────────────
+            for (int i = idx + 1; i < phases.Length; i++)
+            {
+                if (i < _lyPerUnit.Length && i + 1 < _triggerZ.Length)
+                    remaining += Math.Abs(_triggerZ[i + 1] - _triggerZ[i]) * _lyPerUnit[i];
+            }
+
+            return Math.Max(0.0, remaining);
         }
     }
 
@@ -654,6 +729,25 @@ public class UniverseJourneyTracker : MonoBehaviour
             Debug.LogWarning("[Tracker] layerTriggers should have exactly 7 entries: " +
                              "6 phase doors (CW, Galaxy, CW2, MW, Solar, Earth) + 1 Earth arrival point. " +
                              "Do NOT add a Quasar door.");
+    }
+
+    [ContextMenu("Debug: Log ly/unit Rates (Play mode only)")]
+    void DebugLogLyPerUnit()
+    {
+        if (_lyPerUnit == null)
+        { Debug.LogWarning("[Tracker] _lyPerUnit not built yet — enter Play mode first."); return; }
+
+        var sb = new System.Text.StringBuilder("[Tracker] Effective ly/unit per phase (from scene triggers):\n");
+        for (int i = 0; i < phases.Length; i++)
+        {
+            double zSpan = (i + 1 < _triggerZ.Length)
+                ? Math.Abs(_triggerZ[i + 1] - _triggerZ[i]) : 0.0;
+            sb.AppendLine($"  [{(JourneyPhase)i,-12}] " +
+                          $"{FormatDistance(_lyPerUnit[i]),-18}/unit  " +
+                          $"z-span={zSpan,7:F1}  total={FormatDistance(phases[i].TotalDistanceLy)}");
+        }
+        sb.AppendLine($"\n  Current remaining: {FormatDistance(RemainingDistanceLy)}");
+        Debug.Log(sb.ToString());
     }
 
     [ContextMenu("Debug: Fire Next Untriggered Milestone")]
