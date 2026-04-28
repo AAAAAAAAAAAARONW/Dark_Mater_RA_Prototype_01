@@ -2,73 +2,64 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
 
 /// <summary>
-/// Milestone HUD — rich card popup.
+/// Milestone HUD — sprite-based card popup.
 ///
-/// Card layout (set up in the Unity scene):
-///   [CardRoot]          ← CanvasGroup for alpha fade, RectTransform for slide
-///     [IconBackground]  ← Image — tinted with MilestoneData.iconColor
-///       [IconImage]     ← Image — optional Sprite from MilestoneData.icon
-///     [MetaText]        ← TMP "12.5B ly  ·  1.3B years ago"
-///     [TitleText]       ← TMP milestone name
-///     [DescriptionText] ← TMP one-sentence description
-///
+/// Drop one pre-designed card Sprite per milestone into milestoneSprites[].
+/// Sprites are matched by order: milestoneSprites[0] = first milestone, etc.
 /// Multiple milestones queue automatically — never overlap.
-/// All timing values are exposed in the inspector.
 /// </summary>
 public class MilestoneHUD : MonoBehaviour
 {
-    // ─────────────────────────────────────────────
-    // INSPECTOR
-    // ─────────────────────────────────────────────
-
     [Header("References")]
     [SerializeField] UniverseJourneyTracker tracker;
 
-    [Header("Card UI — wire up in the scene")]
-    [Tooltip("CanvasGroup on the card root — used for alpha fade.")]
-    [SerializeField] CanvasGroup cardCanvasGroup;
+    [Tooltip("Image component that shows the card sprite.")]
+    [SerializeField] Image popupImage;
 
-    [Tooltip("Image used as the colored circle behind the icon.\n" +
-             "Its color will be set to MilestoneData.iconColor.")]
-    [SerializeField] Image iconBackground;
+    [Tooltip("CanvasGroup on the popup — used for alpha fade.")]
+    [SerializeField] CanvasGroup canvasGroup;
 
-    [Tooltip("Image for the icon sprite inside the circle.\n" +
-             "Hidden automatically when MilestoneData.icon is null.")]
-    [SerializeField] Image iconImage;
-
-    [Tooltip("TMP text: 'X ly  ·  X years ago'")]
-    [SerializeField] TextMeshProUGUI metaText;
-
-    [Tooltip("TMP text: milestone name / title")]
-    [SerializeField] TextMeshProUGUI titleText;
-
-    [Tooltip("TMP text: one-sentence description")]
-    [SerializeField] TextMeshProUGUI descriptionText;
+    [Header("Milestone Sprites")]
+    [Tooltip(
+        "One pre-designed card sprite per milestone, in the same order as\n" +
+        "UniverseJourneyTracker.milestones[]:\n\n" +
+        "[0]  Big Bang\n" +
+        "[1]  Cosmic Microwave Background\n" +
+        "[2]  First Stars Ignite\n" +
+        "[3]  Cosmic Reionization\n" +
+        "[4]  Milky Way Forms\n" +
+        "[5]  Peak Quasar Activity\n" +
+        "[6]  Cosmic Star Formation Noon\n" +
+        "[7]  Dark Energy Dominates\n" +
+        "[8]  Sun Ignites\n" +
+        "[9]  Earth Is Born\n" +
+        "[10] Giant Impact — Moon Forms\n" +
+        "[11] First Life Emerges\n" +
+        "[12] Oxygen Revolution\n" +
+        "[13] Multicellular Life\n" +
+        "[14] Dinosaurs Rise\n" +
+        "[15] Mass Extinction\n" +
+        "[16] Homo Sapiens Appear\n" +
+        "[17] First Radio Signals Leave Earth")]
+    [SerializeField] Sprite[] milestoneSprites;
 
     [Header("Timing")]
     [SerializeField] float displayDuration  = 3.5f;
     [SerializeField] float fadeInDuration   = 0.4f;
     [SerializeField] float fadeOutDuration  = 0.4f;
 
-    [Header("Slide Animation (optional)")]
-    [Tooltip("Slide the card in from this offset (local pixels). Set to zero to disable.")]
-    [SerializeField] Vector2 slideInOffset  = new Vector2(-40f, 0f);
-    [SerializeField] float   slideDuration  = 0.35f;
-
     // ─────────────────────────────────────────────
     // PRIVATE STATE
     // ─────────────────────────────────────────────
 
-    readonly Queue<UniverseJourneyTracker.MilestoneData> _queue =
-        new Queue<UniverseJourneyTracker.MilestoneData>();
+    readonly Queue<(int index, Sprite sprite)> _queue =
+        new Queue<(int, Sprite)>();
 
-    Coroutine   _showCoroutine;
-    RectTransform _cardRect;
-    Vector2     _anchoredPosHome;
-    bool        _initialized;
+    Coroutine _showCoroutine;
+    int  _milestonesFired;
+    bool _initialized;
 
     // ─────────────────────────────────────────────
     // UNITY LIFECYCLE
@@ -76,31 +67,30 @@ public class MilestoneHUD : MonoBehaviour
 
     void Awake()
     {
-        HideCard();
+        if (popupImage != null) popupImage.gameObject.SetActive(false);
+        if (canvasGroup != null) canvasGroup.alpha = 0f;
     }
 
     void Start()
     {
         if (tracker == null)
-        {
-            Debug.LogWarning("[MilestoneHUD] Tracker not assigned.");
-            return;
-        }
-        if (cardCanvasGroup == null)
-        {
-            Debug.LogWarning("[MilestoneHUD] Card CanvasGroup not assigned.");
-            return;
-        }
+        { Debug.LogWarning("[MilestoneHUD] Tracker not assigned."); return; }
+        if (popupImage == null)
+        { Debug.LogWarning("[MilestoneHUD] Popup Image not assigned."); return; }
 
-        _cardRect = cardCanvasGroup.GetComponent<RectTransform>();
-        if (_cardRect != null)
-            _anchoredPosHome = _cardRect.anchoredPosition;
+        if (canvasGroup == null)
+            canvasGroup = popupImage.GetComponent<CanvasGroup>()
+                       ?? popupImage.gameObject.AddComponent<CanvasGroup>();
 
-        HideCard();
+        canvasGroup.alpha = 0f;
+        popupImage.gameObject.SetActive(false);
+
         tracker.OnMilestoneReached += HandleMilestoneReached;
         _initialized = true;
 
-        Debug.Log($"[MilestoneHUD] Ready. {tracker.Milestones?.Length ?? 0} milestones registered.");
+        Debug.Log($"[MilestoneHUD] Ready. " +
+                  $"{milestoneSprites?.Length ?? 0} sprites / " +
+                  $"{tracker.Milestones?.Length ?? 0} milestones.");
     }
 
     void OnDestroy()
@@ -117,124 +107,75 @@ public class MilestoneHUD : MonoBehaviour
     {
         if (!_initialized) return;
 
-        _queue.Enqueue(data);
+        int index = _milestonesFired++;
 
+        // Use icon embedded in MilestoneData first; fall back to the sprite array.
+        Sprite sprite = data.icon;
+        if (sprite == null && milestoneSprites != null && index < milestoneSprites.Length)
+            sprite = milestoneSprites[index];
+
+        if (sprite == null)
+        {
+            Debug.Log($"[MilestoneHUD] '{data.label}' (index {index}) — no sprite, skipping.");
+            return;
+        }
+
+        _queue.Enqueue((index, sprite));
         if (_showCoroutine == null)
             _showCoroutine = StartCoroutine(ProcessQueue());
     }
 
     // ─────────────────────────────────────────────
-    // QUEUE PROCESSOR
+    // QUEUE
     // ─────────────────────────────────────────────
 
     IEnumerator ProcessQueue()
     {
         while (_queue.Count > 0)
         {
-            var data = _queue.Dequeue();
-            yield return ShowCard(data);
+            var (index, sprite) = _queue.Dequeue();
+            yield return ShowPopup(sprite, index);
         }
         _showCoroutine = null;
     }
 
-    IEnumerator ShowCard(UniverseJourneyTracker.MilestoneData data)
+    IEnumerator ShowPopup(Sprite sprite, int index)
     {
-        PopulateCard(data);
-        cardCanvasGroup.gameObject.SetActive(true);
+        popupImage.sprite = sprite;
+        popupImage.gameObject.SetActive(true);
 
-        // Slide + fade in
         float t = 0f;
-        Vector2 startPos = _anchoredPosHome + slideInOffset;
         while (t < fadeInDuration)
         {
             t += Time.deltaTime;
-            float pct = Mathf.Clamp01(t / fadeInDuration);
-            float eased = EaseOut(pct);
-            cardCanvasGroup.alpha = eased;
-            if (_cardRect != null && slideInOffset != Vector2.zero)
-                _cardRect.anchoredPosition = Vector2.Lerp(startPos, _anchoredPosHome, eased);
+            canvasGroup.alpha = Mathf.Clamp01(t / fadeInDuration);
             yield return null;
         }
-        cardCanvasGroup.alpha = 1f;
-        if (_cardRect != null) _cardRect.anchoredPosition = _anchoredPosHome;
+        canvasGroup.alpha = 1f;
+        Debug.Log($"[MilestoneHUD] Showing [{index}]");
 
-        Debug.Log($"[MilestoneHUD] Showing: {data.label}");
         yield return new WaitForSeconds(displayDuration);
 
-        // Fade out
         t = 0f;
         while (t < fadeOutDuration)
         {
             t += Time.deltaTime;
-            cardCanvasGroup.alpha = 1f - Mathf.Clamp01(t / fadeOutDuration);
+            canvasGroup.alpha = 1f - Mathf.Clamp01(t / fadeOutDuration);
             yield return null;
         }
-
-        HideCard();
+        canvasGroup.alpha = 0f;
+        popupImage.gameObject.SetActive(false);
     }
 
     // ─────────────────────────────────────────────
-    // CARD POPULATION
+    // EDITOR HELPERS
     // ─────────────────────────────────────────────
-
-    void PopulateCard(UniverseJourneyTracker.MilestoneData data)
-    {
-        // Meta line: "12.5B ly  ·  1.3B years ago"
-        if (metaText != null)
-        {
-            string distStr  = UniverseJourneyTracker.FormatDistance(data.remainingDistanceThresholdLy);
-            string yearsStr = UniverseJourneyTracker.FormatDistance(data.yearsAgo);
-            metaText.text = $"{distStr}  ·  {yearsStr} years ago";
-        }
-
-        if (titleText != null)
-            titleText.text = data.label;
-
-        if (descriptionText != null)
-            descriptionText.text = data.description;
-
-        // Icon circle
-        if (iconBackground != null)
-            iconBackground.color = data.iconColor;
-
-        if (iconImage != null)
-        {
-            iconImage.sprite  = data.icon;
-            iconImage.enabled = data.icon != null;
-        }
-    }
-
-    // ─────────────────────────────────────────────
-    // HELPERS
-    // ─────────────────────────────────────────────
-
-    void HideCard()
-    {
-        if (cardCanvasGroup != null)
-        {
-            cardCanvasGroup.alpha = 0f;
-            cardCanvasGroup.gameObject.SetActive(false);
-        }
-        if (_cardRect != null)
-            _cardRect.anchoredPosition = _anchoredPosHome;
-    }
-
-    static float EaseOut(float t) => 1f - (1f - t) * (1f - t);
 
 #if UNITY_EDITOR
-    void OnValidate()
-    {
-        displayDuration = Mathf.Max(0.5f, displayDuration);
-        fadeInDuration  = Mathf.Max(0.05f, fadeInDuration);
-        fadeOutDuration = Mathf.Max(0.05f, fadeOutDuration);
-        slideDuration   = Mathf.Max(0.05f, slideDuration);
-    }
-
-    [ContextMenu("Test: Fire Milestone 0 (Big Bang)")]
+    [ContextMenu("Test: Fire Milestone 0")]
     void DebugFireFirst()
     {
-        if (tracker == null || tracker.Milestones == null || tracker.Milestones.Length == 0)
-        { Debug.LogWarning("[MilestoneHUD] No tracker / milestones found."); return; }
+        if (tracker?.Milestones == null || tracker.Milestones.Length == 0) return;
         HandleMilestoneReached(tracker.Milestones[0]);
     }
 
@@ -244,6 +185,22 @@ public class MilestoneHUD : MonoBehaviour
         if (tracker?.Milestones == null) return;
         foreach (var m in tracker.Milestones)
             HandleMilestoneReached(m);
+    }
+
+    void OnValidate()
+    {
+        displayDuration = Mathf.Max(0.5f, displayDuration);
+        fadeInDuration  = Mathf.Max(0.1f, fadeInDuration);
+        fadeOutDuration = Mathf.Max(0.1f, fadeOutDuration);
+
+        if (tracker != null && milestoneSprites != null)
+        {
+            int mc = tracker.Milestones?.Length ?? 0;
+            if (mc > 0 && milestoneSprites.Length != mc)
+                Debug.LogWarning(
+                    $"[MilestoneHUD] {milestoneSprites.Length} sprites but " +
+                    $"{mc} milestones — counts should match.");
+        }
     }
 #endif
 }
