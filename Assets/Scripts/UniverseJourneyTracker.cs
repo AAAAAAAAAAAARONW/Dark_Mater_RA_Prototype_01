@@ -63,14 +63,31 @@ public class UniverseJourneyTracker : MonoBehaviour
     [Serializable]
     public class MilestoneData
     {
-        [Tooltip("Display label e.g. '🌟 First Stars Form'")]
+        [Tooltip("Short event name shown as the card title.")]
         public string label;
 
-        [Tooltip("Optional icon sprite shown in milestone popup.")]
+        [Tooltip("One-sentence description shown on the card body.")]
+        [TextArea(2, 3)]
+        public string description;
+
+        [Tooltip("Optional icon sprite shown in the card icon circle.\n" +
+                 "Leave empty to use a solid color circle.")]
         public Sprite icon;
 
-        [Tooltip("Fires when remaining distance (ly) drops BELOW this value.")]
+        [Tooltip("Background color of the icon circle on the card.\n" +
+                 "Purple = early universe  |  Gold = galactic era  |  Green = life era")]
+        public Color iconColor = new Color(0.35f, 0.15f, 0.6f, 1f);
+
+        [Tooltip("Fires when remaining distance (ly) drops BELOW this value.\n" +
+                 "This is the journey trigger point — set it to the cosmological\n" +
+                 "distance at which you want the card to appear.")]
         public double remainingDistanceThresholdLy;
+
+        [Tooltip("How long ago this event actually occurred (years).\n" +
+                 "Displayed on the card as 'X years ago'.\n" +
+                 "For events in the last ~5B years this equals the threshold.\n" +
+                 "For early-universe events use the actual age (e.g. Big Bang = 13.8e9).")]
+        public double yearsAgo;
 
         [HideInInspector] public bool triggered;
     }
@@ -125,28 +142,149 @@ public class UniverseJourneyTracker : MonoBehaviour
             lyPerUnityUnit=1e-14 },
     };
 
-    [Header("Milestones")]
+    // ── Color presets (reused across milestones) ─────────────────────────
+    static readonly Color _colEarlyUniverse = new Color(0.30f, 0.10f, 0.50f);   // deep purple
+    static readonly Color _colGalactic      = new Color(0.48f, 0.33f, 0.08f);   // gold
+    static readonly Color _colSolar         = new Color(0.15f, 0.50f, 0.25f);   // green
+    static readonly Color _colLife          = new Color(0.10f, 0.45f, 0.35f);   // teal-green
+
+    [Header("Milestones — exposed for timeline tuning")]
+    [Tooltip("Milestones fire when RemainingDistanceLy drops BELOW remainingDistanceThresholdLy.\n" +
+             "Journey starts at ~13B ly (Quasar). Set thresholds above 13B to fire at game start.")]
     [SerializeField]
     MilestoneData[] milestones = new MilestoneData[]
     {
-        new MilestoneData { label="🌟 First Stars Form",
-            remainingDistanceThresholdLy=12.5e9 },
-        new MilestoneData { label="🌌 Milky Way Forms",
-            remainingDistanceThresholdLy=11.0e9 },
-        new MilestoneData { label="💥 Cosmic Noon — Peak Star Formation",
-            remainingDistanceThresholdLy=10.5e9 },
-        new MilestoneData { label="🌑 Dark Energy Takes Over",
-            remainingDistanceThresholdLy=7.5e9  },
-        new MilestoneData { label="☀️ Sun Born",
-            remainingDistanceThresholdLy=4.6e9  },
-        new MilestoneData { label="🌍 Earth Born",
-            remainingDistanceThresholdLy=4.5e9  },
-        new MilestoneData { label="🦕 Dinosaurs Roam",
-            remainingDistanceThresholdLy=2.3e8  },
-        new MilestoneData { label="🧑 Humans Appear",
-            remainingDistanceThresholdLy=3e5    },
-        new MilestoneData { label="📡 First Radio Signal",
-            remainingDistanceThresholdLy=120    },
+        // ── PRE-JOURNEY (threshold > 13B → fires at game start) ──────────
+        new MilestoneData {
+            label = "Big Bang",
+            description = "Space, time, and matter explode into existence from a singular point",
+            remainingDistanceThresholdLy = 13.8e9,
+            yearsAgo = 13.8e9,
+            iconColor = new Color(0.20f, 0.05f, 0.40f) },
+
+        new MilestoneData {
+            label = "Cosmic Microwave Background",
+            description = "The universe cools enough for atoms to form — ancient light floods space",
+            remainingDistanceThresholdLy = 13.78e9,
+            yearsAgo = 13.78e9,
+            iconColor = new Color(0.28f, 0.08f, 0.48f) },
+
+        // ── QUASAR PHASE  (13B → 11B ly remaining) ───────────────────────
+        new MilestoneData {
+            label = "First Stars Ignite",
+            description = "The universe's first massive Population III stars blaze to life in the dark",
+            remainingDistanceThresholdLy = 12.5e9,
+            yearsAgo = 1.3e9,
+            iconColor = _colEarlyUniverse },
+
+        new MilestoneData {
+            label = "Cosmic Reionization",
+            description = "Radiation from the first stars tears electrons free — the universe turns transparent",
+            remainingDistanceThresholdLy = 12.0e9,
+            yearsAgo = 1.8e9,
+            iconColor = _colEarlyUniverse },
+
+        // ── COSMIC WEB 1 PHASE  (11B → 7B ly remaining) ──────────────────
+        new MilestoneData {
+            label = "Milky Way Forms",
+            description = "Our galaxy assembles from merging clouds of gas and infant star clusters",
+            remainingDistanceThresholdLy = 11.0e9,
+            yearsAgo = 2.8e9,
+            iconColor = _colGalactic },
+
+        new MilestoneData {
+            label = "Peak Quasar Activity",
+            description = "Thousands of quasars blazing simultaneously — the universe is at its brightest",
+            remainingDistanceThresholdLy = 10.5e9,
+            yearsAgo = 3.3e9,
+            iconColor = _colEarlyUniverse },
+
+        new MilestoneData {
+            label = "Cosmic Star Formation Noon",
+            description = "Stars born 10× faster than today — the universe reaches peak stellar output",
+            remainingDistanceThresholdLy = 10.49e9,
+            yearsAgo = 3.3e9,
+            iconColor = _colGalactic },
+
+        new MilestoneData {
+            label = "Dark Energy Dominates",
+            description = "Mysterious dark energy overcomes gravity — cosmic expansion begins to accelerate",
+            remainingDistanceThresholdLy = 7.5e9,
+            yearsAgo = 6.3e9,
+            iconColor = _colGalactic },
+
+        // ── COSMIC WEB 2 PHASE  (7B → 24K ly remaining) ──────────────────
+        new MilestoneData {
+            label = "Sun Ignites",
+            description = "Our star coalesces from a collapsing cloud of gas and interstellar dust",
+            remainingDistanceThresholdLy = 4.6e9,
+            yearsAgo = 4.6e9,
+            iconColor = _colSolar },
+
+        new MilestoneData {
+            label = "Earth Is Born",
+            description = "A rocky planet accretes from solar debris — the future cradle of all known life",
+            remainingDistanceThresholdLy = 4.54e9,
+            yearsAgo = 4.54e9,
+            iconColor = _colSolar },
+
+        new MilestoneData {
+            label = "Giant Impact — Moon Forms",
+            description = "A Mars-sized body collides with Earth, ejecting the debris that becomes the Moon",
+            remainingDistanceThresholdLy = 4.5e9,
+            yearsAgo = 4.5e9,
+            iconColor = _colSolar },
+
+        new MilestoneData {
+            label = "First Life Emerges",
+            description = "Single-celled organisms appear in warm shallow seas — life takes its first breath",
+            remainingDistanceThresholdLy = 3.8e9,
+            yearsAgo = 3.8e9,
+            iconColor = _colLife },
+
+        new MilestoneData {
+            label = "Oxygen Revolution",
+            description = "Cyanobacteria flood the atmosphere with oxygen — the Great Oxidation Event",
+            remainingDistanceThresholdLy = 2.7e9,
+            yearsAgo = 2.7e9,
+            iconColor = _colLife },
+
+        new MilestoneData {
+            label = "Multicellular Life",
+            description = "Complex organisms with differentiated cells appear — evolution takes a giant leap",
+            remainingDistanceThresholdLy = 600e6,
+            yearsAgo = 600e6,
+            iconColor = _colLife },
+
+        // ── MILKY WAY PHASE  (24K → 1 ly remaining) ──────────────────────
+        new MilestoneData {
+            label = "Dinosaurs Rise",
+            description = "Dinosaurs dominate a warm, oxygen-rich Earth for 165 million years",
+            remainingDistanceThresholdLy = 230e6,
+            yearsAgo = 230e6,
+            iconColor = _colLife },
+
+        new MilestoneData {
+            label = "Mass Extinction",
+            description = "An asteroid ends the dinosaurs — mammals inherit the Earth",
+            remainingDistanceThresholdLy = 66e6,
+            yearsAgo = 66e6,
+            iconColor = _colLife },
+
+        new MilestoneData {
+            label = "Homo Sapiens Appear",
+            description = "The first beings capable of looking up and wondering about the light above",
+            remainingDistanceThresholdLy = 300e3,
+            yearsAgo = 300e3,
+            iconColor = _colLife },
+
+        // ── SOLAR SYSTEM / EARTH PHASE ────────────────────────────────────
+        new MilestoneData {
+            label = "First Radio Signals Leave Earth",
+            description = "Humanity's earliest transmissions radiate outward — becoming the light you are",
+            remainingDistanceThresholdLy = 120,
+            yearsAgo = 120,
+            iconColor = _colLife },
     };
 
     // ─────────────────────────────────────────────
@@ -156,8 +294,8 @@ public class UniverseJourneyTracker : MonoBehaviour
     /// <summary>Fired when the active phase changes.</summary>
     public event Action<JourneyPhase, PhaseData> OnPhaseChanged;
 
-    /// <summary>Fired when a milestone is crossed. Args: label, icon sprite.</summary>
-    public event Action<string, Sprite> OnMilestoneReached;
+    /// <summary>Fired when a milestone is crossed. Passes the full MilestoneData.</summary>
+    public event Action<MilestoneData> OnMilestoneReached;
 
     // ─────────────────────────────────────────────
     // PRIVATE STATE
@@ -338,7 +476,7 @@ public class UniverseJourneyTracker : MonoBehaviour
             if (!m.triggered && remaining <= m.remainingDistanceThresholdLy)
             {
                 m.triggered = true;
-                OnMilestoneReached?.Invoke(m.label, m.icon);
+                OnMilestoneReached?.Invoke(m);
             }
         }
     }
@@ -483,6 +621,31 @@ public class UniverseJourneyTracker : MonoBehaviour
             Debug.LogWarning("[Tracker] layerTriggers should have exactly 7 entries: " +
                              "6 phase doors (CW, Galaxy, CW2, MW, Solar, Earth) + 1 Earth arrival point. " +
                              "Do NOT add a Quasar door.");
+    }
+
+    [ContextMenu("Debug: Fire Next Untriggered Milestone")]
+    void DebugFireNextMilestone()
+    {
+        if (milestones == null) return;
+        foreach (var m in milestones)
+        {
+            if (!m.triggered)
+            {
+                m.triggered = true;
+                OnMilestoneReached?.Invoke(m);
+                Debug.Log($"[Tracker] Debug fired: {m.label}");
+                return;
+            }
+        }
+        Debug.Log("[Tracker] All milestones already triggered. Call ResetJourney() to reset.");
+    }
+
+    [ContextMenu("Debug: Reset All Milestones")]
+    void DebugResetMilestones()
+    {
+        if (milestones == null) return;
+        foreach (var m in milestones) m.triggered = false;
+        Debug.Log("[Tracker] All milestones reset.");
     }
 #endif
 }
