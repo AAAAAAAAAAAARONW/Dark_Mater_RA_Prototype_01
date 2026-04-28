@@ -525,40 +525,60 @@ public class UniverseJourneyTracker : MonoBehaviour
     /// <summary>
     /// Total journey progress (0→1) on a log scale.
     /// Drives the gradient fill bar height in UniverseJourneyHUD.
+    /// Always derived from raw Z so it stays accurate even when a phase is pinned.
     /// </summary>
     public float TotalProgressLog
     {
         get
         {
             if (_logWeights == null || _totalLogWeight <= 0.0) return 0f;
-
-            int idx = (int)_currentPhase;
+            var (idx, t) = RawZProgress();
             double completed = 0.0;
-
             for (int i = 0; i < idx && i < _logWeights.Length; i++)
                 completed += _logWeights[i];
-
-            double current = idx < _logWeights.Length
-                ? _logWeights[idx] * PhaseProgress
-                : 0.0;
-
+            double current = idx < _logWeights.Length ? _logWeights[idx] * t : 0.0;
             return Mathf.Clamp01((float)((completed + current) / _totalLogWeight));
         }
     }
 
     /// <summary>
-    /// Remaining journey distance in ly, interpolated from phase data.
-    /// Used for the distance label only — not for driving progress.
+    /// Remaining journey distance in ly.
+    /// Always derived from raw Z so it stays accurate even when a phase is pinned
+    /// (e.g. inside a Galaxy or MilkyWay micro-layer).
     /// </summary>
     public double RemainingDistanceLy
     {
         get
         {
-            PhaseData d = GetPhaseData(_currentPhase);
-            double remaining = d.remainingDistanceAtStart
-                - d.TotalDistanceLy * PhaseProgress;
-            return Math.Max(0.0, remaining);
+            var (idx, t) = RawZProgress();
+            PhaseData d = GetPhaseData((JourneyPhase)idx);
+            return Math.Max(0.0, d.remainingDistanceAtStart - d.TotalDistanceLy * t);
         }
+    }
+
+    // Returns (phaseIndex, phaseProgress 0-1) purely from player Z,
+    // ignoring _phasePinned and _currentPhase.
+    (int idx, float t) RawZProgress()
+    {
+        if (!_initialized || playerTransform == null || _triggerZ == null)
+            return (0, 0f);
+
+        float pz = playerTransform.position.z;
+        for (int i = phases.Length - 1; i >= 0; i--)
+        {
+            if (i >= _triggerZ.Length) continue;
+            if (pz >= _triggerZ[i])
+            {
+                float startZ = _triggerZ[i];
+                float endZ   = (i + 1 < _triggerZ.Length) ? _triggerZ[i + 1] : startZ;
+                float span   = endZ - startZ;
+                float t = Mathf.Abs(span) > 0.001f
+                    ? Mathf.Clamp01((pz - startZ) / span)
+                    : 0f;
+                return (i, t);
+            }
+        }
+        return (0, 0f);
     }
 
     // ── Convenience properties ────────────────────────────────────────
@@ -646,6 +666,84 @@ public class UniverseJourneyTracker : MonoBehaviour
         if (milestones == null) return;
         foreach (var m in milestones) m.triggered = false;
         Debug.Log("[Tracker] All milestones reset.");
+    }
+
+    /// <summary>
+    /// Re-populates the milestones array with the canonical 18-event timeline.
+    /// Use this if the Inspector is showing stale/old milestone data.
+    /// Existing sprite/icon assignments are cleared — re-assign after running.
+    /// </summary>
+    [ContextMenu("Apply Default 18 Milestones (overwrites current list)")]
+    void ApplyDefaultMilestones()
+    {
+        var pu = new Color(0.20f, 0.05f, 0.40f);
+        var eu = new Color(0.30f, 0.10f, 0.50f);
+        var gl = new Color(0.48f, 0.33f, 0.08f);
+        var so = new Color(0.15f, 0.50f, 0.25f);
+        var li = new Color(0.10f, 0.45f, 0.35f);
+
+        milestones = new MilestoneData[]
+        {
+            new MilestoneData { label="Big Bang",
+                description="Space, time, and matter explode into existence from a singular point",
+                remainingDistanceThresholdLy=13.8e9, yearsAgo=13.8e9, iconColor=pu },
+            new MilestoneData { label="Cosmic Microwave Background",
+                description="The universe cools enough for atoms to form — ancient light floods space",
+                remainingDistanceThresholdLy=13.78e9, yearsAgo=13.78e9, iconColor=new Color(0.28f,0.08f,0.48f) },
+            new MilestoneData { label="First Stars Ignite",
+                description="The universe's first massive Population III stars blaze to life in the dark",
+                remainingDistanceThresholdLy=12.5e9, yearsAgo=1.3e9, iconColor=eu },
+            new MilestoneData { label="Cosmic Reionization",
+                description="Radiation from the first stars tears electrons free — the universe turns transparent",
+                remainingDistanceThresholdLy=12.0e9, yearsAgo=1.8e9, iconColor=eu },
+            new MilestoneData { label="Milky Way Forms",
+                description="Our galaxy assembles from merging clouds of gas and infant star clusters",
+                remainingDistanceThresholdLy=11.0e9, yearsAgo=2.8e9, iconColor=gl },
+            new MilestoneData { label="Peak Quasar Activity",
+                description="Thousands of quasars blazing simultaneously — the universe is at its brightest",
+                remainingDistanceThresholdLy=10.5e9, yearsAgo=3.3e9, iconColor=eu },
+            new MilestoneData { label="Cosmic Star Formation Noon",
+                description="Stars born 10× faster than today — the universe reaches peak stellar output",
+                remainingDistanceThresholdLy=10.49e9, yearsAgo=3.3e9, iconColor=gl },
+            new MilestoneData { label="Dark Energy Dominates",
+                description="Mysterious dark energy overcomes gravity — cosmic expansion begins to accelerate",
+                remainingDistanceThresholdLy=7.5e9, yearsAgo=6.3e9, iconColor=gl },
+            new MilestoneData { label="Sun Ignites",
+                description="Our star coalesces from a collapsing cloud of gas and interstellar dust",
+                remainingDistanceThresholdLy=4.6e9, yearsAgo=4.6e9, iconColor=so },
+            new MilestoneData { label="Earth Is Born",
+                description="A rocky planet accretes from solar debris — the future cradle of all known life",
+                remainingDistanceThresholdLy=4.54e9, yearsAgo=4.54e9, iconColor=so },
+            new MilestoneData { label="Giant Impact — Moon Forms",
+                description="A Mars-sized body collides with Earth, ejecting the debris that becomes the Moon",
+                remainingDistanceThresholdLy=4.5e9, yearsAgo=4.5e9, iconColor=so },
+            new MilestoneData { label="First Life Emerges",
+                description="Single-celled organisms appear in warm shallow seas — life takes its first breath",
+                remainingDistanceThresholdLy=3.8e9, yearsAgo=3.8e9, iconColor=li },
+            new MilestoneData { label="Oxygen Revolution",
+                description="Cyanobacteria flood the atmosphere with oxygen — the Great Oxidation Event",
+                remainingDistanceThresholdLy=2.7e9, yearsAgo=2.7e9, iconColor=li },
+            new MilestoneData { label="Multicellular Life",
+                description="Complex organisms with differentiated cells appear — evolution takes a giant leap",
+                remainingDistanceThresholdLy=600e6, yearsAgo=600e6, iconColor=li },
+            new MilestoneData { label="Dinosaurs Rise",
+                description="Dinosaurs dominate a warm, oxygen-rich Earth for 165 million years",
+                remainingDistanceThresholdLy=230e6, yearsAgo=230e6, iconColor=li },
+            new MilestoneData { label="Mass Extinction",
+                description="An asteroid ends the dinosaurs — mammals inherit the Earth",
+                remainingDistanceThresholdLy=66e6, yearsAgo=66e6, iconColor=li },
+            new MilestoneData { label="Homo Sapiens Appear",
+                description="The first beings capable of looking up and wondering about the light above",
+                remainingDistanceThresholdLy=300e3, yearsAgo=300e3, iconColor=li },
+            new MilestoneData { label="First Radio Signals Leave Earth",
+                description="Humanity's earliest transmissions radiate outward — becoming the light you are",
+                remainingDistanceThresholdLy=120, yearsAgo=120, iconColor=li },
+        };
+
+#if UNITY_EDITOR
+        UnityEditor.EditorUtility.SetDirty(this);
+        Debug.Log("[Tracker] Applied default 18 milestones. Re-assign sprites in MilestoneHUD.");
+#endif
     }
 #endif
 }

@@ -34,7 +34,7 @@ public class BuildDebugOverlay : MonoBehaviour
     private float _nextCsvSampleTime;
     private float _nextCsvFlushTime;
 
-    private bool _showOverlay = true;
+    private bool _showOverlay = false; // hidden by default; toggle with Space+Enter
     private bool _minimized;
     private string _csvPath;
     private string _lastCsvStatus = "CSV: idle";
@@ -87,9 +87,12 @@ public class BuildDebugOverlay : MonoBehaviour
     private void Update()
     {
         if (Input.GetKeyDown(toggleOverlayKey))
-        {
             _showOverlay = !_showOverlay;
-        }
+
+        // Space + Enter chord (both held, either triggers)
+        bool chord = (Input.GetKeyDown(KeyCode.Space)  && Input.GetKey(KeyCode.Return)) ||
+                     (Input.GetKeyDown(KeyCode.Return) && Input.GetKey(KeyCode.Space));
+        if (chord) _showOverlay = !_showOverlay;
         if (Input.GetKeyDown(forceExportKey))
         {
             FlushCsvStatus();

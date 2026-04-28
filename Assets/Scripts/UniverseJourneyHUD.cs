@@ -128,6 +128,25 @@ public class UniverseJourneyHUD : MonoBehaviour
     [Range(0.08f, 0.30f)]
     [SerializeField] float microCompressedFraction = 0.18f;
 
+    [Header("Auto-Hide")]
+    [Tooltip("When ON: the HUD slides off-screen to the left and only appears briefly\n" +
+             "when the player enters a new phase or presses the gamepad show button.")]
+    [SerializeField] bool autoHide = false;
+
+    [Tooltip("How many seconds the HUD stays visible before sliding away.")]
+    [SerializeField] float hudVisibleDuration = 8f;
+
+    [Tooltip("Pixel offset used to slide the HUD off-screen (left = negative X).")]
+    [SerializeField] Vector2 hudHideOffset = new Vector2(-320f, 0f);
+
+    [Tooltip("Duration of the slide in / slide out animation.")]
+    [SerializeField] float hudSlideDuration = 0.35f;
+
+    [Tooltip("Input Manager button name for 'show HUD' (gamepad X button).\n" +
+             "Xbox default mapping: Fire3 = X button.\n" +
+             "Leave empty to disable gamepad trigger.")]
+    [SerializeField] string hudShowButton = "Fire3";
+
     // ─────────────────────────────────────────────────────────────────────────
     // PRIVATE STATE
     // ─────────────────────────────────────────────────────────────────────────
@@ -145,6 +164,13 @@ public class UniverseJourneyHUD : MonoBehaviour
     bool _isMacroState = true;
     Coroutine _transitionCoroutine;
     bool _initialized;
+
+    // ── Auto-hide state ──────────────────────────────────────────────────
+    RectTransform _rootRT;
+    Vector2       _shownAnchoredPos;
+    bool          _hudVisible = true;
+    float         _hideTimer;
+    Coroutine     _slideCoroutine;
 
     float _labelUpdateTimer;
     const float LABEL_INTERVAL = 0.15f;
@@ -178,6 +204,7 @@ public class UniverseJourneyHUD : MonoBehaviour
         UpdateFill();
         UpdateDistanceText();
 
+        InitAutoHide();
         tracker.OnPhaseChanged += HandlePhaseChanged;
         _initialized = true;
     }
@@ -205,6 +232,8 @@ public class UniverseJourneyHUD : MonoBehaviour
             _labelUpdateTimer = LABEL_INTERVAL;
             UpdateDistanceText();
         }
+
+        TickAutoHide();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -404,6 +433,9 @@ public class UniverseJourneyHUD : MonoBehaviour
         for (int i = 0; i < NODE_COUNT; i++)
             if (_nodeLabels[i] != null)
                 _nodeLabels[i].text = GetPhaseName(i);
+
+        // Show HUD briefly on every phase change
+        ShowHUD();
     }
 
     IEnumerator TransitionToState(bool toMacro, int activeIndex)
@@ -601,6 +633,74 @@ public class UniverseJourneyHUD : MonoBehaviour
             new Vector2(0.5f, 0.5f),
             diameter
         );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // AUTO-HIDE
+    // ─────────────────────────────────────────────────────────────────────────
+
+    void InitAutoHide()
+    {
+        _rootRT = GetComponent<RectTransform>();
+        if (_rootRT == null) return;
+        _shownAnchoredPos = _rootRT.anchoredPosition;
+
+        if (autoHide)
+        {
+            _rootRT.anchoredPosition = _shownAnchoredPos + hudHideOffset;
+            _hudVisible = false;
+        }
+    }
+
+    void TickAutoHide()
+    {
+        if (!autoHide || _rootRT == null) return;
+
+        // Gamepad show button (configurable, Fire3 = X on Xbox by default)
+        if (!string.IsNullOrEmpty(hudShowButton))
+        {
+            try { if (Input.GetButtonDown(hudShowButton)) ShowHUD(); }
+            catch { /* button not mapped in Input Manager */ }
+        }
+
+        // Hide timer countdown
+        if (_hudVisible)
+        {
+            _hideTimer -= Time.deltaTime;
+            if (_hideTimer <= 0f) SlideHUD(visible: false);
+        }
+    }
+
+    void ShowHUD()
+    {
+        if (!autoHide || _rootRT == null) return;
+        _hideTimer = hudVisibleDuration;
+        if (!_hudVisible) SlideHUD(visible: true);
+        _hudVisible = true;
+    }
+
+    void SlideHUD(bool visible)
+    {
+        if (_slideCoroutine != null) StopCoroutine(_slideCoroutine);
+        _hudVisible = visible;
+        _slideCoroutine = StartCoroutine(SlideCoroutine(visible));
+    }
+
+    IEnumerator SlideCoroutine(bool visible)
+    {
+        Vector2 from = _rootRT.anchoredPosition;
+        Vector2 to   = visible ? _shownAnchoredPos : _shownAnchoredPos + hudHideOffset;
+        float t = 0f;
+        while (t < hudSlideDuration)
+        {
+            t += Time.deltaTime;
+            float pct = Mathf.Clamp01(t / hudSlideDuration);
+            float ease = pct * pct * (3f - 2f * pct); // smoothstep
+            _rootRT.anchoredPosition = Vector2.Lerp(from, to, ease);
+            yield return null;
+        }
+        _rootRT.anchoredPosition = to;
+        _slideCoroutine = null;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
