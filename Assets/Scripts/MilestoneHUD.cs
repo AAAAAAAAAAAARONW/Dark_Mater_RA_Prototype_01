@@ -24,25 +24,39 @@ public class MilestoneHUD : MonoBehaviour
     [Header("Milestone Sprites")]
     [Tooltip(
         "One pre-designed card sprite per milestone, in the same order as\n" +
-        "UniverseJourneyTracker.milestones[]:\n\n" +
+        "UniverseJourneyTracker.milestones[] (24 total):\n\n" +
+        "── Pre-Journey (fires at game start) ──\n" +
         "[0]  Big Bang\n" +
         "[1]  Cosmic Microwave Background\n" +
+        "── Quasar Phase  13B → 11B ly ──\n" +
         "[2]  First Stars Ignite\n" +
         "[3]  Cosmic Reionization\n" +
+        "── Cosmic Web 1  11B → 7B ly ──\n" +
         "[4]  Milky Way Forms\n" +
         "[5]  Peak Quasar Activity\n" +
         "[6]  Cosmic Star Formation Noon\n" +
         "[7]  Dark Energy Dominates\n" +
-        "[8]  Sun Ignites\n" +
-        "[9]  Earth Is Born\n" +
-        "[10] Giant Impact — Moon Forms\n" +
-        "[11] First Life Emerges\n" +
-        "[12] Oxygen Revolution\n" +
-        "[13] Multicellular Life\n" +
-        "[14] Dinosaurs Rise\n" +
-        "[15] Mass Extinction\n" +
-        "[16] Homo Sapiens Appear\n" +
-        "[17] First Radio Signals Leave Earth")]
+        "── Galaxy Phase  7B → 6.9999B ly ──\n" +
+        "[8]  Galaxy Mergers Peak\n" +
+        "── Cosmic Web 2  6.9999B → 24K ly ──\n" +
+        "[9]  Sun Ignites\n" +
+        "[10] Earth Is Born\n" +
+        "[11] Giant Impact — Moon Forms\n" +
+        "[12] First Life Emerges\n" +
+        "[13] Oxygen Revolution\n" +
+        "[14] Multicellular Life\n" +
+        "[15] Dinosaurs Rise\n" +
+        "[16] Mass Extinction\n" +
+        "[17] Homo Sapiens Appear\n" +
+        "── Milky Way Phase  24K → 1 ly ──\n" +
+        "[18] First Cities Rise\n" +
+        "[19] First Telescope\n" +
+        "[20] First Radio Signals Leave Earth\n" +
+        "── Solar System Phase  1 → 1e-12 ly ──\n" +
+        "[21] Edge of the Solar System\n" +
+        "[22] Crossing the Heliopause\n" +
+        "── Earth Phase  1e-12 → 0 ly ──\n" +
+        "[23] Earth")]
     [SerializeField] Sprite[] milestoneSprites;
 
     [Header("Timing")]

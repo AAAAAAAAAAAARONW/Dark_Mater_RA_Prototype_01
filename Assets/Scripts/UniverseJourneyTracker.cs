@@ -150,141 +150,145 @@ public class UniverseJourneyTracker : MonoBehaviour
 
     [Header("Milestones — exposed for timeline tuning")]
     [Tooltip("Milestones fire when RemainingDistanceLy drops BELOW remainingDistanceThresholdLy.\n" +
-             "Journey starts at ~13B ly (Quasar). Set thresholds above 13B to fire at game start.")]
+             "Journey starts at ~13B ly (Quasar). Thresholds above 13B fire at game start.\n\n" +
+             "Phase ranges (remaining ly):\n" +
+             "  Quasar        13B → 11B\n" +
+             "  CosmicWeb1    11B → 7B\n" +
+             "  Galaxy        7B  → 6.9999B  (100K ly window)\n" +
+             "  CosmicWeb2    6.9999B → 24K\n" +
+             "  MilkyWay      24K → 1\n" +
+             "  SolarSystem   1   → 1e-12\n" +
+             "  Earth         1e-12 → 0")]
     [SerializeField]
     MilestoneData[] milestones = new MilestoneData[]
     {
-        // ── PRE-JOURNEY (threshold > 13B → fires at game start) ──────────
-        new MilestoneData {
-            label = "Big Bang",
+        // ── PRE-JOURNEY  threshold > 13B → fires at game start ───────────
+        new MilestoneData { label = "Big Bang",
             description = "Space, time, and matter explode into existence from a singular point",
-            remainingDistanceThresholdLy = 13.8e9,
-            yearsAgo = 13.8e9,
+            remainingDistanceThresholdLy = 13.8e9, yearsAgo = 13.8e9,
             iconColor = new Color(0.20f, 0.05f, 0.40f) },
 
-        new MilestoneData {
-            label = "Cosmic Microwave Background",
+        new MilestoneData { label = "Cosmic Microwave Background",
             description = "The universe cools enough for atoms to form — ancient light floods space",
-            remainingDistanceThresholdLy = 13.78e9,
-            yearsAgo = 13.78e9,
+            remainingDistanceThresholdLy = 13.78e9, yearsAgo = 13.78e9,
             iconColor = new Color(0.28f, 0.08f, 0.48f) },
 
-        // ── QUASAR PHASE  (13B → 11B ly remaining) ───────────────────────
-        new MilestoneData {
-            label = "First Stars Ignite",
+        // ── QUASAR PHASE  13B → 11B ly ───────────────────────────────────
+        new MilestoneData { label = "First Stars Ignite",
             description = "The universe's first massive Population III stars blaze to life in the dark",
-            remainingDistanceThresholdLy = 12.5e9,
-            yearsAgo = 1.3e9,
+            remainingDistanceThresholdLy = 12.5e9, yearsAgo = 1.3e9,
             iconColor = _colEarlyUniverse },
 
-        new MilestoneData {
-            label = "Cosmic Reionization",
+        new MilestoneData { label = "Cosmic Reionization",
             description = "Radiation from the first stars tears electrons free — the universe turns transparent",
-            remainingDistanceThresholdLy = 12.0e9,
-            yearsAgo = 1.8e9,
+            remainingDistanceThresholdLy = 12.0e9, yearsAgo = 1.8e9,
             iconColor = _colEarlyUniverse },
 
-        // ── COSMIC WEB 1 PHASE  (11B → 7B ly remaining) ──────────────────
-        new MilestoneData {
-            label = "Milky Way Forms",
+        // ── COSMIC WEB 1  11B → 7B ly ────────────────────────────────────
+        new MilestoneData { label = "Milky Way Forms",
             description = "Our galaxy assembles from merging clouds of gas and infant star clusters",
-            remainingDistanceThresholdLy = 11.0e9,
-            yearsAgo = 2.8e9,
+            remainingDistanceThresholdLy = 11.0e9, yearsAgo = 2.8e9,
             iconColor = _colGalactic },
 
-        new MilestoneData {
-            label = "Peak Quasar Activity",
+        new MilestoneData { label = "Peak Quasar Activity",
             description = "Thousands of quasars blazing simultaneously — the universe is at its brightest",
-            remainingDistanceThresholdLy = 10.5e9,
-            yearsAgo = 3.3e9,
+            remainingDistanceThresholdLy = 10.5e9, yearsAgo = 3.3e9,
             iconColor = _colEarlyUniverse },
 
-        new MilestoneData {
-            label = "Cosmic Star Formation Noon",
+        new MilestoneData { label = "Cosmic Star Formation Noon",
             description = "Stars born 10× faster than today — the universe reaches peak stellar output",
-            remainingDistanceThresholdLy = 10.49e9,
-            yearsAgo = 3.3e9,
+            remainingDistanceThresholdLy = 10.49e9, yearsAgo = 3.3e9,
             iconColor = _colGalactic },
 
-        new MilestoneData {
-            label = "Dark Energy Dominates",
+        new MilestoneData { label = "Dark Energy Dominates",
             description = "Mysterious dark energy overcomes gravity — cosmic expansion begins to accelerate",
-            remainingDistanceThresholdLy = 7.5e9,
-            yearsAgo = 6.3e9,
+            remainingDistanceThresholdLy = 7.5e9, yearsAgo = 6.3e9,
             iconColor = _colGalactic },
 
-        // ── COSMIC WEB 2 PHASE  (7B → 24K ly remaining) ──────────────────
-        new MilestoneData {
-            label = "Sun Ignites",
+        // ── GALAXY PHASE  7B → 6.9999B ly (100K ly window) ───────────────
+        new MilestoneData { label = "Galaxy Mergers Peak",
+            description = "Massive galaxies collide and fuse — you pass through one as it tears itself apart and rebuilds",
+            remainingDistanceThresholdLy = 7.0e9, yearsAgo = 6.8e9,
+            iconColor = _colGalactic },
+
+        // ── COSMIC WEB 2  6.9999B → 24K ly ───────────────────────────────
+        new MilestoneData { label = "Sun Ignites",
             description = "Our star coalesces from a collapsing cloud of gas and interstellar dust",
-            remainingDistanceThresholdLy = 4.6e9,
-            yearsAgo = 4.6e9,
+            remainingDistanceThresholdLy = 4.6e9, yearsAgo = 4.6e9,
             iconColor = _colSolar },
 
-        new MilestoneData {
-            label = "Earth Is Born",
+        new MilestoneData { label = "Earth Is Born",
             description = "A rocky planet accretes from solar debris — the future cradle of all known life",
-            remainingDistanceThresholdLy = 4.54e9,
-            yearsAgo = 4.54e9,
+            remainingDistanceThresholdLy = 4.54e9, yearsAgo = 4.54e9,
             iconColor = _colSolar },
 
-        new MilestoneData {
-            label = "Giant Impact — Moon Forms",
+        new MilestoneData { label = "Giant Impact — Moon Forms",
             description = "A Mars-sized body collides with Earth, ejecting the debris that becomes the Moon",
-            remainingDistanceThresholdLy = 4.5e9,
-            yearsAgo = 4.5e9,
+            remainingDistanceThresholdLy = 4.5e9, yearsAgo = 4.5e9,
             iconColor = _colSolar },
 
-        new MilestoneData {
-            label = "First Life Emerges",
+        new MilestoneData { label = "First Life Emerges",
             description = "Single-celled organisms appear in warm shallow seas — life takes its first breath",
-            remainingDistanceThresholdLy = 3.8e9,
-            yearsAgo = 3.8e9,
+            remainingDistanceThresholdLy = 3.8e9, yearsAgo = 3.8e9,
             iconColor = _colLife },
 
-        new MilestoneData {
-            label = "Oxygen Revolution",
+        new MilestoneData { label = "Oxygen Revolution",
             description = "Cyanobacteria flood the atmosphere with oxygen — the Great Oxidation Event",
-            remainingDistanceThresholdLy = 2.7e9,
-            yearsAgo = 2.7e9,
+            remainingDistanceThresholdLy = 2.7e9, yearsAgo = 2.7e9,
             iconColor = _colLife },
 
-        new MilestoneData {
-            label = "Multicellular Life",
+        new MilestoneData { label = "Multicellular Life",
             description = "Complex organisms with differentiated cells appear — evolution takes a giant leap",
-            remainingDistanceThresholdLy = 600e6,
-            yearsAgo = 600e6,
+            remainingDistanceThresholdLy = 600e6, yearsAgo = 600e6,
             iconColor = _colLife },
 
-        // ── MILKY WAY PHASE  (24K → 1 ly remaining) ──────────────────────
-        new MilestoneData {
-            label = "Dinosaurs Rise",
+        new MilestoneData { label = "Dinosaurs Rise",
             description = "Dinosaurs dominate a warm, oxygen-rich Earth for 165 million years",
-            remainingDistanceThresholdLy = 230e6,
-            yearsAgo = 230e6,
+            remainingDistanceThresholdLy = 230e6, yearsAgo = 230e6,
             iconColor = _colLife },
 
-        new MilestoneData {
-            label = "Mass Extinction",
+        new MilestoneData { label = "Mass Extinction",
             description = "An asteroid ends the dinosaurs — mammals inherit the Earth",
-            remainingDistanceThresholdLy = 66e6,
-            yearsAgo = 66e6,
+            remainingDistanceThresholdLy = 66e6, yearsAgo = 66e6,
             iconColor = _colLife },
 
-        new MilestoneData {
-            label = "Homo Sapiens Appear",
+        new MilestoneData { label = "Homo Sapiens Appear",
             description = "The first beings capable of looking up and wondering about the light above",
-            remainingDistanceThresholdLy = 300e3,
-            yearsAgo = 300e3,
+            remainingDistanceThresholdLy = 300e3, yearsAgo = 300e3,
             iconColor = _colLife },
 
-        // ── SOLAR SYSTEM / EARTH PHASE ────────────────────────────────────
-        new MilestoneData {
-            label = "First Radio Signals Leave Earth",
-            description = "Humanity's earliest transmissions radiate outward — becoming the light you are",
-            remainingDistanceThresholdLy = 120,
-            yearsAgo = 120,
+        // ── MILKY WAY PHASE  24K → 1 ly ──────────────────────────────────
+        new MilestoneData { label = "First Cities Rise",
+            description = "Humans build the first cities along river valleys — civilization ignites",
+            remainingDistanceThresholdLy = 5000, yearsAgo = 5000,
             iconColor = _colLife },
+
+        new MilestoneData { label = "First Telescope",
+            description = "Galileo points a lens at the sky — humanity sees the cosmos for the first time",
+            remainingDistanceThresholdLy = 400, yearsAgo = 400,
+            iconColor = _colLife },
+
+        new MilestoneData { label = "First Radio Signals Leave Earth",
+            description = "Humanity's earliest transmissions radiate outward — becoming the light you are",
+            remainingDistanceThresholdLy = 120, yearsAgo = 120,
+            iconColor = _colLife },
+
+        // ── SOLAR SYSTEM PHASE  1 → 1e-12 ly ─────────────────────────────
+        new MilestoneData { label = "Edge of the Solar System",
+            description = "You cross into the Oort Cloud — a vast sphere of ice at the frontier of our Sun's gravity",
+            remainingDistanceThresholdLy = 0.5, yearsAgo = 0.5,
+            iconColor = _colSolar },
+
+        new MilestoneData { label = "Crossing the Heliopause",
+            description = "The solar wind fades — you enter the bubble where our Sun's reach ends and the stars begin",
+            remainingDistanceThresholdLy = 0.002, yearsAgo = 0.002,
+            iconColor = _colSolar },
+
+        // ── EARTH PHASE  1e-12 → 0 ly ────────────────────────────────────
+        new MilestoneData { label = "Earth",
+            description = "After 13.8 billion light-years, you arrive — the pale blue dot in the dark",
+            remainingDistanceThresholdLy = 1e-12, yearsAgo = 0,
+            iconColor = new Color(0.05f, 0.35f, 0.65f) },
     };
 
     // ─────────────────────────────────────────────
@@ -669,11 +673,11 @@ public class UniverseJourneyTracker : MonoBehaviour
     }
 
     /// <summary>
-    /// Re-populates the milestones array with the canonical 18-event timeline.
+    /// Re-populates the milestones array with the canonical 24-event timeline.
     /// Use this if the Inspector is showing stale/old milestone data.
     /// Existing sprite/icon assignments are cleared — re-assign after running.
     /// </summary>
-    [ContextMenu("Apply Default 18 Milestones (overwrites current list)")]
+    [ContextMenu("Apply Default 24 Milestones (overwrites current list)")]
     void ApplyDefaultMilestones()
     {
         var pu = new Color(0.20f, 0.05f, 0.40f);
@@ -684,18 +688,25 @@ public class UniverseJourneyTracker : MonoBehaviour
 
         milestones = new MilestoneData[]
         {
+            // ── PRE-JOURNEY  threshold > 13B → fires at game start ─────────
             new MilestoneData { label="Big Bang",
                 description="Space, time, and matter explode into existence from a singular point",
-                remainingDistanceThresholdLy=13.8e9, yearsAgo=13.8e9, iconColor=pu },
+                remainingDistanceThresholdLy=13.8e9, yearsAgo=13.8e9,
+                iconColor=pu },
             new MilestoneData { label="Cosmic Microwave Background",
                 description="The universe cools enough for atoms to form — ancient light floods space",
-                remainingDistanceThresholdLy=13.78e9, yearsAgo=13.78e9, iconColor=new Color(0.28f,0.08f,0.48f) },
+                remainingDistanceThresholdLy=13.78e9, yearsAgo=13.78e9,
+                iconColor=new Color(0.28f,0.08f,0.48f) },
+
+            // ── QUASAR PHASE  13B → 11B ly ─────────────────────────────────
             new MilestoneData { label="First Stars Ignite",
                 description="The universe's first massive Population III stars blaze to life in the dark",
                 remainingDistanceThresholdLy=12.5e9, yearsAgo=1.3e9, iconColor=eu },
             new MilestoneData { label="Cosmic Reionization",
                 description="Radiation from the first stars tears electrons free — the universe turns transparent",
                 remainingDistanceThresholdLy=12.0e9, yearsAgo=1.8e9, iconColor=eu },
+
+            // ── COSMIC WEB 1  11B → 7B ly ──────────────────────────────────
             new MilestoneData { label="Milky Way Forms",
                 description="Our galaxy assembles from merging clouds of gas and infant star clusters",
                 remainingDistanceThresholdLy=11.0e9, yearsAgo=2.8e9, iconColor=gl },
@@ -708,6 +719,13 @@ public class UniverseJourneyTracker : MonoBehaviour
             new MilestoneData { label="Dark Energy Dominates",
                 description="Mysterious dark energy overcomes gravity — cosmic expansion begins to accelerate",
                 remainingDistanceThresholdLy=7.5e9, yearsAgo=6.3e9, iconColor=gl },
+
+            // ── GALAXY PHASE  7B → 6.9999B ly (100K ly window) ─────────────
+            new MilestoneData { label="Galaxy Mergers Peak",
+                description="Massive galaxies collide and fuse — you pass through one as it tears itself apart and rebuilds",
+                remainingDistanceThresholdLy=7.0e9, yearsAgo=6.8e9, iconColor=gl },
+
+            // ── COSMIC WEB 2  6.9999B → 24K ly ────────────────────────────
             new MilestoneData { label="Sun Ignites",
                 description="Our star coalesces from a collapsing cloud of gas and interstellar dust",
                 remainingDistanceThresholdLy=4.6e9, yearsAgo=4.6e9, iconColor=so },
@@ -735,15 +753,35 @@ public class UniverseJourneyTracker : MonoBehaviour
             new MilestoneData { label="Homo Sapiens Appear",
                 description="The first beings capable of looking up and wondering about the light above",
                 remainingDistanceThresholdLy=300e3, yearsAgo=300e3, iconColor=li },
+
+            // ── MILKY WAY PHASE  24K → 1 ly ────────────────────────────────
+            new MilestoneData { label="First Cities Rise",
+                description="Humans build the first cities along river valleys — civilization ignites",
+                remainingDistanceThresholdLy=5000, yearsAgo=5000, iconColor=li },
+            new MilestoneData { label="First Telescope",
+                description="Galileo points a lens at the sky — humanity sees the cosmos for the first time",
+                remainingDistanceThresholdLy=400, yearsAgo=400, iconColor=li },
             new MilestoneData { label="First Radio Signals Leave Earth",
                 description="Humanity's earliest transmissions radiate outward — becoming the light you are",
                 remainingDistanceThresholdLy=120, yearsAgo=120, iconColor=li },
+
+            // ── SOLAR SYSTEM PHASE  1 → 1e-12 ly ───────────────────────────
+            new MilestoneData { label="Edge of the Solar System",
+                description="You cross into the Oort Cloud — a vast sphere of ice at the frontier of our Sun's gravity",
+                remainingDistanceThresholdLy=0.5, yearsAgo=0.5, iconColor=so },
+            new MilestoneData { label="Crossing the Heliopause",
+                description="The solar wind fades — you enter the bubble where our Sun's reach ends and the stars begin",
+                remainingDistanceThresholdLy=0.002, yearsAgo=0.002, iconColor=so },
+
+            // ── EARTH PHASE  1e-12 → 0 ly ──────────────────────────────────
+            new MilestoneData { label="Earth",
+                description="After 13.8 billion light-years, you arrive — the pale blue dot in the dark",
+                remainingDistanceThresholdLy=1e-12, yearsAgo=0,
+                iconColor=new Color(0.05f,0.35f,0.65f) },
         };
 
-#if UNITY_EDITOR
         UnityEditor.EditorUtility.SetDirty(this);
-        Debug.Log("[Tracker] Applied default 18 milestones. Re-assign sprites in MilestoneHUD.");
-#endif
+        Debug.Log("[Tracker] Applied default 24 milestones. Re-assign sprites in MilestoneHUD.");
     }
 #endif
 }
