@@ -103,9 +103,21 @@ public class UniverseJourneyHUD : MonoBehaviour
     };
 
     [Header("Nodes")]
-    [SerializeField] float nodeActiveDiameter = 20f;
-    [SerializeField] float nodeDefaultDiameter = 12f;
-    [SerializeField] float nodeMicroDiameter = 7f;
+    [SerializeField] float nodeActiveDiameter = 22f;
+    [SerializeField] float nodeDefaultDiameter = 14f;
+    [SerializeField] float nodeMicroDiameter = 8f;
+
+    [Tooltip("Resolution of the procedural circle sprite (pixels per side).\n" +
+             "Higher = sharper at larger display sizes.\n" +
+             "Recommended: 128 for normal, 256 for high-DPI / large nodes.\n" +
+             "Right-click → 'Labels: Rebuild Nodes' after changing.")]
+    [SerializeField] int circleResolution = 256;
+
+    [Tooltip("Anti-alias edge width in texture pixels.\n" +
+             "0.3–0.5 = crisp  |  1–2 = soft glow  |  0 = hard/pixelated.\n" +
+             "Right-click → 'Labels: Rebuild Nodes' after changing.")]
+    [Range(0f, 4f)]
+    [SerializeField] float circleEdgeSoftness = 0.4f;
     [SerializeField] Color colorDone = new Color(0.114f, 0.620f, 0.459f, 1f); // teal
     [SerializeField] Color colorActive = new Color(0.980f, 0.780f, 0.459f, 1f); // amber
     [SerializeField] Color colorFuture = new Color(0.082f, 0.082f, 0.141f, 1f); // very dark
@@ -190,7 +202,16 @@ public class UniverseJourneyHUD : MonoBehaviour
     void Awake()
     {
         BuildGradientTexture();
-        _defaultCircleSprite = CreateCircleSprite(64);
+        RebuildCircleSprite();
+    }
+
+    void RebuildCircleSprite()
+    {
+        if (_defaultCircleSprite != null)
+            Destroy(_defaultCircleSprite.texture);
+
+        int res = Mathf.Clamp(Mathf.NextPowerOfTwo(circleResolution), 32, 512);
+        _defaultCircleSprite = CreateCircleSprite(res, circleEdgeSoftness);
     }
 
     void Start()
@@ -619,32 +640,37 @@ public class UniverseJourneyHUD : MonoBehaviour
     /// Generates a white anti-aliased circle sprite at runtime.
     /// Used as the default node icon when no sprite is assigned.
     /// </summary>
-    static Sprite CreateCircleSprite(int diameter)
+    /// <param name="resolution">Texture size in pixels (power of two). Higher = sharper at large display sizes.</param>
+    /// <param name="edgeSoftness">Anti-alias transition width in texture pixels.
+    /// 0.3–0.5 = crisp  |  1–2 = soft glow  |  0 = hard/pixelated.</param>
+    static Sprite CreateCircleSprite(int resolution, float edgeSoftness = 0.5f)
     {
-        var tex = new Texture2D(diameter, diameter, TextureFormat.RGBA32, false);
+        var tex = new Texture2D(resolution, resolution, TextureFormat.RGBA32, false);
         tex.filterMode = FilterMode.Bilinear;
         tex.wrapMode = TextureWrapMode.Clamp;
 
-        float r = diameter * 0.5f;
+        float r  = resolution * 0.5f;
         float cx = r - 0.5f;
         float cy = r - 0.5f;
+        float safeEdge = Mathf.Max(edgeSoftness, 0.01f);
 
-        for (int x = 0; x < diameter; x++)
-            for (int y = 0; y < diameter; y++)
+        for (int x = 0; x < resolution; x++)
+            for (int y = 0; y < resolution; y++)
             {
-                float dx = x - cx;
-                float dy = y - cy;
+                float dx   = x - cx;
+                float dy   = y - cy;
                 float dist = Mathf.Sqrt(dx * dx + dy * dy);
-                float alpha = Mathf.Clamp01(r - dist + 0.5f); // soft edge
+                // Fully opaque inside; fades to 0 across edgeSoftness pixels outside the radius.
+                float alpha = Mathf.Clamp01((r - dist + edgeSoftness) / safeEdge);
                 tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
             }
         tex.Apply();
 
         return Sprite.Create(
             tex,
-            new Rect(0, 0, diameter, diameter),
+            new Rect(0, 0, resolution, resolution),
             new Vector2(0.5f, 0.5f),
-            diameter
+            resolution   // pixelsPerUnit = resolution keeps the sprite at 1 world-unit = 1 texel
         );
     }
 
@@ -762,14 +788,22 @@ public class UniverseJourneyHUD : MonoBehaviour
                 Destroy(_nodeRTs[i].gameObject);
         }
 
-        // Rebuild with current Inspector values
+        // Regenerate circle sprite with new resolution / softness
+        RebuildCircleSprite();
+
+        // Replace stale sprite reference on any phase configs that used the old one
+        // (configs with a custom icon are left untouched)
+
+        // Rebuild nodes with current Inspector values
         BuildNodes();
         CalculateMacroPositions();
         SetNodePositionsImmediate(_isMacroState
             ? _macroPositionsY
             : CalculateMicroPositions((int)tracker.CurrentPhase));
         UpdateNodeVisuals();
-        Debug.Log("[JourneyHUD] Nodes rebuilt.");
+        Debug.Log($"[JourneyHUD] Nodes rebuilt. " +
+                  $"Circle: {circleResolution}px, softness={circleEdgeSoftness:F2}, " +
+                  $"node Ø {nodeDefaultDiameter}/{nodeActiveDiameter}.");
     }
 
     [ContextMenu("Auto-Hide: Test Show HUD")]
