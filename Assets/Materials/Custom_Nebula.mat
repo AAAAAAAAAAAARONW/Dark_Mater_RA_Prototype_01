@@ -21,17 +21,17 @@ Material:
     m_TexEnvs: []
     m_Floats:
     - _Animate: 1
-    - _Density: 0.8
+    - _Density: 0.7476908
     - _Octaves: 4
-    - _Persistence: 0.5
-    - _Scale: 1.2
-    - _Sharpness: 1.5
-    - _Speed: 0.05
-    - _StarBrightness: 1.2
-    - _StarScale: 80
-    - _StarThreshold: 0.992
+    - _Persistence: 0.42077053
+    - _Scale: 1.0630773
+    - _Sharpness: 0.8153865
+    - _Speed: 0.5
+    - _StarBrightness: 0.9877698
+    - _StarScale: 47.38454
+    - _StarThreshold: 0.96
     m_Colors:
-    - _ColorBright: {r: 0.6, g: 0.4, b: 0.9, a: 1}
-    - _ColorDark: {r: 0.08, g: 0.02, b: 0.18, a: 1}
-    - _ColorMid: {r: 0.3, g: 0.15, b: 0.5, a: 1}
-    - _ColorStar: {r: 1, g: 0.95, b: 1, a: 1}
+    - _ColorBright: {r: 0.45165488, g: 0.119996175, b: 0.9523945, a: 1}
+    - _ColorDark: {r: 0.015239567, g: 0, b: 0.041654814, a: 1}
+    - _ColorMid: {r: 0.14466253, g: 0.07682209, b: 0.23584907, a: 1}
+    - _ColorStar: {r: 1, g: 0.9842307, b: 1, a: 1}
