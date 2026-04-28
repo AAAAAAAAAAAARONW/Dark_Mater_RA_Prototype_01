@@ -133,11 +133,15 @@ public class UniverseJourneyHUD : MonoBehaviour
              "when the player enters a new phase or presses the gamepad show button.")]
     [SerializeField] bool autoHide = false;
 
+    [Tooltip("The RectTransform to slide. Drag the root HUD panel here.\n" +
+             "If left empty, uses this GameObject's own RectTransform.")]
+    [SerializeField] RectTransform hudPanel;
+
     [Tooltip("How many seconds the HUD stays visible before sliding away.")]
     [SerializeField] float hudVisibleDuration = 8f;
 
-    [Tooltip("Pixel offset used to slide the HUD off-screen (left = negative X).")]
-    [SerializeField] Vector2 hudHideOffset = new Vector2(-320f, 0f);
+    [Tooltip("Pixel offset applied to anchoredPosition when hidden (e.g. -400 slides left).")]
+    [SerializeField] Vector2 hudHideOffset = new Vector2(-400f, 0f);
 
     [Tooltip("Duration of the slide in / slide out animation.")]
     [SerializeField] float hudSlideDuration = 0.35f;
@@ -641,14 +645,17 @@ public class UniverseJourneyHUD : MonoBehaviour
 
     void InitAutoHide()
     {
-        _rootRT = GetComponent<RectTransform>();
-        if (_rootRT == null) return;
+        _rootRT = hudPanel != null ? hudPanel : GetComponent<RectTransform>();
+        if (_rootRT == null) { Debug.LogWarning("[JourneyHUD] No RectTransform for auto-hide."); return; }
+
         _shownAnchoredPos = _rootRT.anchoredPosition;
 
         if (autoHide)
         {
             _rootRT.anchoredPosition = _shownAnchoredPos + hudHideOffset;
             _hudVisible = false;
+            Debug.Log($"[JourneyHUD] Auto-hide ON. Panel: '{_rootRT.name}' " +
+                      $"shown={_shownAnchoredPos} hidden={_shownAnchoredPos + hudHideOffset}");
         }
     }
 
@@ -727,6 +734,18 @@ public class UniverseJourneyHUD : MonoBehaviour
         nodeActiveDiameter = Mathf.Max(8f, nodeActiveDiameter);
         nodeDefaultDiameter = Mathf.Max(4f, nodeDefaultDiameter);
         nodeMicroDiameter = Mathf.Max(4f, nodeMicroDiameter);
+    }
+
+    [ContextMenu("Auto-Hide: Test Show HUD")]
+    void DebugShowHUD() => ShowHUD();
+
+    [ContextMenu("Auto-Hide: Test Hide HUD")]
+    void DebugHideHUD()
+    {
+        if (_rootRT == null)
+            _rootRT = hudPanel != null ? hudPanel : GetComponent<RectTransform>();
+        if (_rootRT != null)
+            SlideHUD(visible: false);
     }
 #endif
 }
