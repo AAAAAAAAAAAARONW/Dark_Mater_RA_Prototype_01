@@ -70,7 +70,29 @@ public class LayerDefinition : ScriptableObject
     [Header("Journey (pins/unpins via UniverseJourneyTracker)")]
     public UniverseJourneyTracker.JourneyPhase phaseOnEnter = UniverseJourneyTracker.JourneyPhase.MilkyWay;
     public UniverseJourneyTracker.JourneyPhase phaseOnExit = UniverseJourneyTracker.JourneyPhase.SolarSystem;
-    
+
+    [Header("LAF Spectrum HUD")]
+    [Tooltip("How many buffer steps the spectrum scrolls per second (redshift rate). Higher = faster rightward drift.")]
+    public float lafScrollSpeedStepsPerSecond = 8f;
+    [Tooltip("Number of absorption dips in the pre-generated spectrum buffer.")]
+    public int lafDipCount = 180;
+    [Tooltip("Random seed for deterministic spectrum shape.")]
+    public int lafRandomSeed = 42;
+    [Tooltip("Minimum dip width as fraction of the buffer length.")]
+    [Range(0.0001f, 0.02f)] public float lafDipWidthMin = 0.0004f;
+    [Tooltip("Maximum dip width as fraction of the buffer length.")]
+    [Range(0.0001f, 0.05f)] public float lafDipWidthMax = 0.004f;
+    [Tooltip("Minimum absorption dip depth (0 = no dip, 1 = full absorption).")]
+    [Range(0f, 1f)] public float lafDipDepthMin = 0.08f;
+    [Tooltip("Maximum absorption dip depth.")]
+    [Range(0f, 1f)] public float lafDipDepthMax = 0.92f;
+    [Tooltip("Position of the continuum emission peak within the buffer (0 = UV/left end, 1 = IR/right end).")]
+    [Range(0f, 1f)] public float lafContinuumPeakPosition = 0.32f;
+    [Tooltip("Sigma of the continuum rise (left side of peak) as fraction of buffer length.")]
+    [Range(0.02f, 0.5f)] public float lafContinuumRiseSigma = 0.14f;
+    [Tooltip("Sigma of the continuum fall (right side of peak) as fraction of buffer length.")]
+    [Range(0.02f, 0.5f)] public float lafContinuumFallSigma = 0.32f;
+
     [Header("Debug")]
     public bool debugLog = true;
     public bool debugVerbose = false;
@@ -104,5 +126,14 @@ public class LayerDefinition : ScriptableObject
         lookDownHoldDuration = Mathf.Max(0f, lookDownHoldDuration);
         lookUpBlendDuration = Mathf.Max(0.01f, lookUpBlendDuration);
         lookUpStartDelay = Mathf.Max(0f, lookUpStartDelay);
+
+        lafScrollSpeedStepsPerSecond = Mathf.Max(0f, lafScrollSpeedStepsPerSecond);
+        lafDipCount = Mathf.Max(0, lafDipCount);
+        lafDipWidthMin = Mathf.Max(0.0001f, lafDipWidthMin);
+        lafDipWidthMax = Mathf.Max(lafDipWidthMin, lafDipWidthMax);
+        lafDipDepthMin = Mathf.Clamp01(lafDipDepthMin);
+        lafDipDepthMax = Mathf.Clamp(lafDipDepthMax, lafDipDepthMin, 1f);
+        lafContinuumRiseSigma = Mathf.Max(0.02f, lafContinuumRiseSigma);
+        lafContinuumFallSigma = Mathf.Max(0.02f, lafContinuumFallSigma);
     }
 }

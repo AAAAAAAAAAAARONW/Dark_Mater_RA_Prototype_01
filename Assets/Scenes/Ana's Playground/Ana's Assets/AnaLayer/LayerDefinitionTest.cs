@@ -75,6 +75,32 @@ public class LayerDefinitionTest : ScriptableObject
     [Tooltip("Micro travel slider max light years when this layer is active. 0 = use default.")]
     public float microSliderMaxLightYearsWhenInside = 0f;
 
+    [Header("LAF Spectrum HUD")]
+    [Tooltip("How many buffer steps the spectrum scrolls per second (redshift rate). Higher = faster rightward drift.")]
+    public float lafScrollSpeedStepsPerSecond = 8f;
+    [Tooltip("Number of absorption dips overlaid on the spectrum. " +
+             "Set to 0 for the clean quasar template (default).")]
+    public int lafDipCount = 0;
+    [Tooltip("Random seed for deterministic spectrum shape.")]
+    public int lafRandomSeed = 42;
+    [Tooltip("Minimum dip width as fraction of the buffer length.")]
+    [Range(0.0001f, 0.02f)] public float lafDipWidthMin = 0.0004f;
+    [Tooltip("Maximum dip width as fraction of the buffer length.")]
+    [Range(0.0001f, 0.05f)] public float lafDipWidthMax = 0.004f;
+    [Tooltip("Minimum absorption dip depth (0 = no dip, 1 = full absorption).")]
+    [Range(0f, 1f)] public float lafDipDepthMin = 0.08f;
+    [Tooltip("Maximum absorption dip depth.")]
+    [Range(0f, 1f)] public float lafDipDepthMax = 0.92f;
+    [Tooltip("Normalised position of the Ly-α emission peak (0=left/UV, 1=right/IR). " +
+             "Also sets the boundary between Ly-α forest and the rest of the spectrum. Default 0.42.")]
+    [Range(0f, 1f)] public float lafContinuumPeakPosition = 0.42f;
+    [Tooltip("Sigma of the continuum rise (left side of peak) as fraction of buffer length. " +
+             "Only used in procedural (no-CSV) mode.")]
+    [Range(0.02f, 0.5f)] public float lafContinuumRiseSigma = 0.14f;
+    [Tooltip("Sigma of the continuum fall (right side of peak) as fraction of buffer length). " +
+             "Only used in procedural (no-CSV) mode.")]
+    [Range(0.02f, 0.5f)] public float lafContinuumFallSigma = 0.32f;
+
     [Header("Journey")]
     [Tooltip("Journey phase to pin when entering this layer.")]
     public UniverseJourneyTracker.JourneyPhase phaseOnEnter = UniverseJourneyTracker.JourneyPhase.MilkyWay;
@@ -167,6 +193,15 @@ public class LayerDefinitionTest : ScriptableObject
         nebulaStarBrightness = Mathf.Clamp(nebulaStarBrightness, 0.5f, 3f);
         nebulaAnimate = nebulaAnimate >= 0.5f ? 1f : 0f;
         nebulaSpeed = Mathf.Clamp(nebulaSpeed, 0f, 0.5f);
+
+        lafScrollSpeedStepsPerSecond = Mathf.Max(0f, lafScrollSpeedStepsPerSecond);
+        lafDipCount = Mathf.Max(0, lafDipCount);
+        lafDipWidthMin = Mathf.Max(0.0001f, lafDipWidthMin);
+        lafDipWidthMax = Mathf.Max(lafDipWidthMin, lafDipWidthMax);
+        lafDipDepthMin = Mathf.Clamp01(lafDipDepthMin);
+        lafDipDepthMax = Mathf.Clamp(lafDipDepthMax, lafDipDepthMin, 1f);
+        lafContinuumRiseSigma = Mathf.Max(0.02f, lafContinuumRiseSigma);
+        lafContinuumFallSigma = Mathf.Max(0.02f, lafContinuumFallSigma);
 
 #if UNITY_EDITOR
         LayerDefinitionTestEditorPreview.ApplyIfEnabled(this);

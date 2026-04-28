@@ -15,6 +15,7 @@ using Cinemachine;
 ///   - Right stick / Mouse = orbit camera around player (horizontal + vertical)
 ///   - A button (Submit) / Space = smoothly reset camera to behind-player view
 ///   - Camera input can be locked externally (e.g. during cinematic transitions)
+///   - Supports Macro, Micro, and Solar System FreeLook cameras
 ///   - VCam_TopDown has no orbit input; handled by Cinemachine priority switching
 ///
 /// External API (called by MicroToMacroTriggerSequenceTest):
@@ -49,6 +50,8 @@ public class DarkMatterPlayerControllerTest : MonoBehaviour
     [SerializeField] CinemachineFreeLook vcamMacro;
     [Tooltip("FreeLook camera used in Micro state")]
     [SerializeField] CinemachineFreeLook vcamMicro;
+    [Tooltip("FreeLook camera used in Solar System state")]
+    [SerializeField] CinemachineFreeLook vcamSolarSystem;
 
     [Header("Cinemachine - Input Sensitivity")]
     [Tooltip("Right stick horizontal sensitivity")]
@@ -199,10 +202,16 @@ public class DarkMatterPlayerControllerTest : MonoBehaviour
             vcamMicro.m_XAxis.Value += xInput;
             vcamMicro.m_YAxis.Value = Mathf.Clamp01(vcamMicro.m_YAxis.Value + yInput);
         }
+
+        if (vcamSolarSystem != null)
+        {
+            vcamSolarSystem.m_XAxis.Value += xInput;
+            vcamSolarSystem.m_YAxis.Value = Mathf.Clamp01(vcamSolarSystem.m_YAxis.Value + yInput);
+        }
     }
 
     /// <summary>
-    /// Smoothly drives both FreeLook cameras back to behind-player position.
+    /// Smoothly drives all configured FreeLook cameras back to behind-player position.
     /// X axis -> 0 (behind player), Y axis -> 0.5 (middle ring).
     /// Temporarily zeroes dead zones so Composer recenters the player exactly.
     /// Restores dead zones when reset completes.
@@ -230,10 +239,20 @@ public class DarkMatterPlayerControllerTest : MonoBehaviour
             yDone &= Mathf.Abs(vcamMicro.m_YAxis.Value - 0.5f) < 0.01f;
         }
 
+        if (vcamSolarSystem != null)
+        {
+            SetDeadZones(vcamSolarSystem, 0f, 0f);
+            vcamSolarSystem.m_XAxis.Value = Mathf.MoveTowardsAngle(vcamSolarSystem.m_XAxis.Value, 0f, resetXSpeed * dt);
+            vcamSolarSystem.m_YAxis.Value = Mathf.MoveTowards(vcamSolarSystem.m_YAxis.Value, 0.5f, resetYSpeed * dt);
+            xDone &= Mathf.Abs(Mathf.DeltaAngle(vcamSolarSystem.m_XAxis.Value, 0f)) < 0.5f;
+            yDone &= Mathf.Abs(vcamSolarSystem.m_YAxis.Value - 0.5f) < 0.01f;
+        }
+
         if (xDone && yDone)
         {
             if (vcamMacro != null) SetDeadZones(vcamMacro, normalDeadZoneWidth, normalDeadZoneHeight);
             if (vcamMicro != null) SetDeadZones(vcamMicro, normalDeadZoneWidth, normalDeadZoneHeight);
+            if (vcamSolarSystem != null) SetDeadZones(vcamSolarSystem, normalDeadZoneWidth, normalDeadZoneHeight);
             _isResettingView = false;
         }
     }

@@ -37,15 +37,25 @@ MonoBehaviour:
   lookBackOrbitCountdown: 5
   lookBackOrbitDuration: 2.5
   microSliderMaxLightYearsWhenInside: 0
+  lafScrollSpeedStepsPerSecond: 8
+  lafDipCount: 180
+  lafRandomSeed: 42
+  lafDipWidthMin: 0.0004
+  lafDipWidthMax: 0.004
+  lafDipDepthMin: 0.08
+  lafDipDepthMax: 0.92
+  lafContinuumPeakPosition: 0.32
+  lafContinuumRiseSigma: 0.14
+  lafContinuumFallSigma: 0.32
   phaseOnEnter: 2
   phaseOnExit: 3
   debugLog: 1
   driveNebulaShader: 1
   nebulaBlendDuration: 3
   nebulaColorDark: {r: 0.26415092, g: 0.028657887, b: 0.17856164, a: 1}
-  nebulaColorMid: {r: 0.38937342, g: 0.4716981, b: 0.44206125, a: 1}
-  nebulaColorBright: {r: 0.9339623, g: 0.71809363, b: 0.8065217, a: 1}
-  nebulaColorStar: {r: 1, g: 0.8759071, b: 0.19339621, a: 1}
+  nebulaColorMid: {r: 0.1801353, g: 0.20754719, b: 0.19840989, a: 1}
+  nebulaColorBright: {r: 0.3301887, g: 0.252314, b: 0.28487977, a: 1}
+  nebulaColorStar: {r: 1, g: 1, b: 1, a: 1}
   nebulaScale: 2
   nebulaOctaves: 5
   nebulaPersistence: 0.5

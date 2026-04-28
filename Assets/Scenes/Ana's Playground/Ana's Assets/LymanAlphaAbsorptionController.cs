@@ -1,118 +1,185 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Manages the Lyman-alpha absorption line system.
+/// Central absorption-field controller. Single source of truth shared by:
+///   • PhotonSpectrumTrail shader (via the _AbsorptionLineTex texture)
+///   • LAFSpectrumHUD          (via SampleAbsorption(t))
 ///
-/// Two modes:
-///   TriggerBox — lines are stamped in real-time by LymanAlphaAbsorptionTrigger volumes.
-///   FakeForest — a procedural forest is pre-generated at startup using the same
-///                two-Gaussian approach as FakeLymanAlphaForestHUD.
+/// Background Lyman-α forest and trigger-driven dramatic events run
+/// simultaneously and stamp into the same buffer. New lines spawn with a
+/// short "bold pulse" (extra depth+width that decays in ~0.5s) so the player
+/// immediately notices them; the line then settles to its target shape.
 ///
-/// In both modes, all lines drift toward IR each frame (redshift).
-/// Switch modes at runtime via the Mode dropdown or SetMode().
-///
-/// Attach to any persistent GameObject (e.g. GameManager).
-///
-/// SETUP:
-/// 1. Attach to GameManager.
-/// 2. Assign PhotonSpectrumTrail reference (or leave blank for auto-find).
-/// 3. Optionally assign UniverseJourneyTracker for automatic drift speed.
+/// Drift speed is proportional to player speed — same coupling as
+/// LAFSpectrumHUD so the two displays stay in sync.
 /// </summary>
 public class LymanAlphaAbsorptionController : MonoBehaviour
 {
-    // ── Mode ──────────────────────────────────────────────────────────────────
-
-    public enum AbsorptionMode
-    {
-        TriggerBox,  // Real-time lines stamped by trigger volumes
-        FakeForest   // Procedural forest pre-generated at startup
-    }
-
     // ── Inspector ─────────────────────────────────────────────────────────────
-
-    [Header("Mode")]
-    [Tooltip("TriggerBox: lines stamped by LymanAlphaAbsorptionTrigger volumes in the scene.\n" +
-             "FakeForest: procedural forest generated at startup for testing/dense zones.")]
-    [SerializeField] AbsorptionMode mode = AbsorptionMode.TriggerBox;
 
     [Header("References")]
     [Tooltip("Auto-found from PhotonSpectrumTrail in scene if not assigned.")]
     [SerializeField] PhotonSpectrumTrail spectrumTrail;
-    [Tooltip("Optional — if assigned, drift speed scales with journey redshift.")]
-    [SerializeField] UniverseJourneyTracker journeyTracker;
+    [Tooltip("Optional. Speed drives the drift rate and background spawn rate.")]
+    [SerializeField] DarkMatterPlayerControllerTest playerController;
 
-    [Header("Absorption Line Settings (TriggerBox mode)")]
-    [Tooltip("UV position (0-1) where new trigger lines appear. 0 = UV end of spectrum.")]
-    [Range(0f, 0.3f)]
-    [SerializeField] float spawnPositionUV = 0.05f;
-    [Tooltip("Width of each absorption line in texture pixels.")]
-    [Range(1, 12)]
-    [SerializeField] int lineWidthPixels = 3;
-
-    [Header("Fake Forest Settings (FakeForest mode)")]
-    [Tooltip("How many absorption dips to generate.")]
-    [Range(0, 300)]
-    [SerializeField] int fakeDipCount = 120;
-    [Tooltip("Random seed — same seed always produces the same forest.")]
-    [SerializeField] int fakeRandomSeed = 42;
-    [Tooltip("Minimum dip depth (darkness).")]
+    [Header("Background Forest (UV / forest region)")]
+    [Tooltip("Master enable for procedural background forest generation.")]
+    [SerializeField] bool backgroundEnabled = true;
+    [Tooltip("Lines per second at the reference player speed.")]
+    [SerializeField] float backgroundBaseRate = 6f;
+    [Tooltip("Fraction of base rate that still runs when player is fully stopped (0 = freezes, 1 = always full speed).")]
     [Range(0f, 1f)]
-    [SerializeField] float fakeDepthMin = 0.08f;
-    [Tooltip("Maximum dip depth (darkness).")]
-    [Range(0f, 1f)]
-    [SerializeField] float fakeDepthMax = 0.90f;
-    [Tooltip("Minimum dip width in pixels.")]
-    [Range(1, 12)]
-    [SerializeField] int fakeWidthMinPixels = 2;
-    [Tooltip("Maximum dip width in pixels.")]
-    [Range(1, 16)]
-    [SerializeField] int fakeWidthMaxPixels = 6;
-    [Tooltip("How many new lines appear per second at the UV end.")]
-    [Range(0.1f, 20f)]
-    [SerializeField] float fakeSpawnRate = 2f;
+    [SerializeField] float backgroundIdleRate = 0.2f;
+    [Tooltip("Spawn position range in normalised buffer position [0..1]. " +
+             "Lines distribute uniformly across this range — covers the forest region " +
+             "(Ly-limit to just before Ly-α). Default 0.05–0.40 fits an 800-1800Å view with Ly-α at ~0.42.")]
+    [SerializeField] Vector2 backgroundSpawnRangeUV = new Vector2(0.05f, 0.40f);
+    [Tooltip("Background-line depth range. Higher = darker forest.")]
+    [SerializeField] Vector2 backgroundDepthRange = new Vector2(0.20f, 0.65f);
+    [Tooltip("Background-line width range in pixels.")]
+    [SerializeField] Vector2Int backgroundWidthPixels = new Vector2Int(1, 3);
 
-    [Header("Redshift Drift")]
-    [Range(0f, 0.05f)]
-    [SerializeField] float manualDriftSpeed = 0.002f;
-    [Range(0f, 10f)]
-    [SerializeField] float driftSpeedScale = 1f;
+    [Header("Initial Population")]
+    [Tooltip("Spawn a pre-existing forest at startup so the HUD isn't empty for the first few seconds.")]
+    [SerializeField] bool prePopulateForest = true;
+    [Tooltip("How many lines to pre-spawn across the forest range at game start.")]
+    [Range(0, 200)]
+    [SerializeField] int prePopulateLineCount = 80;
+
+    [Header("Drift (Redshift)")]
+    [Tooltip("Drift in normalised UV-units per second at reference player speed. " +
+             "Lower = slower whole-spectrum drift. The HUD reads this same rate to stay locked in step.")]
+    [SerializeField] float driftBaseRate = 0.005f;
+
+    [Header("Player Speed Coupling")]
+    [SerializeField] bool linkToPlayerSpeed = true;
+    [Tooltip("Player speed at which all rates equal their base values above.")]
+    [SerializeField] float referencePlayerSpeed = 20f;
+    [Tooltip("Cap on the speed-driven multiplier so extreme speeds don't blow rates up.")]
+    [SerializeField] float maxSpeedMultiplier = 4f;
+
+    [Header("Spawn Pulse (newly-stamped lines start bold)")]
+    [Tooltip("Extra depth at spawn time (added on top of the target depth via overlay).")]
+    [Range(0f, 1f)]
+    [SerializeField] float pulseExtraDepth = 0.5f;
+    [Tooltip("Extra width multiplier at spawn time. 1 = same width, 2 = twice as wide.")]
+    [Range(1f, 3f)]
+    [SerializeField] float pulseWidthMultiplier = 1.6f;
+    [Tooltip("How long the pulse takes to fade. The line keeps existing afterward at its target shape.")]
+    [Range(0.1f, 2f)]
+    [SerializeField] float pulseDuration = 0.5f;
 
     [Header("Debug")]
     [SerializeField] bool debugLog = false;
 
+    // ── Public API ────────────────────────────────────────────────────────────
+
+    /// <summary>Texture width — also the length of the absorption sample array.</summary>
+    public const int TexWidth = 256;
+
+    /// <summary>Current drift rate in normalised UV-units per second. HUD reads this so the
+    /// spectrum redshift stays locked to the absorption drift.</summary>
+    public float CurrentDriftPerSecond
+    {
+        get
+        {
+            float speedFactor = GetSpeedFactor();
+            float idleScale   = backgroundIdleRate + (1f - backgroundIdleRate) * speedFactor;
+            return driftBaseRate * idleScale;
+        }
+    }
+
+    /// <summary>Sample the current absorption at a normalised UV→IR position [0..1]. Linear filter.</summary>
+    public float SampleAbsorption(float t)
+    {
+        if (_finalAbsorption == null) return 0f;
+        t = Mathf.Clamp01(t);
+        float fp = t * (TexWidth - 1);
+        int lo = Mathf.FloorToInt(fp);
+        int hi = Mathf.Min(lo + 1, TexWidth - 1);
+        float frac = fp - lo;
+        return Mathf.Lerp(_finalAbsorption[lo], _finalAbsorption[hi], frac);
+    }
+
+    /// <summary>
+    /// Stamp a new absorption line. Used by triggers AND the background spawner.
+    /// uvPosition is normalised [0..1] (0 = UV end, 1 = IR end).
+    /// addPulse=false skips the spawn-pulse highlight (used for pre-population).
+    /// </summary>
+    public void StampLine(float uvPosition, float depth, int widthPixels, bool addPulse = true)
+    {
+        depth        = Mathf.Clamp01(depth);
+        widthPixels  = Mathf.Clamp(widthPixels, 1, TexWidth / 4);
+        int center   = Mathf.Clamp(Mathf.RoundToInt(uvPosition * (TexWidth - 1)), 0, TexWidth - 1);
+
+        // Permanent contribution baked into the main buffer.
+        StampIntoMain(center, depth, widthPixels);
+
+        if (addPulse)
+        {
+            _pulses.Add(new Pulse
+            {
+                center      = center,
+                extraDepth  = pulseExtraDepth * depth,
+                extraWidth  = Mathf.RoundToInt(widthPixels * pulseWidthMultiplier),
+                spawnTime   = Time.time,
+                duration    = pulseDuration
+            });
+        }
+    }
+
+    /// <summary>Legacy single-line API kept for compatibility. Uses default background width.</summary>
+    public void AddAbsorptionLine(float intensity)
+    {
+        int w = Mathf.Max(1, (backgroundWidthPixels.x + backgroundWidthPixels.y) / 2);
+        StampLine(backgroundSpawnRangeUV.x, intensity, w);
+    }
+
+    /// <summary>Clear all current absorption (does not stop background spawning).</summary>
+    public void ClearAllLines()
+    {
+        if (_mainAbsorption == null) return;
+        for (int i = 0; i < TexWidth; i++) _mainAbsorption[i] = 0f;
+        _pulses.Clear();
+        _driftAccum = 0f;
+    }
+
     // ── Private ───────────────────────────────────────────────────────────────
 
-    const int TexWidth = 256;
+    struct Pulse
+    {
+        public int   center;
+        public float extraDepth;
+        public int   extraWidth;
+        public float spawnTime;
+        public float duration;
+    }
 
-    float[]   _absorptionData;
-    Texture2D _absorptionTex;
+    float[]   _mainAbsorption;     // permanent baked absorption
+    float[]   _finalAbsorption;    // _mainAbsorption + active pulses, what gets uploaded/sampled
     Color[]   _texPixels;
-    float     _driftAccumulator;
-    AbsorptionMode _activeMode;
+    Texture2D _absorptionTex;
+    readonly List<Pulse> _pulses = new List<Pulse>();
 
-    // Fake forest — pending dips queued for gradual release
-    struct PendingDip { public float depth; public int widthPixels; }
-    System.Collections.Generic.Queue<PendingDip> _pendingDips
-        = new System.Collections.Generic.Queue<PendingDip>();
-    float _spawnTimer;
-
-    /// <summary>Current active mode — readable by other scripts.</summary>
-    public AbsorptionMode CurrentMode => _activeMode;
+    float _driftAccum;
+    float _backgroundSpawnAccum;
+    System.Random _backgroundRng;
 
     static readonly int AbsorptionLineTexProp = Shader.PropertyToID("_AbsorptionLineTex");
-    static readonly int UseAbsorptionLineProp  = Shader.PropertyToID("_UseAbsorptionLine");
+    static readonly int UseAbsorptionLineProp = Shader.PropertyToID("_UseAbsorptionLine");
 
     // ── Unity Lifecycle ───────────────────────────────────────────────────────
 
     void Awake()
     {
-        if (spectrumTrail == null)
-            spectrumTrail = FindObjectOfType<PhotonSpectrumTrail>();
-        if (journeyTracker == null)
-            journeyTracker = FindObjectOfType<UniverseJourneyTracker>();
+        if (spectrumTrail    == null) spectrumTrail    = FindObjectOfType<PhotonSpectrumTrail>();
+        if (playerController == null) playerController = FindObjectOfType<DarkMatterPlayerControllerTest>();
 
-        _absorptionData = new float[TexWidth];
-        _texPixels      = new Color[TexWidth];
+        _mainAbsorption  = new float[TexWidth];
+        _finalAbsorption = new float[TexWidth];
+        _texPixels       = new Color[TexWidth];
 
         _absorptionTex = new Texture2D(TexWidth, 1, TextureFormat.RFloat, false)
         {
@@ -121,13 +188,34 @@ public class LymanAlphaAbsorptionController : MonoBehaviour
             name       = "LyaAbsorptionTex"
         };
 
+        _backgroundRng = new System.Random(System.Environment.TickCount);
         UploadTexture();
     }
 
     void Start()
     {
         ApplyToMaterial();
-        SetMode(mode); // apply initial mode
+
+        if (prePopulateForest && prePopulateLineCount > 0)
+            PrePopulateForest();
+    }
+
+    void PrePopulateForest()
+    {
+        for (int i = 0; i < prePopulateLineCount; i++)
+        {
+            float pos   = Mathf.Lerp(backgroundSpawnRangeUV.x, backgroundSpawnRangeUV.y,
+                              (float)_backgroundRng.NextDouble());
+            float depth = Mathf.Lerp(backgroundDepthRange.x, backgroundDepthRange.y,
+                              (float)_backgroundRng.NextDouble());
+            int range   = Mathf.Max(1, backgroundWidthPixels.y - backgroundWidthPixels.x + 1);
+            int width   = Mathf.Clamp(
+                              backgroundWidthPixels.x + (int)(_backgroundRng.NextDouble() * range),
+                              1, TexWidth / 4);
+            StampLine(pos, depth, width, addPulse: false);
+        }
+        ComposeFinal();
+        UploadTexture();
     }
 
     void OnDestroy()
@@ -137,131 +225,127 @@ public class LymanAlphaAbsorptionController : MonoBehaviour
 
     void Update()
     {
-        // Release pending fake dips one by one at spawn rate
-        if (_activeMode == AbsorptionMode.FakeForest && _pendingDips.Count > 0)
+        float speedFactor = GetSpeedFactor();
+        float idleScale   = backgroundIdleRate + (1f - backgroundIdleRate) * speedFactor;
+        float dt          = Time.deltaTime;
+
+        // 1) Background spawn (UV end only, slows but never freezes)
+        if (backgroundEnabled && backgroundBaseRate > 0f)
         {
-            _spawnTimer += Time.deltaTime;
-            float interval = 1f / Mathf.Max(fakeSpawnRate, 0.01f);
-            while (_spawnTimer >= interval && _pendingDips.Count > 0)
+            float spawnRate = backgroundBaseRate * idleScale;
+            _backgroundSpawnAccum += spawnRate * dt;
+            while (_backgroundSpawnAccum >= 1f)
             {
-                var dip = _pendingDips.Dequeue();
-                StampLine(spawnPositionUV, dip.depth, dip.widthPixels);
-                _spawnTimer -= interval;
+                _backgroundSpawnAccum -= 1f;
+                SpawnBackgroundLine();
             }
         }
 
-        float drift = GetDriftSpeed() * Time.deltaTime;
-        DriftLines(drift);
+        // 2) Drift the main buffer (uses the SAME idle-scaled rate as spawn,
+        //    so lines never pile up at the spawn band when the player is idle).
+        float drift = driftBaseRate * idleScale * dt;
+        DriftMain(drift);
+
+        // 3) Compose final = main + active pulses
+        ComposeFinal();
+
+        // 4) Push to GPU
         UploadTexture();
-    }
-
-    // ── Public API ────────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Switch between TriggerBox and FakeForest modes at runtime.
-    /// Clears current lines and rebuilds if switching to FakeForest.
-    /// </summary>
-    public void SetMode(AbsorptionMode newMode)
-    {
-        _activeMode = newMode;
-        mode        = newMode; // keep inspector in sync
-
-        ClearAllLines();
-
-        if (newMode == AbsorptionMode.FakeForest)
-            PopulateFakeForest();
-
-        if (debugLog)
-            Debug.Log($"[LyaAbsorption] Mode set to {newMode}.");
-    }
-
-    /// <summary>
-    /// Convenience toggles for use from UI buttons or other scripts.
-    /// </summary>
-    public void SetModeTriggerBox()  => SetMode(AbsorptionMode.TriggerBox);
-    public void SetModeFakeForest()  => SetMode(AbsorptionMode.FakeForest);
-    public void ToggleMode()         => SetMode(_activeMode == AbsorptionMode.TriggerBox
-                                                    ? AbsorptionMode.FakeForest
-                                                    : AbsorptionMode.TriggerBox);
-
-    /// <summary>
-    /// Stamp a new absorption line at the UV end.
-    /// Only has an effect in TriggerBox mode — ignored in FakeForest mode.
-    /// Called by LymanAlphaAbsorptionTrigger on player enter.
-    /// </summary>
-    public void AddAbsorptionLine(float intensity)
-    {
-        if (_activeMode == AbsorptionMode.FakeForest)
-        {
-            if (debugLog)
-                Debug.Log("[LyaAbsorption] Ignoring trigger stamp — currently in FakeForest mode.");
-            return;
-        }
-
-        StampLine(spawnPositionUV, intensity, lineWidthPixels);
-
-        if (debugLog)
-            Debug.Log($"[LyaAbsorption] Line stamped at UV {spawnPositionUV:F2}, intensity {intensity:F2}");
-    }
-
-    /// <summary>Clear all absorption lines and reset the texture.</summary>
-    public void ClearAllLines()
-    {
-        for (int i = 0; i < TexWidth; i++)
-            _absorptionData[i] = 0f;
-        _driftAccumulator = 0f;
-        _pendingDips.Clear();
-        _spawnTimer = 0f;
-        UploadTexture();
-    }
-
-    /// <summary>
-    /// Regenerate the fake forest with current inspector settings.
-    /// Can be called from inspector context menu or at runtime.
-    /// </summary>
-    [ContextMenu("Regenerate Fake Forest")]
-    public void PopulateFakeForest()
-    {
-        ClearAllLines();
-        _pendingDips.Clear();
-        _spawnTimer = 0f;
-
-        var rng = new System.Random(fakeRandomSeed);
-
-        float depthMin = Mathf.Min(fakeDepthMin, fakeDepthMax);
-        float depthMax = Mathf.Max(fakeDepthMin, fakeDepthMax);
-
-        for (int d = 0; d < fakeDipCount; d++)
-        {
-            float depth = Mathf.Lerp(depthMin, depthMax,
-                              Mathf.Pow((float)rng.NextDouble(), 1.25f));
-            int width = Mathf.RoundToInt(Mathf.Lerp(
-                              fakeWidthMinPixels, fakeWidthMaxPixels,
-                              (float)rng.NextDouble()));
-
-            _pendingDips.Enqueue(new PendingDip { depth = depth, widthPixels = width });
-        }
-
-        if (debugLog)
-            Debug.Log($"[LyaAbsorption] Fake forest queued — {fakeDipCount} dips at " +
-                      $"{fakeSpawnRate}/sec, seed {fakeRandomSeed}.");
     }
 
     // ── Internal ─────────────────────────────────────────────────────────────
 
-    void StampLine(float uvPosition, float intensity, int widthPixels)
+    float GetSpeedFactor()
     {
-        int centerPixel = Mathf.RoundToInt(uvPosition * (TexWidth - 1));
-        intensity = Mathf.Clamp01(intensity);
-        int halfWidth = widthPixels / 2;
+        if (!linkToPlayerSpeed || playerController == null || referencePlayerSpeed <= 0.0001f)
+            return 1f;
+        float f = playerController.Speed / referencePlayerSpeed;
+        if (f < 0f) f = 0f;
+        if (f > maxSpeedMultiplier) f = maxSpeedMultiplier;
+        return f;
+    }
 
-        for (int offset = -halfWidth; offset <= halfWidth; offset++)
+    void SpawnBackgroundLine()
+    {
+        // Distribute spawn position uniformly across the forest range so lines
+        // don't pile up at one column and saturate to a solid black band.
+        float pos = Mathf.Lerp(backgroundSpawnRangeUV.x, backgroundSpawnRangeUV.y,
+                        (float)_backgroundRng.NextDouble());
+
+        float depth = Mathf.Lerp(backgroundDepthRange.x, backgroundDepthRange.y,
+                          (float)_backgroundRng.NextDouble());
+        int range   = Mathf.Max(1, backgroundWidthPixels.y - backgroundWidthPixels.x + 1);
+        int width   = Mathf.Clamp(
+                          backgroundWidthPixels.x + (int)(_backgroundRng.NextDouble() * range),
+                          1, TexWidth / 4);
+
+        StampLine(pos, depth, width);
+    }
+
+    void StampIntoMain(int center, float depth, int widthPixels)
+    {
+        int half = widthPixels / 2;
+        for (int o = -half; o <= half; o++)
         {
-            int pixel = centerPixel + offset;
-            if (pixel < 0 || pixel >= TexWidth) continue;
-            float falloff = 1f - Mathf.Abs(offset) / (float)(halfWidth + 1);
-            falloff = falloff * falloff;
-            _absorptionData[pixel] = Mathf.Max(_absorptionData[pixel], intensity * falloff);
+            int p = center + o;
+            if (p < 0 || p >= TexWidth) continue;
+            float falloff = 1f - Mathf.Abs(o) / (float)(half + 1);
+            falloff *= falloff;
+            _mainAbsorption[p] = Mathf.Min(1f, _mainAbsorption[p] + depth * falloff);
+        }
+    }
+
+    void DriftMain(float deltaUV)
+    {
+        _driftAccum += deltaUV * (TexWidth - 1);
+        int shift = Mathf.FloorToInt(_driftAccum);
+        if (shift < 1) return;
+        _driftAccum -= shift;
+
+        // Drift main buffer pixels right (toward IR).
+        for (int i = TexWidth - 1; i >= shift; i--)
+            _mainAbsorption[i] = _mainAbsorption[i - shift];
+        for (int i = 0; i < shift && i < TexWidth; i++)
+            _mainAbsorption[i] = 0f;
+
+        // Drift pulse centers along with their host lines.
+        for (int i = 0; i < _pulses.Count; i++)
+        {
+            var p = _pulses[i];
+            p.center += shift;
+            _pulses[i] = p;
+        }
+    }
+
+    void ComposeFinal()
+    {
+        for (int i = 0; i < TexWidth; i++)
+            _finalAbsorption[i] = _mainAbsorption[i];
+
+        float now = Time.time;
+        for (int i = _pulses.Count - 1; i >= 0; i--)
+        {
+            var p     = _pulses[i];
+            float age = now - p.spawnTime;
+            if (age >= p.duration || p.center < 0 || p.center >= TexWidth)
+            {
+                _pulses.RemoveAt(i);
+                continue;
+            }
+            // Ease-out: k goes 1 → 0 over duration, squared for sharper decay.
+            float k = 1f - Mathf.Clamp01(age / p.duration);
+            k = k * k;
+
+            int half = p.extraWidth / 2;
+            for (int o = -half; o <= half; o++)
+            {
+                int idx = p.center + o;
+                if (idx < 0 || idx >= TexWidth) continue;
+                float falloff = 1f - Mathf.Abs(o) / (float)(half + 1);
+                falloff *= falloff;
+                _finalAbsorption[idx] = Mathf.Min(1f,
+                    _finalAbsorption[idx] + p.extraDepth * falloff * k);
+            }
         }
     }
 
@@ -276,38 +360,10 @@ public class LymanAlphaAbsorptionController : MonoBehaviour
         mat.SetFloat(UseAbsorptionLineProp, 1f);
     }
 
-    float GetDriftSpeed()
-    {
-        if (journeyTracker == null) return manualDriftSpeed * driftSpeedScale;
-
-        int phaseIndex = (int)journeyTracker.CurrentPhase;
-        var phases = journeyTracker.Phases;
-        if (phases == null || phaseIndex >= phases.Length)
-            return manualDriftSpeed * driftSpeedScale;
-
-        double lyPerUnit = phases[phaseIndex].lyPerUnityUnit;
-        double refScale  = 3e7;
-        float scaledRate = (float)(lyPerUnit / refScale) * manualDriftSpeed;
-        return scaledRate * driftSpeedScale;
-    }
-
-    void DriftLines(float deltaUV)
-    {
-        _driftAccumulator += deltaUV * (TexWidth - 1);
-        int pixelShift = Mathf.FloorToInt(_driftAccumulator);
-        if (pixelShift < 1) return;
-        _driftAccumulator -= pixelShift;
-
-        for (int i = TexWidth - 1; i >= pixelShift; i--)
-            _absorptionData[i] = _absorptionData[i - pixelShift];
-        for (int i = 0; i < pixelShift && i < TexWidth; i++)
-            _absorptionData[i] = 0f;
-    }
-
     void UploadTexture()
     {
         for (int i = 0; i < TexWidth; i++)
-            _texPixels[i] = new Color(_absorptionData[i], 0f, 0f, 1f);
+            _texPixels[i] = new Color(_finalAbsorption[i], 0f, 0f, 1f);
         _absorptionTex.SetPixels(_texPixels);
         _absorptionTex.Apply(false);
     }

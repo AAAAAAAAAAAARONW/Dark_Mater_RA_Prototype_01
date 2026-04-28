@@ -16,7 +16,7 @@ MonoBehaviour:
   universeLayer: 4
   isDefaultLayer: 0
   transitionDuration: 3
-  zoneSpeedMultiplier: 0.5
+  zoneSpeedMultiplier: 1
   returnSpeedMultiplier: 2
   speedBlendDuration: 3
   useFlareBeforeSwitch: 1
@@ -37,15 +37,25 @@ MonoBehaviour:
   lookBackOrbitCountdown: 5
   lookBackOrbitDuration: 2.5
   microSliderMaxLightYearsWhenInside: 0
+  lafScrollSpeedStepsPerSecond: 8
+  lafDipCount: 180
+  lafRandomSeed: 42
+  lafDipWidthMin: 0.0004
+  lafDipWidthMax: 0.004
+  lafDipDepthMin: 0.08
+  lafDipDepthMax: 0.92
+  lafContinuumPeakPosition: 0.32
+  lafContinuumRiseSigma: 0.14
+  lafContinuumFallSigma: 0.32
   phaseOnEnter: 5
   phaseOnExit: 6
   debugLog: 1
   driveNebulaShader: 1
   nebulaBlendDuration: 3
-  nebulaColorDark: {r: 0.7169812, g: 0.4604102, b: 0.18600929, a: 1}
-  nebulaColorMid: {r: 0.5660378, g: 0.45475006, b: 0.4085084, a: 1}
-  nebulaColorBright: {r: 0.7647059, g: 0.6631214, b: 0.57254905, a: 1}
-  nebulaColorStar: {r: 1, g: 0.986883, b: 0.7122642, a: 1}
+  nebulaColorDark: {r: 0.09414222, g: 0.03613386, b: 0.13207549, a: 1}
+  nebulaColorMid: {r: 0, g: 0.003862489, b: 0.0754717, a: 1}
+  nebulaColorBright: {r: 0, g: 0.004456138, b: 0.1981132, a: 1}
+  nebulaColorStar: {r: 0.4056604, g: 0.4056604, b: 0.4056604, a: 1}
   nebulaScale: 1.2
   nebulaOctaves: 4
   nebulaPersistence: 0.5

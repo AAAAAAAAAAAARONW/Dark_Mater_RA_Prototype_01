@@ -445,17 +445,53 @@ public class UniverseJourneyHUD : MonoBehaviour
     {
         if (fillImage == null || tracker == null) return;
 
-        float progress = Mathf.Clamp01(tracker.TotalProgressLog);
-        float fillH = progress * trackHeight;
+        float fillH;
+
+        if (_isMacroState)
+        {
+            // ── Macro view: fill represents total journey progress (log scale) ──
+            // Grows from Quasar (bottom, violet) toward Earth (top, red).
+            float progress = Mathf.Clamp01(tracker.TotalProgressLog);
+            fillH = progress * trackHeight;
+        }
+        else
+        {
+            // ── Micro view: fill represents progress within the expanded phase ──
+            //
+            // Layout in micro mode (bottom to top):
+            //   [0, compressed]          = past nodes cluster
+            //   [compressed, trackH-compressed] = expanded section for active phase
+            //   [trackH-compressed, trackH]     = future nodes cluster
+            //
+            // The fill bar should reach:
+            //   from y=0 (bottom)
+            //   up to activeNodeY + PhaseProgress × (expandedEnd - activeNodeY)
+            //
+            // This keeps the gradient visually consistent with macro —
+            // the colour at the pip always reflects where we are in the full journey.
+
+            int activeIndex = (int)tracker.CurrentPhase;
+            float compressed = trackHeight * microCompressedFraction;
+            float expandedStart = compressed;
+            float expandedEnd = trackHeight - compressed;
+            float padding = 8f;
+
+            // Active node sits at the bottom of the expanded section
+            float activeNodeY = expandedStart + padding;
+
+            // Available height inside the expanded section above the active node
+            float expandedRange = expandedEnd - activeNodeY - padding;
+
+            fillH = activeNodeY + Mathf.Clamp01(tracker.PhaseProgress) * expandedRange;
+        }
+
         var fillRT = fillImage.rectTransform;
+        fillRT.sizeDelta = new Vector2(fillRT.sizeDelta.x, Mathf.Max(0f, fillH));
 
-        fillRT.sizeDelta = new Vector2(fillRT.sizeDelta.x, fillH);
-
-        // Sample the correct portion of the gradient texture.
-        // uvRect height = progress means: show bottom 'progress' fraction of texture.
-        // Since gradient goes violet (y=0) → red (y=1), this shows
-        // the correct color range up to current journey progress.
-        float uvH = Mathf.Max(progress, 0.001f);
+        // UV rect: sample the correct colour band from the gradient texture.
+        // Always driven by TotalProgressLog so the colour matches the
+        // player's actual position in the full journey regardless of HUD state.
+        float uvH = Mathf.Max(Mathf.Clamp01(tracker.TotalProgressLog), 0.001f);
         fillImage.uvRect = new Rect(0f, 0f, 1f, uvH);
     }
 
@@ -715,3 +751,4 @@ public class UniverseJourneyHUD : MonoBehaviour
  * Labels cut off:     Increase labelWidth or reduce labelFontSize in the inspector.
  * No transition:      Confirm JourneyLayerResponder fires OnPhaseChanged on the tracker.
  */
+
