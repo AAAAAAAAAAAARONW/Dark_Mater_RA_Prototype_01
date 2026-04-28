@@ -750,6 +750,54 @@ public class UniverseJourneyTracker : MonoBehaviour
         Debug.Log(sb.ToString());
     }
 
+    /// <summary>
+    /// Resets the 7 PhaseData entries to the canonical scientific distances.
+    /// Run this if the Inspector shows wrong start/end distances —
+    /// symptoms: early number drops too fast, or Solar System doesn't show ~1 ly.
+    ///
+    /// Phase boundaries (remaining ly to Earth at each phase entry):
+    ///   Quasar      13.0 B → 11.0 B ly
+    ///   CosmicWeb1  11.0 B →  7.0 B ly
+    ///   Galaxy       7.0 B →  6.9999 B ly  (100 K ly window)
+    ///   CosmicWeb2   6.9999 B → 24 K ly
+    ///   MilkyWay     24 K → 1 ly
+    ///   SolarSystem  1 ly → ~0 ly          ← entry shows ~1 ly
+    ///   Earth        ~0 → 0
+    /// </summary>
+    [ContextMenu("Apply Default Phase Distances (overwrites Inspector values)")]
+    void ApplyDefaultPhaseDistances()
+    {
+        phases = new PhaseData[]
+        {
+            new PhaseData { displayName = "Quasar",
+                remainingDistanceAtStart = 13.0e9,    remainingDistanceAtEnd = 11.0e9,
+                lyPerUnityUnit = 3e7  },
+            new PhaseData { displayName = "Cosmic Web",
+                remainingDistanceAtStart = 11.0e9,    remainingDistanceAtEnd = 7.0e9,
+                lyPerUnityUnit = 3e7  },
+            new PhaseData { displayName = "Galaxy",
+                remainingDistanceAtStart = 7.0e9,     remainingDistanceAtEnd = 6.9999e9,
+                lyPerUnityUnit = 1e3  },
+            new PhaseData { displayName = "Cosmic Web",
+                remainingDistanceAtStart = 6.9999e9,  remainingDistanceAtEnd = 2.4e4,
+                lyPerUnityUnit = 6e7  },
+            new PhaseData { displayName = "Milky Way",
+                remainingDistanceAtStart = 2.4e4,     remainingDistanceAtEnd = 1.0,
+                lyPerUnityUnit = 240  },
+            new PhaseData { displayName = "Solar System",
+                remainingDistanceAtStart = 1.0,       remainingDistanceAtEnd = 1e-12,
+                lyPerUnityUnit = 0.01 },
+            new PhaseData { displayName = "Earth",
+                remainingDistanceAtStart = 1e-12,     remainingDistanceAtEnd = 0,
+                lyPerUnityUnit = 1e-14 },
+        };
+
+        UnityEditor.EditorUtility.SetDirty(this);
+        Debug.Log("[Tracker] Applied default phase distances.\n" +
+                  "Solar System entry will now show ~1 ly.\n" +
+                  "Re-enter Play mode for _lyPerUnit cache to rebuild.");
+    }
+
     [ContextMenu("Debug: Fire Next Untriggered Milestone")]
     void DebugFireNextMilestone()
     {
