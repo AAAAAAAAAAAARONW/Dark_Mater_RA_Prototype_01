@@ -119,7 +119,11 @@ public class UniverseJourneyHUD : MonoBehaviour
     [Tooltip("X offset of label from node center (pixels).")]
     [SerializeField] float labelOffsetX = 8f;
     [Tooltip("Width of each node label RectTransform.")]
-    [SerializeField] float labelWidth = 62f;
+    [SerializeField] float labelWidth = 80f;
+    [Tooltip("Height of each node label RectTransform.\n" +
+             "Auto-computed as labelFontSize × 2.5 if left at 0.\n" +
+             "Increase this if labels are clipped when using larger font sizes.")]
+    [SerializeField] float labelHeight = 0f;
 
     [Header("Transition")]
     [Tooltip("Duration of the macro ↔ micro smooth transition in seconds.")]
@@ -320,13 +324,18 @@ public class UniverseJourneyHUD : MonoBehaviour
             labelRT.anchorMax = new Vector2(1f, 0.5f);
             labelRT.pivot = new Vector2(0f, 0.5f);
             labelRT.anchoredPosition = new Vector2(labelOffsetX, 0f);
-            labelRT.sizeDelta = new Vector2(labelWidth, 16f);
+
+            // Height scales with font size so text is never clipped when the
+            // user increases labelFontSize in the Inspector.
+            // labelHeight == 0 → auto-compute from font size.
+            float computedH = (labelHeight > 0f) ? labelHeight : Mathf.Max(labelFontSize * 2.5f, 20f);
+            labelRT.sizeDelta = new Vector2(labelWidth, computedH);
 
             var lbl = labelGO.AddComponent<TextMeshProUGUI>();
             lbl.fontSize = labelFontSize;
             lbl.color = colorFuture;
             lbl.alignment = TextAlignmentOptions.Left;
-            lbl.overflowMode = TextOverflowModes.Ellipsis;
+            lbl.overflowMode = TextOverflowModes.Overflow;  // never clips — size handles it
             lbl.enableWordWrapping = false;
             if (labelFont != null) lbl.font = labelFont;
             lbl.text = GetPhaseName(i);
@@ -734,6 +743,33 @@ public class UniverseJourneyHUD : MonoBehaviour
         nodeActiveDiameter = Mathf.Max(8f, nodeActiveDiameter);
         nodeDefaultDiameter = Mathf.Max(4f, nodeDefaultDiameter);
         nodeMicroDiameter = Mathf.Max(4f, nodeMicroDiameter);
+    }
+
+    /// <summary>
+    /// Destroys and recreates all node GameObjects so Inspector changes
+    /// (font size, label width, node diameter, etc.) take effect immediately
+    /// in Play mode without having to restart.
+    /// </summary>
+    [ContextMenu("Labels: Rebuild Nodes (apply Inspector changes)")]
+    void RebuildNodes()
+    {
+        if (!_initialized) { Debug.LogWarning("[JourneyHUD] Enter Play mode first."); return; }
+
+        // Destroy existing nodes
+        for (int i = 0; i < NODE_COUNT; i++)
+        {
+            if (_nodeRTs != null && _nodeRTs[i] != null)
+                Destroy(_nodeRTs[i].gameObject);
+        }
+
+        // Rebuild with current Inspector values
+        BuildNodes();
+        CalculateMacroPositions();
+        SetNodePositionsImmediate(_isMacroState
+            ? _macroPositionsY
+            : CalculateMicroPositions((int)tracker.CurrentPhase));
+        UpdateNodeVisuals();
+        Debug.Log("[JourneyHUD] Nodes rebuilt.");
     }
 
     [ContextMenu("Auto-Hide: Test Show HUD")]
