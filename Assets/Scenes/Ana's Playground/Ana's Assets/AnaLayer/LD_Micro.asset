@@ -66,4 +66,4 @@ MonoBehaviour:
   nebulaStarBrightness: 3
   nebulaAnimate: 1
   nebulaSpeed: 0.05
-  enableEditorNebulaPreview: 0
+  enableEditorNebulaPreview: 1
