@@ -616,15 +616,24 @@ public class UniverseJourneyTracker : MonoBehaviour
 
     public static string FormatDistance(double ly)
     {
-        if (ly >= 1e9) return (ly / 1e9).ToString("0.##") + "B ly";
-        if (ly >= 1e6) return (ly / 1e6).ToString("0.##") + "M ly";
-        if (ly >= 1e3) return (ly / 1e3).ToString("0.##") + "K ly";
-        if (ly >= 1.0) return ly.ToString("0.##") + " ly";
-        double lm = ly * 525960.0;
-        if (lm >= 1.0) return lm.ToString("0.#") + " light-min";
-        double ls = lm * 60.0;
-        if (ls >= 1.0) return ls.ToString("0.#") + " light-sec";
-        return (ls * 299792.0).ToString("0.##") + " km";
+        // Large-scale: B / M / K ly
+        if (ly >= 1e9)   return (ly / 1e9).ToString("0.##")  + " B ly";
+        if (ly >= 1e6)   return (ly / 1e6).ToString("0.##")  + " M ly";
+        if (ly >= 1e3)   return (ly / 1e3).ToString("0.##")  + " K ly";
+
+        // 0.001 – 999 ly  (covers Milky Way, Solar System, and sub-ly approach)
+        // Using "0.####" suppresses trailing zeros while preserving up to 4 decimal places,
+        // so 0.002 shows as "0.002 ly" rather than "1051 light-min".
+        if (ly >= 0.001) return ly.ToString("0.####") + " ly";
+
+        // Below 0.001 ly — switch to time-of-flight units
+        double lm = ly * 525960.0;          // light-minutes (1 ly = 525 960 light-min)
+        if (lm >= 1440.0) return (lm / 1440.0).ToString("0.#") + " light-day";
+        if (lm >= 60.0)   return (lm / 60.0).ToString("0.#")   + " light-hr";
+        if (lm >= 1.0)    return lm.ToString("0.#")             + " light-min";
+        double ls = lm * 60.0;              // light-seconds
+        if (ls >= 1.0)    return ls.ToString("0.#")             + " light-sec";
+        return (ls * 299792.458).ToString("0.##") + " km";
     }
 
     public void ResetJourney()
