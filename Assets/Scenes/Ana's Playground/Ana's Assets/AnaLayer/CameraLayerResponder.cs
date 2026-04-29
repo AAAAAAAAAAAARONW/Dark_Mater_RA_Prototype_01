@@ -170,8 +170,12 @@ public class CameraLayerResponder : MonoBehaviour
         if (debugLog)
             Debug.Log("[CameraLayerResponder] '" + current.layerId + "' - look-back sequence, orbit in " + current.lookBackOrbitCountdown + "s.");
 
+        // Lock during the countdown so vcamMacro.m_XAxis doesn't drift while vcamLookBack is active.
+        // Covers both the PlaySequence path and the Start() path (which bypasses PlaySequence).
+        playerController.SetCameraInputLocked(true);
+
         SetPriority(vcamLookBack, PriorityHigh);
-        SetPriority(vcamMacro, PriorityNormal);
+        SetPriority(vcamMacro, PriorityOff);
         SetPriority(vcamMicro, PriorityOff);
         SetPriority(vcamTopDown, PriorityOff);
 
@@ -264,11 +268,24 @@ public class CameraLayerResponder : MonoBehaviour
             yield return StartCoroutine(OrbitRoutine(current.lookBackOrbitDuration));
         }
 
+        // Snap vcamMacro to 0° (behind player) before it becomes active.
+        // DriveFreeLookInput has been updating vcamMacro.m_XAxis in the background
+        // the entire time vcamLookBack was live; without this reset the camera would
+        // jump to whatever arbitrary angle the player last drifted it to.
+        if (vcamMacro != null)
+            vcamMacro.m_XAxis.Value = 0f;
+
+        // OrbitRoutine unlocked input when it finished; re-lock for the blend so the
+        // player's stick can't alter vcamMacro.m_XAxis while it's animating into view.
+        playerController.SetCameraInputLocked(true);
+
         // Blend from lookback to Macro
         SetPriority(vcamMacro, PriorityHigh);
         SetPriority(vcamLookBack, PriorityOff);
 
         yield return new WaitForSeconds(GetBlendDuration(vcamLookBack, vcamMacro));
+
+        playerController.SetCameraInputLocked(false);
     }
 
     /// <summary>
@@ -284,9 +301,12 @@ public class CameraLayerResponder : MonoBehaviour
         CinemachineFreeLook zoneVcam = ResolveZoneCamera(current.layerId);
 
         // 1. Blend to topdown
+        // Keep vcamMacro at Off (not Normal) so it isn't a stale secondary camera
+        // lingering in the brain's blend stack during the topdown hold — that residual
+        // presence can cause a small pivot when vcamMacro is later raised to High.
         SetPriority(vcamTopDown, PriorityHigh);
         SetPriority(vcamMicro, PriorityOff);
-        SetPriority(vcamMacro, PriorityNormal);
+        SetPriority(vcamMacro, PriorityOff);
         SetPriority(vcamLookBack, PriorityOff);
         SetPriority(vcamSolarSystem, PriorityOff);
         SetPriority(vcamEarth, PriorityOff);
@@ -319,10 +339,10 @@ public class CameraLayerResponder : MonoBehaviour
         if (debugLog)
             Debug.Log("[CameraLayerResponder] '" + current.layerId + "' - look-down exit sequence.");
 
-        // 1. Blend to topdown
+        // 1. Blend to topdown (vcamMacro off, not Normal — same reason as LookDownEnterSequence)
         SetPriority(vcamTopDown, PriorityHigh);
         SetPriority(vcamMicro, PriorityOff);
-        SetPriority(vcamMacro, PriorityNormal);
+        SetPriority(vcamMacro, PriorityOff);
         SetPriority(vcamLookBack, PriorityOff);
 
         yield return new WaitForSeconds(GetBlendDuration(vcamMicro, vcamTopDown));

@@ -93,6 +93,11 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
     [SerializeField] float lookUpStartDelay = 0.12f;
     [SerializeField] bool lockLookInputDuringLookDown = true;
 
+    [Header("Camera Transition Ownership")]
+    [Tooltip("When CameraLayerResponder is in the scene and handles this zone's camera transitions, " +
+             "set this to false to prevent both systems fighting over vcam priorities.")]
+    [SerializeField] bool handleCameraTransitions = true;
+
     [SerializeField] bool debugLog = true;
     [SerializeField] bool debugVerbose;
 
@@ -335,17 +340,20 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
         transitionController.SetTransitionImmediate(inside ? 1f : 0f);
         playerController.SetExternalSpeedMultiplier(inside ? enterSpeedMultiplier : exitSpeedMultiplier);
 
-        if (inside)
+        if (handleCameraTransitions)
         {
-            SetCameraPriority(vcamMicro, 20);
-            SetCameraPriority(vcamTopDown, 0);
-            SetCameraPriority(vcamMacro, 10);
-        }
-        else
-        {
-            SetCameraPriority(vcamMacro, 10);
-            SetCameraPriority(vcamMicro, 0);
-            SetCameraPriority(vcamTopDown, 0);
+            if (inside)
+            {
+                SetCameraPriority(vcamMicro, 20);
+                SetCameraPriority(vcamTopDown, 0);
+                SetCameraPriority(vcamMacro, 10);
+            }
+            else
+            {
+                SetCameraPriority(vcamMacro, 10);
+                SetCameraPriority(vcamMicro, 0);
+                SetCameraPriority(vcamTopDown, 0);
+            }
         }
         // Journey phase is NOT set here — ApplyStateImmediate runs on scene init
         // and must not override the tracker's default starting phase.
@@ -375,9 +383,12 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
                 yield return new WaitForSeconds(flareLeadTime);
             }
 
-            Log("Enter: starting camera top-down transition");
-            SetCameraPriority(vcamTopDown, 20);
-            yield return new WaitForSeconds(enterLookDownDuration);
+            if (handleCameraTransitions)
+            {
+                Log("Enter: starting camera top-down transition");
+                SetCameraPriority(vcamTopDown, 20);
+                yield return new WaitForSeconds(enterLookDownDuration);
+            }
 
             transitionController.SetTransitionImmediate(1f);
 
@@ -394,15 +405,21 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
             if (_filamentRoutine != null) StopCoroutine(_filamentRoutine);
             _filamentRoutine = StartCoroutine(TweenFilamentTransparency(filamentOpaqueValue, Mathf.Max(0.01f, filamentBlendDuration)));
 
-            SetCameraPriority(vcamMicro, 20);
-            SetCameraPriority(vcamTopDown, 0);
-            yield return new WaitForSeconds(lookUpBlendDuration);
+            if (handleCameraTransitions)
+            {
+                SetCameraPriority(vcamMicro, 20);
+                SetCameraPriority(vcamTopDown, 0);
+                yield return new WaitForSeconds(lookUpBlendDuration);
+            }
         }
         else
         {
-            SetCameraPriority(vcamTopDown, 20);
-            SetCameraPriority(vcamMicro, 0);
-            yield return new WaitForSeconds(lookDownBlendDuration);
+            if (handleCameraTransitions)
+            {
+                SetCameraPriority(vcamTopDown, 20);
+                SetCameraPriority(vcamMicro, 0);
+                yield return new WaitForSeconds(lookDownBlendDuration);
+            }
 
             if (useFlareBeforeSwitch && flareFlash != null)
             {
@@ -422,9 +439,12 @@ public class MicroToMacroTriggerSequenceTest : MonoBehaviour
             if (lookUpStartDelay > 0f)
                 yield return new WaitForSeconds(lookUpStartDelay);
 
-            SetCameraPriority(vcamMacro, 10);
-            SetCameraPriority(vcamTopDown, 0);
-            yield return new WaitForSeconds(lookUpBlendDuration);
+            if (handleCameraTransitions)
+            {
+                SetCameraPriority(vcamMacro, 10);
+                SetCameraPriority(vcamTopDown, 0);
+                yield return new WaitForSeconds(lookUpBlendDuration);
+            }
         }
 
         if (lockLookInputDuringLookDown)
