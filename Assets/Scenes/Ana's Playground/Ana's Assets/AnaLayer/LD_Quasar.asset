@@ -37,6 +37,16 @@ MonoBehaviour:
   lookBackOrbitCountdown: 2
   lookBackOrbitDuration: 5
   microSliderMaxLightYearsWhenInside: 0
+  lafScrollSpeedStepsPerSecond: 8
+  lafDipCount: 0
+  lafRandomSeed: 42
+  lafDipWidthMin: 0.0004
+  lafDipWidthMax: 0.004
+  lafDipDepthMin: 0.08
+  lafDipDepthMax: 0.92
+  lafContinuumPeakPosition: 0.42
+  lafContinuumRiseSigma: 0.14
+  lafContinuumFallSigma: 0.32
   phaseOnEnter: 0
   phaseOnExit: 1
   debugLog: 1
@@ -56,4 +66,4 @@ MonoBehaviour:
   nebulaStarBrightness: 1.2
   nebulaAnimate: 1
   nebulaSpeed: 0.5
-  enableEditorNebulaPreview: 0
+  enableEditorNebulaPreview: 1

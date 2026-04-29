@@ -38,9 +38,9 @@ Material:
     - _FeatureSize: 1
     - _InnerGlow: 0.7
     - _Opacity: 0.86
-    - _RenderPercent: 0.481
+    - _RenderPercent: 0.409
     - _StepWorldLength: 0.08
     - _Steps: 32
     m_Colors:
-    - _PercentColor: {r: 0, g: 0.19039416, b: 1, a: 1}
+    - _PercentColor: {r: 0, g: 0.119229436, b: 0.6226415, a: 1}
     - _PercentSeedOffset: {r: 9.3, g: -3.1, b: 2.7, a: 0}
