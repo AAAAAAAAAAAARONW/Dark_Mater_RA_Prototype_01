@@ -37,6 +37,16 @@ MonoBehaviour:
   lookBackOrbitCountdown: 5
   lookBackOrbitDuration: 2.5
   microSliderMaxLightYearsWhenInside: 0
+  lafScrollSpeedStepsPerSecond: 8
+  lafDipCount: 0
+  lafRandomSeed: 42
+  lafDipWidthMin: 0.0004
+  lafDipWidthMax: 0.004
+  lafDipDepthMin: 0.08
+  lafDipDepthMax: 0.92
+  lafContinuumPeakPosition: 0.42
+  lafContinuumRiseSigma: 0.14
+  lafContinuumFallSigma: 0.32
   phaseOnEnter: 6
   phaseOnExit: 6
   debugLog: 1
