@@ -1,0 +1,165 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 741ca6e3c28e2bb3f7a9bbf11bdb183a, type: 3}
+  m_Name: BadgeRegistry_New
+  m_EditorClassIdentifier: 
+  entries:
+  - typeName: UniverseJourneyTracker
+    label: TRACKER
+    color: {r: 0.8784, g: 0.6196, b: 0.2196, a: 1}
+    hide: 0
+    dim: 0
+  - typeName: UniverseJourneyHUD
+    label: JOURNEY HUD
+    color: {r: 0.2000, g: 0.7020, b: 0.7020, a: 1}
+    hide: 0
+    dim: 0
+  - typeName: PhotonSpectrumTrail
+    label: SPEC TRAIL
+    color: {r: 0.8784, g: 0.6196, b: 0.2196, a: 1}
+    hide: 0
+    dim: 0
+  - typeName: PhotonTrailController
+    label: TRAIL
+    color: {r: 0.8784, g: 0.6196, b: 0.2196, a: 1}
+    hide: 0
+    dim: 0
+  - typeName: WorldSpaceUIPopup
+    label: POPUP
+    color: {r: 0.2000, g: 0.7020, b: 0.7020, a: 1}
+    hide: 0
+    dim: 0
+  - typeName: BuiltInFinalUIOverlay
+    label: UI OVERLAY
+    color: {r: 0.2000, g: 0.7020, b: 0.7020, a: 1}
+    hide: 0
+    dim: 0
+  - typeName: UIImageLineGraphEffect
+    label: GRAPH
+    color: {r: 0.2000, g: 0.7020, b: 0.7020, a: 1}
+    hide: 0
+    dim: 0
+  - typeName: AudioManager
+    label: AUDIO
+    color: {r: 0.6902, g: 0.4863, b: 0.8392, a: 1}
+    hide: 0
+    dim: 0
+  - typeName: RingMesh
+    label: RING
+    color: {r: 0.5490, g: 0.5490, b: 0.6000, a: 1}
+    hide: 0
+    dim: 0
+  - typeName: LayerStateManagerTest
+    label: legacy
+    color: {r: 0.6902, g: 0.2902, b: 0.2667, a: 1}
+    hide: 0
+    dim: 1
+  - typeName: LayerTriggerVolumeTest
+    label: legacy
+    color: {r: 0.6902, g: 0.2902, b: 0.2667, a: 1}
+    hide: 0
+    dim: 1
+  - typeName: CameraLayerResponder
+    label: legacy
+    color: {r: 0.6902, g: 0.2902, b: 0.2667, a: 1}
+    hide: 0
+    dim: 1
+  - typeName: VisualLayerResponder
+    label: legacy
+    color: {r: 0.6902, g: 0.2902, b: 0.2667, a: 1}
+    hide: 0
+    dim: 1
+  - typeName: SpeedLayerResponder
+    label: legacy
+    color: {r: 0.6902, g: 0.2902, b: 0.2667, a: 1}
+    hide: 0
+    dim: 1
+  - typeName: JourneyLayerResponder
+    label: legacy
+    color: {r: 0.6902, g: 0.2902, b: 0.2667, a: 1}
+    hide: 0
+    dim: 1
+  - typeName: LAFLayerResponder
+    label: legacy
+    color: {r: 0.6902, g: 0.2902, b: 0.2667, a: 1}
+    hide: 0
+    dim: 1
+  - typeName: RenderLayerTransitionController
+    label: legacy
+    color: {r: 0.6902, g: 0.2902, b: 0.2667, a: 1}
+    hide: 0
+    dim: 1
+  - typeName: DarkMatterPlayerControllerTest
+    label: legacy
+    color: {r: 0.6902, g: 0.2902, b: 0.2667, a: 1}
+    hide: 0
+    dim: 1
+  - typeName: PlaytestLayerDebugSwitcher
+    label: legacy
+    color: {r: 0.6902, g: 0.2902, b: 0.2667, a: 1}
+    hide: 0
+    dim: 1
+  - typeName: EarthLayerResponderTest
+    label: legacy
+    color: {r: 0.6902, g: 0.2902, b: 0.2667, a: 1}
+    hide: 0
+    dim: 1
+  - typeName: LAFSpectrumHUD
+    label: legacy
+    color: {r: 0.6902, g: 0.2902, b: 0.2667, a: 1}
+    hide: 0
+    dim: 1
+  - typeName: LymanAlphaAbsorptionController
+    label: legacy
+    color: {r: 0.6902, g: 0.2902, b: 0.2667, a: 1}
+    hide: 0
+    dim: 1
+  - typeName: MilestoneHUD
+    label: legacy
+    color: {r: 0.6902, g: 0.2902, b: 0.2667, a: 1}
+    hide: 0
+    dim: 1
+  - typeName: LymanAlphaModeTrigger
+    label: deprecated
+    color: {r: 0.6902, g: 0.2902, b: 0.2667, a: 1}
+    hide: 0
+    dim: 1
+  - typeName: FakeLymanAlphaForestHUD
+    label: off
+    color: {r: 0.6902, g: 0.2902, b: 0.2667, a: 1}
+    hide: 0
+    dim: 1
+  - typeName: ForestHUDLine
+    label: off
+    color: {r: 0.6902, g: 0.2902, b: 0.2667, a: 1}
+    hide: 0
+    dim: 1
+  - typeName: UILineGraph
+    label: orphan
+    color: {r: 0.6902, g: 0.2902, b: 0.2667, a: 1}
+    hide: 0
+    dim: 1
+  - typeName: GraphFeeder
+    label: orphan
+    color: {r: 0.6902, g: 0.2902, b: 0.2667, a: 1}
+    hide: 0
+    dim: 1
+  - typeName: DarkMatterVal
+    label: dm value
+    color: {r: 0.5490, g: 0.5490, b: 0.6000, a: 1}
+    hide: 0
+    dim: 1
+  - typeName: CameraForwardGizmo
+    label: 
+    color: {r: 0.5490, g: 0.5490, b: 0.6000, a: 1}
+    hide: 1
+    dim: 0

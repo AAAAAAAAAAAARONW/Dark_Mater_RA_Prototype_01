@@ -1,0 +1,159 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 770bb07a5575b1fc8dcae3880471380a, type: 3}
+  m_Name: MilestoneSet_New
+  m_EditorClassIdentifier: 
+  entries:
+  - label: 'Big Bang'
+    description: 'Space, time, and matter explode into existence from a singular point'
+    card: {fileID: 0}
+    accent: {r: (0.20, g: 0.05, b: 0.40, a: 1}
+    remainingDistanceThresholdLy: 13800000000
+    yearsAgo: 13800000000
+  - label: 'Cosmic Microwave Background'
+    description: 'The universe cools enough for atoms to form — ancient light floods space'
+    card: {fileID: 0}
+    accent: {r: (0.28, g: 0.08, b: 0.48, a: 1}
+    remainingDistanceThresholdLy: 13780000000
+    yearsAgo: 13780000000
+  - label: 'First Stars Ignite'
+    description: 'The universe''s first massive Population III stars blaze to life in the dark'
+    card: {fileID: 0}
+    accent: {r: 0.3, g: 0.1, b: 0.5, a: 1}
+    remainingDistanceThresholdLy: 12500000000
+    yearsAgo: 1300000000
+  - label: 'Cosmic Reionization'
+    description: 'Radiation from the first stars tears electrons free — the universe turns transparent'
+    card: {fileID: 0}
+    accent: {r: 0.3, g: 0.1, b: 0.5, a: 1}
+    remainingDistanceThresholdLy: 12000000000
+    yearsAgo: 1800000000
+  - label: 'Milky Way Forms'
+    description: 'Our galaxy assembles from merging clouds of gas and infant star clusters'
+    card: {fileID: 0}
+    accent: {r: 0.48, g: 0.33, b: 0.08, a: 1}
+    remainingDistanceThresholdLy: 11000000000
+    yearsAgo: 2800000000
+  - label: 'Peak Quasar Activity'
+    description: 'Thousands of quasars blazing simultaneously — the universe is at its brightest'
+    card: {fileID: 0}
+    accent: {r: 0.3, g: 0.1, b: 0.5, a: 1}
+    remainingDistanceThresholdLy: 10500000000
+    yearsAgo: 3300000000
+  - label: 'Cosmic Star Formation Noon'
+    description: 'Stars born 10× faster than today — the universe reaches peak stellar output'
+    card: {fileID: 0}
+    accent: {r: 0.48, g: 0.33, b: 0.08, a: 1}
+    remainingDistanceThresholdLy: 10490000000
+    yearsAgo: 3300000000
+  - label: 'Dark Energy Dominates'
+    description: 'Mysterious dark energy overcomes gravity — cosmic expansion begins to accelerate'
+    card: {fileID: 0}
+    accent: {r: 0.48, g: 0.33, b: 0.08, a: 1}
+    remainingDistanceThresholdLy: 7500000000
+    yearsAgo: 6300000000
+  - label: 'Galaxy Mergers Peak'
+    description: 'Massive galaxies collide and fuse — you pass through one as it tears itself apart and rebuilds'
+    card: {fileID: 0}
+    accent: {r: 0.48, g: 0.33, b: 0.08, a: 1}
+    remainingDistanceThresholdLy: 7000000000
+    yearsAgo: 6800000000
+  - label: 'Sun Ignites'
+    description: 'Our star coalesces from a collapsing cloud of gas and interstellar dust'
+    card: {fileID: 0}
+    accent: {r: 0.15, g: 0.5, b: 0.25, a: 1}
+    remainingDistanceThresholdLy: 4600000000
+    yearsAgo: 4600000000
+  - label: 'Earth Is Born'
+    description: 'A rocky planet accretes from solar debris — the future cradle of all known life'
+    card: {fileID: 0}
+    accent: {r: 0.15, g: 0.5, b: 0.25, a: 1}
+    remainingDistanceThresholdLy: 4540000000
+    yearsAgo: 4540000000
+  - label: 'Giant Impact — Moon Forms'
+    description: 'A Mars-sized body collides with Earth, ejecting the debris that becomes the Moon'
+    card: {fileID: 0}
+    accent: {r: 0.15, g: 0.5, b: 0.25, a: 1}
+    remainingDistanceThresholdLy: 4500000000
+    yearsAgo: 4500000000
+  - label: 'First Life Emerges'
+    description: 'Single-celled organisms appear in warm shallow seas — life takes its first breath'
+    card: {fileID: 0}
+    accent: {r: 0.1, g: 0.45, b: 0.35, a: 1}
+    remainingDistanceThresholdLy: 3800000000
+    yearsAgo: 3800000000
+  - label: 'Oxygen Revolution'
+    description: 'Cyanobacteria flood the atmosphere with oxygen — the Great Oxidation Event'
+    card: {fileID: 0}
+    accent: {r: 0.1, g: 0.45, b: 0.35, a: 1}
+    remainingDistanceThresholdLy: 2700000000
+    yearsAgo: 2700000000
+  - label: 'Multicellular Life'
+    description: 'Complex organisms with differentiated cells appear — evolution takes a giant leap'
+    card: {fileID: 0}
+    accent: {r: 0.1, g: 0.45, b: 0.35, a: 1}
+    remainingDistanceThresholdLy: 600000000
+    yearsAgo: 600000000
+  - label: 'Dinosaurs Rise'
+    description: 'Dinosaurs dominate a warm, oxygen-rich Earth for 165 million years'
+    card: {fileID: 0}
+    accent: {r: 0.1, g: 0.45, b: 0.35, a: 1}
+    remainingDistanceThresholdLy: 230000000
+    yearsAgo: 230000000
+  - label: 'Mass Extinction'
+    description: 'An asteroid ends the dinosaurs — mammals inherit the Earth'
+    card: {fileID: 0}
+    accent: {r: 0.1, g: 0.45, b: 0.35, a: 1}
+    remainingDistanceThresholdLy: 66000000
+    yearsAgo: 66000000
+  - label: 'Homo Sapiens Appear'
+    description: 'The first beings capable of looking up and wondering about the light above'
+    card: {fileID: 0}
+    accent: {r: 0.1, g: 0.45, b: 0.35, a: 1}
+    remainingDistanceThresholdLy: 300000
+    yearsAgo: 300000
+  - label: 'First Cities Rise'
+    description: 'Humans build the first cities along river valleys — civilization ignites'
+    card: {fileID: 0}
+    accent: {r: 0.1, g: 0.45, b: 0.35, a: 1}
+    remainingDistanceThresholdLy: 5000
+    yearsAgo: 5000
+  - label: 'First Telescope'
+    description: 'Galileo points a lens at the sky — humanity sees the cosmos for the first time'
+    card: {fileID: 0}
+    accent: {r: 0.1, g: 0.45, b: 0.35, a: 1}
+    remainingDistanceThresholdLy: 400
+    yearsAgo: 400
+  - label: 'First Radio Signals Leave Earth'
+    description: 'Humanity''s earliest transmissions radiate outward — becoming the light you are'
+    card: {fileID: 0}
+    accent: {r: 0.1, g: 0.45, b: 0.35, a: 1}
+    remainingDistanceThresholdLy: 120
+    yearsAgo: 120
+  - label: 'Edge of the Solar System'
+    description: 'You cross into the Oort Cloud — a vast sphere of ice at the frontier of our Sun''s gravity'
+    card: {fileID: 0}
+    accent: {r: 0.15, g: 0.5, b: 0.25, a: 1}
+    remainingDistanceThresholdLy: 0.5
+    yearsAgo: 0.5
+  - label: 'Crossing the Heliopause'
+    description: 'The solar wind fades — you enter the bubble where our Sun''s reach ends and the stars begin'
+    card: {fileID: 0}
+    accent: {r: 0.15, g: 0.5, b: 0.25, a: 1}
+    remainingDistanceThresholdLy: 0.002
+    yearsAgo: 0.002
+  - label: 'Earth'
+    description: 'After 13.8 billion light-years, you arrive — the pale blue dot in the dark'
+    card: {fileID: 0}
+    accent: {r: (0.05, g: 0.35, b: 0.65, a: 1}
+    remainingDistanceThresholdLy: 9.9999999999999998e-13
+    yearsAgo: 0

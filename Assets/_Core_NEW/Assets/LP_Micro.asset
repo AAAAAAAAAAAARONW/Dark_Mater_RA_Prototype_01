@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 38f15dbdeb626a8ac268c5415ed6935c, type: 3}
+  m_Name: LP_Micro
+  m_EditorClassIdentifier: 
+  layerId: Micro
+  isStartLayer: 0
+  zoneSpeedMultiplier: 0.5
+  speedBlendDuration: 3
+  lockLookInput: 1
+  lookDownHoldDuration: 3
+  lookUpStartDelay: 0.12
+  useLookBackSequence: 0
+  lookBackOrbitCountdown: 5
+  lookBackOrbitDuration: 2.5
+  nebula: {fileID: 11400000, guid: 0f89d78c43d37bf8fe4f2ac476374327, type: 2}
+  spectrum: {fileID: 11400000, guid: c075b066fc9f23b037cee54835f47a7b, type: 2}
+  renderSwapDuration: 3
+  phaseOnEnter: 2
+  timing:
+    renderSwap:
+      anchor: 1
+      offset: 0
+    nebula:
+      anchor: 1
+      offset: 0
+    speed:
+      anchor: 1
+      offset: 0
+    spectrum:
+      anchor: 1
+      offset: 0
+    flare:
+      anchor: 0
+      offset: 0

@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 152f0e8635c91b2aa7fd62dd527d23ee, type: 3}
+  m_Name: NP_Micro
+  m_EditorClassIdentifier: 
+  colorDark: {r: 0.26415092, g: 0.028657887, b: 0.17856164, a: 1}
+  colorMid: {r: 0.1801353, g: 0.20754719, b: 0.19840989, a: 1}
+  colorBright: {r: 0.3301887, g: 0.252314, b: 0.28487977, a: 1}
+  colorStar: {r: 1, g: 1, b: 1, a: 1}
+  scale: 2
+  octaves: 5
+  persistence: 0.5
+  density: 0.8
+  sharpness: 1.5
+  starScale: 120
+  starThreshold: 0.95
+  starBrightness: 3
+  animate: 1
+  speed: 0.05
+  blendDuration: 0

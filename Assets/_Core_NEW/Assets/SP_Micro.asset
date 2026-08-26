@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e71c68cad40847bc731596f038657369, type: 3}
+  m_Name: SP_Micro
+  m_EditorClassIdentifier: 
+  continuumPeakPosition: 0.32
+  initialLineCount: 80
+  spawnRatePerSecond: 1.5556
+  randomSeed: 42
+  dipWidthMin: 0.00390625
+  dipWidthMax: 0.01171875
+  dipDepthMin: 0.1
+  dipDepthMax: 0.45
+  spawnRangeUV: {x: 0.05, y: 0.4}
+  driftPerSecond: 0.00778

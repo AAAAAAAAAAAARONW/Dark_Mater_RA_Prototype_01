@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 152f0e8635c91b2aa7fd62dd527d23ee, type: 3}
+  m_Name: NP_SolarSystem
+  m_EditorClassIdentifier: 
+  colorDark: {r: 0.09414222, g: 0.03613386, b: 0.13207549, a: 1}
+  colorMid: {r: 0, g: 0.003862489, b: 0.0754717, a: 1}
+  colorBright: {r: 0, g: 0.004456138, b: 0.1981132, a: 1}
+  colorStar: {r: 0.4056604, g: 0.4056604, b: 0.4056604, a: 1}
+  scale: 1.2
+  octaves: 4
+  persistence: 0.5
+  density: 0.8
+  sharpness: 1.5
+  starScale: 20
+  starThreshold: 0.992
+  starBrightness: 0.5
+  animate: 1
+  speed: 0.05
+  blendDuration: 0
