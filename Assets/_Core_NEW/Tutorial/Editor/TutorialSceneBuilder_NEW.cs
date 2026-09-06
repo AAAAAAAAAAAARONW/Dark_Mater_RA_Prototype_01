@@ -1446,6 +1446,8 @@ public static class TutorialSceneBuilder_NEW
     /// </summary>
     static TMP_Text AddText(GameObject go, string content, float size, TextAlignmentOptions alignment)
     {
+        MigrateLegacyText(go);
+
         TextMeshProUGUI text = AddIfMissing<TextMeshProUGUI>(go);
         if (!IsFresh(text)) return text;
 
@@ -1589,6 +1591,30 @@ public static class TutorialSceneBuilder_NEW
         Debug.LogWarning("[TutorialSceneBuilder_NEW] No field '" + fieldName + "' on " +
                          owner.GetType().Name + " or its base types.");
         return null;
+    }
+
+    /// <summary>
+    /// Take a UI.Text off a label that predates the move to TextMeshPro.
+    ///
+    /// This is the one place the builder deliberately destroys somebody's work, and it
+    /// is here because the alternative is worse. Scenes built before the switch carry a
+    /// UI.Text on every label; TutorialHUD_NEW's fields are TMP_Text now, so those
+    /// references deserialise to null, and simply adding a TMP component would leave two
+    /// labels stacked on the same rect drawing the same words twice.
+    ///
+    /// It is loud about it. A migration that happens silently is one nobody can explain
+    /// three weeks later.
+    /// </summary>
+    static void MigrateLegacyText(GameObject go)
+    {
+        Text legacy = go.GetComponent<Text>();
+        if (legacy == null) return;
+
+        Debug.Log("[TutorialSceneBuilder_NEW] Replaced the UI.Text on '" + go.name +
+                  "' with TextMeshPro. Any styling on the old component is gone; the new " +
+                  "one is set from the builder's defaults.", go);
+
+        Undo.DestroyObjectImmediate(legacy);
     }
 
     /// <summary>
