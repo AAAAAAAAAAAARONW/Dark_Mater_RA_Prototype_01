@@ -32,16 +32,51 @@ Tutorial/
 ├─ GuideMote_NEW              引导光点：漂移、趋近变亮、抓住绽放
 ├─ TutorialHUD_NEW            图例 / 准星 / A 提示，以及它们何时不在
 ├─ TutorialAttract_NEW        标题卡与整体重置
+├─ TutorialSky_NEW            把 NP_Quasar 写进 Custom/Nebula 天空盒
+├─ TutorialDrift_NEW          随吸积盘漂移（光子拖尾靠它才画得出来）
 ├─ Beats/
 │   ├─ Beat_Cinematic_NEW     A1 A2 A3（无动作，按分镜时长走）
 │   ├─ Beat_LookAt_NEW        B1 B2（把目标带进准星）
 │   ├─ Beat_TurnAround_NEW    B3（转过 150° 且盘在画面里）
 │   └─ Beat_Confirm_NEW       B4（按 A）
 └─ Editor/
-    └─ TutorialSceneBuilder_NEW   一键搭场景
+    ├─ TutorialSceneBuilder_NEW   一键搭场景（布局）
+    └─ TutorialWorldAssets_NEW    资产查找与生成（取材）
 ```
 
-对外零编译依赖，只用引擎、UGUI 和 `_Core_NEW` 里的 `DebugView_NEW` / `HierarchyBadge_NEW`。**不依赖 Cinemachine** —— 教程是第一人称，不走 FreeLook。
+运行时依赖：引擎、UGUI、`_Core_NEW` 的 `DebugView_NEW` / `HierarchyBadge_NEW` / `NebulaProfile_NEW`，以及 **`Assets/Scripts/PhotonSpectrumTrail.cs`**（旧脚本，光子拖尾的光谱生成，刻意复用而不是重写）。**不依赖 Cinemachine** —— 教程是第一人称，不走 FreeLook。
+
+---
+
+## 场景里看得见的东西是从哪来的
+
+第一版 builder 只生成灰色白球、天空盒还留在 Unity 默认值上，结果整个场景渲染出来是一片蓝灰虚空。现在屏幕上的每一样东西都来自工程里已有的资产：
+
+| 元素 | 资产 | 负责哪几帧 |
+|---|---|---|
+| 天空 | `Materials/Custom_Nebula.mat` + `_Core_NEW/Assets/NP_Quasar.asset` | 全程。和主旅程的类星体层**共用同一份数值**，不会分家 |
+| 类星体 | `Materials/BlazingQuasar.mat` | A1 的流、A2 的暗斑、**B2 的 jet channel**、B3 的盘与黑洞剪影 —— 四样都是这一个物体 |
+| 光束（玩家自己） | `Shaders/Custom_PhotonTrail.mat` + `Scripts/PhotonSpectrumTrail.cs` | 全程。玩家就是光 |
+| 吸积盘尘埃 | 生成的 `TutorialDiscDust.mat` + `TutorialSoftDot.png` | A1「深处缓慢旋转的暗红物质」 |
+| 光点 | 生成的 `TutorialMote.mat` | A3 B1 B2 |
+
+`BlazingQuasar.shader` 值得单独说一句：它的 Properties 里直接有 `_AccretionDisk`、`_JetColor / _JetWidth / _JetLength`、`_SpinSpeed`、`_CoreRadius`，**吸积盘、双极喷流、核心亮斑在一个 shader 里**。喷流沿物体局部 Y 轴，盘在垂直于 Y 的平面上 —— builder 靠一个 `QuasarEuler` 把它转到需要的朝向。
+
+### 三个渲染上的坑，都已经处理
+
+1. **天空盒必须在编辑期写进场景。** `RenderSettings` 是场景数据。只在运行时设置的话 Scene 视图仍是默认天空，截图全是错的。builder 在搭场景时就写。
+2. **`NP_Quasar` 是克隆后再写。** `NebulaResponder_NEW` 的注释记着这个教训：曾经直接写 `RenderSettings.skybox`，那是磁盘上的 .mat，一次 playtest 永久改掉了材质、场景不再可复现。`TutorialSky_NEW` 克隆一份运行时实例，销毁时还原。
+3. **拖尾材质用的是副本，不是共享资产。** `PhotonSpectrumTrail` 是 `[ExecuteAlways]`，编辑期就往 `sharedMaterial` 写生成的光谱贴图 —— 直接挂 `Custom_PhotonTrail.mat` 的话，光是**打开场景**就会改写主旅程在用的材质。builder 复制出 `TutorialPhotonTrail.mat` 再挂。PlaytestBuild 用的是场景内嵌实例，同一个规避方式。
+
+### 为什么玩家会漂移
+
+`TutorialDrift_NEW` 让玩家绕类星体自转轴缓慢公转。这不违反「玩家不能操控位移」—— GDD §4 的原文是 *never translates **under their own control***，被吸积盘的流带着走不是操控。它换来三样东西：
+
+- **拖尾画得出来。** `TrailRenderer` 不动就不吐顶点。完全静止的玩家 = 一条看不见的光，而整个前提是玩家就是光。
+- **视差。** 没有地平线、没有已知尺度参照物的场景里，近处尘埃相对远处盘的运动是唯一的深度线索。
+- **A3 按原文成立。** 「光点从右边缘飘出画面」需要玩家和光点之间有相对运动。
+
+速度取在「刚好能读出是在动」的下限。观众如果把它注意成「移动」，就是太快了。
 
 ---
 
@@ -116,7 +151,16 @@ STICK = LOOK      A = CONFIRM / RECENTRE
 | **三个面部按键** | 被阻塞（GDD §10 item 1） | `TutorialInput_NEW.InspectIsPlaceholder` 为 `true`，inspect 暂时绑在 `E`。D5 的提示文案在确认之前不该写。这条同时卡住 whitebox 和 Storyboard v1 的 Beat 3 |
 | **VO** | 占位 | 每拍最多一句，多数没有。`Beat_Cinematic_NEW` 上有 AudioSource + AudioClip 两格，空着是正常状态 |
 | **教程背景** | 未定（GDD §10 item 3） | live universe 还是 slow drift 没定，所以 attract 返回时**没有**做世界淡出 —— 现在写的两种方案下都要重写 |
-| **美术资产** | 白盒 | builder 生成的都是 `Placeholder_*` 球体。GDD §9 是真正的资产清单。**位置是有意义的**：光点在开场视野右缘之外因为 A3 说它从右边缘飘出，盘在玩家背后因为 B3 要转过 150°。换美术，保留几何 |
+| **美术资产** | 部分复用 | 天空、类星体、光子拖尾都是工程现有资产（见上一节）。尘埃与光点材质是生成的白盒，换掉 `.mat` 即可，builder 不用动 |
+| **A1/A2 与 B3 的取景冲突** | **需要你按 Figma 分镜定夺** | 见下 |
+
+### A1/A2 与 B3 在第一人称自由视角下不能同时字面成立
+
+A1/A2 写的是画面里**已经有**流动的物质、以及「中心一块比黑更黑的斑」；B3 写的是黑洞剪影与完整吸积盘**第一次被看见**。开场画面里有的东西，就已经被看见了 —— 这两条在一个不锁相机的第一人称场景里互斥。
+
+**当前默认按 B3 处理**，因为 GDD 给 B3 的批注是 “Protect it.”，而 A1 的要求靠尘埃就能满足：类星体放在**后方偏左偏下**，近到玩家处在外盘之内，所以开场正前方满是漂移的物质，但核心本身在画面外。
+
+分镜（Figma）才是取景的权威。所有位置都是 `TutorialSceneBuilder_NEW` 顶部的常量、也是场景里的 Transform，改一下拖一下都行。
 
 ---
 
@@ -132,18 +176,23 @@ STICK = LOOK      A = CONFIRM / RECENTRE
 
 ```
 [Tutorial]
-├── Player
-│     └── Camera                    FirstPersonLookRig_NEW（复用场景里已有的 Main Camera）
+├── Environment                    TutorialSky_NEW（天空盒 + 环境光；顺手关掉方向光）
+├── Photon                         TutorialDrift_NEW（玩家本体）
+│     ├── Camera                   FirstPersonLookRig_NEW（复用场景里已有的 Main Camera）
+│     └── Trail                    TrailRenderer + PhotonSpectrumTrail ← 这就是光束
 ├── World
-│     ├── Placeholder_Disc_And_BlackHole   身后 30 单位
-│     ├── Mote_A3_B1                       右前方，A3 出现，B1 抓住
-│     └── Mote_B2                          上方，B2 出现
+│     ├── Quasar                   BlazingQuasar.mat，后方偏左偏下，带倾角
+│     ├── DiscDust                 单个 ParticleSystem，圆环形，缓慢公转
+│     ├── Mote_A3_B1               右前方约 28°，A3 出现，B1 抓住
+│     └── Mote_B2                  上方约 55°，在喷流里，B2 出现
 ├── HUD                            Canvas + TutorialHUD_NEW + TutorialAttract_NEW
 │     ├── Reticle / Legend / ConfirmPrompt / AttractCard
 └── Director                       TutorialDirector_NEW
       └── Beats
             A1 A2 A3 B1 B2 B3 B4
 ```
+
+尘埃用的是**一个** ParticleSystem，不是现成的 VFX prefab。工程里有 `RFX_Nebula` 系列，但每个是二十多个粒子系统堆出来的星系外观，而 GDD §10 item 3 已经把 Carnegie 硬件上的帧数列为待议项。一个圆环发射器 + 轨道速度就是吸积盘的形状，代价是一个 draw call。要更华丽的观感，把 `DiscDust` 换成 RFX prefab 即可。
 
 拍子是 Director 的子物体，按 Hierarchy 顺序自动收集 —— **调整分镜顺序是在 Hierarchy 里拖一下，不是改数组**。
 
