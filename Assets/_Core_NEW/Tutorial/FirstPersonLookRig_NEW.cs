@@ -5,48 +5,71 @@ using UnityEngine;
 ///
 /// Why this is not OrbitCameraRig_NEW: that rig orbits a FreeLook around the player and
 /// is third person. GDD §1 fixes the tutorial as first person throughout, with no view
-/// swap, and GDD §11 records first person as the whole difference between this design and
-/// Tutorial Storyboard v1. Bending the orbit rig into a first person camera would mean a
-/// zero-radius orbit, which is a FreeLook fighting a Composer to stay still. This is
-/// thirty lines instead.
+/// swap. Bending the orbit rig into a first person camera would mean a zero-radius
+/// orbit, which is a FreeLook fighting a Composer to stay still.
 ///
-/// Two rules from the GDD are structural here, not options:
+/// FEEL. The numbers are not chosen, they are taken from PlaytestBuild_NEW's Player, so
+/// the tutorial hands over to a journey that behaves the same way. That build drives a
+/// CinemachineFreeLook by writing its axes directly, so the translation into first
+/// person needs care in one place — the vertical:
+///
+///   Horizontal   xSensitivity 100, degrees per second. Copies straight across.
+///   Vertical     ySensitivity 0.2, but of a FreeLook Y axis that runs 0 to 1 across
+///                the whole orbit. That rig's orbits are height 3 / 1 / -2 at radius
+///                1 / 3 / 1, an arc of very roughly 130°, so 0.2 of it per second is
+///                about 26 degrees per second. Reproducing 0.2 as 0.2 deg/s would be
+///                unusable; reproducing it as a fresh guess is how a tutorial ends up
+///                feeling nothing like the game.
+///   Deadband     0.1. Copies straight across.
+///   Recentre     resetXSpeed 50 deg/s, applied with MoveTowardsAngle — constant speed,
+///                not an eased fixed-duration lerp. resetYSpeed 1.5 axis-units becomes
+///                about 195 deg/s by the same arc conversion.
+///   FOV          40 on the FreeLook, against Unity's default 60. Set by the builder on
+///                the camera; a first person view at 60 reads as a different game.
+///
+/// PlaytestBuild's softness comes from Cinemachine damping on the rig, which first
+/// person has no equivalent for, so `smoothTime` adds it back explicitly. Set it to 0
+/// for raw input.
+///
+/// Two GDD rules are structural here, not options:
 ///
 ///   * The camera is never locked (§5). There is no SetLocked, deliberately. C3 in the
 ///     old build locked the camera and playtesters read it as a bug. A rig with no lock
 ///     cannot regress into one.
-///   * A recentres, and does so as a lerp the player can interrupt (B4). Touching the
-///     stick mid-recentre cancels it, because a recentre that fights the stick is a lock
-///     wearing a different hat.
-///
-/// The forward axis is the jet axis — the direction of travel, and the direction A
-/// returns you to. It is stored as the rig's yaw and pitch at Awake, so whatever you
-/// point the transform at in the scene becomes "forward" with no extra wiring.
+///   * A recentres, and the player can interrupt it (B4). Touching the stick mid-recentre
+///     cancels it, because a recentre that fights the stick is a lock wearing a hat.
 /// </summary>
 [DisallowMultipleComponent]
 [HierarchyBadge_NEW("FP LOOK", "#40B884")]
 public class FirstPersonLookRig_NEW : MonoBehaviour
 {
-    [Header("Sensitivity")]
-    [Tooltip("Stick, degrees per second at full deflection.")]
-    [SerializeField] float stickXSensitivity = 120f;
-    [SerializeField] float stickYSensitivity = 90f;
+    [Header("Sensitivity — from PlaytestBuild_NEW's Player")]
+    [Tooltip("Degrees per second at full deflection. PlaytestBuild scene value: 100.")]
+    [SerializeField] float xSensitivity = 100f;
 
-    [Tooltip("Mouse, degrees per unit of raw axis. Desk testing only; not the shipping input.")]
-    [SerializeField] float mouseXSensitivity = 2.5f;
-    [SerializeField] float mouseYSensitivity = 2.0f;
+    [Tooltip("Degrees per second. PlaytestBuild stores 0.2 of a 0-1 FreeLook axis across " +
+             "an arc of roughly 130 degrees, which is about 26 deg/s. See the class summary.")]
+    [SerializeField] float ySensitivity = 26f;
 
-    [Tooltip("Stick magnitude below this is ignored, so an idle pad does not drift the view.")]
+    [Tooltip("Stick magnitude below this is ignored. PlaytestBuild scene value: 0.1.")]
     [SerializeField] float stickDeadband = 0.1f;
+
+    [Tooltip("Seconds of smoothing on the applied rotation, standing in for the " +
+             "Cinemachine damping the journey's rig has. 0 for raw input.")]
+    [SerializeField] float smoothTime = 0.06f;
 
     [Header("Limits")]
     [Tooltip("Pitch clamp in degrees. Yaw is unlimited — B3 needs a full turn.")]
     [SerializeField] float minPitch = -80f;
     [SerializeField] float maxPitch = 80f;
 
-    [Header("Recentre")]
-    [Tooltip("Seconds for A to lerp the view back to the jet axis (B4).")]
-    [SerializeField] float recentreDuration = 0.9f;
+    [Header("Recentre — from PlaytestBuild_NEW's Player")]
+    [Tooltip("Degrees per second, constant. PlaytestBuild scene value: 50.")]
+    [SerializeField] float resetXSpeed = 50f;
+
+    [Tooltip("Degrees per second, constant. PlaytestBuild's 1.5 axis-units across the " +
+             "same arc is about 195 deg/s.")]
+    [SerializeField] float resetYSpeed = 195f;
 
     [Tooltip("Stick deflection above this cancels a recentre in progress. The camera is " +
              "never locked, so the player always outranks the lerp.")]
@@ -55,17 +78,20 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
     [Header("Debug")]
     [SerializeField] bool debugLog = false;
 
+    // Target angles, driven by input.
     float _yaw;
     float _pitch;
+
+    // Applied angles, smoothed towards the target.
+    float _appliedYaw;
+    float _appliedPitch;
+    float _yawVelocity;
+    float _pitchVelocity;
 
     float _forwardYaw;
     float _forwardPitch;
 
-    // Recentre state
     bool _recentring;
-    float _recentreElapsed;
-    float _recentreFromYaw;
-    float _recentreFromPitch;
 
     // Mark used by the turn-around gate (B3).
     float _markYaw;
@@ -76,13 +102,13 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
     public float Pitch { get { return _pitch; } }
     public bool IsRecentring { get { return _recentring; } }
 
-    /// <summary>The jet axis: where A sends the view back to.</summary>
+    /// <summary>The axis A sends the view back to. The direction of travel.</summary>
     public Vector3 ForwardAxis
     {
         get { return Quaternion.Euler(_forwardPitch, _forwardYaw, 0f) * Vector3.forward; }
     }
 
-    /// <summary>Signed shortest angle from the current yaw to the jet axis yaw.</summary>
+    /// <summary>Signed shortest angle from the current yaw to the forward axis yaw.</summary>
     public float YawFromForward
     {
         get { return Mathf.DeltaAngle(_forwardYaw, _yaw); }
@@ -90,8 +116,8 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
 
     /// <summary>
     /// Absolute yaw travelled since the last MarkYaw. B3 gates on this passing 150°.
-    /// Shortest-angle, so spinning 360° reads as 0 — which is correct: a player who has
-    /// come all the way back round is facing forward again and has not turned around.
+    /// Shortest-angle, so spinning a full 360° reads as 0 — which is correct: a player
+    /// who has come all the way back round is facing forward and has not turned around.
     /// </summary>
     public float YawFromMark
     {
@@ -104,22 +130,10 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
         _markYaw = _yaw;
     }
 
-    /// <summary>Start the lerp back to the jet axis. Safe to call while one is running.</summary>
+    /// <summary>Start the constant-speed return to the forward axis.</summary>
     public void BeginRecentre()
     {
-        if (recentreDuration <= 0f)
-        {
-            _yaw = _forwardYaw;
-            _pitch = _forwardPitch;
-            Apply();
-            return;
-        }
-
         _recentring = true;
-        _recentreElapsed = 0f;
-        _recentreFromYaw = _yaw;
-        _recentreFromPitch = _pitch;
-
         if (debugLog) Debug.Log("[FirstPersonLookRig_NEW] Recentre begun.", this);
     }
 
@@ -128,14 +142,37 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
         _recentring = false;
     }
 
+    /// <summary>Snap the view to the forward axis with no lerp. Used by the attract reset.</summary>
+    public void SnapToForward()
+    {
+        _recentring = false;
+
+        _yaw = _appliedYaw = _forwardYaw;
+        _pitch = _appliedPitch = _forwardPitch;
+        _yawVelocity = _pitchVelocity = 0f;
+
+        Apply();
+    }
+
     /// <summary>
-    /// Re-read the jet axis from the transform's current rotation. Phase 2 will need
-    /// this when the emission changes what "forward" means.
+    /// Re-read the forward axis from the transform's current rotation. Phase 2 needs
+    /// this at C5, when the emission changes what "forward" means.
     /// </summary>
     public void SetForwardAxisToCurrent()
     {
         _forwardYaw = _yaw;
         _forwardPitch = _pitch;
+    }
+
+    /// <summary>Point the forward axis along a world direction, e.g. the travel vector.</summary>
+    public void SetForwardAxis(Vector3 direction)
+    {
+        if (direction.sqrMagnitude < 0.0001f) return;
+
+        Vector3 euler = Quaternion.LookRotation(direction.normalized).eulerAngles;
+
+        _forwardYaw = euler.y;
+        _forwardPitch = NormaliseAngle(euler.x);
     }
 
     /// <summary>True when the target sits within halfAngleDeg of the view centre.</summary>
@@ -155,8 +192,8 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
     {
         Vector3 euler = transform.rotation.eulerAngles;
 
-        _yaw = euler.y;
-        _pitch = NormaliseAngle(euler.x);
+        _yaw = _appliedYaw = euler.y;
+        _pitch = _appliedPitch = NormaliseAngle(euler.x);
 
         _forwardYaw = _yaw;
         _forwardPitch = _pitch;
@@ -167,13 +204,15 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
     {
         float dt = Time.unscaledDeltaTime;
 
-        float dx = TutorialInput_NEW.LookX(stickXSensitivity, mouseXSensitivity, stickDeadband, dt);
-        float dy = TutorialInput_NEW.LookY(stickYSensitivity, mouseYSensitivity, stickDeadband, dt);
+        float dx = TutorialInput_NEW.LookX(xSensitivity, stickDeadband, dt);
+        float dy = TutorialInput_NEW.LookY(ySensitivity, stickDeadband, dt);
 
         if (_recentring)
         {
-            // The player outranks the lerp. See the class summary.
-            if (Mathf.Abs(dx) > recentreCancelThreshold || Mathf.Abs(dy) > recentreCancelThreshold)
+            // The player outranks the recentre. See the class summary.
+            float deflection = Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy)) / Mathf.Max(dt, 0.0001f);
+
+            if (deflection > recentreCancelThreshold * Mathf.Max(xSensitivity, ySensitivity))
             {
                 _recentring = false;
                 if (debugLog) Debug.Log("[FirstPersonLookRig_NEW] Recentre cancelled by stick.", this);
@@ -181,6 +220,7 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
             else
             {
                 TickRecentre(dt);
+                Smooth(dt);
                 Apply();
                 return;
             }
@@ -189,29 +229,44 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
         _yaw += dx;
         _pitch = Mathf.Clamp(_pitch - dy, minPitch, maxPitch);
 
+        Smooth(dt);
         Apply();
     }
 
+    /// <summary>
+    /// Constant-speed return, exactly as DarkMatterPlayerControllerTest does it:
+    /// MoveTowardsAngle on the horizontal, MoveTowards on the vertical.
+    /// </summary>
     void TickRecentre(float dt)
     {
-        _recentreElapsed += dt;
+        _yaw = Mathf.MoveTowardsAngle(_yaw, _forwardYaw, resetXSpeed * dt);
+        _pitch = Mathf.MoveTowards(_pitch, _forwardPitch, resetYSpeed * dt);
 
-        float t = Mathf.Clamp01(_recentreElapsed / recentreDuration);
-        float eased = t * t * (3f - 2f * t);
+        bool xDone = Mathf.Abs(Mathf.DeltaAngle(_yaw, _forwardYaw)) < 0.5f;
+        bool yDone = Mathf.Abs(_pitch - _forwardPitch) < 0.5f;
 
-        _yaw = Mathf.LerpAngle(_recentreFromYaw, _forwardYaw, eased);
-        _pitch = Mathf.Lerp(_recentreFromPitch, _forwardPitch, eased);
+        if (!xDone || !yDone) return;
 
-        if (t >= 1f)
+        _recentring = false;
+        if (debugLog) Debug.Log("[FirstPersonLookRig_NEW] Recentre complete.", this);
+    }
+
+    void Smooth(float dt)
+    {
+        if (smoothTime <= 0f)
         {
-            _recentring = false;
-            if (debugLog) Debug.Log("[FirstPersonLookRig_NEW] Recentre complete.", this);
+            _appliedYaw = _yaw;
+            _appliedPitch = _pitch;
+            return;
         }
+
+        _appliedYaw = Mathf.SmoothDampAngle(_appliedYaw, _yaw, ref _yawVelocity, smoothTime, Mathf.Infinity, dt);
+        _appliedPitch = Mathf.SmoothDamp(_appliedPitch, _pitch, ref _pitchVelocity, smoothTime, Mathf.Infinity, dt);
     }
 
     void Apply()
     {
-        transform.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
+        transform.rotation = Quaternion.Euler(_appliedPitch, _appliedYaw, 0f);
     }
 
     static float NormaliseAngle(float degrees)

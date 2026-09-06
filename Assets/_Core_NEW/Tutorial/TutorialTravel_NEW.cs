@@ -1,0 +1,132 @@
+using UnityEngine;
+
+/// <summary>
+/// Carries the player in a straight line at a constant speed. No input reaches it.
+///
+/// This is the premise of the whole piece stated as a component: you are light, you are
+/// already moving, and you cannot steer. GDD §3 lists "You cannot steer. You can only
+/// look." as the second of the six things the tutorial installs, and §4 removes the move
+/// stick entirely so that lesson is enforced by the absence of a control rather than by
+/// a line of text.
+///
+/// So there is deliberately no public method to change speed or heading from input, and
+/// no serialized "allow player control" flag to find later and switch on. The heading is
+/// set once, in the editor or by the builder, by pointing `destination` at the thing the
+/// light is travelling towards.
+///
+/// It replaces an earlier TutorialDrift_NEW that orbited the quasar. That was written
+/// for a staging where the player starts inside the accretion disc; the experience is an
+/// approach, so the motion is a straight line towards the quasar and the orbit is gone.
+///
+/// The trail cares about this. A TrailRenderer emits nothing while its transform is
+/// still, so constant motion is also what makes the player's own light visible at all
+/// once the trail is switched on.
+/// </summary>
+[DisallowMultipleComponent]
+[HierarchyBadge_NEW("TRAVEL", "#40B884")]
+public class TutorialTravel_NEW : MonoBehaviour
+{
+    [Header("Heading")]
+    [Tooltip("What the light is travelling towards. The heading is taken from this once, " +
+             "on Awake, and then never changes — the player cannot steer and neither can " +
+             "a moving target.")]
+    [SerializeField] Transform destination;
+
+    [Tooltip("Used when there is no destination. World space, normalised on Awake.")]
+    [SerializeField] Vector3 fallbackDirection = Vector3.forward;
+
+    [Header("Speed")]
+    [Tooltip("Units per second, constant. Nothing changes it: there is no speed control " +
+             "in the tutorial, by design.")]
+    [SerializeField] float speed = 25f;
+
+    [Header("Camera")]
+    [Tooltip("Point the look rig's forward axis along the heading on Awake, so A " +
+             "recentres to the direction of travel rather than to whatever rotation the " +
+             "camera happened to be built with.")]
+    [SerializeField] FirstPersonLookRig_NEW lookRig;
+
+    [Header("Debug")]
+    [SerializeField] bool drawGizmo = true;
+
+    Vector3 _direction;
+    Vector3 _startPosition;
+
+    /// <summary>The fixed world heading. Also the axis A recentres to.</summary>
+    public Vector3 Direction { get { return _direction; } }
+
+    /// <summary>Units per second. Constant for the whole tutorial.</summary>
+    public float Speed { get { return speed; } }
+
+    /// <summary>Metres travelled since the start of the run.</summary>
+    public float DistanceTravelled
+    {
+        get { return Vector3.Distance(_startPosition, transform.position); }
+    }
+
+    /// <summary>
+    /// Put the light back at the start of its run.
+    ///
+    /// The attract return calls this. Without it the second visitor of the day starts
+    /// wherever the first one got to — which, at 25 units a second through a 90 second
+    /// idle timeout, is a long way past the quasar.
+    /// </summary>
+    public void ResetToStart()
+    {
+        transform.position = _startPosition;
+    }
+
+    void Awake()
+    {
+        _startPosition = transform.position;
+        _direction = ResolveDirection();
+
+        if (lookRig == null) lookRig = GetComponentInChildren<FirstPersonLookRig_NEW>();
+    }
+
+    /// <summary>
+    /// Hand the heading to the look rig in Start, not Awake.
+    ///
+    /// The rig reads its own forward axis out of its transform rotation during its Awake,
+    /// and Unity gives no ordering between Awakes on different objects — the rig is on
+    /// the camera, this is on the player. Setting the axis from Awake would work or not
+    /// depending on which ran second. Start always runs after every Awake.
+    /// </summary>
+    void Start()
+    {
+        if (lookRig != null) lookRig.SetForwardAxis(_direction);
+    }
+
+    void Update()
+    {
+        // Unscaled, so a future slow-motion beat (D2 runs at 0.2x) slows the world
+        // without also stopping the light that the whole piece says cannot stop.
+        transform.position += _direction * (speed * Time.unscaledDeltaTime);
+    }
+
+    Vector3 ResolveDirection()
+    {
+        if (destination != null)
+        {
+            Vector3 toDestination = destination.position - transform.position;
+            if (toDestination.sqrMagnitude > 0.0001f) return toDestination.normalized;
+
+            Debug.LogWarning("[TutorialTravel_NEW] The destination is at the player's own " +
+                             "position. Falling back to the explicit direction.", this);
+        }
+
+        return fallbackDirection.sqrMagnitude > 0.0001f
+            ? fallbackDirection.normalized
+            : Vector3.forward;
+    }
+
+    void OnDrawGizmosSelected()
+    {
+        if (!drawGizmo || !DebugView_NEW.Gizmos) return;
+
+        Vector3 direction = Application.isPlaying ? _direction : ResolveDirection();
+
+        Gizmos.color = new Color(0.25f, 0.72f, 0.52f, 0.9f);
+        Gizmos.DrawLine(transform.position, transform.position + direction * (speed * 4f));
+    }
+}

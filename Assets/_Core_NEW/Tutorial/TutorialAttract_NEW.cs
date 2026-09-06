@@ -57,8 +57,12 @@ public class TutorialAttract_NEW : MonoBehaviour
              "a mote left mid-drift starts the next visitor's B1 already off screen.")]
     [SerializeField] bool resetMotes = true;
 
-    [Tooltip("Send the view back to the jet axis on the return to attract.")]
+    [Tooltip("Send the view back to the direction of travel on the return to attract.")]
     [SerializeField] FirstPersonLookRig_NEW lookRig;
+
+    [Tooltip("Put the light back at the start of its run. Without this the next visitor " +
+             "begins wherever the last one drifted to.")]
+    [SerializeField] TutorialTravel_NEW travel;
 
     [Header("Debug")]
     [SerializeField] bool debugLog = false;
@@ -70,6 +74,7 @@ public class TutorialAttract_NEW : MonoBehaviour
     {
         if (director == null) director = FindObjectOfType<TutorialDirector_NEW>();
         if (lookRig == null) lookRig = FindObjectOfType<FirstPersonLookRig_NEW>();
+        if (travel == null) travel = FindObjectOfType<TutorialTravel_NEW>();
 
         if (director == null)
             Debug.LogError("[TutorialAttract_NEW] No TutorialDirector_NEW. Nothing can start.", this);
@@ -143,11 +148,12 @@ public class TutorialAttract_NEW : MonoBehaviour
 
         if (director != null) director.ReturnToAttract();
 
-        if (lookRig != null)
-        {
-            lookRig.CancelRecentre();
-            lookRig.BeginRecentre();
-        }
+        // Snap rather than recentre: the card is up, nobody is watching the view move,
+        // and a 50 deg/s lerp from wherever the last visitor left it takes long enough
+        // that the next press can land mid-turn.
+        if (lookRig != null) lookRig.SnapToForward();
+
+        if (travel != null) travel.ResetToStart();
 
         if (resetMotes) ResetAllMotes();
 

@@ -13,7 +13,7 @@ Phase 2–4 尚未实现，但拍子框架、控制方案和 HUD 都是按整套
 2. 菜单 `Tools > Journey NEW > Build Tutorial Scene (Phase 0-1)`
 3. Play
 
-看到的顺序：标题卡 →（按 A）→ 20 秒黑暗，第 15 秒一颗光点从右边缘飘出 → 转右抓住它 → 抬头 → 转身看到吸积盘 → A 提示出现 → 按 A 视角回正。
+看到的顺序：标题卡 →（按 A）→ 匀速朝远处的类星体直线飞行，20 秒无界面，第 15 秒一颗光点从右边缘飘出 → `LEFT STICK · LOOK` 提示出现，转右抓住它 → 抬头抓第二颗 → 转身抓第三颗 → `A · RECENTRE` 提示出现，按 A 视角平滑回到航向。
 
 调试：`F2` 跳过当前拍子，左上角有当前 beat / 门控状态 / 空闲计时。两者都受 `DebugView_NEW.Overlay` 控制（`Tools > Journey NEW > Debug View`），出包时一起关掉。
 
@@ -33,11 +33,11 @@ Tutorial/
 ├─ TutorialHUD_NEW            图例 / 准星 / A 提示，以及它们何时不在
 ├─ TutorialAttract_NEW        标题卡与整体重置
 ├─ TutorialSky_NEW            把 NP_Quasar 写进 Custom/Nebula 天空盒
-├─ TutorialDrift_NEW          随吸积盘漂移（光子拖尾靠它才画得出来）
+├─ TutorialTravel_NEW         匀速直线飞向类星体，不接受任何输入
 ├─ Beats/
 │   ├─ Beat_Cinematic_NEW     A1 A2 A3（无动作，按分镜时长走）
 │   ├─ Beat_LookAt_NEW        B1 B2（把目标带进准星）
-│   ├─ Beat_TurnAround_NEW    B3（转过 150° 且盘在画面里）
+│   ├─ Beat_TurnAround_NEW    B3（转过 150° 且目标在画面里）
 │   └─ Beat_Confirm_NEW       B4（按 A）
 └─ Editor/
     ├─ TutorialSceneBuilder_NEW   一键搭场景（布局）
@@ -55,12 +55,12 @@ Tutorial/
 | 元素 | 资产 | 负责哪几帧 |
 |---|---|---|
 | 天空 | `Materials/Custom_Nebula.mat` + `_Core_NEW/Assets/NP_Quasar.asset` | 全程。和主旅程的类星体层**共用同一份数值**，不会分家 |
-| 类星体 | `Materials/BlazingQuasar.mat` | A1 的流、A2 的暗斑、**B2 的 jet channel**、B3 的盘与黑洞剪影 —— 四样都是这一个物体 |
-| 光束（玩家自己） | `Shaders/Custom_PhotonTrail.mat` + `Scripts/PhotonSpectrumTrail.cs` | 全程。玩家就是光 |
-| 吸积盘尘埃 | 生成的 `TutorialDiscDust.mat` + `TutorialSoftDot.png` | A1「深处缓慢旋转的暗红物质」 |
-| 光点 | 生成的 `TutorialMote.mat` | A3 B1 B2 |
+| 类星体 | `Materials/BlazingQuasar.mat` | 远处的目标。A1 的暗斑、**B2 的 jet channel** 都是这一个物体 |
+| 光子拖尾 | `Shaders/Custom_PhotonTrail.mat` + `Scripts/PhotonSpectrumTrail.cs` | **Phase 0–1 关闭**，Phase 2 发射之后才亮 |
+| 星际尘埃 | 生成的 `TutorialDiscDust.mat` + `TutorialSoftDot.png` | A1「缓慢旋转的暗红物质」，同时提供飞行的速度感 |
+| 光点 | 生成的 `TutorialMote.mat` | A3 B1 B2 B3 |
 
-`BlazingQuasar.shader` 值得单独说一句：它的 Properties 里直接有 `_AccretionDisk`、`_JetColor / _JetWidth / _JetLength`、`_SpinSpeed`、`_CoreRadius`，**吸积盘、双极喷流、核心亮斑在一个 shader 里**。喷流沿物体局部 Y 轴，盘在垂直于 Y 的平面上 —— builder 靠一个 `QuasarEuler` 把它转到需要的朝向。
+`BlazingQuasar.shader` 值得单独说一句：它的 Properties 里直接有 `_AccretionDisk`、`_JetColor / _JetWidth / _JetLength`、`_SpinSpeed`、`_CoreRadius`，**吸积盘、双极喷流、核心亮斑在一个 shader 里**。喷流沿物体局部 Y 轴，所以类星体保持直立，B2「抬头看到喷流通道」就是字面发生的事。
 
 ### 三个渲染上的坑，都已经处理
 
@@ -68,15 +68,40 @@ Tutorial/
 2. **`NP_Quasar` 是克隆后再写。** `NebulaResponder_NEW` 的注释记着这个教训：曾经直接写 `RenderSettings.skybox`，那是磁盘上的 .mat，一次 playtest 永久改掉了材质、场景不再可复现。`TutorialSky_NEW` 克隆一份运行时实例，销毁时还原。
 3. **拖尾材质用的是副本，不是共享资产。** `PhotonSpectrumTrail` 是 `[ExecuteAlways]`，编辑期就往 `sharedMaterial` 写生成的光谱贴图 —— 直接挂 `Custom_PhotonTrail.mat` 的话，光是**打开场景**就会改写主旅程在用的材质。builder 复制出 `TutorialPhotonTrail.mat` 再挂。PlaytestBuild 用的是场景内嵌实例，同一个规避方式。
 
-### 为什么玩家会漂移
+---
 
-`TutorialDrift_NEW` 让玩家绕类星体自转轴缓慢公转。这不违反「玩家不能操控位移」—— GDD §4 的原文是 *never translates **under their own control***，被吸积盘的流带着走不是操控。它换来三样东西：
+## 相机手感：数值全部抄自 PlaytestBuild
 
-- **拖尾画得出来。** `TrailRenderer` 不动就不吐顶点。完全静止的玩家 = 一条看不见的光，而整个前提是玩家就是光。
-- **视差。** 没有地平线、没有已知尺度参照物的场景里，近处尘埃相对远处盘的运动是唯一的深度线索。
+不是我选的，是从 `PlaytestBuild_NEW.unity` 的 Player 上逐个抄下来的 —— 教程要交接给一个手感一致的主体验。
+
+| | PlaytestBuild | 教程 | 说明 |
+|---|---|---|---|
+| 水平灵敏度 | `xSensitivity: 100` | 100 °/s | 直接照抄 |
+| **垂直灵敏度** | `ySensitivity: 0.2` | **26 °/s** | 需要换算，见下 |
+| 死区 | `stickDeadband: 0.1` | 0.1 | 直接照抄 |
+| 回正水平 | `resetXSpeed: 50` | 50 °/s | `MoveTowardsAngle` 匀速，不是定时缓动 |
+| 回正垂直 | `resetYSpeed: 1.5` | 195 °/s | 同样换算 |
+| FOV | FreeLook `FieldOfView: 40` | 40 | Unity 默认 60 会像另一个游戏 |
+
+**垂直那一格是唯一需要动脑的地方。** PlaytestBuild 驱动的是 Cinemachine FreeLook，`m_YAxis.Value` 是 0→1 的归一化轴，跨越整个 orbit 弧。那个 rig 的 orbits 是 height 3 / 1 / −2、radius 1 / 3 / 1，大致 130° 的弧，所以 0.2 轴单位/秒 ≈ **26 °/s**。把 0.2 当成 0.2 °/s 抄过来会完全不能用；随手拍一个数字，就是教程和游戏手感对不上的经典来源。
+
+PlaytestBuild 的柔和感来自 Cinemachine 的 damping，第一人称没有对应物，所以 `smoothTime`（默认 0.06s）把它显式加回来。设成 0 就是原始输入。
+
+两根摇杆都读。分镜的 B1 提示写的是 `LEFT STICK · LOOK`，而工程里 `RightStickX/Y` 是手柄轴 4/5（右摇杆）、`Horizontal/Vertical` 是轴 1/2（左摇杆）。GDD §4 只说「只有一根摇杆，它负责看」，没说是哪根。两根都读意味着展陈现场的手柄不管驱动怎么报都能用，观众抓错摇杆也不会被惩罚。`Horizontal/Vertical` 同时带 WASD，所以在桌面上也能测。
+
+---
+
+## 为什么玩家一直在动
+
+`TutorialTravel_NEW` 让玩家以恒定速度直线飞向类星体。**不接受任何输入** —— 没有改速度或改航向的公开方法，也没有一个「允许玩家控制」的开关等着以后被打开。GDD §3 把「你不能操纵方向，只能看」列为教程要装进玩家脑子里的第二件事，§4 直接把移动摇杆删掉，让这条靠控制的缺席来执行，而不是靠一行文字。
+
+它同时换来三样东西：
+
+- **速度感。** 尘埃粒子在世界空间模拟、发射器挂在玩家身上 —— 新粒子一直在玩家周围生成所以不会用完，已生成的留在世界里以航速掠过。两半缺一不可：世界空间 + 固定发射器六秒就被甩掉，本地空间则是一团跟着你走、看起来完全静止的云。
 - **A3 按原文成立。** 「光点从右边缘飘出画面」需要玩家和光点之间有相对运动。
+- **拖尾以后画得出来。** `TrailRenderer` 不动就不吐顶点。Phase 2 发射之后才打开拖尾，那时它需要有位移可拖。
 
-速度取在「刚好能读出是在动」的下限。观众如果把它注意成「移动」，就是太快了。
+光点是**挂在玩家身上**的。25 单位/秒的航速下，钉在世界空间的光点四秒就被甩到身后，B1 那条门就永远过不去了 —— 分镜说的「缓慢飘出画面右缘」是相对于光的运动，不是相对于宇宙的。
 
 ---
 
@@ -113,7 +138,8 @@ GDD §2 记录了旧版 C3 锁相机被多名玩家读成 bug，§5 把「相机
 |---|---|---|---|
 | 1 | 控制图例 | B1 | **永不消失**，代码里没有隐藏它的路径 |
 | 2 | 准星 | B1 | 跟图例一起 |
-| 3 | A 提示 | B4 | 按下即隐 |
+| 3 | 控制提示行 | B1 | 分镜的 B2 B3 都写 No new prompt，所以空的 `hintText` 表示「不变」而不是「清空」 |
+| 4 | A 提示 | B4 | 按下即隐 |
 
 图例文案取自 GDD §4，一字不改：
 
@@ -132,12 +158,12 @@ STICK = LOOK      A = CONFIRM / RECENTRE
 | A1 | `Beat_Cinematic_NEW` | 无，8 秒 | `onEnter` 挂 VO |
 | A2 | `Beat_Cinematic_NEW` | 无，7 秒 | `onHalfway` 用于「亮度升起来」这种帧内变化 |
 | A3 | `Beat_Cinematic_NEW` | 无，5 秒 | `onEnter` 激活光点；`onRumble` 见下方「已知缺口」 |
-| B1 | `Beat_LookAt_NEW` | 光点进入准星 | `holdSeconds = 0`。GDD 明写 not a dwell timer |
-| B2 | `Beat_LookAt_NEW` | 第二颗光点进入画面 | 同上，目标在上方 |
-| B3 | `Beat_TurnAround_NEW` | 转过 150° **且**盘在画面里 | 两个条件都要 —— 见下 |
-| B4 | `Beat_Confirm_NEW` | 按下 A | 按下即满足，回正 lerp 继续跑进下一拍 |
+| B1 | `Beat_LookAt_NEW` | 光点进入准星 | `holdSeconds = 0`。GDD 明写 not a dwell timer。提示 `LEFT STICK · LOOK` |
+| B2 | `Beat_LookAt_NEW` | 第二颗光点进入画面 | 光点从头顶掠过。分镜写 No new prompt，所以 `hintText` 留空 |
+| B3 | `Beat_TurnAround_NEW` | 转过 150° **且**第三颗光点在画面里 | 分镜的 B3 是「third mote, behind」。两个条件都要 —— 见下 |
+| B4 | `Beat_Confirm_NEW` | 按下 A | 提示 `A · RECENTRE`。按下即满足，回正继续跑进下一拍 |
 
-**B3 为什么两个条件都要**：只判角度的话，一个低头发呆、摇杆漂移的玩家也能过。而 B3 是空间定位落地的地方，GDD 给它的批注是 “Protect it.”。一条能在没看见盘的情况下通过的门，什么都没保护到。
+**B3 为什么两个条件都要**：只判角度的话，一个低头发呆、摇杆漂移的玩家也能过。而 B3 是空间定位落地的地方，GDD 给它的批注是 “Protect it.”。一条能在没看见东西的情况下通过的门，什么都没保护到。
 
 **yaw 用最短角差**，所以转满 360° 读数是 0。这是对的：转回来的玩家又面朝前方了，他没有转身。
 
@@ -152,15 +178,17 @@ STICK = LOOK      A = CONFIRM / RECENTRE
 | **VO** | 占位 | 每拍最多一句，多数没有。`Beat_Cinematic_NEW` 上有 AudioSource + AudioClip 两格，空着是正常状态 |
 | **教程背景** | 未定（GDD §10 item 3） | live universe 还是 slow drift 没定，所以 attract 返回时**没有**做世界淡出 —— 现在写的两种方案下都要重写 |
 | **美术资产** | 部分复用 | 天空、类星体、光子拖尾都是工程现有资产（见上一节）。尘埃与光点材质是生成的白盒，换掉 `.mat` 即可，builder 不用动 |
-| **A1/A2 与 B3 的取景冲突** | **需要你按 Figma 分镜定夺** | 见下 |
+| **摆位与 GDD §6 的偏差** | **有意为之，见下** | |
 
-### A1/A2 与 B3 在第一人称自由视角下不能同时字面成立
+### 当前摆位：接近类星体，而不是待在吸积盘里
 
-A1/A2 写的是画面里**已经有**流动的物质、以及「中心一块比黑更黑的斑」；B3 写的是黑洞剪影与完整吸积盘**第一次被看见**。开场画面里有的东西，就已经被看见了 —— 这两条在一个不锁相机的第一人称场景里互斥。
+GDD §6 把 Phase 0–1 写成「已经在吸积盘内部」。当前实现的是**接近**：玩家在远处，以恒定速度直线飞向类星体，B3 的「转身」看到的是第三颗光点和身后的空，不是完整的吸积盘。
 
-**当前默认按 B3 处理**，因为 GDD 给 B3 的批注是 “Protect it.”，而 A1 的要求靠尘埃就能满足：类星体放在**后方偏左偏下**，近到玩家处在外盘之内，所以开场正前方满是漂移的物质，但核心本身在画面外。
+这是按体验梳理直接定的，不是我的解读。它同时解决了原本无解的一处矛盾：A1/A2 要求开场画面里**已经有**流动的物质和「中心一块比黑更黑的斑」，B3 要求吸积盘与黑洞剪影是转身时**第一次被看见** —— 在一个不锁相机的第一人称场景里，开场画面里有的东西就已经被看见了，两条不能同时字面成立。类星体在远处正前方，A1/A2 就成立；B3 改成第三颗光点，转身这件事本身仍然被教到。
 
-分镜（Figma）才是取景的权威。所有位置都是 `TutorialSceneBuilder_NEW` 顶部的常量、也是场景里的 Transform，改一下拖一下都行。
+分镜（Figma）的 B3 原文就是 “Third mote, behind”，所以这一改是**向分镜靠拢**，不是偏离它。真正跟 GDD §6 有出入的是「在盘内 vs 接近盘」这一条。
+
+所有位置都是 `TutorialSceneBuilder_NEW` 顶部的常量，也是场景里的 Transform —— 改常量重跑，或者直接在 Scene 视图里拖。
 
 ---
 
@@ -177,22 +205,24 @@ A1/A2 写的是画面里**已经有**流动的物质、以及「中心一块比�
 ```
 [Tutorial]
 ├── Environment                    TutorialSky_NEW（天空盒 + 环境光；顺手关掉方向光）
-├── Photon                         TutorialDrift_NEW（玩家本体）
-│     ├── Camera                   FirstPersonLookRig_NEW（复用场景里已有的 Main Camera）
-│     └── Trail                    TrailRenderer + PhotonSpectrumTrail ← 这就是光束
+├── Photon                         TutorialTravel_NEW（玩家本体，匀速直线）
+│     ├── Camera                   FirstPersonLookRig_NEW，FOV 40（复用已有的 Main Camera）
+│     ├── Dust                     ParticleSystem，球壳发射 + 世界空间模拟 = 速度感
+│     ├── Trail                    TrailRenderer + PhotonSpectrumTrail ← 默认关闭
+│     └── Motes                    跟着光走，不是钉在世界里
+│           ├── Mote_A3_B1         右前方约 33°，A3 出现，B1 抓住
+│           ├── Mote_B2            头顶约 52°，B2 出现
+│           └── Mote_B3            正后方，B3 出现
 ├── World
-│     ├── Quasar                   BlazingQuasar.mat，后方偏左偏下，带倾角
-│     ├── DiscDust                 单个 ParticleSystem，圆环形，缓慢公转
-│     ├── Mote_A3_B1               右前方约 28°，A3 出现，B1 抓住
-│     └── Mote_B2                  上方约 55°，在喷流里，B2 出现
+│     └── Quasar                   BlazingQuasar.mat，正前方 6000 单位，直立
 ├── HUD                            Canvas + TutorialHUD_NEW + TutorialAttract_NEW
-│     ├── Reticle / Legend / ConfirmPrompt / AttractCard
+│     ├── Reticle / Legend / Hint / ConfirmPrompt / AttractCard
 └── Director                       TutorialDirector_NEW
       └── Beats
             A1 A2 A3 B1 B2 B3 B4
 ```
 
-尘埃用的是**一个** ParticleSystem，不是现成的 VFX prefab。工程里有 `RFX_Nebula` 系列，但每个是二十多个粒子系统堆出来的星系外观，而 GDD §10 item 3 已经把 Carnegie 硬件上的帧数列为待议项。一个圆环发射器 + 轨道速度就是吸积盘的形状，代价是一个 draw call。要更华丽的观感，把 `DiscDust` 换成 RFX prefab 即可。
+尘埃用的是**一个** ParticleSystem，不是现成的 VFX prefab。工程里有 `RFX_Nebula` 系列，但每个是二十多个粒子系统堆出来的星系外观，而 GDD §10 item 3 已经把 Carnegie 硬件上的帧数列为待议项。一个球壳发射器就够了，代价是一个 draw call。要更华丽的观感，把 `Dust` 换成 RFX prefab 即可。
 
 拍子是 Director 的子物体，按 Hierarchy 顺序自动收集 —— **调整分镜顺序是在 Hierarchy 里拖一下，不是改数组**。
 

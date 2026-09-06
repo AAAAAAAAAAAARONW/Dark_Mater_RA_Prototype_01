@@ -46,6 +46,14 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
     [TextArea(1, 3)]
     [SerializeField] string description = "";
 
+    [Header("Prompt")]
+    [Tooltip("Control hint shown while this beat runs, e.g. LEFT STICK · LOOK.\n\n" +
+             "Empty means 'no change' rather than 'no hint', which is what the storyboard " +
+             "asks for: B1 introduces LEFT STICK · LOOK and B2 and B3 both say 'No new " +
+             "prompt', so the same line stays up across all three. A beat that needs the " +
+             "hint gone sets it to a single space.")]
+    [SerializeField] string hintText = "";
+
     [Header("Advance")]
     [SerializeField] AdvanceMode advanceMode = AdvanceMode.Duration;
 
@@ -70,6 +78,9 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
 
     public string BeatId { get { return beatId; } }
     public string Description { get { return description; } }
+
+    /// <summary>Control hint for this beat. Empty means keep whatever is already up.</summary>
+    public string HintText { get { return hintText; } }
     public AdvanceMode Mode { get { return advanceMode; } }
     public float Duration { get { return duration; } }
     public float Elapsed { get { return _elapsed; } }

@@ -25,7 +25,12 @@ using UnityEngine.Events;
 public class GuideMote_NEW : MonoBehaviour
 {
     [Header("Drift")]
-    [Tooltip("Direction the mote drifts, in this object's local space at Awake.")]
+    [Tooltip("Direction the mote drifts, in the parent's space.\n\n" +
+             "Local rather than world because the motes are parented to the player, who " +
+             "is travelling at a constant 25 units a second. A mote pinned in world space " +
+             "would be behind the player within four seconds, so B1 would be ungateable — " +
+             "the storyboard's 'drifts slowly out of frame at the right edge' is motion " +
+             "relative to the light, not to the universe.")]
     [SerializeField] Vector3 driftDirection = Vector3.right;
 
     [Tooltip("Units per second. Slow: the mote is an invitation, not a target.")]
@@ -74,7 +79,7 @@ public class GuideMote_NEW : MonoBehaviour
     [SerializeField] UnityEvent onBloom = new UnityEvent();
 
     Vector3 _startPosition;
-    Vector3 _worldDrift;
+    Vector3 _localDrift;
     float _ramp;
     float _rampVelocity;
     float _bloomElapsed = -1f;
@@ -100,8 +105,8 @@ public class GuideMote_NEW : MonoBehaviour
     {
         if (_captured) return;
 
-        _startPosition = transform.position;
-        _worldDrift = transform.TransformDirection(driftDirection.normalized);
+        _startPosition = transform.localPosition;
+        _localDrift = driftDirection.sqrMagnitude > 0.0001f ? driftDirection.normalized : Vector3.zero;
         _captured = true;
     }
 
@@ -124,7 +129,7 @@ public class GuideMote_NEW : MonoBehaviour
     {
         CaptureStart();
 
-        transform.position = _startPosition;
+        transform.localPosition = _startPosition;
 
         _ramp = 0f;
         _rampVelocity = 0f;
@@ -157,7 +162,7 @@ public class GuideMote_NEW : MonoBehaviour
 
     void Drift(float dt)
     {
-        Vector3 next = transform.position + _worldDrift * (driftSpeed * dt);
+        Vector3 next = transform.localPosition + _localDrift * (driftSpeed * dt);
 
         if (bobAmplitude > 0f)
         {
@@ -165,7 +170,7 @@ public class GuideMote_NEW : MonoBehaviour
             next += Vector3.up * (bob * dt);
         }
 
-        transform.position = next;
+        transform.localPosition = next;
     }
 
     void TickRamp(float dt)
@@ -218,10 +223,10 @@ public class GuideMote_NEW : MonoBehaviour
         Gizmos.color = new Color(0.85f, 0.75f, 0.44f, 0.9f);
         Gizmos.DrawWireSphere(transform.position, 0.35f);
 
-        Vector3 drift = Application.isPlaying
-            ? _worldDrift
-            : transform.TransformDirection(driftDirection.normalized);
+        Vector3 drift = transform.parent != null
+            ? transform.parent.TransformDirection(driftDirection.normalized)
+            : driftDirection.normalized;
 
-        Gizmos.DrawLine(transform.position, transform.position + drift * 2f);
+        Gizmos.DrawLine(transform.position, transform.position + drift * 4f);
     }
 }

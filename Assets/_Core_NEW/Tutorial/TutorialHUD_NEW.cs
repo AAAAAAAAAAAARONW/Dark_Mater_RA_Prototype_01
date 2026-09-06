@@ -54,6 +54,14 @@ public class TutorialHUD_NEW : MonoBehaviour
     [Tooltip("Arrives with the legend. B1's gate is unplayable without it.")]
     [SerializeField] GameObject reticleRoot;
 
+    [Header("Control hint")]
+    [Tooltip("The line that says what to do with the stick. First seen at B1, and the " +
+             "storyboard keeps it up through B2 and B3 with no new prompt.")]
+    [SerializeField] GameObject hintRoot;
+
+    [SerializeField] Text hintLabel;
+    [SerializeField] CanvasGroup hintGroup;
+
     [Header("A prompt")]
     [Tooltip("Root of the continue affordance. Same shape, same position, every time.")]
     [SerializeField] GameObject confirmPromptRoot;
@@ -72,6 +80,7 @@ public class TutorialHUD_NEW : MonoBehaviour
     [SerializeField] bool debugLog = false;
 
     bool _legendShown;
+    bool _hintShown;
     int _legendBeatIndex = -1;
     Beat_Confirm_NEW _promptBeat;
 
@@ -109,6 +118,7 @@ public class TutorialHUD_NEW : MonoBehaviour
     {
         TickPrompt(Time.unscaledDeltaTime);
         TickLegendFade(Time.unscaledDeltaTime);
+        TickHintFade(Time.unscaledDeltaTime);
     }
 
     // ── Director events ──────────────────────────────────────────────────────
@@ -118,6 +128,9 @@ public class TutorialHUD_NEW : MonoBehaviour
         if (beat == null) return;
 
         if (!_legendShown && ReachedLegendBeat(beat)) ShowLegend();
+
+        // Empty means "no change". See TutorialBeat_NEW.hintText.
+        if (!string.IsNullOrEmpty(beat.HintText)) ShowHint(beat.HintText);
 
         // Only a confirm beat asks for the prompt, and it decides when within the beat.
         _promptBeat = beat.GetComponent<Beat_Confirm_NEW>();
@@ -138,6 +151,7 @@ public class TutorialHUD_NEW : MonoBehaviour
     void HandleReset()
     {
         _legendShown = false;
+        _hintShown = false;
         _promptBeat = null;
 
         HideAll();
@@ -195,6 +209,28 @@ public class TutorialHUD_NEW : MonoBehaviour
         if (debugLog) Debug.Log("[TutorialHUD_NEW] Legend and reticle on.", this);
     }
 
+    void ShowHint(string text)
+    {
+        // A beat clears the hint by setting it to whitespace, so blank-but-present text
+        // has to count as "hide" rather than "show an empty line".
+        _hintShown = !string.IsNullOrEmpty(text) && text.Trim().Length > 0;
+
+        if (hintLabel != null) hintLabel.text = text;
+        if (hintRoot != null) hintRoot.SetActive(true);
+
+        if (debugLog) Debug.Log("[TutorialHUD_NEW] Hint: '" + text + "'.", this);
+    }
+
+    void TickHintFade(float dt)
+    {
+        if (hintGroup == null) return;
+
+        hintGroup.alpha = Step(hintGroup.alpha, _hintShown ? 1f : 0f, dt);
+
+        if (!_hintShown && hintRoot != null && hintGroup.alpha <= 0.01f && hintRoot.activeSelf)
+            hintRoot.SetActive(false);
+    }
+
     void TickLegendFade(float dt)
     {
         if (legendGroup == null) return;
@@ -229,9 +265,11 @@ public class TutorialHUD_NEW : MonoBehaviour
     {
         if (legendRoot != null) legendRoot.SetActive(false);
         if (reticleRoot != null) reticleRoot.SetActive(false);
+        if (hintRoot != null) hintRoot.SetActive(false);
         if (confirmPromptRoot != null) confirmPromptRoot.SetActive(false);
 
         if (legendGroup != null) legendGroup.alpha = 0f;
+        if (hintGroup != null) hintGroup.alpha = 0f;
         if (promptGroup != null) promptGroup.alpha = 0f;
     }
 }

@@ -47,21 +47,44 @@ public static class TutorialSceneBuilder_NEW
 
     static readonly Vector3 PlayerPosition = Vector3.zero;
 
-    /// <summary>Behind, left and below: inside the disc, with the core out of the opening frame.</summary>
-    static readonly Vector3 QuasarPosition = new Vector3(-70f, -30f, -95f);
+    /// <summary>
+    /// A long way ahead, on the travel axis. The light is approaching it, not sitting
+    /// inside it — the experience is an approach, so the quasar is a distant bright
+    /// object that grows, not a wall the player is standing in.
+    /// </summary>
+    static readonly Vector3 QuasarPosition = new Vector3(0f, 0f, 6000f);
 
-    /// <summary>Tilts the bipolar jets up and forward so B2's "look up" reaches one.</summary>
-    static readonly Vector3 QuasarEuler = new Vector3(-25f, 0f, 15f);
+    /// <summary>
+    /// No tilt. BlazingQuasar draws its bipolar jets along the object's local Y, so
+    /// upright means the jets run vertically and B2's "looking up reveals the jet
+    /// channel" is literally what happens.
+    /// </summary>
+    static readonly Vector3 QuasarEuler = Vector3.zero;
 
-    static readonly Vector3 QuasarScale = new Vector3(240f, 240f, 240f);
+    /// <summary>Radius 450 at 6000 away subtends about 8.6°: distinctly distant, clearly there.</summary>
+    static readonly Vector3 QuasarScale = new Vector3(900f, 900f, 900f);
 
-    /// <summary>Just inside the right edge of the opening view, so A3 can drift it out.</summary>
-    static readonly Vector3 MoteAPosition = new Vector3(18f, 1f, 34f);
+    /// <summary>Units per second, constant. Closes roughly 1400 units over Phase 0–1.</summary>
+    const float TravelSpeed = 25f;
 
-    /// <summary>Up, in the jet. Roughly 55 degrees of pitch: a look up, not a craned neck.</summary>
-    static readonly Vector3 MoteBPosition = new Vector3(2f, 40f, 26f);
+    /// <summary>
+    /// Field of view, copied from PlaytestBuild_NEW's FreeLook rigs. Unity's default 60
+    /// reads as a different game.
+    /// </summary>
+    const float FieldOfView = 40f;
 
-    static readonly Vector3 DustPosition = new Vector3(-30f, -10f, -30f);
+    // Mote positions are LOCAL to the player: they are parented to the light and travel
+    // with it. A mote pinned in world space would be behind a 25 unit/second player in
+    // four seconds, which makes B1 ungateable.
+
+    /// <summary>Right, just inside frame at FOV 40, so A3 can drift it out of the edge.</summary>
+    static readonly Vector3 MoteAPosition = new Vector3(26f, 1f, 40f);
+
+    /// <summary>Overhead. The storyboard's B2 is "the mote passes overhead".</summary>
+    static readonly Vector3 MoteBPosition = new Vector3(4f, 34f, 26f);
+
+    /// <summary>Behind. The storyboard's B3 is "third mote, behind".</summary>
+    static readonly Vector3 MoteCPosition = new Vector3(-6f, 2f, -40f);
 
     [MenuItem("Tools/Journey NEW/Build Tutorial Scene (Phase 0-1)", false, 40)]
     public static void Build()
@@ -96,24 +119,34 @@ public static class TutorialSceneBuilder_NEW
         GameObject world = NewObject("World", root.transform, Vector3.zero);
 
         GameObject quasar = BuildQuasar(world.transform);
-        BuildDiscDust(world.transform);
 
-        BuildPhotonTrail(player.transform, quasar.transform);
+        BuildTravel(player, quasar.transform, lookRig);
+        BuildDust(player.transform);
+        BuildPhotonTrail(player.transform);
 
-        GameObject moteA = Mote("Mote_A3_B1", world.transform, MoteAPosition, Vector3.right, lookRig);
-        GameObject moteB = Mote("Mote_B2", world.transform, MoteBPosition, Vector3.up, lookRig);
+        // Motes ride with the light. See MoteAPosition.
+        GameObject motes = NewObject("Motes", player.transform, PlayerPosition);
+
+        GameObject moteA = Mote("Mote_A3_B1", motes.transform, MoteAPosition, Vector3.right, lookRig);
+
+        GameObject moteB = Mote("Mote_B2", motes.transform, MoteBPosition, Vector3.up, lookRig);
         moteB.SetActive(false);
+
+        GameObject moteC = Mote("Mote_B3", motes.transform, MoteCPosition, Vector3.left, lookRig);
+        moteC.SetActive(false);
 
         // ── HUD ──────────────────────────────────────────────────────────────
         GameObject canvas = BuildCanvas(root.transform);
 
         GameObject reticle = BuildReticle(canvas.transform);
         GameObject legend = BuildLegend(canvas.transform);
+        GameObject hint = BuildHint(canvas.transform);
         GameObject prompt = BuildConfirmPrompt(canvas.transform);
         GameObject card = BuildAttractCard(canvas.transform);
 
         reticle.SetActive(false);
         legend.SetActive(false);
+        hint.SetActive(false);
         prompt.SetActive(false);
 
         // ── Director and beats ───────────────────────────────────────────────
@@ -123,14 +156,14 @@ public static class TutorialSceneBuilder_NEW
         GameObject beats = NewObject("Beats", directorObject.transform, Vector3.zero);
 
         BuildPhase0(beats.transform, moteA);
-        BuildPhase1(beats.transform, lookRig, moteA, moteB, quasar);
+        BuildPhase1(beats.transform, lookRig, moteA, moteB, moteC);
 
         // ── HUD and attract components ───────────────────────────────────────
         TutorialHUD_NEW hud = Undo.AddComponent<TutorialHUD_NEW>(canvas);
-        WireHud(hud, director, legend, reticle, prompt);
+        WireHud(hud, director, legend, reticle, hint, prompt);
 
         TutorialAttract_NEW attract = Undo.AddComponent<TutorialAttract_NEW>(canvas);
-        WireAttract(attract, director, card, lookRig);
+        WireAttract(attract, director, card, lookRig, player.GetComponent<TutorialTravel_NEW>());
 
         Undo.CollapseUndoOperations(group);
         UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(root.scene);
@@ -223,23 +256,39 @@ public static class TutorialSceneBuilder_NEW
     }
 
     /// <summary>
-    /// The drifting matter of A1 and A2, as one particle system.
+    /// Sets the constant heading and speed, and points A's recentre axis along it.
+    /// </summary>
+    static void BuildTravel(GameObject player, Transform quasar, FirstPersonLookRig_NEW lookRig)
+    {
+        TutorialTravel_NEW travel = Undo.AddComponent<TutorialTravel_NEW>(player);
+
+        Wire(travel)
+            .Ref("destination", quasar)
+            .Ref("lookRig", lookRig)
+            .Num("speed", TravelSpeed)
+            .Apply();
+    }
+
+    /// <summary>
+    /// The matter the light travels through: one particle system, parented to the player.
+    ///
+    /// Parented, but simulated in world space. That combination is what produces the
+    /// sense of travel: new particles keep spawning around the light so the field never
+    /// runs out, while the ones already spawned stay put in the world and stream past at
+    /// the travel speed. Either half alone fails — world space with a fixed emitter is
+    /// left behind in six seconds, local space makes a cloud that moves with the player
+    /// and therefore looks completely still.
     ///
     /// One system rather than a ready-made VFX prefab on purpose. The project has
     /// RFX_Nebula prefabs, but they are galaxy looks built from twenty-odd systems each,
     /// and GDD §10 already flags frame cost on the Carnegie hardware as an open worry.
-    /// This is a single emitter with a donut shape and an orbital velocity, which is the
-    /// shape of an accretion disc and costs one draw call.
     /// </summary>
-    static void BuildDiscDust(Transform parent)
+    static void BuildDust(Transform parent)
     {
         Material material = TutorialWorldAssets_NEW.DiscDustMaterial();
         if (material == null) return;
 
-        GameObject go = NewObject("DiscDust", parent, DustPosition);
-
-        // Lay the donut into the disc plane and tilt it to match the quasar.
-        go.transform.rotation = Quaternion.Euler(QuasarEuler);
+        GameObject go = NewObject("Dust", parent, parent.position);
 
         ParticleSystem ps = Undo.AddComponent<ParticleSystem>(go);
 
@@ -262,19 +311,20 @@ public static class TutorialSceneBuilder_NEW
         main.useUnscaledTime = true;
 
         ParticleSystem.EmissionModule emission = ps.emission;
-        emission.rateOverTime = 55f;
+        emission.rateOverTime = 90f;
 
+        // A shell around the light rather than a disc: the player is flying through the
+        // medium, not orbiting inside a ring.
         ParticleSystem.ShapeModule shape = ps.shape;
         shape.enabled = true;
-        shape.shapeType = ParticleSystemShapeType.Donut;
-        shape.radius = 130f;
-        shape.donutRadius = 50f;
+        shape.shapeType = ParticleSystemShapeType.Sphere;
+        shape.radius = 160f;
 
-        // "Slow rotation": the orbit that makes the flow read as going round something.
+        // "Slow rotation", from A1. Small — the dominant motion is the travel.
         ParticleSystem.VelocityOverLifetimeModule velocity = ps.velocityOverLifetime;
         velocity.enabled = true;
         velocity.space = ParticleSystemSimulationSpace.Local;
-        velocity.orbitalZ = new ParticleSystem.MinMaxCurve(0.06f, 0.14f);
+        velocity.orbitalZ = new ParticleSystem.MinMaxCurve(0.04f, 0.1f);
 
         ParticleSystem.ColorOverLifetimeModule colour = ps.colorOverLifetime;
         colour.enabled = true;
@@ -321,14 +371,8 @@ public static class TutorialSceneBuilder_NEW
     /// still, so a perfectly stationary tutorial player is a player with no visible
     /// light at all — in a piece whose entire premise is that the player IS the light.
     /// </summary>
-    static void BuildPhotonTrail(Transform player, Transform quasar)
+    static void BuildPhotonTrail(Transform player)
     {
-        TutorialDrift_NEW drift = Undo.AddComponent<TutorialDrift_NEW>(player.gameObject);
-        Wire(drift)
-            .Ref("centre", quasar)
-            .Vec("spinAxis", Quaternion.Euler(QuasarEuler) * Vector3.up)
-            .Apply();
-
         GameObject go = NewObject("Trail", player, player.position);
 
         // Offset below the eye rather than at it. A ribbon emitted from the exact camera
@@ -351,6 +395,12 @@ public static class TutorialSceneBuilder_NEW
         // PhotonSpectrumTrail has [RequireComponent(typeof(TrailRenderer))], so the
         // TrailRenderer above must already be on the object.
         Undo.AddComponent<PhotonSpectrumTrail>(go);
+
+        // Off at the start. The player has no trail in Phase 0–1: the piece opens on a
+        // camera and a distant quasar and nothing else, and the light's own spectrum is
+        // not something the player has been given a reason to care about yet. Phase 2
+        // switches it on at the emission — wire that to C3's onEnter when it exists.
+        go.SetActive(false);
     }
 
     // ── Phases ───────────────────────────────────────────────────────────────
@@ -389,12 +439,13 @@ public static class TutorialSceneBuilder_NEW
     }
 
     static void BuildPhase1(Transform parent, FirstPersonLookRig_NEW lookRig,
-                            GameObject moteA, GameObject moteB, GameObject quasar)
+                            GameObject moteA, GameObject moteB, GameObject moteC)
     {
         Beat_LookAt_NEW b1 = Beat<Beat_LookAt_NEW>(parent, "B1");
         Wire(b1)
             .Str("beatId", "B1")
             .Str("description", "Player turns right, catches the mote, it blooms into a ripple.")
+            .Str("hintText", "LEFT STICK  ·  LOOK")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
             .Ref("target", moteA.transform)
             .Ref("mote", moteA.GetComponent<GuideMote_NEW>())
@@ -403,11 +454,13 @@ public static class TutorialSceneBuilder_NEW
             .Num("holdSeconds", 0f)
             .Apply();
 
+        // B2 and B3 carry no hintText: the storyboard says "No new prompt" for both, and
+        // an empty hint means the B1 line stays up rather than the line going away.
         Beat_LookAt_NEW b2 = Beat<Beat_LookAt_NEW>(parent, "B2");
         Wire(b2)
             .Str("beatId", "B2")
-            .Str("description", "Looking up reveals the jet channel running into the dark, " +
-                                "which is the direction of travel.")
+            .Str("description", "The mote passes overhead. Looking up reveals the jet channel " +
+                                "running into the dark, which is the direction of travel.")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
             .Ref("target", moteB.transform)
             .Ref("mote", moteB.GetComponent<GuideMote_NEW>())
@@ -415,13 +468,16 @@ public static class TutorialSceneBuilder_NEW
             .Num("reticleHalfAngle", 14f)
             .Apply();
 
+        // The storyboard's B3 is a third mote, behind. The turn is what the beat is
+        // about; the mote is what makes a 150 degree turn something the player chooses
+        // to do rather than something a prompt tells them to do.
         Beat_TurnAround_NEW b3 = Beat<Beat_TurnAround_NEW>(parent, "B3");
         Wire(b3)
             .Str("beatId", "B3")
-            .Str("description", "Turning around, the black hole silhouette and the full disc, " +
-                                "seen for the first time. Spatial orientation lands here. Protect it.")
+            .Str("description", "Third mote, behind. Turning around, the player sees what they " +
+                                "are travelling away from. Spatial orientation lands here. Protect it.")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
-            .Ref("disc", quasar.transform)
+            .Ref("disc", moteC.transform)
             .Ref("lookRig", lookRig)
             .Num("minYawDegrees", 150f)
             .Num("discInFrameHalfAngle", 40f)
@@ -430,13 +486,18 @@ public static class TutorialSceneBuilder_NEW
         Beat_Confirm_NEW b4 = Beat<Beat_Confirm_NEW>(parent, "B4");
         Wire(b4)
             .Str("beatId", "B4")
-            .Str("description", "View is left off-axis. The A prompt appears at the lower edge.")
+            .Str("description", "The view is left off-axis. The A prompt appears at the lower " +
+                                "edge. One press smoothly recentres on the travel axis.")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
             .Ref("lookRig", lookRig)
-            .Str("promptText", "A")
+            .Str("promptText", "A  ·  RECENTRE")
             .Flag("recentreOnPress", true)
             .Flag("waitForRecentre", false)
             .Apply();
+
+        // B2 and B3 reveal their motes when their own beat opens.
+        AddActivateOnEnter(b2, moteB, true);
+        AddActivateOnEnter(b3, moteC, true);
     }
 
     // ── Object helpers ───────────────────────────────────────────────────────
@@ -490,8 +551,13 @@ public static class TutorialSceneBuilder_NEW
         camera.clearFlags = CameraClearFlags.Skybox;
         camera.nearClipPlane = 0.1f;
 
-        // The quasar is 240 units across and 130 away. The default far plane would clip it.
-        camera.farClipPlane = 3000f;
+        // Copied from PlaytestBuild_NEW's FreeLook rigs. Unity's default 60 makes the
+        // same stick speed feel different and frames the quasar differently.
+        camera.fieldOfView = FieldOfView;
+
+        // The quasar starts 6000 units ahead. The default 1000 far plane would hide it
+        // entirely, which is exactly the "nothing is there" symptom.
+        camera.farClipPlane = 20000f;
 
         return camera;
     }
@@ -592,6 +658,20 @@ public static class TutorialSceneBuilder_NEW
         return go;
     }
 
+    /// <summary>
+    /// The control hint line. Sits above the legend: the legend is a permanent reference
+    /// card, the hint is what to do right now, and they should not be read as one block.
+    /// </summary>
+    static GameObject BuildHint(Transform canvas)
+    {
+        GameObject go = UIObject("Hint", canvas, new Vector2(0.5f, 0f), new Vector2(0f, 240f), new Vector2(900f, 56f));
+
+        Undo.AddComponent<CanvasGroup>(go);
+        AddText(go, "LEFT STICK  ·  LOOK", 38, TextAnchor.MiddleCenter);
+
+        return go;
+    }
+
     static GameObject BuildConfirmPrompt(Transform canvas)
     {
         // GDD B4: the A prompt appears at the lower edge. GDD §5: same shape, same
@@ -662,7 +742,7 @@ public static class TutorialSceneBuilder_NEW
     // ── Wiring ───────────────────────────────────────────────────────────────
 
     static void WireHud(TutorialHUD_NEW hud, TutorialDirector_NEW director,
-                        GameObject legend, GameObject reticle, GameObject prompt)
+                        GameObject legend, GameObject reticle, GameObject hint, GameObject prompt)
     {
         Wire(hud)
             .Ref("director", director)
@@ -670,6 +750,9 @@ public static class TutorialSceneBuilder_NEW
             .Ref("legendText", legend.GetComponent<Text>())
             .Ref("legendGroup", legend.GetComponent<CanvasGroup>())
             .Ref("reticleRoot", reticle)
+            .Ref("hintRoot", hint)
+            .Ref("hintLabel", hint.GetComponent<Text>())
+            .Ref("hintGroup", hint.GetComponent<CanvasGroup>())
             .Ref("confirmPromptRoot", prompt)
             .Ref("confirmPromptText", prompt.GetComponent<Text>())
             .Ref("promptGroup", prompt.GetComponent<CanvasGroup>())
@@ -678,7 +761,7 @@ public static class TutorialSceneBuilder_NEW
     }
 
     static void WireAttract(TutorialAttract_NEW attract, TutorialDirector_NEW director,
-                            GameObject card, FirstPersonLookRig_NEW lookRig)
+                            GameObject card, FirstPersonLookRig_NEW lookRig, TutorialTravel_NEW travel)
     {
         Transform title = card.transform.Find("Title");
         Transform cta = card.transform.Find("CallToAction");
@@ -690,6 +773,7 @@ public static class TutorialSceneBuilder_NEW
             .Ref("titleText", title != null ? title.GetComponent<Text>() : null)
             .Ref("callToActionText", cta != null ? cta.GetComponent<Text>() : null)
             .Ref("lookRig", lookRig)
+            .Ref("travel", travel)
             .Apply();
     }
 
