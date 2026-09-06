@@ -99,6 +99,15 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
     [Tooltip("Fires the frame the gate is met, before the next beat opens.")]
     [SerializeField] UnityEvent onSatisfied = new UnityEvent();
 
+    [Tooltip("A3 asks for one short controller rumble. Unity 2019.4 on the legacy Input " +
+             "Manager has no rumble API at all, so this is the seam to hook one to the " +
+             "day a haptics path exists — rather than a line of the GDD quietly going " +
+             "missing. See the tutorial README.")]
+    [SerializeField] UnityEvent onRumble = new UnityEvent();
+
+    [Tooltip("Fire onRumble when this beat opens.")]
+    [SerializeField] bool rumbleOnEnter = false;
+
     float _elapsed;
     bool _active;
 
@@ -154,6 +163,8 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
 
         OnBeatEnter();
         onEnter.Invoke();
+
+        if (rumbleOnEnter) onRumble.Invoke();
     }
 
     public void Tick(float dt)

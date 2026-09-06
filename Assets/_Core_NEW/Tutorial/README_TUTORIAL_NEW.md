@@ -2,7 +2,7 @@
 
 实现 [Tutorial GDD — Journey of Light](https://bird-tune-e6c.notion.site/Tutorial-GDD-Journey-of-Light-3d3abeb8074b817b8f93e22777f5888f)。
 
-**已实现：Phase 0（A1–A4）、Phase 1（B1–B4）、Phase 2（C1–C5），加上前面的 attract 状态。**
+**已实现：Phase 0（A1–A3）、Phase 1（B1–B4）、Phase 2（C1–C5），加上前面的 attract 状态。**
 Phase 3–4 尚未实现 —— 见文末「下一步」。
 
 ---
@@ -45,6 +45,11 @@ Phase 3–4 尚未实现 —— 见文末「下一步」。
 
 **你自己往 builder 里加东西时，请守住这条线**：走 `FindOrCreate` / `AddIfMissing` / `Wire`，直接写属性的地方用 `IsFresh` 包住。
 
+**builder 会删东西的地方只有两处**，都会在 Console 里大声说明，Undo 都能撤回：
+
+- `RetypeBeat` —— 某一帧换了种类（A2 A3 从过场变成缩放课）。必须显式删，因为 `TutorialBeat_NEW` 是 `DisallowMultipleComponent`：往已经有 `Beat_Cinematic_NEW` 的物体上加 `Beat_Zoom_NEW` 不会叠加，而是失败，然后这一轮会继续往一个根本没在跑的组件里写值。挂在**旧组件自己**的 UnityEvent 上的东西会跟着走（builder 放的那些会重新接上）；同一个物体上其他组件不受影响。
+- `RetireBeat` —— 某一拍的内容搬走了，它没工作了（A4）。留着它不是保留谁的改动，而是留一道玩家要满足两次的门 —— A4 会去要一次玩家在 A2 A3 已经做完的缩放，杵在那里看起来就是坏的。判定带类型保护，所以只是重名的物体不会被误删。
+
 ### 加一拍需要动几个地方
 
 1. 在 `TutorialSceneBuilder_NEW` 里对应的 `BuildPhaseN` 方法里加一段 `Wire(...)`（照抄邻居即可）
@@ -79,8 +84,8 @@ Tutorial/
 ├─ TutorialFlash_NEW          全屏闪白，颜色和时长由调用方给
 ├─ TutorialCameraShake_NEW    相机位移抖动，幅度由外部驱动
 ├─ Beats/
-│   ├─ Beat_Cinematic_NEW     A1 A2 A3 C1 C3（无动作，按分镜时长走）
-│   ├─ Beat_Zoom_NEW          A4（把视场收窄到阈值 —— 开场那段的教学）
+│   ├─ Beat_Cinematic_NEW     A1 C1 C3（无动作，按分镜时长走）
+│   ├─ Beat_Zoom_NEW          A2 A3（推进去 / 拉回来 —— 开场那段的教学）
 │   ├─ Beat_LookAt_NEW        B1 B2 C4（把目标带进准星）
 │   ├─ Beat_TurnAround_NEW    B3（转过 150° 且目标在画面里）
 │   └─ Beat_Confirm_NEW       B4 C2 C5（按 A）
@@ -259,7 +264,7 @@ GDD §5 说 nothing advances on a timer，但 Phase 0 的每一帧都写着时�
 
 | 模式 | 用在 | 时间能否推进 |
 |---|---|---|
-| `Duration` | 不要求玩家做任何事的帧（A1–A3，将来 C1 C3 D1–D4） | 能，这是唯一的用途 |
+| `Duration` | 不要求玩家做任何事的帧（A1、C1 C3，将来 D1–D4） | 能，这是唯一的用途 |
 | `PlayerAction` | 有门控的帧（B1–B4） | **不能**，连超时字段都没有 |
 
 `PlayerAction` 模式下 `duration` 字段被完全忽略，Inspector 里也加不进一个超时。规则不靠人记住。
@@ -287,7 +292,7 @@ GDD §2 记录了旧版 C3 锁相机被多名玩家读成 bug，§5 把「相机
 
 | 值 | 含义 | 用在 |
 |---|---|---|
-| `Keep` | 保持现状 | 默认。A2 A3 用它 —— 无动作的过场拍，沿用 A1 那句 |
+| `Keep` | 保持现状 | 默认。分镜在 B2 B3 上写的 “No new prompt” 就是它 |
 | `Show` | 换成本拍的 `hintText` | **每一个有门控的拍子** |
 | `Clear` | 拿掉 | 目前没人用，留着以免有人再用空字符串去伪装 |
 
@@ -295,8 +300,9 @@ GDD §2 记录了旧版 C3 锁相机被多名玩家读成 bug，§5 把「相机
 
 | 拍子 | 提示行 |
 |---|---|
-| A1（A2 A3 沿用） | `RIGHT STICK  ·  LOOK AROUND` |
-| A4 | `LEFT STICK  ·  LOOK CLOSER` |
+| A1 | `RIGHT STICK  ·  LOOK AROUND` |
+| A2 | `LEFT STICK  ·  ZOOM IN` |
+| A3 | `LEFT STICK  ·  ZOOM OUT` |
 | B1 | `RIGHT STICK  ·  LOOK RIGHT` |
 | B2 | `RIGHT STICK  ·  LOOK UP` |
 | B3 | `RIGHT STICK  ·  TURN AROUND` |
@@ -305,7 +311,7 @@ GDD §2 记录了旧版 C3 锁相机被多名玩家读成 bug，§5 把「相机
 | C4 | `RIGHT STICK  ·  LOOK BACK` |
 | C5 | `A  TO  RECENTRE` |
 
-分镜在 B2 B3 上写的是 “No new prompt”，意思是**控制**已经教过、不用再教一遍 —— 这一点保留了，`RIGHT STICK` 那半截自始至终不变（A4 是唯一的例外，它教的是另一根摇杆）。但提示行不只在教控制，它还在说下一步做什么，而一条写着 LOOK RIGHT 却在等玩家抬头的提示，比没有提示更糟。所以**控制那半截固定，动作那半截跟着拍子走**。
+分镜在 B2 B3 上写的是 “No new prompt”，意思是**控制**已经教过、不用再教一遍 —— 这一点保留了，B 段里 `RIGHT STICK` 那半截自始至终不变（A2 A3 是另一课，教的是另一根摇杆）。但提示行不只在教控制，它还在说下一步做什么，而一条写着 LOOK RIGHT 却在等玩家抬头的提示，比没有提示更糟。所以**控制那半截固定，动作那半截跟着拍子走**。
 
 底板说「做什么」，下方的圆形 A 图标说「用哪个键做」。两者不会同时说同一件事。
 
@@ -329,10 +335,9 @@ RIGHT STICK = LOOK    LEFT STICK = ZOOM    A = CONFIRM / RECENTRE
 
 | Frame | 组件 | 门控 | 实现要点 |
 |---|---|---|---|
-| A1 | `Beat_Cinematic_NEW` | 无，8 秒 | 提示 `LEFT STICK · LOOK` 在这里出现；渐显也在这里开始；`onEnter` 挂 VO |
-| A2 | `Beat_Cinematic_NEW` | 无，7 秒 | `onHalfway` 用于「亮度升起来」这种帧内变化 |
-| A3 | `Beat_Cinematic_NEW` | 无，5 秒 | `onEnter` 激活光点；`onRumble` 见下方「已知缺口」 |
-| **A4** | `Beat_Zoom_NEW` | **把视场收窄过阈值** | 提示 `LEFT STICK · LOOK CLOSER`。分镜里没有这一帧 —— 见下 |
+| A1 | `Beat_Cinematic_NEW` | 无，8 秒 | 提示 `RIGHT STICK · LOOK AROUND` 在这里出现；渐显也在这里开始；`onEnter` 挂 VO |
+| **A2** | `Beat_Zoom_NEW` | **视场收窄过 0.55** | 提示 `LEFT STICK · ZOOM IN`。分镜里这是一帧无动作的过场 —— 见下 |
+| **A3** | `Beat_Zoom_NEW` | **视场回到 0.15 以下** | 提示 `LEFT STICK · ZOOM OUT`。`onEnter` 激活光点、触发 `onRumble`（见「已知缺口」）—— 光点是在视野变宽的那一刻从边缘进来的 |
 | B1 | `Beat_LookAt_NEW` | 光点进入准星 | 提示 `LOOK RIGHT`。`holdSeconds = 0`，GDD 明写 not a dwell timer |
 | B2 | `Beat_LookAt_NEW` | 第二颗光点进入画面 | 提示 `LOOK UP`。光点从头顶掠过 |
 | B3 | `Beat_TurnAround_NEW` | 转过 150° **且**第三颗光点在画面里 | 提示 `TURN AROUND`。分镜的 B3 是「third mote, behind」，两个条件都要 —— 见下 |
@@ -353,7 +358,7 @@ RIGHT STICK = LOOK    LEFT STICK = ZOOM    A = CONFIRM / RECENTRE
 
 | 项 | 状态 | 说明 |
 |---|---|---|
-| **A3 手柄震动** | **做不了** | 工程用 legacy Input Manager，`manifest.json` 里没有 `com.unity.inputsystem`。Unity 2019.4 在这套输入下**没有任何 rumble API**。已做成 `Beat_Cinematic_NEW.onRumble` 这个 UnityEvent 接缝并默认在 A3 触发，接上震动那天挂上去即可 —— 这样它是 Inspector 里看得见的一条线，而不是 GDD 里悄悄消失的一句话 |
+| **A3 手柄震动** | **做不了** | 工程用 legacy Input Manager，`manifest.json` 里没有 `com.unity.inputsystem`。Unity 2019.4 在这套输入下**没有任何 rumble API**。已做成 `TutorialBeat_NEW.onRumble` 这个 UnityEvent 接缝并默认在 A3 触发，接上震动那天挂上去即可 —— 这样它是 Inspector 里看得见的一条线，而不是 GDD 里悄悄消失的一句话 |
 | **三个面部按键** | 被阻塞（GDD §10 item 1） | `TutorialInput_NEW.InspectIsPlaceholder` 为 `true`，inspect 暂时绑在 `E`。D5 的提示文案在确认之前不该写。这条同时卡住 whitebox 和 Storyboard v1 的 Beat 3 |
 | **VO** | 占位 | 每拍最多一句，多数没有。`Beat_Cinematic_NEW` 上有 AudioSource + AudioClip 两格，空着是正常状态 |
 | **教程背景** | 未定（GDD §10 item 3） | live universe 还是 slow drift 没定，所以 attract 返回时**没有**做世界淡出 —— 现在写的两种方案下都要重写 |
@@ -364,7 +369,7 @@ RIGHT STICK = LOOK    LEFT STICK = ZOOM    A = CONFIRM / RECENTRE
 
 GDD §6 把 Phase 0–1 写成「已经在吸积盘内部」。当前实现的是**接近**：玩家在远处，以恒定速度直线飞向类星体，B3 的「转身」看到的是第三颗光点和身后的空，不是完整的吸积盘。
 
-这是按体验梳理直接定的，不是我的解读。它同时解决了原本无解的一处矛盾：A1/A2 要求开场画面里**已经有**流动的物质和「中心一块比黑更黑的斑」，B3 要求吸积盘与黑洞剪影是转身时**第一次被看见** —— 在一个不锁相机的第一人称场景里，开场画面里有的东西就已经被看见了，两条不能同时字面成立。类星体在远处正前方，A1/A2 就成立；B3 改成第三颗光点，转身这件事本身仍然被教到。
+这是按体验梳理直接定的，不是我的解读。它同时解决了原本无解的一处矛盾：A1 要求开场画面里**已经有**流动的物质和「中心一块比黑更黑的斑」，B3 要求吸积盘与黑洞剪影是转身时**第一次被看见** —— 在一个不锁相机的第一人称场景里，开场画面里有的东西就已经被看见了，两条不能同时字面成立。类星体在远处正前方，A1 就成立；B3 改成第三颗光点，转身这件事本身仍然被教到。
 
 分镜（Figma）的 B3 原文就是 “Third mote, behind”，所以这一改是**向分镜靠拢**，不是偏离它。真正跟 GDD §6 有出入的是「在盘内 vs 接近盘」这一条。
 
@@ -445,27 +450,31 @@ GDD §6 把 Phase 0–1 写成「已经在吸积盘内部」。当前实现的�
 
 GDD §4 写的是 “Stick — Look. **The only stick.**”。加左摇杆是偏离它的，理由是开场那段的实际问题：Phase 0 有二十秒在告诉玩家「你可以转视角」，而画面里唯一能看的东西是一个远处的亮点，转来转去没有回报。「把远处的东西看得更近」是天文展项能交给观众的、最不需要解释的动作。
 
-要撤掉：删 `TutorialZoom_NEW` 和 A4 拍子。
+要撤掉：删 `TutorialZoom_NEW`，把 A2 A3 改回 `Beat_Cinematic_NEW`。
 
 ### 它是被「教」的，不是被「提示」的
 
-第一版只加了一行提示，A2 显示 `LEFT STICK · LOOK CLOSER` 然后不管玩家碰没碰摇杆都往下走 —— **那不是教学**。这个教程里其他每一个控制都是同一种教法：拍子不满足就不推进。
+第一版只加了一行提示：屏幕上写 `LEFT STICK · LOOK CLOSER`，然后不管玩家碰没碰摇杆都往下走 —— **那不是教学**。这个教程里其他每一个控制都是同一种教法：拍子不满足就不推进。
 
-所以有了 **A4**（`Beat_Zoom_NEW`）：门控是把视场收窄过 `requiredZoom = 0.55`。它排在 A3 之后、B1 之前 —— 玩家那时已经用右摇杆自由看了二十秒，第二根摇杆是增补而不是竞争。
+所以 **A2 和 A3 是两个 `Beat_Zoom_NEW`**：A2 的门控是视场收窄过 `threshold = 0.55`（`direction = In`），A3 是回到 `0.15` 以下（`direction = Out`）。
 
-`requireReturn` 可以要求再推回去（像 E2 的滑杆「推到两端」），默认关：一个动作一个门。
+**为什么是两拍而不是一拍。** 推进去和拉回来是两件不同的发现。推进去是奖励：类星体从一个亮点变成有喷流的盘。拉回来是没人会自己找到的那一半 —— 而一个被留在 12° 视场里走完全程的玩家，会错过 B2 的喷流、会在 B3 转身时迷失方向。所以这一课收两次费，Phase 0 交给 B1 的时候视场回到了原位。
 
-**A4 不是分镜里的帧。** GDD 的 Phase 0 是三帧、标题叫 Silence、没有任何东西可按；这是第四帧而且带门控。改动记在这里。
+门控只是一个阈值，不是 dwell、也不是要求按住。GDD §6 在 B1 上写的 “not a dwell timer” 是同一件事：一个刚搞懂某个控制的人，应该因为用了它而被放行，而不是被要求把它端稳。
+
+有一处小保险：如果拍子打开时门控**已经**成立（重排了拍子、F2 跳过了上一拍、或者 attract 在缩放中途重启），那就要求玩家先离开阈值再穿回来。一个要求缩放却不花一次缩放的拍子，什么都没教。
+
+**分镜里 A2 A3 是两帧无动作的 Silence。** GDD 的 Phase 0 三帧都没有任何东西可按；这里把后两帧换成了带门控的教学。改动记在这里。A3 自己的内容留着了：光点仍然在这一拍出现，而且是在玩家把视野拉宽的时候从边缘进来的 —— 视野变宽本来就是边缘上的东西第一次可见的那一刻。
 
 ### 还需要一个看得见的刻度条
 
-只有 A4 那条门控还是不够。**一行文字和一张变大的画面，看不出是同一件事** —— 非玩家推动摇杆、看到整个画面缩放，没有任何理由推断出「存在一个有量程的控制」，那同样可以是场景在动。
+只有门控还是不够。**一行文字和一张变大的画面，看不出是同一件事** —— 非玩家推动摇杆、看到整个画面缩放，没有任何理由推断出「存在一个有量程的控制」，那同样可以是场景在动。
 
 所以有了 `TutorialZoomGauge_NEW`：屏幕右侧一条竖直刻度条，推杆时填充上升、松手时回落，旁边写着当前视场度数。它在画面上是**不动的**，而世界在它背后变化 —— 这才把「刚才发生了点什么」变成「这是我在做，而且还有更多可用」。
 
 它在缩放拍子打开时淡入，然后像控制图例一样一直留着。教完就消失的读数，教给玩家的是「那个控制也一起没了」。
 
-判定用的是**拍子的类型**（`Beat_Zoom_NEW`）而不是 id，所以以后改名 A4 或再加一个缩放课，这里都不用动。
+判定用的是**拍子的类型**（`Beat_Zoom_NEW`）而不是 id，所以 A2 A3 改名、或者以后再加一个缩放课，这里都不用动。
 
 ### 右上角的小地图
 
@@ -478,6 +487,8 @@ GDD §4 写的是 “Stick — Look. **The only stick.**”。加左摇杆是偏
 所以现在地图**框住的是世界不是玩家**：第一帧按「起点 ↔ 类星体」定好中心和比例，之后类星体在框里不动，**玩家的标记在框里走过去**。
 
 **北朝上**，玩家标记上带一根朝向杆：转视角时地图不转，转的是杆；在 B3 转满一圈，杆会指回你来的方向。这个对应关系才是地图的意义所在，比一个百分比值钱。
+
+**这根杆一开始画反了。** 它被放在 Facing 矩形的**底部**，也就是标记的下方，于是它指的是玩家**来的**方向，转身时也往反方向摆。yaw = 0 是朝世界 +Z，在北朝上的地图上就是正上方，所以杆必须画在轴心**上方**。builder 里的 `PointTheStemUp` 会在已有场景里把它翻回来 —— 判定的是「杆在不在自己轴心的错误一侧」这个冲突，不是跟建造时的数值比对，所以谁把杆调长调细了都留着，只是镜像过去。
 
 **取 XZ 平面**，因为行进是水平的，这段体验没有垂直结构可丢。B2 抬头看喷流时地图没有任何反应 —— 这是对的：它是「你在哪」的地图，不是「你在指哪」的地图。
 

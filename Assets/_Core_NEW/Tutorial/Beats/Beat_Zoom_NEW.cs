@@ -1,77 +1,103 @@
 using UnityEngine;
 
 /// <summary>
-/// A4 — the zoom lesson. Gated on the player actually narrowing the view.
+/// A2 and A3 — the zoom lesson, in two halves. Gated on the player actually moving the
+/// field of view.
 ///
-/// A hint line is not teaching. Every other control in this piece is taught the same
-/// way — the beat does not advance until the player has done the thing — and zoom was
-/// the one exception: A2 said LEFT STICK · LOOK CLOSER and then moved on whether anyone
-/// had touched the stick or not. This closes that.
+/// A hint line is not teaching. Every other control in this piece is taught the same way
+/// — the beat does not advance until the player has done the thing — and the zoom was
+/// the one exception: a prompt went up and the storyboard moved on whether anyone had
+/// touched the stick or not.
 ///
-/// It sits at the end of Phase 0, after A3 and before B1, which is where the opening had
-/// the room. By then the player has had twenty seconds of free looking with the right
-/// stick, so the second stick lands as an addition rather than as competition.
+/// TWO BEATS RATHER THAN ONE, because zooming in and zooming back out are two different
+/// discoveries. In is the reward: the quasar stops being a bright point and becomes a
+/// disc with a jet coming off it. Out is the half people do not find on their own, and a
+/// player left at 12 degrees of field for the rest of the piece is a player who will lose
+/// B2's jet and get disoriented in B3's turn. So the lesson costs a push and a pull, and
+/// Phase 0 hands over to B1 with the view back where it started.
 ///
-/// A4 is not a storyboard frame. Phase 0 in the GDD is three frames titled Silence, with
-/// nothing to press; this is a fourth with a gate on it. See TutorialZoom_NEW for why the
-/// zoom exists at all, and the README for the departure.
+/// These take the storyboard's A2 and A3, which the GDD has as silent cinematic frames.
+/// A3's own content survives the change: the mote still arrives on this beat's enter, and
+/// it now arrives while the player is widening the view — which is the moment something
+/// at the edge of frame becomes visible at all.
 ///
-/// The gate is a threshold on the zoom, not a dwell and not a round trip. GDD §6's note
-/// on B1 — "not a dwell timer" — is about the same thing: a walk-up visitor who has just
-/// worked out a control should be rewarded for using it, not asked to hold it steady.
+/// See TutorialZoom_NEW for why the zoom exists, and the README for the departure from
+/// GDD section 4.
+///
+/// The gate is a threshold, not a dwell and not a hold. GDD section 6's note on B1 — "not
+/// a dwell timer" — is about the same thing: someone who has just worked out a control
+/// should be rewarded for using it, not asked to hold it steady.
 /// </summary>
 [HierarchyBadge_NEW("BEAT ZOOM", "#6FA8DC")]
 public class Beat_Zoom_NEW : TutorialBeat_NEW
 {
+    public enum Direction
+    {
+        /// <summary>Narrow the view. Satisfied at or above the threshold.</summary>
+        In,
+
+        /// <summary>Widen it again. Satisfied at or below the threshold.</summary>
+        Out
+    }
+
     [Header("Gate")]
-    [Tooltip("How far in the player has to zoom, 0 to 1. Well short of the full range: " +
-             "the lesson is that the stick does something, not that it can be pinned.")]
-    [Range(0.1f, 1f)]
-    [SerializeField] float requiredZoom = 0.55f;
+    [Tooltip("Which way this beat asks the view to move. The hint line has to agree with " +
+             "it — the builder writes both, so change them together.")]
+    [SerializeField] Direction direction = Direction.In;
 
-    [Tooltip("Also require the view to come back out afterwards. Off by default — one " +
-             "action, one gate. Turn it on if the round trip turns out to be the lesson.")]
-    [SerializeField] bool requireReturn = false;
-
-    [Tooltip("Zoom at or below this counts as back out again. Only used with requireReturn.")]
-    [Range(0f, 0.9f)]
-    [SerializeField] float returnedZoom = 0.15f;
+    [Tooltip("Where the gate sits. 0 is the base field of view, 1 is fully zoomed.\n\n" +
+             "In is satisfied at or above it; Out at or below it.\n\n" +
+             "Both are set short of the ends of the range: the lesson is that the stick " +
+             "does something, not that it can be pinned.")]
+    [Range(0f, 1f)]
+    [SerializeField] float threshold = 0.55f;
 
     [Header("Wiring")]
     [Tooltip("Leave empty to find it in the scene.")]
     [SerializeField] TutorialZoom_NEW zoom;
 
-    bool _reachedIn;
+    // The gate was already true when the beat opened. Happens when the beats are
+    // reordered, when F2 skips the beat before, or when the attract loop restarts
+    // mid-zoom. A beat that asks for a zoom and then costs none teaches nothing, so the
+    // player has to be on the wrong side of the threshold before crossing it counts.
+    bool _mustLeaveFirst;
+
     bool _forced;
+
+    /// <summary>Which way this beat asks the view to move. Read by nothing yet; here so
+    /// a wrong hint line can be caught without opening the Inspector.</summary>
+    public Direction Way { get { return direction; } }
 
     protected override void OnBeatEnter()
     {
-        _reachedIn = false;
         _forced = false;
 
         if (zoom == null) zoom = FindObjectOfType<TutorialZoom_NEW>();
 
         if (zoom == null)
+        {
             Debug.LogError("[Beat_Zoom_NEW] " + BeatId + " has no TutorialZoom_NEW. " +
                            "This beat can never be satisfied.", this);
+            return;
+        }
+
+        _mustLeaveFirst = Past(zoom.Amount);
     }
 
     protected override void OnBeatTick(float dt)
     {
         if (zoom == null) return;
 
-        if (zoom.Amount >= requiredZoom) _reachedIn = true;
+        if (_mustLeaveFirst && !Past(zoom.Amount)) _mustLeaveFirst = false;
     }
 
     protected override bool GateSatisfied()
     {
         if (_forced) return true;
         if (zoom == null) return false;
+        if (_mustLeaveFirst) return false;
 
-        if (!_reachedIn) return false;
-        if (!requireReturn) return true;
-
-        return zoom.Amount <= returnedZoom;
+        return Past(zoom.Amount);
     }
 
     protected override void OnForceSatisfy()
@@ -79,16 +105,22 @@ public class Beat_Zoom_NEW : TutorialBeat_NEW
         _forced = true;
     }
 
+    /// <summary>Is the zoom on the far side of this beat's threshold?</summary>
+    bool Past(float amount)
+    {
+        return direction == Direction.In ? amount >= threshold : amount <= threshold;
+    }
+
     public override string GateStatus()
     {
         if (zoom == null) return "misconfigured";
 
-        if (!_reachedIn)
-            return string.Format("zoom {0:F2} / need {1:F2}", zoom.Amount, requiredZoom);
+        string want = direction == Direction.In ? "in past " : "out below ";
 
-        if (requireReturn && zoom.Amount > returnedZoom)
-            return string.Format("zoom {0:F2} / back out below {1:F2}", zoom.Amount, returnedZoom);
+        if (_mustLeaveFirst)
+            return string.Format("zoom {0:F2} — already {1}{2:F2}, needs moving first",
+                                 zoom.Amount, want, threshold);
 
-        return "done";
+        return string.Format("zoom {0:F2} / {1}{2:F2}", zoom.Amount, want, threshold);
     }
 }

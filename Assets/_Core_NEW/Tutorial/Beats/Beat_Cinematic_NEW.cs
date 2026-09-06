@@ -14,18 +14,16 @@ using UnityEngine.Events;
 /// to press, but the player can already move the view, which is what makes A3's mote
 /// leaving frame at the right edge legible as an invitation rather than an accident.
 ///
-/// The three optional hooks are the ones Phase 0 actually needs:
+/// Two optional hooks, both of them things only an untimed frame wants:
 ///
-///   * onRumble    A3 asks for one short controller rumble. This project is on the
-///                 legacy Input Manager with no Input System package, so Unity 2019.4
-///                 exposes no rumble API at all. The event is here so the cue is wired
-///                 and visible in the Inspector the day a haptics path exists, rather
-///                 than being a line of the GDD that quietly went missing. See the
-///                 tutorial README.
 ///   * voiceOver   One line per beat maximum (GDD §8), placeholder until the writer is
 ///                 in place. Assigning nothing is the normal case.
-///   * onHalfway   Fires once at the midpoint. A2's "the flow brightens enough to read
-///                 as orbiting something" is a change inside a frame, not a new frame.
+///   * onHalfway   Fires once at the midpoint, for a change inside a frame rather than
+///                 a new frame. Meaningless on a gated beat, which has no midpoint.
+///
+/// The rumble seam used to live here and now lives on TutorialBeat_NEW, because A3
+/// became a gated beat and took the GDD's one rumble cue with it. A haptic cue is not a
+/// property of being untimed.
 /// </summary>
 [HierarchyBadge_NEW("BEAT CINE", "#C08040")]
 public class Beat_Cinematic_NEW : TutorialBeat_NEW
@@ -41,13 +39,6 @@ public class Beat_Cinematic_NEW : TutorialBeat_NEW
     [Tooltip("Fires once at the midpoint of the beat, for a change inside a frame.")]
     [SerializeField] UnityEvent onHalfway = new UnityEvent();
 
-    [Tooltip("A3 asks for one short controller rumble. Unity 2019.4 with the legacy " +
-             "Input Manager has no rumble API, so this is the seam to hook one to.")]
-    [SerializeField] UnityEvent onRumble = new UnityEvent();
-
-    [Tooltip("Fire onRumble on enter. A3 only.")]
-    [SerializeField] bool rumbleOnEnter = false;
-
     bool _halfwayFired;
 
     protected override void OnBeatEnter()
@@ -56,8 +47,6 @@ public class Beat_Cinematic_NEW : TutorialBeat_NEW
 
         if (voiceOverSource != null && voiceOverClip != null)
             voiceOverSource.PlayOneShot(voiceOverClip);
-
-        if (rumbleOnEnter) onRumble.Invoke();
     }
 
     protected override void OnBeatTick(float dt)

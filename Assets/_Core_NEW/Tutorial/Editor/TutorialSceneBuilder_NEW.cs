@@ -821,44 +821,45 @@ public static class TutorialSceneBuilder_NEW
             .Num("duration", 8f)
             .Apply();
 
-        Beat_Cinematic_NEW a2 = Beat<Beat_Cinematic_NEW>(parent, "A2");
+        // A2 and A3 are the zoom lesson, in two halves. The GDD has them as silent
+        // cinematic frames; teaching the second stick here is the departure, and the
+        // reason is in Beat_Zoom_NEW: a prompt nobody has to obey is not teaching, and
+        // the opening was twenty seconds of being told to look around a scene with one
+        // thing in it.
+        Beat_Zoom_NEW a2 = Beat<Beat_Zoom_NEW>(parent, "A2");
         Wire(a2)
             .Str("beatId", "A2")
-            .Copy("description", "The flow brightens enough to read as orbiting something. " +
-                                "At the centre, a patch darker than black.")
-            // Keep: A4 is where the zoom is taught, and a hint here would put its line
-            // up before the beat that gates it.
-            .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
-            .Num("duration", 7f)
+            .Copy("description", "Look closer. The left stick narrows the view and the quasar " +
+                                "stops being a point — the flow reads as orbiting something, " +
+                                "with a patch darker than black at the centre.")
+            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
+            .Copy("hintText", "LEFT STICK  ·  ZOOM IN")
+            .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
+            .Enum("direction", (int)Beat_Zoom_NEW.Direction.In)
+            .Num("threshold", 0.55f)
             .Apply();
 
-        Beat_Cinematic_NEW a3 = Beat<Beat_Cinematic_NEW>(parent, "A3");
+        Beat_Zoom_NEW a3 = Beat<Beat_Zoom_NEW>(parent, "A3");
         Wire(a3)
             .Str("beatId", "A3")
-            .Copy("description", "A mote drifts out of frame at the right edge. One short controller rumble.")
-            .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
-            .Num("duration", 5f)
+            .Copy("description", "And back out. A mote drifts in at the right edge as the view " +
+                                "widens, with one short controller rumble.")
+            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
+            .Copy("hintText", "LEFT STICK  ·  ZOOM OUT")
+            .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
+            .Enum("direction", (int)Beat_Zoom_NEW.Direction.Out)
+            .Num("threshold", 0.15f)
             .Flag("rumbleOnEnter", true)
             .Apply();
 
         // A3 is where the mote first appears. Nothing is on screen or in the world
-        // before its own frame — a mote visible during A1 is a stray particle.
+        // before its own frame — a mote visible during A1 is a stray particle. It lands
+        // on the beat that asks the player to widen the view, which is the moment a
+        // thing at the edge of frame becomes visible at all.
         AddActivateOnEnter(a3, moteA, true);
 
-        // A4 is not a storyboard frame. See Beat_Zoom_NEW: the left stick needs teaching
-        // the same way every other control is taught, which is with a gate, and the
-        // opening had the room for it.
-        Beat_Zoom_NEW a4 = Beat<Beat_Zoom_NEW>(parent, "A4");
-        Wire(a4)
-            .Str("beatId", "A4")
-            .Copy("description", "Look closer. The left stick narrows the view; the quasar " +
-                                "goes from a point to a disc. Not in the storyboard — see " +
-                                "TutorialZoom_NEW for the departure from GDD section 4.")
-            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
-            .Copy("hintText", "LEFT STICK  ·  LOOK CLOSER")
-            .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
-            .Num("requiredZoom", 0.55f)
-            .Apply();
+        // A4 was the zoom lesson before it became A2 and A3. Nothing left for it to do.
+        RetireBeat(parent, "A4", "the zoom lesson moved to A2 and A3");
     }
 
     static void BuildPhase1(Transform parent, FirstPersonLookRig_NEW lookRig,
@@ -1049,6 +1050,8 @@ public static class TutorialSceneBuilder_NEW
     static T Beat<T>(Transform parent, string name) where T : TutorialBeat_NEW
     {
         GameObject go = FindOrCreate(name, parent, Vector3.zero);
+
+        RetypeBeat<T>(go);
         T beat = AddIfMissing<T>(go);
 
         if (IsFresh(go) && _beatCursor != null && _beatCursor.parent == go.transform.parent)
@@ -1056,6 +1059,67 @@ public static class TutorialSceneBuilder_NEW
 
         _beatCursor = go.transform;
         return beat;
+    }
+
+    /// <summary>
+    /// A storyboard frame that changed kind — A2 and A3 went from cinematic runs to the
+    /// two halves of the zoom lesson.
+    ///
+    /// This has to be explicit because TutorialBeat_NEW is DisallowMultipleComponent:
+    /// adding Beat_Zoom_NEW to an object that already has Beat_Cinematic_NEW does not
+    /// stack them, it fails, and the run would carry on writing values into a component
+    /// that is not the one running. So the old one goes first.
+    ///
+    /// It is a deletion, so it is loud. Anything hooked onto the old component's own
+    /// UnityEvents — a VO clip on a cinematic beat, a listener somebody added by hand —
+    /// goes with it; what the builder put there it puts back on the next few lines.
+    /// Values and events on the GameObject's other components are untouched.
+    /// </summary>
+    static void RetypeBeat<T>(GameObject go) where T : TutorialBeat_NEW
+    {
+        TutorialBeat_NEW existing = go.GetComponent<TutorialBeat_NEW>();
+
+        if (existing == null) return;
+        if (existing is T) return;
+
+        Debug.LogWarning("[TutorialSceneBuilder_NEW] " + go.name + " was a " +
+                         existing.GetType().Name + " and is now a " + typeof(T).Name +
+                         ". Anything wired onto the old component itself is gone — the " +
+                         "builder re-wires what it put there. Undo restores it.", go);
+
+        Undo.DestroyObjectImmediate(existing);
+        _wired++;
+    }
+
+    /// <summary>
+    /// A beat that no longer has a job. Deleted, with the reason in the Console.
+    ///
+    /// The builder does not otherwise delete anything, and this is the narrow exception:
+    /// a beat left behind after its content moved elsewhere is not somebody's edit, it
+    /// is a gate the player has to satisfy twice. A4 asked for a zoom the player had
+    /// already done in A2 and A3, so it would have sat there looking broken.
+    ///
+    /// Guarded on the type, so an object that happens to share the name but is somebody
+    /// else's work survives.
+    /// </summary>
+    static void RetireBeat(Transform parent, string name, string why)
+    {
+        GameObject go = FindChild(parent, name);
+        if (go == null) return;
+
+        if (go.GetComponent<TutorialBeat_NEW>() == null)
+        {
+            Debug.LogWarning("[TutorialSceneBuilder_NEW] " + name + " should have been " +
+                             "retired (" + why + ") but it is not a beat any more. " +
+                             "Left alone.", go);
+            return;
+        }
+
+        Debug.LogWarning("[TutorialSceneBuilder_NEW] Retired the beat " + name + ": " +
+                         why + ". Undo brings it back.", parent);
+
+        Undo.DestroyObjectImmediate(go);
+        _wired++;
     }
 
     // ── Find or create ───────────────────────────────────────────────────────
@@ -1461,8 +1525,9 @@ public static class TutorialSceneBuilder_NEW
         GameObject facing = UIObject("Facing", self.transform, new Vector2(0.5f, 0.5f),
                                      Vector2.zero, new Vector2(10f, 46f));
 
-        GameObject facingStem = UIObject("Stem", facing.transform, new Vector2(0.5f, 0f),
-                                         new Vector2(0f, 6f), new Vector2(3f, 26f));
+        // Above the pivot, not below it. See PointTheStemUp.
+        GameObject facingStem = UIObject("Stem", facing.transform, new Vector2(0.5f, 1f),
+                                         new Vector2(0f, -6f), new Vector2(3f, 26f));
 
         Image stemImage = AddIfMissing<Image>(facingStem);
 
@@ -1471,6 +1536,9 @@ public static class TutorialSceneBuilder_NEW
             stemImage.color = new Color(1f, 1f, 1f, 0.7f);
             stemImage.raycastTarget = false;
         }
+
+        PointTheStemUp(facing.GetComponent<RectTransform>(),
+                       facingStem.GetComponent<RectTransform>());
 
         GameObject label = UIObject("Label", go.transform, new Vector2(0.5f, 0f),
                                     new Vector2(0f, 26f), new Vector2(220f, 34f));
@@ -1494,6 +1562,55 @@ public static class TutorialSceneBuilder_NEW
             .Apply();
 
         return go;
+    }
+
+    /// <summary>
+    /// Point the map's facing stem up.
+    ///
+    /// A yaw of 0 looks down world +Z, which is straight up on this north-up map, and
+    /// TutorialRangeMap_NEW rotates the stem away from there. So the stem has to be drawn
+    /// ABOVE its own pivot. It was drawn below it — bottom-anchored inside the Facing
+    /// rect — which put the marker 180 degrees out: it showed where the player had come
+    /// from, and swung the wrong way when they turned.
+    ///
+    /// Repaired on an existing map rather than left alone, on the same footing as
+    /// SeparateTheSticks: a stem pointing backwards is not a preference anybody could
+    /// hold, it is a map that lies. The test is the conflict — is the stem on the wrong
+    /// side of its own pivot — and not a comparison against the built numbers, so a
+    /// longer, shorter or thinner stem somebody tuned keeps its length and only gets
+    /// mirrored.
+    /// </summary>
+    static void PointTheStemUp(RectTransform facing, RectTransform stem)
+    {
+        if (facing == null || stem == null) return;
+
+        float parentHeight = facing.sizeDelta.y;
+        if (parentHeight <= 1f) return;
+
+        // Where the stem's middle sits relative to the marker it rotates around. Both
+        // rects are anchored to a point rather than stretched, so sizeDelta is the size.
+        float centreY = (stem.anchorMin.y - 0.5f) * parentHeight + stem.anchoredPosition.y;
+        if (centreY > 0.01f) return;
+
+        // Mirror it, keeping whatever length it has. A stem sitting exactly on the pivot
+        // points nowhere at all, so that one gets the built offset back.
+        float wanted = centreY < -0.01f
+            ? -centreY
+            : (parentHeight - stem.sizeDelta.y) * 0.5f - 6f;
+
+        Undo.RecordObject(stem, "Point the map stem forward");
+
+        stem.anchorMin = new Vector2(0.5f, 1f);
+        stem.anchorMax = new Vector2(0.5f, 1f);
+        stem.pivot = new Vector2(0.5f, 0.5f);
+        stem.anchoredPosition = new Vector2(stem.anchoredPosition.x, wanted - parentHeight * 0.5f);
+
+        Debug.LogWarning("[TutorialSceneBuilder_NEW] The map's facing stem pointed backwards " +
+                         "and has been flipped. It shows which way the light is looking, so " +
+                         "it has to sit above the marker: a yaw of 0 is up on a north-up map.",
+                         stem);
+
+        _wired++;
     }
 
     /// <summary>
