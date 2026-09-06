@@ -44,6 +44,11 @@ public class TutorialTravel_NEW : MonoBehaviour
              "events change this, through SetSpeed.")]
     [SerializeField] float speed = 25f;
 
+    [Tooltip("Never cruise closer to the destination than this. Phase 1 is player-gated, " +
+             "so without it a visitor who takes their time flies through the quasar before " +
+             "the beat that is meant to bring them to it. The C1 approach ignores it.")]
+    [SerializeField] float holdDistance = 900f;
+
     [Header("Camera")]
     [Tooltip("Point the look rig's forward axis along the heading on Awake, so A " +
              "recentres to the direction of travel rather than to whatever rotation the " +
@@ -56,12 +61,31 @@ public class TutorialTravel_NEW : MonoBehaviour
     Vector3 _direction;
     Vector3 _startPosition;
     float _startSpeed;
+    float _currentSpeed;
+
+    // Arrival state. See ApproachTo.
+    bool _approaching;
+    Vector3 _approachFrom;
+    Vector3 _approachTo;
+    float _approachSeconds;
+    float _approachElapsed;
+    AnimationCurve _approachShape;
 
     /// <summary>The current world heading. Also the axis A recentres to.</summary>
     public Vector3 Direction { get { return _direction; } }
 
-    /// <summary>Units per second right now.</summary>
+    /// <summary>What the light is travelling towards. The quasar, in the tutorial.</summary>
+    public Transform Destination { get { return destination; } }
+
+    /// <summary>The cruise speed setting. Zero while halted at the quasar.</summary>
     public float Speed { get { return speed; } }
+
+    /// <summary>
+    /// How fast the light is actually moving this frame, arrival included.
+    /// TutorialSpeedStreaks_NEW wants this one — during C1 the speed field is not
+    /// what the transform is doing.
+    /// </summary>
+    public float CurrentSpeed { get { return _currentSpeed; } }
 
     /// <summary>Metres travelled since the start of the run.</summary>
     public float DistanceTravelled
@@ -78,6 +102,8 @@ public class TutorialTravel_NEW : MonoBehaviour
     /// </summary>
     public void ResetToStart()
     {
+        _approaching = false;
+
         transform.position = _startPosition;
 
         _direction = ResolveDirection();
@@ -115,6 +141,43 @@ public class TutorialTravel_NEW : MonoBehaviour
         speed = Mathf.Max(0f, newSpeed);
     }
 
+    /// <summary>True while the arrival is running, and false again once it has landed.</summary>
+    public bool IsApproaching { get { return _approaching; } }
+
+    /// <summary>
+    /// Cover the remaining distance to a point in exactly this many seconds, ending at
+    /// rest.
+    ///
+    /// C1 uses this to land the player at the quasar just as C2 opens. It has to be a
+    /// distance problem solved over a duration, not a speed set in advance, because the
+    /// beats before it are player-gated: a visitor who explores for two minutes and one
+    /// who rushes arrive at C1 from completely different distances, and both have to
+    /// reach the quasar at the same moment in the piece.
+    ///
+    /// Travel owns it rather than the emission, because travel owns the transform, and
+    /// two components moving one object is how positions start fighting.
+    ///
+    /// The shape curve maps normalised time to fraction of the distance covered. The
+    /// default eases out, so the light decelerates into the arrival rather than
+    /// stopping dead.
+    /// </summary>
+    public void ApproachTo(Vector3 target, float seconds, AnimationCurve shape)
+    {
+        _approachFrom = transform.position;
+        _approachTo = target;
+        _approachSeconds = Mathf.Max(0.01f, seconds);
+        _approachShape = shape;
+        _approachElapsed = 0f;
+        _approaching = true;
+    }
+
+    /// <summary>Stop where you are. The arrival ends in this state and C2 holds it.</summary>
+    public void Halt()
+    {
+        _approaching = false;
+        speed = 0f;
+    }
+
     void Awake()
     {
         _startPosition = transform.position;
@@ -139,9 +202,55 @@ public class TutorialTravel_NEW : MonoBehaviour
 
     void Update()
     {
+        float dt = Time.unscaledDeltaTime;
+        Vector3 before = transform.position;
+
         // Unscaled, so a future slow-motion beat (D2 runs at 0.2x) slows the world
         // without also stopping the light that the whole piece says cannot stop.
-        transform.position += _direction * (speed * Time.unscaledDeltaTime);
+        if (_approaching) TickApproach(dt);
+        else transform.position += _direction * (speed * dt);
+
+        HoldOffTheDestination();
+
+        _currentSpeed = dt > 0f ? Vector3.Distance(before, transform.position) / dt : 0f;
+    }
+
+    void TickApproach(float dt)
+    {
+        _approachElapsed += dt;
+
+        float t = Mathf.Clamp01(_approachElapsed / _approachSeconds);
+        float covered = _approachShape != null ? _approachShape.Evaluate(t) : t;
+
+        transform.position = Vector3.LerpUnclamped(_approachFrom, _approachTo, covered);
+
+        if (t < 1f) return;
+
+        transform.position = _approachTo;
+        Halt();
+    }
+
+    /// <summary>
+    /// Do not sail past, or into, the destination during the cruise.
+    ///
+    /// Phase 1 is player-gated, so a visitor who takes their time would otherwise fly
+    /// straight through the quasar before the beat that is supposed to bring them to it.
+    /// Holding at a distance leaves C1 something to close and leaves the quasar the
+    /// right size in the meantime.
+    ///
+    /// The approach ignores this, because the approach is what takes the player inside
+    /// the hold distance on purpose.
+    /// </summary>
+    void HoldOffTheDestination()
+    {
+        if (_approaching || destination == null || holdDistance <= 0f) return;
+
+        Vector3 toDestination = destination.position - transform.position;
+        float distance = toDestination.magnitude;
+
+        if (distance >= holdDistance) return;
+
+        transform.position = destination.position - toDestination.normalized * holdDistance;
     }
 
     Vector3 ResolveDirection()

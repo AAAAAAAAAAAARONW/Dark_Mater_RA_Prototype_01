@@ -95,8 +95,9 @@ Tutorial/
 | 元素 | 资产 | 负责哪几帧 |
 |---|---|---|
 | 后处理 | `Scenes/Test Level_Profiles/Main Camera Profile.asset` | 全程。和 PlaytestBuild **共用同一份 profile**，不会分家 |
-| 类星体 | `Materials/BlazingQuasar.mat` | 远处的目标。A1 的暗斑、**B2 的 jet channel** 都是这一个物体 |
-| 光子拖尾 | `Shaders/Custom_PhotonTrail.mat` + `Scripts/PhotonSpectrumTrail.cs` | **Phase 0–1 关闭**，Phase 2 发射之后才亮 |
+| 类星体 | `Materials/BlazingQuasar.mat` | 远处的目标，也是 C1 到站、C3 发射的地方 |
+| HUD 字体 | `Fonts/Gontserrat-Regular SDF.asset` | 全程。PlaytestBuild 的 UI 用的就是它 |
+| 光子拖尾 | `Shaders/Custom_PhotonTrail.mat` + `Scripts/PhotonSpectrumTrail.cs` | **Phase 0–1 关闭**，C3 发射之后才亮。位置在眼睛前方 2.6 单位、略偏下 |
 | 星际尘埃 | 生成的 `TutorialDiscDust.mat` + `TutorialSoftDot.png` | A1「缓慢旋转的暗红物质」，同时提供飞行的速度感 |
 | 光点 | 生成的 `TutorialMote.mat` | A3 B1 B2 B3 |
 
@@ -157,7 +158,7 @@ Tutorial/
 
 ## HUD
 
-第一版是白色 Arial 浮在画面上，那是调试读数不是界面。现在：
+第一版是内置 Arial 的白字浮在画面上，那是调试读数不是界面。现在走 **TextMeshPro + 工程自己的 Gontserrat**（PlaytestBuild 的 UI 用的就是它 —— 教程和主旅程不该看起来像两个产品）。内置 Arial 在固定像素尺寸下一旦 Canvas 缩放就发虚，而在 Carnegie 那块又宽又弯的屏上它一直在缩放；SDF 字体任何尺寸都是锐的，还能调字距。
 
 | 元素 | 长什么样 |
 |---|---|
@@ -166,7 +167,7 @@ Tutorial/
 | 准星 | 圆环，不是方块。方块在暗屏中央会被读成坏点；圆环读作瞄准框，而且光点能留在环内 —— B1 的门控正是「光点在环内」 |
 | 图例 | 小字、低透明度。它要在整段体验里一直挂着，不能和当下的指令抢注意力 |
 
-底板、圆环、圆盘三张贴图是 builder 生成的（`TutorialChip.png` 九宫格、`TutorialRing.png`、`TutorialDisc.png`），纯几何单色。美术直接替换 PNG，builder 一行都不用动。
+底板、圆环、圆盘三张贴图是 builder 生成的（`TutorialChip.png` 九宫格、`TutorialRing.png`、`TutorialDisc.png`），纯几何单色。美术直接替换 PNG，builder 一行都不用动。字距（`characterSpacing`）拉开了一点 —— 全大写挤在一起在远处会读成一个色块。
 
 **文案的归属没变**：形状和位置属于 HUD，词属于拍子。GDD §5 要求「继续」这个操作在每一处都是同样的形状、同样的位置，所以 `Beat_Confirm_NEW.promptText` 现在只写动词（`RECENTRE`），A 那个图标是 HUD 画的。
 
@@ -392,6 +393,30 @@ GDD §6 把 Phase 0–1 写成「已经在吸积盘内部」。当前实现的�
 尘埃用的是**一个** ParticleSystem，不是现成的 VFX prefab。工程里有 `RFX_Nebula` 系列，但每个是二十多个粒子系统堆出来的星系外观，而 GDD §10 item 3 已经把 Carnegie 硬件上的帧数列为待议项。一个球壳发射器就够了，代价是一个 draw call。要更华丽的观感，把 `Dust` 换成 RFX prefab 即可。
 
 拍子是 Director 的子物体，按 Hierarchy 顺序自动收集 —— **调整分镜顺序是在 Hierarchy 里拖一下，不是改数组**。
+
+---
+
+## 到站：类星体的距离是算出来的，不是拍的
+
+玩家在 C1 结束、C2 打开的那一刻**正好抵达类星体并停住**，然后一直静止到被 A 发射出去。
+
+这件事不能靠「设一个速度、算一个距离」解决，因为 **B1–B4 是玩家门控的、时长无上限**：一个到处看两分钟的观众和一个一路冲过去的观众，到达 C1 时距离完全不同，但两个人都必须在 C2 打开时到达。
+
+所以它被写成一个**距离问题**而不是速度问题 —— `TutorialTravel_NEW.ApproachTo(目标点, 秒数, 曲线)`：不管现在离多远，在这么多秒里覆盖掉，末速为零。C1 的 `onEnter` 调它，时长和 C1 的拍子时长一致。
+
+时间线是这样倒推出来的：
+
+| 阶段 | 覆盖 |
+|---|---|
+| Phase 0 | 20 秒 × 25 u/s = 500，类星体在第一个提示出现前已经明显变大 |
+| Phase 1 | 玩家门控、无上限。`holdDistance = 900` 让巡航停在离核心 900 处 —— 磨蹭的观众停在那儿，而不是从他正朝着去的东西里穿过去 |
+| C1 | 12 秒覆盖剩下的一切，停在 `arrivalStandoff = 560` |
+
+于是类星体放在 **2600**：冲过去的观众从约 2100 外开始最后一段，慢慢逛的从 900 外开始，两个人都在 C2 打开时到站。
+
+停住这件事是 `travel.Halt()` 做的 —— C2 全程速度为 0，直到 `Emit()` 反转航向并给出隧道速度。拉丝层读的是 `CurrentSpeed` 而不是 `Speed`，所以减速、静止、隧道它都跟得上；否则玩家会停在类星体前面而介质还在狂飙。
+
+`arrivalStandoff = 560` 对上类星体半径 450：停在核心外面一点、光晕里面。在 FOV 40 下它会占满画面 —— 这正是 C2「近乎爆白」想要的起点。
 
 ---
 

@@ -1,4 +1,5 @@
 using UnityEngine;
+using TMPro;
 using UnityEngine.UI;
 
 /// <summary>
@@ -46,7 +47,7 @@ public class TutorialHUD_NEW : MonoBehaviour
              "hidden again.")]
     [SerializeField] GameObject legendRoot;
 
-    [SerializeField] Text legendText;
+    [SerializeField] TMP_Text legendText;
 
     [Tooltip("GDD §4 gives this string verbatim.")]
     [SerializeField] string legendContent = "RIGHT STICK = LOOK      A = CONFIRM / RECENTRE";
@@ -63,14 +64,14 @@ public class TutorialHUD_NEW : MonoBehaviour
              "storyboard keeps it up through B2 and B3 with no new prompt.")]
     [SerializeField] GameObject hintRoot;
 
-    [SerializeField] Text hintLabel;
+    [SerializeField] TMP_Text hintLabel;
     [SerializeField] CanvasGroup hintGroup;
 
     [Header("A prompt")]
     [Tooltip("Root of the continue affordance. Same shape, same position, every time.")]
     [SerializeField] GameObject confirmPromptRoot;
 
-    [SerializeField] Text confirmPromptText;
+    [SerializeField] TMP_Text confirmPromptText;
 
     [Header("Fade")]
     [Tooltip("Seconds for elements to fade in. Text that snaps on is read as a glitch; " +

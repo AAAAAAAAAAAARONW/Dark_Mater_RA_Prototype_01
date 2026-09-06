@@ -49,6 +49,8 @@ public class TutorialSpeedStreaks_NEW : MonoBehaviour
 
     ParticleSystem _particles;
 
+    float _appliedSpeed = -1f;
+
     void Awake()
     {
         _particles = GetComponent<ParticleSystem>();
@@ -58,13 +60,33 @@ public class TutorialSpeedStreaks_NEW : MonoBehaviour
         Apply();
     }
 
+    /// <summary>
+    /// Follow the speed as it changes.
+    ///
+    /// The speed is no longer constant: C1 decelerates into the arrival, C2 holds at a
+    /// standstill, C3 opens the tunnel. Streaks that keep running at the cruise rate
+    /// through all of that are worse than none — the player would be stopped at the
+    /// quasar with the medium still tearing past.
+    /// </summary>
+    void Update()
+    {
+        Apply();
+    }
+
     /// <summary>Re-read the travel speed and set the streak velocity from it.</summary>
     public void Apply()
     {
         if (_particles == null) return;
 
-        float speed = travel != null ? travel.Speed : fallbackSpeed;
+        // CurrentSpeed, not Speed: during the arrival the speed field is not what the
+        // transform is actually doing.
+        float speed = travel != null ? travel.CurrentSpeed : fallbackSpeed;
         float streakSpeed = speed * speedMultiplier;
+
+        // Particle modules are not free to touch every frame, and the eye cannot see a
+        // fraction of a unit per second either way.
+        if (Mathf.Abs(streakSpeed - _appliedSpeed) < 0.05f) return;
+        _appliedSpeed = streakSpeed;
 
         // Local space, straight back down the travel axis. The emitter is parented to
         // the light and the light's forward is +Z, so backwards is -Z.

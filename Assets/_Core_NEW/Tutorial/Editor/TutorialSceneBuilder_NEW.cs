@@ -2,6 +2,7 @@ using UnityEditor;
 using UnityEditor.Events;
 using UnityEngine;
 using UnityEngine.Events;
+using TMPro;
 using UnityEngine.Rendering.PostProcessing;
 using UnityEngine.UI;
 
@@ -74,8 +75,31 @@ public static class TutorialSceneBuilder_NEW
     /// A long way ahead, on the travel axis. The light is approaching it, not sitting
     /// inside it — the experience is an approach, so the quasar is a distant bright
     /// object that grows, not a wall the player is standing in.
+    ///
+    /// The distance is worked backwards from the timeline rather than picked:
+    ///
+    ///   Phase 0    20s of cruise at 25 u/s covers 500, so the quasar has visibly grown
+    ///              before the first prompt.
+    ///   Phase 1    player-gated and unbounded. TravelHoldDistance stops the cruise at
+    ///              900 from the core, so a visitor who explores for two minutes parks
+    ///              there instead of flying through the thing they are heading for.
+    ///   C1         closes whatever is left, in exactly 12 seconds, ending at rest at
+    ///              ArrivalStandoff. See TutorialTravel_NEW.ApproachTo.
+    ///
+    /// So a rushing visitor arrives at C1 from about 2100 out and an unhurried one from
+    /// 900, and both reach the quasar as C2 opens.
     /// </summary>
-    static readonly Vector3 QuasarPosition = new Vector3(0f, 0f, 6000f);
+    static readonly Vector3 QuasarPosition = new Vector3(0f, 0f, 2600f);
+
+    /// <summary>Closest the cruise may get. C1's approach is what goes inside it.</summary>
+    const float TravelHoldDistance = 900f;
+
+    /// <summary>
+    /// Where the light comes to rest, from the quasar's centre. Inside the halo and
+    /// just outside the core at radius 450: the player ends up at the thing that is
+    /// about to emit them, with it filling the frame.
+    /// </summary>
+    const float ArrivalStandoff = 560f;
 
     /// <summary>
     /// No tilt. BlazingQuasar draws its bipolar jets along the object's local Y, so
@@ -280,7 +304,8 @@ public static class TutorialSceneBuilder_NEW
         GameObject flashObject = BuildFlash(canvas.transform);
         TutorialCameraShake_NEW shake = AddIfMissing<TutorialCameraShake_NEW>(camera.gameObject);
         TutorialEmission_NEW emission = BuildEmission(player, lookRig, shake,
-                                                      flashObject.GetComponent<TutorialFlash_NEW>());
+                                                      flashObject.GetComponent<TutorialFlash_NEW>(),
+                                                      quasar.transform);
 
         BuildPhase0(beats.transform, moteA);
         BuildPhase1(beats.transform, lookRig, moteA, moteB, moteC);
@@ -485,6 +510,7 @@ public static class TutorialSceneBuilder_NEW
             .Ref("destination", quasar)
             .Ref("lookRig", lookRig)
             .Num("speed", TravelSpeed)
+            .Num("holdDistance", TravelHoldDistance)
             .Apply();
     }
 
@@ -678,22 +704,35 @@ public static class TutorialSceneBuilder_NEW
         if (!IsFresh(go)) return;
 
 
-        // Offset below the eye rather than at it. A ribbon emitted from the exact camera
-        // position starts inside the near plane, so the newest segment fills the screen
-        // as a smear the moment the player looks anywhere but straight ahead. Dropped
-        // here it stays out of the forward view and reads properly on the look back.
-        go.transform.localPosition = new Vector3(0f, -1.2f, 0f);
+        // Ahead of the eye and slightly low, which is the first person equivalent of
+        // where PlaytestBuild puts it. There the trail sits at the player's origin and
+        // the FreeLook orbits about three units behind, so the ribbon is always a few
+        // units in front of the camera and plainly visible. Emitting from the camera
+        // position instead — which is what this did before — puts the newest segment
+        // inside the near plane, where it is either invisible or a full-screen smear.
+        //
+        // From here it streams back past and below the view: readable while flying
+        // forward, and unmistakable on C4's look back.
+        go.transform.localPosition = new Vector3(0f, -0.45f, 2.6f);
 
         TrailRenderer trail = AddIfMissing<TrailRenderer>(go);
-        trail.time = 6f;
-        trail.widthMultiplier = 0.35f;
-        trail.minVertexDistance = 0.05f;
-        trail.autodestruct = false;
-        trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        trail.receiveShadows = false;
 
-        Material material = TutorialWorldAssets_NEW.PhotonTrailMaterial();
-        if (material != null) trail.sharedMaterial = material;
+        if (IsFresh(trail))
+        {
+            // PlaytestBuild's values: time 5, width 1, minVertexDistance 0.05.
+            trail.time = 5f;
+            trail.widthMultiplier = 1f;
+            trail.minVertexDistance = 0.05f;
+            trail.autodestruct = false;
+            trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            trail.receiveShadows = false;
+
+            // Narrow towards the tail, so it reads as a wake rather than a ribbon.
+            trail.widthCurve = new AnimationCurve(new Keyframe(0f, 1f), new Keyframe(1f, 0.15f));
+
+            Material material = TutorialWorldAssets_NEW.PhotonTrailMaterial();
+            if (material != null) trail.sharedMaterial = material;
+        }
 
         // PhotonSpectrumTrail has [RequireComponent(typeof(TrailRenderer))], so the
         // TrailRenderer above must already be on the object.
@@ -701,9 +740,9 @@ public static class TutorialSceneBuilder_NEW
 
         // Off at the start. The player has no trail in Phase 0–1: the piece opens on a
         // camera and a distant quasar and nothing else, and the light's own spectrum is
-        // not something the player has been given a reason to care about yet. Phase 2
-        // switches it on at the emission — wire that to C3's onEnter when it exists.
-        go.SetActive(false);
+        // not something the player has been given a reason to care about yet.
+        // TutorialEmission_NEW switches it on at C3.
+        if (IsFresh(go)) go.SetActive(false);
     }
 
     // ── Phases ───────────────────────────────────────────────────────────────
@@ -1148,7 +1187,8 @@ public static class TutorialSceneBuilder_NEW
     /// connection in Phase 2 and its failure mode is silent.
     /// </summary>
     static TutorialEmission_NEW BuildEmission(GameObject player, FirstPersonLookRig_NEW lookRig,
-                                              TutorialCameraShake_NEW shake, TutorialFlash_NEW flash)
+                                              TutorialCameraShake_NEW shake, TutorialFlash_NEW flash,
+                                              Transform quasar)
     {
         TutorialEmission_NEW emission = AddIfMissing<TutorialEmission_NEW>(player);
 
@@ -1159,7 +1199,9 @@ public static class TutorialSceneBuilder_NEW
             .Ref("lookRig", lookRig)
             .Ref("shake", shake)
             .Ref("flash", flash)
+            .Ref("quasar", quasar)
             .Ref("photonTrail", trail != null ? trail.gameObject : null)
+            .Num("arrivalStandoff", ArrivalStandoff)
             .Apply();
 
         return emission;
@@ -1264,7 +1306,7 @@ public static class TutorialSceneBuilder_NEW
 
         AddIfMissing<CanvasGroup>(go);
 
-        Text text = AddText(go, "RIGHT STICK = LOOK      A = CONFIRM / RECENTRE", 22, TextAnchor.MiddleCenter);
+        TMP_Text text = AddText(go, "RIGHT STICK = LOOK      A = CONFIRM / RECENTRE", 22, TextAlignmentOptions.Center);
 
         // Quiet. This is a reference card that never leaves, not an instruction — it has
         // to survive being on screen for the whole piece without competing with it.
@@ -1283,16 +1325,16 @@ public static class TutorialSceneBuilder_NEW
     /// </summary>
     static GameObject BuildHint(Transform canvas)
     {
-        GameObject go = UIObject("Hint", canvas, new Vector2(0.5f, 0f), new Vector2(0f, 250f), new Vector2(620f, 76f));
+        GameObject go = UIObject("Hint", canvas, new Vector2(0.5f, 0f), new Vector2(0f, 250f), new Vector2(860f, 84f));
 
         AddIfMissing<CanvasGroup>(go);
         AddChipBackground(go, 0.55f);
 
-        GameObject label = UIObject("Label", go.transform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(600f, 60f));
+        GameObject label = UIObject("Label", go.transform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(820f, 64f));
         // Placeholder only: TutorialHUD_NEW writes the running beat's hintText over this
         // before the line is ever shown. It is here so the object reads correctly in the
         // Scene view rather than as an empty rect.
-        AddText(label, "RIGHT STICK  ·  LOOK AROUND", 34, TextAnchor.MiddleCenter);
+        AddText(label, "RIGHT STICK  ·  LOOK AROUND", 34, TextAlignmentOptions.Center);
 
         return go;
     }
@@ -1308,13 +1350,13 @@ public static class TutorialSceneBuilder_NEW
     static GameObject BuildConfirmPrompt(Transform canvas)
     {
         // GDD B4: the A prompt appears at the lower edge.
-        GameObject go = UIObject("ConfirmPrompt", canvas, new Vector2(0.5f, 0f), new Vector2(0f, 140f), new Vector2(460f, 84f));
+        GameObject go = UIObject("ConfirmPrompt", canvas, new Vector2(0.5f, 0f), new Vector2(0f, 140f), new Vector2(520f, 92f));
 
         AddIfMissing<CanvasGroup>(go);
         AddChipBackground(go, 0.55f);
 
         // Button glyph, left of centre.
-        GameObject glyph = UIObject("Glyph", go.transform, new Vector2(0.5f, 0.5f), new Vector2(-150f, 0f), new Vector2(52f, 52f));
+        GameObject glyph = UIObject("Glyph", go.transform, new Vector2(0.5f, 0.5f), new Vector2(-168f, 0f), new Vector2(56f, 56f));
 
         Image disc = AddIfMissing<Image>(glyph);
 
@@ -1325,14 +1367,14 @@ public static class TutorialSceneBuilder_NEW
             disc.raycastTarget = false;
         }
 
-        GameObject glyphLabel = UIObject("A", glyph.transform, new Vector2(0.5f, 0.5f), new Vector2(0f, 0f), new Vector2(52f, 52f));
-        Text a = AddText(glyphLabel, "A", 30, TextAnchor.MiddleCenter);
+        GameObject glyphLabel = UIObject("A", glyph.transform, new Vector2(0.5f, 0.5f), new Vector2(0f, 1f), new Vector2(56f, 56f));
+        TMP_Text a = AddText(glyphLabel, "A", 30, TextAlignmentOptions.Center);
         if (IsFresh(a)) a.color = new Color(0.04f, 0.04f, 0.07f, 1f);
 
         // The verb. TutorialHUD_NEW writes the beat's promptText here, so the beat still
         // owns the words and the HUD still owns the shape.
-        GameObject label = UIObject("Label", go.transform, new Vector2(0.5f, 0.5f), new Vector2(34f, 0f), new Vector2(340f, 60f));
-        AddText(label, "RECENTRE", 32, TextAnchor.MiddleLeft);
+        GameObject label = UIObject("Label", go.transform, new Vector2(0.5f, 0.5f), new Vector2(36f, 0f), new Vector2(380f, 64f));
+        AddText(label, "RECENTRE", 32, TextAlignmentOptions.Left);
 
         return go;
     }
@@ -1360,10 +1402,10 @@ public static class TutorialSceneBuilder_NEW
         AddIfMissing<CanvasGroup>(go);
 
         GameObject titleObject = UIObject("Title", go.transform, new Vector2(0.5f, 0.5f), new Vector2(0f, 40f), new Vector2(1400f, 120f));
-        AddText(titleObject, "THE JOURNEY OF LIGHT", 72, TextAnchor.MiddleCenter);
+        AddText(titleObject, "THE JOURNEY OF LIGHT", 72, TextAlignmentOptions.Center);
 
         GameObject ctaObject = UIObject("CallToAction", go.transform, new Vector2(0.5f, 0.5f), new Vector2(0f, -70f), new Vector2(1400f, 60f));
-        AddText(ctaObject, "PRESS A TO BEGIN", 34, TextAnchor.MiddleCenter);
+        AddText(ctaObject, "PRESS A TO BEGIN", 34, TextAlignmentOptions.Center);
 
         return go;
     }
@@ -1390,32 +1432,37 @@ public static class TutorialSceneBuilder_NEW
     }
 
     /// <summary>
-    /// Put a Text on the object, and style it only if this run created it.
+    /// Put a label on the object, and style it only if this run created it.
     ///
-    /// Font, size and alignment are the most retuned things in the whole rig, so an
-    /// update run that restyled every label would undo an afternoon of work.
+    /// TextMeshPro rather than UI.Text, and the project's own Gontserrat rather than
+    /// Arial. Both were making the HUD look like a debug readout: builtin Arial at a
+    /// fixed pixel size goes soft the moment the Canvas scales, which on the
+    /// Observatories' wide curved display it always does, and it is not the typeface
+    /// anything else in the piece is set in. Gontserrat is what PlaytestBuild's UI
+    /// already uses, and SDF text stays crisp at any scale.
+    ///
+    /// Font, size and spacing are the most retuned things in the rig, so an update run
+    /// that restyled every label would undo an afternoon of work.
     /// </summary>
-    static Text AddText(GameObject go, string content, int size, TextAnchor anchor)
+    static TMP_Text AddText(GameObject go, string content, float size, TextAlignmentOptions alignment)
     {
-        Text text = AddIfMissing<Text>(go);
+        TextMeshProUGUI text = AddIfMissing<TextMeshProUGUI>(go);
         if (!IsFresh(text)) return text;
 
         text.text = content;
         text.fontSize = size;
-        text.alignment = anchor;
+        text.alignment = alignment;
         text.color = Color.white;
         text.raycastTarget = false;
-        text.horizontalOverflow = HorizontalWrapMode.Overflow;
-        text.verticalOverflow = VerticalWrapMode.Overflow;
+        text.enableWordWrapping = false;
+        text.overflowMode = TextOverflowModes.Overflow;
 
-        // Unity 2019 still ships Arial as a builtin resource. Later versions renamed it,
-        // which is why this is a lookup with a fallback rather than a bare call.
-        Font font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-        if (font == null) font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        // Tracked out. All-caps set solid reads as a block at a distance; a little air
+        // between the letters is most of what separates a prompt from a log line.
+        text.characterSpacing = 4f;
 
+        TMP_FontAsset font = TutorialWorldAssets_NEW.HudFont();
         if (font != null) text.font = font;
-        else Debug.LogWarning("[TutorialSceneBuilder_NEW] No builtin font found. Assign one on " +
-                              go.name + " by hand.", go);
 
         return text;
     }
@@ -1428,7 +1475,7 @@ public static class TutorialSceneBuilder_NEW
         Wire(hud)
             .Ref("director", director)
             .Ref("legendRoot", legend)
-            .Ref("legendText", legend.GetComponent<Text>())
+            .Ref("legendText", legend.GetComponent<TMP_Text>())
             .Ref("legendGroup", legend.GetComponent<CanvasGroup>())
             .Ref("reticleRoot", reticle)
             .Ref("hintRoot", hint)
@@ -1451,8 +1498,8 @@ public static class TutorialSceneBuilder_NEW
             .Ref("director", director)
             .Ref("cardRoot", card)
             .Ref("cardGroup", card.GetComponent<CanvasGroup>())
-            .Ref("titleText", title != null ? title.GetComponent<Text>() : null)
-            .Ref("callToActionText", cta != null ? cta.GetComponent<Text>() : null)
+            .Ref("titleText", title != null ? title.GetComponent<TMP_Text>() : null)
+            .Ref("callToActionText", cta != null ? cta.GetComponent<TMP_Text>() : null)
             .Ref("lookRig", lookRig)
             .Ref("travel", travel)
             .Apply();
@@ -1552,7 +1599,7 @@ public static class TutorialSceneBuilder_NEW
     /// can find the A inside the button glyph instead. Named lookup, so adding another
     /// piece of art to a prompt cannot silently repoint the HUD at it.
     /// </summary>
-    static Text LabelIn(GameObject prompt)
+    static TMP_Text LabelIn(GameObject prompt)
     {
         Transform label = prompt.transform.Find("Label");
 
@@ -1563,7 +1610,7 @@ public static class TutorialSceneBuilder_NEW
             return null;
         }
 
-        return label.GetComponent<Text>();
+        return label.GetComponent<TMP_Text>();
     }
 
     static Wiring Wire(Object target)

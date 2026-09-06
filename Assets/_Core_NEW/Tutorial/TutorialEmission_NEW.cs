@@ -37,12 +37,22 @@ public class TutorialEmission_NEW : MonoBehaviour
              "light has not left the quasar yet, so it has nothing to leave behind.")]
     [SerializeField] GameObject photonTrail;
 
-    [Header("C1 · spin-up")]
-    [Tooltip("Seconds the wind-up takes. Should match C1's beat duration.")]
+    [Header("C1 · arrival and spin-up")]
+    [Tooltip("Seconds the arrival takes. Should match C1's beat duration — the player " +
+             "reaches the quasar exactly as C2 opens.")]
     [SerializeField] float spinUpSeconds = 12f;
 
-    [Tooltip("Speed at the end of the wind-up, as a multiple of the cruise speed.")]
-    [SerializeField] float spinUpSpeedMultiplier = 2.4f;
+    [Tooltip("Where the light comes to rest, as a distance from the quasar's centre. " +
+             "Inside the halo, outside the core: the player is at the thing that is " +
+             "about to emit them, not looking at it from across the room.")]
+    [SerializeField] float arrivalStandoff = 560f;
+
+    [Tooltip("What the quasar is. Leave empty to take it from the travel destination.")]
+    [SerializeField] Transform quasar;
+
+    [Tooltip("Fraction of the approach covered against normalised time. Eases out, so " +
+             "the light decelerates into the arrival rather than stopping dead.")]
+    [SerializeField] AnimationCurve approachShape = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
     [Tooltip("Camera jitter at the end of the wind-up. C2 opens at this and holds.")]
     [Range(0f, 1f)]
@@ -92,6 +102,7 @@ public class TutorialEmission_NEW : MonoBehaviour
     void Awake()
     {
         if (travel == null) travel = GetComponentInParent<TutorialTravel_NEW>();
+        if (quasar == null && travel != null) quasar = travel.Destination;
         if (lookRig == null) lookRig = FindObjectOfType<FirstPersonLookRig_NEW>();
         if (shake == null) shake = FindObjectOfType<TutorialCameraShake_NEW>();
         if (flash == null) flash = FindObjectOfType<TutorialFlash_NEW>();
@@ -135,7 +146,15 @@ public class TutorialEmission_NEW : MonoBehaviour
 
     // ── The three calls, in storyboard order ─────────────────────────────────
 
-    /// <summary>C1. The disc accelerates and the frame starts to shake. Wire to C1.onEnter.</summary>
+    /// <summary>
+    /// C1. The light closes the last of the distance and comes to rest at the quasar,
+    /// while the disc winds up around it. Wire to C1.onEnter.
+    ///
+    /// The arrival is posed as "cover whatever is left, in exactly this long" rather
+    /// than as a speed, because everything before C1 is player-gated: a visitor who
+    /// explores B1 to B4 for two minutes and one who rushes through arrive here from
+    /// completely different distances, and both have to reach the quasar as C2 opens.
+    /// </summary>
     public void BeginSpinUp()
     {
         CaptureCruise();
@@ -143,7 +162,26 @@ public class TutorialEmission_NEW : MonoBehaviour
         _phase = Phase.SpinUp;
         _elapsed = 0f;
 
-        if (debugLog) Debug.Log("[TutorialEmission_NEW] Spin-up.", this);
+        if (travel != null && quasar != null)
+        {
+            Vector3 fromQuasar = travel.transform.position - quasar.position;
+
+            // Straight in along the line the light is already on, so the arrival does
+            // not slide the view sideways at the moment the player is watching it.
+            Vector3 standoffDirection = fromQuasar.sqrMagnitude > 0.0001f
+                ? fromQuasar.normalized
+                : -travel.Direction;
+
+            travel.ApproachTo(quasar.position + standoffDirection * arrivalStandoff,
+                              spinUpSeconds, approachShape);
+        }
+        else
+        {
+            Debug.LogWarning("[TutorialEmission_NEW] No quasar to arrive at. C1 will wind " +
+                             "up but the light will keep cruising past it.", this);
+        }
+
+        if (debugLog) Debug.Log("[TutorialEmission_NEW] Arrival and spin-up.", this);
     }
 
     /// <summary>C2. Held at the threshold, waiting on A. Wire to C2.onEnter.</summary>
@@ -170,7 +208,16 @@ public class TutorialEmission_NEW : MonoBehaviour
         if (flash != null) flash.Flash(emissionFlashColor, emissionFlashHold, emissionFlashDecay);
 
         // Away from the quasar, at tunnel speed. The look rig's forward axis follows.
-        if (travel != null) travel.SetCourse(-_cruiseDirection, _cruiseSpeed * tunnelSpeedMultiplier);
+        // Taken from where the light actually is rather than from the cruise heading,
+        // because the arrival may have come in on a slightly different line.
+        if (travel != null)
+        {
+            Vector3 outward = quasar != null
+                ? (travel.transform.position - quasar.position).normalized
+                : -_cruiseDirection;
+
+            travel.SetCourse(outward, _cruiseSpeed * tunnelSpeedMultiplier);
+        }
 
         // The player is the light and now it has somewhere to have been.
         if (photonTrail != null) photonTrail.SetActive(true);
@@ -216,14 +263,17 @@ public class TutorialEmission_NEW : MonoBehaviour
     {
         float t = spinUpSeconds > 0f ? Mathf.Clamp01(_elapsed / spinUpSeconds) : 1f;
 
-        // Squared, so most of the acceleration lands late. A linear ramp over twelve
-        // seconds is not read as accelerating, it is read as being slightly faster.
+        // Squared, so most of the build lands late. A linear ramp over twelve seconds is
+        // not read as building, it is read as being slightly more.
         float eased = t * t;
 
-        if (travel != null)
-            travel.SetSpeed(Mathf.Lerp(_cruiseSpeed, _cruiseSpeed * spinUpSpeedMultiplier, eased));
-
+        // Speed is not touched here — travel is running the arrival and owns it. The
+        // pressure the player feels through C1 is the jitter and the quasar filling the
+        // frame, not a number going up.
         if (shake != null) shake.Amplitude = Mathf.Lerp(0f, spinUpShake, eased);
+
+        // Arrived. Held here, motionless, until A emits them.
+        if (t >= 1f) _phase = Phase.Threshold;
     }
 
     void TickTunnel()

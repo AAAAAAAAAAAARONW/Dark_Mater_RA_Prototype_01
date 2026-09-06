@@ -1,4 +1,5 @@
 using System.IO;
+using TMPro;
 using UnityEditor;
 using UnityEngine;
 
@@ -52,6 +53,27 @@ public static class TutorialWorldAssets_NEW
 
     /// <summary>Layer 11 in this project. PlaytestBuild puts its camera and volume here.</summary>
     public const string PostProcessLayerName = "PostProcessing";
+
+    /// <summary>
+    /// The HUD typeface. Gontserrat, because it is what PlaytestBuild's UI is already
+    /// set in — the tutorial and the journey should not look like two products.
+    ///
+    /// The project also has PCap Terminal and Utendo; the scene uses Gontserrat for most
+    /// of its labels, so that is the one to match.
+    /// </summary>
+    public const string HudFontPath = "Assets/Fonts/Gontserrat-Regular SDF.asset";
+
+    public static TMP_FontAsset HudFont()
+    {
+        TMP_FontAsset font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(HudFontPath);
+
+        if (font == null)
+            Debug.LogWarning("[TutorialWorldAssets_NEW] Could not find the HUD font at " +
+                             HudFontPath + ". Labels will fall back to TextMeshPro's " +
+                             "default, which is not the typeface the rest of the piece uses.");
+
+        return font;
+    }
 
     // ── Generated assets ─────────────────────────────────────────────────────
 

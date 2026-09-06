@@ -1,4 +1,5 @@
 using UnityEngine;
+using TMPro;
 using UnityEngine.UI;
 
 /// <summary>
@@ -33,11 +34,11 @@ public class TutorialAttract_NEW : MonoBehaviour
     [SerializeField] CanvasGroup cardGroup;
 
     [Header("Text")]
-    [SerializeField] Text titleText;
+    [SerializeField] TMP_Text titleText;
 
     [SerializeField] string title = "THE JOURNEY OF LIGHT";
 
-    [SerializeField] Text callToActionText;
+    [SerializeField] TMP_Text callToActionText;
 
     [Tooltip("The only instruction in the piece that is written rather than shown.")]
     [SerializeField] string callToAction = "PRESS A TO BEGIN";
