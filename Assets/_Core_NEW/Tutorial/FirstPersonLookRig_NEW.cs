@@ -151,6 +151,9 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
     public float Pitch { get { return _pitch; } }
     public bool IsRecentring { get { return _recentring; } }
 
+    /// <summary>Which stick turns the view. Read by anything that must not use the same one.</summary>
+    public TutorialInput_NEW.LookStick LookStickSetting { get { return lookStick; } }
+
     /// <summary>The axis A sends the view back to. The direction of travel.</summary>
     public Vector3 ForwardAxis
     {

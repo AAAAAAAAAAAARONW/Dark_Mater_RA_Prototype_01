@@ -74,7 +74,30 @@ public class TutorialZoom_NEW : MonoBehaviour
         // does not leave this component pulling towards a stale number.
         if (_camera != null && _camera.fieldOfView > 0f) baseFieldOfView = _camera.fieldOfView;
 
+        WarnIfSharingAStick();
+
         Apply(0f);
+    }
+
+    /// <summary>
+    /// Zoom reads the left stick. If look does too, the right stick does nothing and
+    /// both prompts are lying.
+    ///
+    /// This is checked at runtime as well as in the builder because the way it happened
+    /// was invisible to both: look was moved to the right stick by changing the field's
+    /// C# default, which does nothing to a scene that already had the old value saved.
+    /// A scene can therefore be wrong without anyone having done anything wrong to it.
+    /// </summary>
+    void WarnIfSharingAStick()
+    {
+        if (lookRig == null) return;
+        if (lookRig.LookStickSetting != TutorialInput_NEW.LookStick.Left) return;
+
+        Debug.LogError("[TutorialZoom_NEW] Look and zoom are both on the LEFT stick, so " +
+                       "the right stick does nothing and every RIGHT STICK prompt is wrong. " +
+                       "Set FirstPersonLookRig_NEW.lookStick to Right, or run " +
+                       "Tools > Journey NEW > Tutorial > Build or Update, which repairs it.",
+                       this);
     }
 
     /// <summary>Back to the unzoomed view. The attract reset uses this.</summary>

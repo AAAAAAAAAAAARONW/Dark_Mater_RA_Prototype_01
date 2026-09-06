@@ -306,6 +306,8 @@ public static class TutorialSceneBuilder_NEW
         // departs from GDD �4.
         TutorialZoom_NEW zoom = AddIfMissing<TutorialZoom_NEW>(camera.gameObject);
         Wire(zoom).Ref("lookRig", lookRig).Num("baseFieldOfView", FieldOfView).Apply();
+
+        SeparateTheSticks(lookRig);
         TutorialEmission_NEW emission = BuildEmission(player, lookRig, shake,
                                                       flashObject.GetComponent<TutorialFlash_NEW>(),
                                                       quasar.transform);
@@ -375,6 +377,56 @@ public static class TutorialSceneBuilder_NEW
         Debug.Log("[TutorialSceneBuilder_NEW] Updated: " + _created + " object(s) or " +
                   "component(s) added, " + _wired + " reference(s) filled. " + inventory + ".\n" +
                   "Everything that already existed was left as it was.", root);
+    }
+
+    /// <summary>
+    /// Make sure look and zoom are not on the same stick, and repair it if they are.
+    ///
+    /// This overwrites a value on a component the builder did not create, which the
+    /// ownership rule otherwise forbids — so it is worth being exact about why it is
+    /// allowed here. The rule protects DECISIONS. Look and zoom sharing a stick is not a
+    /// decision anybody could have made on purpose: it leaves the other stick doing
+    /// nothing and makes both prompts wrong. It is a broken state, and a builder that
+    /// can see a broken state and leaves it alone is not being careful, it is being
+    /// useless.
+    ///
+    /// It exists because of exactly one real failure. Look was moved from the left stick
+    /// to the right by changing the field's C# DEFAULT — which does nothing at all to a
+    /// scene that already had the old value serialised. The scene kept Left, the zoom
+    /// took Left too, and the right stick went dead. Changing a default is invisible to
+    /// every scene that already exists; only a migration reaches them.
+    ///
+    /// So the check is on the conflict, not on the default. If somebody deliberately
+    /// puts look back on the left stick, this moves the ZOOM, and either way the two end
+    /// up separated rather than the builder insisting on its own preference.
+    /// </summary>
+    static void SeparateTheSticks(FirstPersonLookRig_NEW lookRig)
+    {
+        if (lookRig == null) return;
+
+        // Zoom always reads the left stick. If look does too, they collide.
+        if (lookRig.LookStickSetting != TutorialInput_NEW.LookStick.Left) return;
+
+        SerializedObject rig = new SerializedObject(lookRig);
+        SerializedProperty stick = rig.FindProperty("lookStick");
+
+        if (stick == null)
+        {
+            Debug.LogError("[TutorialSceneBuilder_NEW] FirstPersonLookRig_NEW has no " +
+                           "'lookStick' field. Look and zoom cannot be separated.", lookRig);
+            return;
+        }
+
+        stick.enumValueIndex = (int)TutorialInput_NEW.LookStick.Right;
+        rig.ApplyModifiedPropertiesWithoutUndo();
+
+        _wired++;
+
+        Debug.LogWarning("[TutorialSceneBuilder_NEW] Look and zoom were both on the LEFT " +
+                         "stick, which leaves the right stick doing nothing. Look moved to " +
+                         "the RIGHT stick, matching every prompt in the piece and " +
+                         "PlaytestBuild. Put it back on FirstPersonLookRig_NEW if that is " +
+                         "wrong — but then move the zoom too.", lookRig);
     }
 
     // ── Environment ──────────────────────────────────────────────────────────

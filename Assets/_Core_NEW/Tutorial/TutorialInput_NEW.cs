@@ -43,15 +43,16 @@ public static class TutorialInput_NEW
     /// that: it is two controls that happen to do the same thing, and the player learns
     /// neither. It also makes the prompt a lie in one direction or the other.
     ///
-    /// Left is the default because that is what the storyboard's B1 prompt says, and a
-    /// prompt reading LEFT STICK while only the right stick turns the view is the worst
-    /// of the available wrongs.
+    /// RIGHT is the default, and the answer for this project: it is what PlaytestBuild
+    /// uses, so the tutorial and the journey agree, and the left stick is free for the
+    /// zoom. The storyboard's prompt art says LEFT STICK; the build was the tie-breaker
+    /// and every prompt string was changed to match.
     ///
-    /// Worth knowing for the handoff: PlaytestBuild puts look on the RIGHT stick
-    /// (RightStickX/Y, joystick axes 4 and 5) and uses Vertical for speed. The tutorial
-    /// has no speed control so nothing collides, but tutorial and journey currently
-    /// disagree about which stick looks. Changing this enum and the prompt text together
-    /// is how that gets settled.
+    /// CHANGING THIS DOES NOT REACH SCENES THAT ALREADY EXIST. It is a serialized field,
+    /// so a scene keeps whatever was saved into it and a new default is invisible to it —
+    /// which is exactly how look and zoom once ended up sharing the left stick with the
+    /// right stick doing nothing. TutorialSceneBuilder_NEW.SeparateTheSticks repairs that
+    /// case; anything else needs its own migration.
     /// </summary>
     public enum LookStick
     {
