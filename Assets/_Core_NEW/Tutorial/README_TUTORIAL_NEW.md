@@ -2,8 +2,8 @@
 
 实现 [Tutorial GDD — Journey of Light](https://bird-tune-e6c.notion.site/Tutorial-GDD-Journey-of-Light-3d3abeb8074b817b8f93e22777f5888f)。
 
-**本轮范围：Phase 0（A1–A3）+ Phase 1（B1–B4），加上它们前面的 attract 状态。**
-Phase 2–4 尚未实现，但拍子框架、控制方案和 HUD 都是按整套 20 帧设计的 —— 见文末「下一步」。
+**已实现：Phase 0（A1–A3）、Phase 1（B1–B4）、Phase 2（C1–C5），加上前面的 attract 状态。**
+Phase 3–4 尚未实现 —— 见文末「下一步」。
 
 ---
 
@@ -11,7 +11,7 @@ Phase 2–4 尚未实现，但拍子框架、控制方案和 HUD 都是按整套
 
 1. 打开 `Assets/_Core_NEW/Tutorial.unity`
 2. **在 Lighting 面板给场景 assign 天空盒** —— builder 不碰这个
-3. 菜单 `Tools > Journey NEW > Build Tutorial Scene (Phase 0-1)`
+3. 菜单 `Tools > Journey NEW > Tutorial > Build or Update`
 4. Play
 
 看到的顺序：纯黑 → 标题卡 →（按 A）→ 黑保持一会儿后渐显出天空，玩家匀速朝远处的类星体直线飞行，提示行已经写着 `LOOK AROUND` → 第 15 秒一颗光点从右边缘飘出，提示变 `LOOK RIGHT` → `LOOK UP` → `TURN AROUND` → `A TO RECENTRE` 且下方出现 A 图标，按 A 视角平滑回到航向。**提示行始终是当下要做的那件事。**
@@ -21,6 +21,38 @@ Phase 2–4 尚未实现，但拍子框架、控制方案和 HUD 都是按整套
 那三行是为了让「A 没反应」「是不是没往前飞」这类问题**看一眼就能定位**，而不是靠打断点。
 
 **再跑一次不需要重开场景** —— 90 秒无输入自动回到标题卡，光点归位，HUD 清空，视角回正。这是展陈现场唯一重要的行为：下一位观众看到的必须是开头，而不是上一位停在半路的画面。
+
+---
+
+## 接手前先读这一节
+
+### builder 不会毁掉你的改动
+
+两个菜单项：
+
+| 菜单 | 行为 |
+|---|---|
+| `Tools > Journey NEW > Tutorial > **Build or Update**` | 日常用这个。**增量**：缺什么补什么、空引用填上，已经存在的一律不碰 |
+| `… > Rebuild From Scratch` | 先删整个 `[Tutorial]` 再重建，弹窗确认。只在真的想推倒重来时用 |
+
+分工不是按字段，是按**种类**：
+
+- **builder 拥有「存在性」和「接线」** —— 该有哪些物体、哪个门指向哪颗光点、HUD 订阅哪个 director。空引用是**缺口**不是决定（通常是因为后来的版本新增了它该指向的东西），所以会被填上，**并且每填一处都打一条 Console log**。
+- **你拥有「数值」** —— Transform、调过的参数、换过的材质、自己加的子物体、UnityEvent 上挂的东西。数字、布尔、枚举**永远不会**被写进一个已经存在的组件，因为分不清「没人设过」和「有人就是设成了这个值」。
+
+拉过一个新增阶段的改动之后，跑一次 `Build or Update` 就行。Console 会告诉你它加了几个东西、填了几个引用，或者「没什么可做的」。
+
+**你自己往 builder 里加东西时，请守住这条线**：走 `FindOrCreate` / `AddIfMissing` / `Wire`，直接写属性的地方用 `IsFresh` 包住。
+
+### 加一拍需要动几个地方
+
+1. 在 `TutorialSceneBuilder_NEW` 里对应的 `BuildPhaseN` 方法里加一段 `Wire(...)`（照抄邻居即可）
+2. 需要新组件的话在 `Tutorial/` 下新建一个，**一个组件一件事**
+3. 跑 `Build or Update`
+
+拍子是 Director 的子物体、按 Hierarchy 顺序执行，新阶段会追加在后面 —— 也就是分镜顺序。想调整顺序在 Hierarchy 里拖，builder 不会把它拖回去。
+
+**拍子不认识具体的效果，效果也不认识拍子。** 拍子只管门控和提示；`TutorialEmission_NEW` 这类只管效果，靠拍子的 `onEnter` UnityEvent 连起来。所以整条 Phase 2 时序在 Inspector 里是看得见的：点开 C3，它的 onEnter 上写着 `TutorialEmission_NEW.Emit`。重排分镜不用改任何 C# 文件。
 
 ---
 
@@ -39,9 +71,12 @@ Tutorial/
 ├─ TutorialFadeIn_NEW         开场纯黑 → 渐显，时长与曲线全部暴露
 ├─ TutorialTravel_NEW         匀速直线飞向类星体，不接受任何输入
 ├─ TutorialSpeedStreaks_NEW   近景拉丝层，速度取自 TutorialTravel_NEW
+├─ TutorialEmission_NEW       Phase 2 时序：加速 → 阈值 → 发射（反转航向、开拖尾）
+├─ TutorialFlash_NEW          全屏闪白，颜色和时长由调用方给
+├─ TutorialCameraShake_NEW    相机位移抖动，幅度由外部驱动
 ├─ Beats/
-│   ├─ Beat_Cinematic_NEW     A1 A2 A3（无动作，按分镜时长走）
-│   ├─ Beat_LookAt_NEW        B1 B2（把目标带进准星）
+│   ├─ Beat_Cinematic_NEW     A1 A2 A3 C1 C3（无动作，按分镜时长走）
+│   ├─ Beat_LookAt_NEW        B1 B2 C4（把目标带进准星）
 │   ├─ Beat_TurnAround_NEW    B3（转过 150° 且目标在画面里）
 │   └─ Beat_Confirm_NEW       B4（按 A）
 └─ Editor/
@@ -158,9 +193,9 @@ PlaytestBuild 的柔和感来自 Cinemachine 的 damping，第一人称没有对
 
 GDD §4：“Stick — Look. **The only stick.**” 两根都能转不是「只有一根」，那是两个碰巧做同一件事的控制，玩家哪个都学不会；而且不管提示怎么写，它对其中一根来说都是错的。
 
-`lookStick` 默认 **Left**，因为分镜的 B1 提示写的就是 `LEFT STICK`。工程里 `Horizontal/Vertical` 是手柄轴 1/2（左摇杆，同时带 WASD 所以桌面可测），`RightStickX/Y` 是轴 4/5。
+`lookStick` 默认 **Right**，和 PlaytestBuild 一致 —— 教程和主旅程对「哪根摇杆负责看」给同一个答案。分镜的提示图上写的是 LEFT STICK，实际的 build 是裁决者，所有提示文案已经跟着改成 `RIGHT STICK`。
 
-**交接时要注意**：PlaytestBuild 的视角在**右摇杆**上（`Vertical` 那边是速度控制）。教程没有速度控制所以不冲突，但教程和主旅程目前对「哪根摇杆负责看」的答案不一致。把 `lookStick` 和提示文案一起改，是解决这件事的地方。
+工程里 `RightStickX/Y` 是手柄轴 4/5，`Horizontal/Vertical` 是轴 1/2（同时带 WASD）。换回左摇杆的话，改 `lookStick` 加改 `TutorialSceneBuilder_NEW` 里那几行文案，两处一起。
 
 空闲检测（90 秒回 attract）故意仍然读两根：推了那根不负责转视角的摇杆的观众，也是在场的观众，不该被重置。
 
@@ -288,6 +323,11 @@ STICK = LOOK      A = CONFIRM / RECENTRE
 | B2 | `Beat_LookAt_NEW` | 第二颗光点进入画面 | 提示 `LOOK UP`。光点从头顶掠过 |
 | B3 | `Beat_TurnAround_NEW` | 转过 150° **且**第三颗光点在画面里 | 提示 `TURN AROUND`。分镜的 B3 是「third mote, behind」，两个条件都要 —— 见下 |
 | B4 | `Beat_Confirm_NEW` | 按下 A | 底板换成 `A TO RECENTRE`，下方是 A 图标 + `RECENTRE` |
+| C1 | `Beat_Cinematic_NEW` | 无，12 秒 | 加速 + 抖动渐起。`onEnter` → `TutorialEmission_NEW.BeginSpinUp` |
+| C2 | `Beat_Confirm_NEW` | 按下 A | **A 在这里是「发射」不是「复位」** —— `recentreOnPress = false`，拍子期间把 rig 的 A 绑定关掉，退出时交还 |
+| C3 | `Beat_Cinematic_NEW` | 无，8 秒 | 闪白 + **反转航向** + 打开光子拖尾。**相机绝不锁** |
+| C4 | `Beat_LookAt_NEW` | 类星体进入画面 | 目标就是那颗类星体。C3 之后玩家在远离它，所以「转身看到它已经只是一个亮点」是字面成立的 |
+| C5 | `Beat_Confirm_NEW` | **回正完成** | 唯一一个 `waitForRecentre = true` 的拍子 —— 分镜的门控是「视角已回到前向轴」，不是「按下了 A」 |
 
 **B3 为什么两个条件都要**：只判角度的话，一个低头发呆、摇杆漂移的玩家也能过。而 B3 是空间定位落地的地方，GDD 给它的批注是 “Protect it.”。一条能在没看见东西的情况下通过的门，什么都没保护到。
 
@@ -355,16 +395,32 @@ GDD §6 把 Phase 0–1 写成「已经在吸积盘内部」。当前实现的�
 
 ---
 
-## 下一步（Phase 2–4）
+## Phase 2：发射
 
-框架已经按整套 20 帧设计，多数后续拍子不需要新组件：
+没有新的拍子类型 —— C1 C3 是过场、C2 C5 是确认拍、C4 是 look-at，全是 Phase 1 用过的四个组件。新增的是三个只管效果的组件，靠拍子的 `onEnter` 连上去：
+
+| 组件 | 职责 |
+|---|---|
+| `TutorialEmission_NEW` | 时序：加速 → 阈值 → 发射。速度斜坡、抖动幅度、航向反转、开拖尾 |
+| `TutorialFlash_NEW` | 全屏闪色，颜色和时长由调用方给（Phase 3 的 D2 吸收还会用） |
+| `TutorialCameraShake_NEW` | 相机**位移**抖动 |
+
+**为什么抖动是位移不是旋转**：`FirstPersonLookRig_NEW` 每帧写 `transform.rotation`，任何别的东西写旋转都是在跟它抢 —— 而且会输，因为 rig 在 Update 里直接覆盖。位移没人占，所以可以在 LateUpdate 里独占，不用协调任何事。顺带它效果也更对：位移抖动读起来是「画面本身不稳」，正是分镜说的 “double outline = frame jitter, not a second UI layer”。
+
+**航向反转是 Phase 2 的关键**。Phase 0–1 朝类星体飞；C4 要求玩家转身看到「类星体已经只是一个亮点」，这只有在光此刻正在**远离**它时才成立。所以发射会翻转航向，`TutorialTravel_NEW` 同时把 rig 的前向轴带过去 —— 否则 A 会一直把视角复位到玩家刚刚花八秒离开的那个方向。
+
+`TutorialTravel_NEW` 因此开了一个口子：`SetCourse` 和 `SetSpeed`。GDD 在意的区分保住了 —— **没有任何输入路径通到它们**，唯一的调用者是 `TutorialEmission_NEW`。「发生在玩家身上的事」和「玩家操纵」是两回事。
+
+C2 是全片唯一 A 不等于复位的拍子（它是发射）。`Beat_Confirm_NEW` 在拍子期间调 `lookRig.SetConfirmRecentres(false)`，退出时交还 —— 一处开关，不是一个到处扩散的特例。
+
+---
+
+## 下一步（Phase 3–4）
+
+剩下的：
 
 | Frame | 复用 | 需要新增 |
 |---|---|---|
-| C1 C3 | `Beat_Cinematic_NEW` | 加速 / 速度隧道 VFX |
-| C2 | `Beat_Confirm_NEW`（`recentreOnPress = false`） | 发射音效与白帧 |
-| C4 | `Beat_LookAt_NEW`，目标指向身后的类星体 | — |
-| C5 | `Beat_Confirm_NEW` | 发射后调用 `SetForwardAxisToCurrent` 重设 jet 轴 |
 | D1–D4 | `Beat_Cinematic_NEW` | 单个氢原子、原子团、光谱条的空态与单线态、`Time.timeScale = 0.2` 的吸收拍 |
 | D5 | 新的 inspect 拍子 | **被三个面部按键阻塞** |
 | E1 | `Beat_Cinematic_NEW` | 结构化纤维（复用现有 cosmic web） |

@@ -9,10 +9,14 @@ using UnityEngine;
 /// stick entirely so that lesson is enforced by the absence of a control rather than by
 /// a line of text.
 ///
-/// So there is deliberately no public method to change speed or heading from input, and
-/// no serialized "allow player control" flag to find later and switch on. The heading is
-/// set once, in the editor or by the builder, by pointing `destination` at the thing the
-/// light is travelling towards.
+/// So there is deliberately no path from input to this component, and no serialized
+/// "allow player control" flag to find later and switch on. The heading is set by
+/// pointing `destination` at the thing the light is travelling towards.
+///
+/// SetCourse and SetSpeed exist for scripted events — the emission at C3 turns the
+/// light around, and C1 winds the speed up first. Those are things happening TO the
+/// player, which is a different claim from the player steering, and the distinction
+/// survives as long as nothing wires a control to them.
 ///
 /// It replaces an earlier TutorialDrift_NEW that orbited the quasar. That was written
 /// for a staging where the player starts inside the accretion disc; the experience is an
@@ -28,16 +32,16 @@ public class TutorialTravel_NEW : MonoBehaviour
 {
     [Header("Heading")]
     [Tooltip("What the light is travelling towards. The heading is taken from this once, " +
-             "on Awake, and then never changes — the player cannot steer and neither can " +
-             "a moving target.")]
+             "on Awake, so a moving destination does not drag the player around. Scripted " +
+             "events change it through SetCourse; nothing the player does can.")]
     [SerializeField] Transform destination;
 
     [Tooltip("Used when there is no destination. World space, normalised on Awake.")]
     [SerializeField] Vector3 fallbackDirection = Vector3.forward;
 
     [Header("Speed")]
-    [Tooltip("Units per second, constant. Nothing changes it: there is no speed control " +
-             "in the tutorial, by design.")]
+    [Tooltip("Units per second. There is no speed control in the tutorial; only scripted " +
+             "events change this, through SetSpeed.")]
     [SerializeField] float speed = 25f;
 
     [Header("Camera")]
@@ -51,11 +55,12 @@ public class TutorialTravel_NEW : MonoBehaviour
 
     Vector3 _direction;
     Vector3 _startPosition;
+    float _startSpeed;
 
-    /// <summary>The fixed world heading. Also the axis A recentres to.</summary>
+    /// <summary>The current world heading. Also the axis A recentres to.</summary>
     public Vector3 Direction { get { return _direction; } }
 
-    /// <summary>Units per second. Constant for the whole tutorial.</summary>
+    /// <summary>Units per second right now.</summary>
     public float Speed { get { return speed; } }
 
     /// <summary>Metres travelled since the start of the run.</summary>
@@ -74,11 +79,46 @@ public class TutorialTravel_NEW : MonoBehaviour
     public void ResetToStart()
     {
         transform.position = _startPosition;
+
+        _direction = ResolveDirection();
+        speed = _startSpeed;
+
+        if (lookRig != null) lookRig.SetForwardAxis(_direction);
+    }
+
+    /// <summary>
+    /// Change the heading and the speed.
+    ///
+    /// This is the one crack in "the heading never changes", and it is deliberate: the
+    /// emission at C3 turns the light around and flings it away from the quasar, and
+    /// that is a scripted event, not the player steering. The distinction the GDD cares
+    /// about is preserved — nothing here reads input, and there is no path from a stick
+    /// or a button to this method. TutorialEmission_NEW is the only caller.
+    ///
+    /// The look rig's forward axis follows, so A keeps recentring on the direction of
+    /// travel rather than on whatever forward used to mean.
+    /// </summary>
+    public void SetCourse(Vector3 direction, float newSpeed)
+    {
+        if (direction.sqrMagnitude > 0.0001f)
+        {
+            _direction = direction.normalized;
+            if (lookRig != null) lookRig.SetForwardAxis(_direction);
+        }
+
+        speed = Mathf.Max(0f, newSpeed);
+    }
+
+    /// <summary>Change speed without touching the heading. C1's spin-up uses this.</summary>
+    public void SetSpeed(float newSpeed)
+    {
+        speed = Mathf.Max(0f, newSpeed);
     }
 
     void Awake()
     {
         _startPosition = transform.position;
+        _startSpeed = speed;
         _direction = ResolveDirection();
 
         if (lookRig == null) lookRig = GetComponentInChildren<FirstPersonLookRig_NEW>();
@@ -126,8 +166,8 @@ public class TutorialTravel_NEW : MonoBehaviour
     /// "Is the player still moving forward?" is a question you cannot answer by looking
     /// at a starfield — everything is far away and nothing has a known size. The angle
     /// between the heading and the direction to the quasar is the answer: 0 means dead
-    /// on, and it should never move off 0, because nothing is allowed to change the
-    /// heading after Awake.
+    /// on, and through Phase 0-1 it should stay at 0. Phase 2's emission reverses the
+    /// course on purpose, so from C3 onwards this reads about 180.
     /// </summary>
     void OnGUI()
     {

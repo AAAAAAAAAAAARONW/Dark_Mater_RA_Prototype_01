@@ -58,10 +58,10 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
     [SerializeField] float ySensitivity = 26f;
 
     [Tooltip("Which stick turns the view. One of them, not both — see TutorialInput_NEW.\n\n" +
-             "Left matches the storyboard prompt. PlaytestBuild uses the right stick, so " +
-             "tutorial and journey currently disagree; changing this and the prompt text " +
-             "together is how that gets settled.")]
-    [SerializeField] TutorialInput_NEW.LookStick lookStick = TutorialInput_NEW.LookStick.Left;
+             "Right, matching PlaytestBuild, so the tutorial and the journey agree. The " +
+             "storyboard's prompt art says LEFT STICK; the build is the tie-breaker and " +
+             "the prompt strings in TutorialSceneBuilder_NEW were changed to match.")]
+    [SerializeField] TutorialInput_NEW.LookStick lookStick = TutorialInput_NEW.LookStick.Right;
 
     [Tooltip("Stick magnitude below this is ignored. PlaytestBuild scene value: 0.1.")]
     [SerializeField] float stickDeadband = 0.1f;

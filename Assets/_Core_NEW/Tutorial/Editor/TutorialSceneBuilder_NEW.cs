@@ -15,8 +15,31 @@ using UnityEngine.UI;
 /// _Core_NEW README already records what happens when scene layout is assembled by hand
 /// over time: it drifts, and nobody can see that it has.
 ///
-/// So this is the layout, in code, where it can be read and re-run. Running it twice is
-/// refused rather than duplicated — delete the [Tutorial] root and run it again.
+/// So this is the layout, in code, where it can be read and re-run.
+///
+/// OWNERSHIP — the rule that makes running it twice safe, and the one to keep if you
+/// extend this file. There are two menu items:
+///
+///   Build or Update             the normal one. Additive. It creates what is missing
+///                               and fills references that are empty, and it does not
+///                               touch anything that already exists. Run it after
+///                               pulling a change that adds a phase.
+///   Rebuild From Scratch        deletes the rig first, and says so in a dialog.
+///
+/// The split is by kind, not by field:
+///
+///   The builder owns EXISTENCE and WIRING — which objects are there, which gate points
+///   at which mote, which director the HUD listens to. A null reference is a gap, not a
+///   decision, usually because a later run added the thing it should point at, so those
+///   get filled and the fill is logged.
+///
+///   You own VALUES — transforms, tuned numbers, materials, extra children, hookups on
+///   the UnityEvents. Numbers are never written to a component that already existed,
+///   because there is no way to tell "nobody set this" from "somebody set it to exactly
+///   that".
+///
+/// Anything you add here has to hold that line: go through FindOrCreate / AddIfMissing /
+/// Wire, and guard direct property writes with IsFresh.
 ///
 /// WHAT IT REUSES. Everything visible comes from assets the project already has:
 ///
@@ -86,37 +109,76 @@ public static class TutorialSceneBuilder_NEW
     /// <summary>Behind. The storyboard's B3 is "third mote, behind".</summary>
     static readonly Vector3 MoteCPosition = new Vector3(-6f, 2f, -40f);
 
-    [MenuItem("Tools/Journey NEW/Build Tutorial Scene (Phase 0-1)", false, 40)]
-    public static void Build()
+    /// <summary>
+    /// True while this run is allowed to overwrite values on objects that already
+    /// existed. See the OWNERSHIP note at the top of the file.
+    /// </summary>
+    static bool _rebuilding;
+
+    /// <summary>Objects created by this run. Only these get their values written.</summary>
+    static readonly System.Collections.Generic.HashSet<int> _fresh =
+        new System.Collections.Generic.HashSet<int>();
+
+    static int _created;
+    static int _wired;
+
+    [MenuItem("Tools/Journey NEW/Tutorial/Build or Update", false, 40)]
+    public static void BuildOrUpdate()
     {
-        if (GameObject.Find(RootName) != null)
+        Run(false);
+    }
+
+    [MenuItem("Tools/Journey NEW/Tutorial/Rebuild From Scratch (deletes your edits)", false, 41)]
+    public static void RebuildFromScratch()
+    {
+        GameObject existing = GameObject.Find(RootName);
+
+        if (existing != null)
         {
-            EditorUtility.DisplayDialog(
-                "Tutorial rig already present",
-                "This scene already has a " + RootName + " root.\n\n" +
-                "Delete it and run the builder again for a clean rig. Building on top " +
-                "of the existing one would leave two directors fighting over the same beats.",
-                "OK");
-            return;
+            bool ok = EditorUtility.DisplayDialog(
+                "Delete the existing tutorial rig?",
+                "This deletes " + RootName + " and everything under it, including any " +
+                "positions, tuned values, materials, child objects and event hookups you " +
+                "or anyone else has changed by hand.\n\n" +
+                "Build or Update does the same job without destroying anything. Use this " +
+                "only when you actually want to start over.",
+                "Delete and rebuild", "Cancel");
+
+            if (!ok) return;
+
+            Undo.DestroyObjectImmediate(existing);
         }
 
-        Undo.SetCurrentGroupName("Build tutorial scene");
+        Run(true);
+    }
+
+    static void Run(bool rebuilding)
+    {
+        // A first build configures everything, including the scene's existing Main
+        // Camera. Only a run against a rig that is already there has to tread carefully.
+        _rebuilding = rebuilding || GameObject.Find(RootName) == null;
+
+        _fresh.Clear();
+        _created = 0;
+        _wired = 0;
+
+        Undo.SetCurrentGroupName(rebuilding ? "Rebuild tutorial scene" : "Build or update tutorial scene");
         int group = Undo.GetCurrentGroup();
 
-        GameObject root = NewObject(RootName, null, Vector3.zero);
+        GameObject root = FindOrCreate(RootName, null, Vector3.zero);
 
         // ── Environment ──────────────────────────────────────────────────────
         DimSceneLights();
 
         // ── Player ───────────────────────────────────────────────────────────
-        GameObject player = NewObject("Photon", root.transform, PlayerPosition);
+        GameObject player = FindOrCreate("Photon", root.transform, PlayerPosition);
         Camera camera = AcquireCamera(player.transform);
-        FirstPersonLookRig_NEW lookRig = Undo.AddComponent<FirstPersonLookRig_NEW>(camera.gameObject);
+        FirstPersonLookRig_NEW lookRig = AddIfMissing<FirstPersonLookRig_NEW>(camera.gameObject);
 
         ApplyPostProcessing(camera);
 
         // ── World ────────────────────────────────────────────────────────────
-        GameObject world = NewObject("World", root.transform, Vector3.zero);
+        GameObject world = FindOrCreate("World", root.transform, Vector3.zero);
 
         GameObject quasar = BuildQuasar(world.transform);
 
@@ -126,15 +188,18 @@ public static class TutorialSceneBuilder_NEW
         BuildPhotonTrail(player.transform);
 
         // Motes ride with the light. See MoteAPosition.
-        GameObject motes = NewObject("Motes", player.transform, PlayerPosition);
+        GameObject motes = FindOrCreate("Motes", player.transform, PlayerPosition);
 
         GameObject moteA = Mote("Mote_A3_B1", motes.transform, MoteAPosition, Vector3.right, lookRig);
 
+        // B2 and B3 reveal their own motes, so these start off — but only if this run
+        // made them. Re-hiding a mote somebody switched on to look at is not the
+        // builder's business.
         GameObject moteB = Mote("Mote_B2", motes.transform, MoteBPosition, Vector3.up, lookRig);
-        moteB.SetActive(false);
+        if (IsFresh(moteB)) moteB.SetActive(false);
 
         GameObject moteC = Mote("Mote_B3", motes.transform, MoteCPosition, Vector3.left, lookRig);
-        moteC.SetActive(false);
+        if (IsFresh(moteC)) moteC.SetActive(false);
 
         // ── HUD ──────────────────────────────────────────────────────────────
         GameObject canvas = BuildCanvas(root.transform);
@@ -149,28 +214,35 @@ public static class TutorialSceneBuilder_NEW
         GameObject prompt = BuildConfirmPrompt(canvas.transform);
         GameObject card = BuildAttractCard(canvas.transform);
 
-        reticle.SetActive(false);
-        legend.SetActive(false);
-        hint.SetActive(false);
-        prompt.SetActive(false);
+        if (IsFresh(reticle)) reticle.SetActive(false);
+        if (IsFresh(legend)) legend.SetActive(false);
+        if (IsFresh(hint)) hint.SetActive(false);
+        if (IsFresh(prompt)) prompt.SetActive(false);
 
         // ── Director and beats ───────────────────────────────────────────────
-        GameObject directorObject = NewObject("Director", root.transform, Vector3.zero);
-        TutorialDirector_NEW director = Undo.AddComponent<TutorialDirector_NEW>(directorObject);
+        GameObject directorObject = FindOrCreate("Director", root.transform, Vector3.zero);
+        TutorialDirector_NEW director = AddIfMissing<TutorialDirector_NEW>(directorObject);
 
-        GameObject beats = NewObject("Beats", directorObject.transform, Vector3.zero);
+        GameObject beats = FindOrCreate("Beats", directorObject.transform, Vector3.zero);
+
+        // ── Phase 2 rig ──────────────────────────────────────────────────────
+        GameObject flashObject = BuildFlash(canvas.transform);
+        TutorialCameraShake_NEW shake = AddIfMissing<TutorialCameraShake_NEW>(camera.gameObject);
+        TutorialEmission_NEW emission = BuildEmission(player, lookRig, shake,
+                                                      flashObject.GetComponent<TutorialFlash_NEW>());
 
         BuildPhase0(beats.transform, moteA);
         BuildPhase1(beats.transform, lookRig, moteA, moteB, moteC);
+        BuildPhase2(beats.transform, lookRig, quasar, emission);
 
         // ── HUD and attract components ───────────────────────────────────────
-        TutorialHUD_NEW hud = Undo.AddComponent<TutorialHUD_NEW>(canvas);
+        TutorialHUD_NEW hud = AddIfMissing<TutorialHUD_NEW>(canvas);
         WireHud(hud, director, legend, reticle, hint, prompt);
 
-        TutorialAttract_NEW attract = Undo.AddComponent<TutorialAttract_NEW>(canvas);
+        TutorialAttract_NEW attract = AddIfMissing<TutorialAttract_NEW>(canvas);
         WireAttract(attract, director, card, lookRig, player.GetComponent<TutorialTravel_NEW>());
 
-        TutorialFadeIn_NEW fade = Undo.AddComponent<TutorialFadeIn_NEW>(blackout);
+        TutorialFadeIn_NEW fade = AddIfMissing<TutorialFadeIn_NEW>(blackout);
         Wire(fade)
             .Ref("director", director)
             .Ref("blackout", blackout.GetComponent<Image>())
@@ -181,9 +253,17 @@ public static class TutorialSceneBuilder_NEW
         UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(root.scene);
         Selection.activeGameObject = root;
 
-        Debug.Log("[TutorialSceneBuilder_NEW] Phase 0-1 rig built. " +
-                  "Press Play: the title card waits for A, then A1 runs. " +
-                  "F2 skips a beat while the debug overlay is on.", root);
+        if (_rebuilding)
+            Debug.Log("[TutorialSceneBuilder_NEW] Tutorial rig built, Phase 0 to 2 (A1-C5). " +
+                      "Press Play: the title card waits for A, then A1 runs. " +
+                      "F2 skips a beat while the debug overlay is on.", root);
+        else if (_created == 0 && _wired == 0)
+            Debug.Log("[TutorialSceneBuilder_NEW] Nothing to do — the rig is already complete. " +
+                      "Your edits were not touched.", root);
+        else
+            Debug.Log("[TutorialSceneBuilder_NEW] Updated: " + _created + " object(s) or " +
+                      "component(s) added, " + _wired + " reference(s) filled. Everything " +
+                      "that already existed was left as it was.", root);
     }
 
     // ── Environment ──────────────────────────────────────────────────────────
@@ -204,6 +284,9 @@ public static class TutorialSceneBuilder_NEW
     /// </summary>
     static void ApplyPostProcessing(Camera camera)
     {
+        // Already set up by an earlier run, and possibly retuned since. Leave it.
+        if (camera.GetComponent<PostProcessLayer>() != null && !_rebuilding) return;
+
         int layer = LayerMask.NameToLayer(TutorialWorldAssets_NEW.PostProcessLayerName);
 
         if (layer < 0)
@@ -217,7 +300,7 @@ public static class TutorialSceneBuilder_NEW
         Undo.RecordObject(camera.gameObject, "Set camera layer");
         camera.gameObject.layer = layer;
 
-        PostProcessVolume volume = Undo.AddComponent<PostProcessVolume>(camera.gameObject);
+        PostProcessVolume volume = AddIfMissing<PostProcessVolume>(camera.gameObject);
         volume.isGlobal = true;
         volume.weight = 1f;
         volume.priority = 0f;
@@ -230,7 +313,7 @@ public static class TutorialSceneBuilder_NEW
                               "profile at " + TutorialWorldAssets_NEW.PostProcessProfilePath +
                               ". The layer is set up but has no grade.");
 
-        PostProcessLayer ppLayer = Undo.AddComponent<PostProcessLayer>(camera.gameObject);
+        PostProcessLayer ppLayer = AddIfMissing<PostProcessLayer>(camera.gameObject);
         ppLayer.volumeTrigger = camera.transform;
         ppLayer.volumeLayer = 1 << layer;
         ppLayer.stopNaNPropagation = true;
@@ -282,6 +365,8 @@ public static class TutorialSceneBuilder_NEW
     static GameObject BuildQuasar(Transform parent)
     {
         GameObject go = Primitive("Quasar", parent, QuasarPosition, QuasarScale);
+        if (!IsFresh(go)) return go;
+
         go.transform.rotation = Quaternion.Euler(QuasarEuler);
 
         Material material = TutorialWorldAssets_NEW.BlazingQuasar;
@@ -305,7 +390,7 @@ public static class TutorialSceneBuilder_NEW
     /// </summary>
     static void BuildTravel(GameObject player, Transform quasar, FirstPersonLookRig_NEW lookRig)
     {
-        TutorialTravel_NEW travel = Undo.AddComponent<TutorialTravel_NEW>(player);
+        TutorialTravel_NEW travel = AddIfMissing<TutorialTravel_NEW>(player);
 
         Wire(travel)
             .Ref("destination", quasar)
@@ -333,9 +418,11 @@ public static class TutorialSceneBuilder_NEW
         Material material = TutorialWorldAssets_NEW.DiscDustMaterial();
         if (material == null) return;
 
-        GameObject go = NewObject("Dust", parent, parent.position);
+        GameObject go = FindOrCreate("Dust", parent, parent.position);
+        if (!IsFresh(go)) return;
 
-        ParticleSystem ps = Undo.AddComponent<ParticleSystem>(go);
+
+        ParticleSystem ps = AddIfMissing<ParticleSystem>(go);
 
         ParticleSystem.MainModule main = ps.main;
         main.duration = 20f;
@@ -427,9 +514,11 @@ public static class TutorialSceneBuilder_NEW
         Material material = TutorialWorldAssets_NEW.DiscDustMaterial();
         if (material == null) return;
 
-        GameObject go = NewObject("Streaks", parent, parent.position);
+        GameObject go = FindOrCreate("Streaks", parent, parent.position);
+        if (!IsFresh(go)) return;
 
-        ParticleSystem ps = Undo.AddComponent<ParticleSystem>(go);
+
+        ParticleSystem ps = AddIfMissing<ParticleSystem>(go);
 
         ParticleSystem.MainModule main = ps.main;
         main.duration = 5f;
@@ -482,7 +571,7 @@ public static class TutorialSceneBuilder_NEW
         }
 
         // Velocity comes from TutorialTravel_NEW, not from a second copy of the number.
-        Undo.AddComponent<TutorialSpeedStreaks_NEW>(go);
+        AddIfMissing<TutorialSpeedStreaks_NEW>(go);
     }
 
     /// <summary>
@@ -496,7 +585,9 @@ public static class TutorialSceneBuilder_NEW
     /// </summary>
     static void BuildPhotonTrail(Transform player)
     {
-        GameObject go = NewObject("Trail", player, player.position);
+        GameObject go = FindOrCreate("Trail", player, player.position);
+        if (!IsFresh(go)) return;
+
 
         // Offset below the eye rather than at it. A ribbon emitted from the exact camera
         // position starts inside the near plane, so the newest segment fills the screen
@@ -504,7 +595,7 @@ public static class TutorialSceneBuilder_NEW
         // here it stays out of the forward view and reads properly on the look back.
         go.transform.localPosition = new Vector3(0f, -1.2f, 0f);
 
-        TrailRenderer trail = Undo.AddComponent<TrailRenderer>(go);
+        TrailRenderer trail = AddIfMissing<TrailRenderer>(go);
         trail.time = 6f;
         trail.widthMultiplier = 0.35f;
         trail.minVertexDistance = 0.05f;
@@ -517,7 +608,7 @@ public static class TutorialSceneBuilder_NEW
 
         // PhotonSpectrumTrail has [RequireComponent(typeof(TrailRenderer))], so the
         // TrailRenderer above must already be on the object.
-        Undo.AddComponent<PhotonSpectrumTrail>(go);
+        AddIfMissing<PhotonSpectrumTrail>(go);
 
         // Off at the start. The player has no trail in Phase 0–1: the piece opens on a
         // camera and a distant quasar and nothing else, and the light's own spectrum is
@@ -535,7 +626,7 @@ public static class TutorialSceneBuilder_NEW
             .Str("beatId", "A1")
             .Str("description", "Near black. Dark red matter drifts in slow rotation deep in frame.")
             .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
-            .Str("hintText", "LEFT STICK  ·  LOOK AROUND")
+            .Str("hintText", "RIGHT STICK  ·  LOOK AROUND")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
             .Num("duration", 8f)
             .Apply();
@@ -571,7 +662,7 @@ public static class TutorialSceneBuilder_NEW
             .Str("beatId", "B1")
             .Str("description", "Player turns right, catches the mote, it blooms into a ripple.")
             .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
-            .Str("hintText", "LEFT STICK  ·  LOOK RIGHT")
+            .Str("hintText", "RIGHT STICK  ·  LOOK RIGHT")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
             .Ref("target", moteA.transform)
             .Ref("mote", moteA.GetComponent<GuideMote_NEW>())
@@ -594,7 +685,7 @@ public static class TutorialSceneBuilder_NEW
             .Str("description", "The mote passes overhead. Looking up reveals the jet channel " +
                                 "running into the dark, which is the direction of travel.")
             .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
-            .Str("hintText", "LEFT STICK  ·  LOOK UP")
+            .Str("hintText", "RIGHT STICK  ·  LOOK UP")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
             .Ref("target", moteB.transform)
             .Ref("mote", moteB.GetComponent<GuideMote_NEW>())
@@ -611,7 +702,7 @@ public static class TutorialSceneBuilder_NEW
             .Str("description", "Third mote, behind. Turning around, the player sees what they " +
                                 "are travelling away from. Spatial orientation lands here. Protect it.")
             .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
-            .Str("hintText", "LEFT STICK  ·  TURN AROUND")
+            .Str("hintText", "RIGHT STICK  ·  TURN AROUND")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
             .Ref("disc", moteC.transform)
             .Ref("lookRig", lookRig)
@@ -641,23 +732,174 @@ public static class TutorialSceneBuilder_NEW
         AddActivateOnEnter(b3, moteC, true);
     }
 
-    // ── Object helpers ───────────────────────────────────────────────────────
-
-    static T Beat<T>(Transform parent, string name) where T : TutorialBeat_NEW
+    /// <summary>
+    /// Phase 2 — Emission. C1 to C5, 1:00 to 1:50.
+    ///
+    /// No new beat types. C1 and C3 are cinematic runs, C2 and C5 are confirm beats and
+    /// C4 is a look-at with the quasar as its target — the same four components Phase 1
+    /// uses. What is new is TutorialEmission_NEW, wired to the beats' UnityEvents, which
+    /// owns the things a gate cannot express: the speed ramp, the jitter, the course
+    /// reversal and the trail switching on.
+    ///
+    /// The quasar is the C4 target, and by then the player has been flying away from it
+    /// since C3, so "turning around, the quasar is already a single bright point" is
+    /// literally what is on screen.
+    /// </summary>
+    static void BuildPhase2(Transform parent, FirstPersonLookRig_NEW lookRig,
+                            GameObject quasar, TutorialEmission_NEW emission)
     {
-        GameObject go = NewObject(name, parent, Vector3.zero);
-        return Undo.AddComponent<T>(go);
+        Beat_Cinematic_NEW c1 = Beat<Beat_Cinematic_NEW>(parent, "C1");
+        Wire(c1)
+            .Str("beatId", "C1")
+            .Str("description", "Spin-up. The disc accelerates, matter stretches into streaks, " +
+                                "brightness and noise rise, audio swells.")
+            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Clear)
+            .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
+            .Num("duration", 12f)
+            .Apply();
+
+        Beat_Confirm_NEW c2 = Beat<Beat_Confirm_NEW>(parent, "C2");
+        Wire(c2)
+            .Str("beatId", "C2")
+            .Str("description", "Threshold. Near blow-out white with high frequency frame jitter. " +
+                                "A single A prompt pulses at centre.")
+            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
+            .Str("hintText", "A  TO  EMIT")
+            .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
+            .Ref("lookRig", lookRig)
+            .Str("promptText", "EMIT")
+            // A means emit here, not recentre. Beat_Confirm_NEW switches the rig's
+            // binding off for the duration and hands it back on exit.
+            .Flag("recentreOnPress", false)
+            .Apply();
+
+        Beat_Cinematic_NEW c3 = Beat<Beat_Cinematic_NEW>(parent, "C3");
+        Wire(c3)
+            .Str("beatId", "C3")
+            .Str("description", "Emission. One white frame, then a hard speed tunnel with matter " +
+                                "streaking backwards. CRITICAL: the camera does not lock here — " +
+                                "the old build did and playtesters read it as a bug.")
+            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Clear)
+            .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
+            .Num("duration", 8f)
+            .Apply();
+
+        Beat_LookAt_NEW c4 = Beat<Beat_LookAt_NEW>(parent, "C4");
+        Wire(c4)
+            .Str("beatId", "C4")
+            .Str("description", "Look back. Speed settles. Turning around, the quasar is already " +
+                                "a single bright point. Reuses the B1 lesson with no new control.")
+            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
+            .Str("hintText", "RIGHT STICK  ·  LOOK BACK")
+            .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
+            .Ref("target", quasar.transform)
+            .Ref("lookRig", lookRig)
+            .Num("reticleHalfAngle", 18f)
+            .Flag("activateTargetOnEnter", false)
+            .Apply();
+
+        Beat_Confirm_NEW c5 = Beat<Beat_Confirm_NEW>(parent, "C5");
+        Wire(c5)
+            .Str("beatId", "C5")
+            .Str("description", "Orient forward. Facing forward again: empty dark, with very " +
+                                "faint filaments a long way ahead.")
+            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
+            .Str("hintText", "A  TO  RECENTRE")
+            .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
+            .Ref("lookRig", lookRig)
+            .Str("promptText", "RECENTRE")
+            .Flag("recentreOnPress", true)
+            // C5's gate is "view recentred on the forward axis", so this one does wait
+            // for the lerp rather than being satisfied on the press.
+            .Flag("waitForRecentre", true)
+            .Apply();
+
+        if (emission == null) return;
+
+        AddEmissionCall(c1, emission, "BeginSpinUp");
+        AddEmissionCall(c2, emission, "BeginThreshold");
+        AddEmissionCall(c3, emission, "Emit");
     }
 
-    static GameObject NewObject(string name, Transform parent, Vector3 position)
+    // ── Object helpers ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The beat object for this storyboard frame, created if it is not there yet.
+    ///
+    /// Beats are children of the director and run in Hierarchy order, so a new phase
+    /// appended by a later run lands after the existing ones — which is the storyboard
+    /// order, because the storyboard runs A then B then C. Reordering after the fact is
+    /// a drag in the Hierarchy and the builder will not undo it.
+    /// </summary>
+    static T Beat<T>(Transform parent, string name) where T : TutorialBeat_NEW
     {
+        GameObject go = FindOrCreate(name, parent, Vector3.zero);
+        return AddIfMissing<T>(go);
+    }
+
+    // ── Find or create ───────────────────────────────────────────────────────
+    //
+    // Everything the builder makes goes through these three, and they are what make a
+    // second run safe. An object that is already there is returned untouched; only
+    // objects this run created are marked fresh, and only fresh things get configured.
+
+    /// <summary>
+    /// The named child of `parent`, or a new one. Matching is by name and parent, which
+    /// is why every object the builder makes has a fixed name.
+    /// </summary>
+    static GameObject FindOrCreate(string name, Transform parent, Vector3 position)
+    {
+        GameObject existing = parent != null ? FindChild(parent, name) : FindSceneRoot(name);
+        if (existing != null) return existing;
+
         GameObject go = new GameObject(name);
         Undo.RegisterCreatedObjectUndo(go, "Create " + name);
 
         if (parent != null) go.transform.SetParent(parent, false);
         go.transform.position = position;
 
+        MarkFresh(go);
         return go;
+    }
+
+    static GameObject FindChild(Transform parent, string name)
+    {
+        Transform t = parent.Find(name);
+        return t != null ? t.gameObject : null;
+    }
+
+    static GameObject FindSceneRoot(string name)
+    {
+        return GameObject.Find(name);
+    }
+
+    /// <summary>Add the component only if the object does not already have one.</summary>
+    static T AddIfMissing<T>(GameObject go) where T : Component
+    {
+        T existing = go.GetComponent<T>();
+        if (existing != null) return existing;
+
+        T added = AddIfMissing<T>(go);
+        MarkFresh(added);
+        return added;
+    }
+
+    static void MarkFresh(Object o)
+    {
+        if (o == null) return;
+
+        _fresh.Add(o.GetInstanceID());
+        _created++;
+    }
+
+    /// <summary>
+    /// Did this run create it? Anything older is somebody's work and stays as it is.
+    /// A rebuild treats everything as fresh, because a rebuild deleted the old rig first.
+    /// </summary>
+    static bool IsFresh(Object o)
+    {
+        if (_rebuilding) return true;
+        return o != null && _fresh.Contains(o.GetInstanceID());
     }
 
     /// <summary>
@@ -680,12 +922,16 @@ public static class TutorialSceneBuilder_NEW
         }
         else
         {
-            GameObject go = NewObject("Camera", parent, parent.position);
+            GameObject go = FindOrCreate("Camera", parent, parent.position);
             go.tag = "MainCamera";
 
-            camera = Undo.AddComponent<Camera>(go);
-            Undo.AddComponent<AudioListener>(go);
+            camera = AddIfMissing<Camera>(go);
+            AddIfMissing<AudioListener>(go);
         }
+
+        // Only on a fresh build. FOV and clip planes are exactly the kind of thing
+        // somebody retunes, and a second run should not put them back.
+        if (!_rebuilding) return camera;
 
         Undo.RecordObject(camera, "Configure camera");
 
@@ -705,8 +951,12 @@ public static class TutorialSceneBuilder_NEW
 
     static GameObject Primitive(string name, Transform parent, Vector3 position, Vector3 scale)
     {
+        GameObject existing = FindChild(parent, name);
+        if (existing != null) return existing;
+
         GameObject go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         Undo.RegisterCreatedObjectUndo(go, "Create " + name);
+        MarkFresh(go);
 
         go.name = name;
         go.transform.SetParent(parent, false);
@@ -725,6 +975,8 @@ public static class TutorialSceneBuilder_NEW
                            FirstPersonLookRig_NEW lookRig)
     {
         GameObject go = Primitive(name, parent, position, Vector3.one * 0.5f);
+        if (!IsFresh(go)) return go;
+
 
         Material material = TutorialWorldAssets_NEW.MoteMaterial();
         MeshRenderer renderer = go.GetComponent<MeshRenderer>();
@@ -736,14 +988,14 @@ public static class TutorialSceneBuilder_NEW
             renderer.receiveShadows = false;
         }
 
-        GameObject lightObject = NewObject("Light", go.transform, position);
-        Light light = Undo.AddComponent<Light>(lightObject);
+        GameObject lightObject = FindOrCreate("Light", go.transform, position);
+        Light light = AddIfMissing<Light>(lightObject);
         light.type = LightType.Point;
         light.range = 18f;
         light.intensity = 0.6f;
         light.color = new Color(1f, 0.92f, 0.72f);
 
-        GuideMote_NEW mote = Undo.AddComponent<GuideMote_NEW>(go);
+        GuideMote_NEW mote = AddIfMissing<GuideMote_NEW>(go);
         Wire(mote)
             .Vec("driftDirection", drift)
             .Ref("moteLight", light)
@@ -757,12 +1009,12 @@ public static class TutorialSceneBuilder_NEW
 
     static GameObject BuildCanvas(Transform parent)
     {
-        GameObject go = NewObject("HUD", parent, Vector3.zero);
+        GameObject go = FindOrCreate("HUD", parent, Vector3.zero);
 
-        Canvas canvas = Undo.AddComponent<Canvas>(go);
+        Canvas canvas = AddIfMissing<Canvas>(go);
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
 
-        CanvasScaler scaler = Undo.AddComponent<CanvasScaler>(go);
+        CanvasScaler scaler = AddIfMissing<CanvasScaler>(go);
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920f, 1080f);
 
@@ -771,7 +1023,72 @@ public static class TutorialSceneBuilder_NEW
         scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
         scaler.matchWidthOrHeight = 1f;
 
-        Undo.AddComponent<GraphicRaycaster>(go);
+        AddIfMissing<GraphicRaycaster>(go);
+
+        return go;
+    }
+
+    /// <summary>
+    /// The emission sequencer, on the player next to the travel it drives.
+    ///
+    /// The photon trail reference is what switches the light on at C3, so it is wired
+    /// here rather than left for somebody to find — it is the single most forgettable
+    /// connection in Phase 2 and its failure mode is silent.
+    /// </summary>
+    static TutorialEmission_NEW BuildEmission(GameObject player, FirstPersonLookRig_NEW lookRig,
+                                              TutorialCameraShake_NEW shake, TutorialFlash_NEW flash)
+    {
+        TutorialEmission_NEW emission = AddIfMissing<TutorialEmission_NEW>(player);
+
+        Transform trail = player.transform.Find("Trail");
+
+        Wire(emission)
+            .Ref("travel", player.GetComponent<TutorialTravel_NEW>())
+            .Ref("lookRig", lookRig)
+            .Ref("shake", shake)
+            .Ref("flash", flash)
+            .Ref("photonTrail", trail != null ? trail.gameObject : null)
+            .Apply();
+
+        return emission;
+    }
+
+    /// <summary>
+    /// Full-screen white flash, above the blackout and below the readable HUD.
+    ///
+    /// Above the blackout because the emission happens long after the opening fade has
+    /// finished, and below the prompts because a flash that hides the A prompt during
+    /// C2 would hide the one thing C2 is asking for.
+    /// </summary>
+    static GameObject BuildFlash(Transform canvas)
+    {
+        GameObject go = FindOrCreate("Flash", canvas, Vector3.zero);
+
+        if (IsFresh(go))
+        {
+            RectTransform rect = go.GetComponent<RectTransform>();
+            if (rect == null) rect = Undo.AddComponent<RectTransform>(go);
+
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+
+            // Straight after Blackout, so it is behind every prompt.
+            go.transform.SetSiblingIndex(1);
+        }
+
+        Image image = AddIfMissing<Image>(go);
+
+        if (IsFresh(image))
+        {
+            image.color = new Color(1f, 1f, 1f, 0f);
+            image.raycastTarget = false;
+            image.enabled = false;
+        }
+
+        TutorialFlash_NEW flash = AddIfMissing<TutorialFlash_NEW>(go);
+        Wire(flash).Ref("screen", image).Apply();
 
         return go;
     }
@@ -790,7 +1107,7 @@ public static class TutorialSceneBuilder_NEW
         rect.offsetMin = Vector2.zero;
         rect.offsetMax = Vector2.zero;
 
-        Image image = Undo.AddComponent<Image>(go);
+        Image image = AddIfMissing<Image>(go);
         image.color = Color.black;
         image.raycastTarget = false;
 
@@ -806,7 +1123,7 @@ public static class TutorialSceneBuilder_NEW
     {
         GameObject go = UIObject("Reticle", canvas, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(34f, 34f));
 
-        Image image = Undo.AddComponent<Image>(go);
+        Image image = AddIfMissing<Image>(go);
         image.sprite = TutorialWorldAssets_NEW.RingSprite();
         image.color = new Color(1f, 1f, 1f, 0.42f);
         image.raycastTarget = false;
@@ -818,9 +1135,9 @@ public static class TutorialSceneBuilder_NEW
     {
         GameObject go = UIObject("Legend", canvas, new Vector2(0.5f, 0f), new Vector2(0f, 46f), new Vector2(1200f, 34f));
 
-        Undo.AddComponent<CanvasGroup>(go);
+        AddIfMissing<CanvasGroup>(go);
 
-        Text text = AddText(go, "STICK = LOOK      A = CONFIRM / RECENTRE", 22, TextAnchor.MiddleCenter);
+        Text text = AddText(go, "RIGHT STICK = LOOK      A = CONFIRM / RECENTRE", 22, TextAnchor.MiddleCenter);
 
         // Quiet. This is a reference card that never leaves, not an instruction — it has
         // to survive being on screen for the whole piece without competing with it.
@@ -841,14 +1158,14 @@ public static class TutorialSceneBuilder_NEW
     {
         GameObject go = UIObject("Hint", canvas, new Vector2(0.5f, 0f), new Vector2(0f, 250f), new Vector2(620f, 76f));
 
-        Undo.AddComponent<CanvasGroup>(go);
+        AddIfMissing<CanvasGroup>(go);
         AddChipBackground(go, 0.55f);
 
         GameObject label = UIObject("Label", go.transform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(600f, 60f));
         // Placeholder only: TutorialHUD_NEW writes the running beat's hintText over this
         // before the line is ever shown. It is here so the object reads correctly in the
         // Scene view rather than as an empty rect.
-        AddText(label, "LEFT STICK  ·  LOOK AROUND", 34, TextAnchor.MiddleCenter);
+        AddText(label, "RIGHT STICK  ·  LOOK AROUND", 34, TextAnchor.MiddleCenter);
 
         return go;
     }
@@ -866,13 +1183,13 @@ public static class TutorialSceneBuilder_NEW
         // GDD B4: the A prompt appears at the lower edge.
         GameObject go = UIObject("ConfirmPrompt", canvas, new Vector2(0.5f, 0f), new Vector2(0f, 140f), new Vector2(460f, 84f));
 
-        Undo.AddComponent<CanvasGroup>(go);
+        AddIfMissing<CanvasGroup>(go);
         AddChipBackground(go, 0.55f);
 
         // Button glyph, left of centre.
         GameObject glyph = UIObject("Glyph", go.transform, new Vector2(0.5f, 0.5f), new Vector2(-150f, 0f), new Vector2(52f, 52f));
 
-        Image disc = Undo.AddComponent<Image>(glyph);
+        Image disc = AddIfMissing<Image>(glyph);
         disc.sprite = TutorialWorldAssets_NEW.DiscSprite();
         disc.color = new Color(1f, 1f, 1f, 0.92f);
         disc.raycastTarget = false;
@@ -903,7 +1220,7 @@ public static class TutorialSceneBuilder_NEW
         rect.offsetMin = Vector2.zero;
         rect.offsetMax = Vector2.zero;
 
-        Image image = Undo.AddComponent<Image>(go);
+        Image image = AddIfMissing<Image>(go);
         image.sprite = TutorialWorldAssets_NEW.ChipSprite();
         image.type = Image.Type.Sliced;
         image.color = new Color(0.02f, 0.02f, 0.04f, alpha);
@@ -913,7 +1230,7 @@ public static class TutorialSceneBuilder_NEW
     static GameObject BuildAttractCard(Transform canvas)
     {
         GameObject go = UIObject("AttractCard", canvas, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1400f, 400f));
-        Undo.AddComponent<CanvasGroup>(go);
+        AddIfMissing<CanvasGroup>(go);
 
         GameObject titleObject = UIObject("Title", go.transform, new Vector2(0.5f, 0.5f), new Vector2(0f, 40f), new Vector2(1400f, 120f));
         AddText(titleObject, "THE JOURNEY OF LIGHT", 72, TextAnchor.MiddleCenter);
@@ -926,8 +1243,12 @@ public static class TutorialSceneBuilder_NEW
 
     static GameObject UIObject(string name, Transform parent, Vector2 anchor, Vector2 offset, Vector2 size)
     {
+        GameObject existing = FindChild(parent, name);
+        if (existing != null) return existing;
+
         GameObject go = new GameObject(name, typeof(RectTransform));
         Undo.RegisterCreatedObjectUndo(go, "Create " + name);
+        MarkFresh(go);
 
         go.transform.SetParent(parent, false);
 
@@ -943,7 +1264,7 @@ public static class TutorialSceneBuilder_NEW
 
     static Text AddText(GameObject go, string content, int size, TextAnchor anchor)
     {
-        Text text = Undo.AddComponent<Text>(go);
+        Text text = AddIfMissing<Text>(go);
 
         text.text = content;
         text.fontSize = size;
@@ -1013,10 +1334,53 @@ public static class TutorialSceneBuilder_NEW
     static void AddActivateOnEnter(TutorialBeat_NEW beat, GameObject target, bool active)
     {
         UnityEvent onEnter = GetEvent(beat, "onEnter");
-        if (onEnter == null) return;
+        if (onEnter == null || HasListenerFor(onEnter, target)) return;
 
         UnityEventTools.AddBoolPersistentListener(onEnter, new UnityAction<bool>(target.SetActive), active);
         EditorUtility.SetDirty(beat);
+    }
+
+    /// <summary>
+    /// Call a method on TutorialEmission_NEW when this beat opens.
+    ///
+    /// A persistent listener rather than a hard reference from the beat, so the whole
+    /// Phase 2 sequence is readable in the Inspector: open C3 and its onEnter says
+    /// "TutorialEmission_NEW.Emit". Somebody retiming the emission changes it there
+    /// without opening this file.
+    /// </summary>
+    static void AddEmissionCall(TutorialBeat_NEW beat, TutorialEmission_NEW emission, string method)
+    {
+        UnityEvent onEnter = GetEvent(beat, "onEnter");
+        if (onEnter == null || HasListenerFor(onEnter, emission)) return;
+
+        UnityAction call = System.Delegate.CreateDelegate(typeof(UnityAction), emission, method, false, false)
+                           as UnityAction;
+
+        if (call == null)
+        {
+            Debug.LogWarning("[TutorialSceneBuilder_NEW] TutorialEmission_NEW has no method '" +
+                             method + "'. " + beat.name + " will not drive the emission.", beat);
+            return;
+        }
+
+        UnityEventTools.AddPersistentListener(onEnter, call);
+        EditorUtility.SetDirty(beat);
+    }
+
+    /// <summary>
+    /// Is this event already calling something on that object?
+    ///
+    /// Without this, every Build or Update run would add another copy of the same
+    /// listener and C3 would emit four times. Matching on the target rather than the
+    /// method is deliberate: a listener somebody repointed at a different method on the
+    /// same component is a decision, and re-adding ours next to it would be an argument.
+    /// </summary>
+    static bool HasListenerFor(UnityEventBase e, Object target)
+    {
+        for (int i = 0; i < e.GetPersistentEventCount(); i++)
+            if (e.GetPersistentTarget(i) == target) return true;
+
+        return false;
     }
 
     /// <summary>
@@ -1086,28 +1450,60 @@ public static class TutorialSceneBuilder_NEW
         readonly SerializedObject _so;
         readonly string _name;
 
+        /// <summary>
+        /// False when the component already existed before this run. Values are then
+        /// left alone and only empty references are filled — see the OWNERSHIP note.
+        /// </summary>
+        readonly bool _fresh;
+
         public Wiring(Object target)
         {
             _so = new SerializedObject(target);
             _name = target != null ? target.GetType().Name : "(null)";
+            _fresh = IsFresh(target);
         }
 
+        /// <summary>
+        /// Object references are filled when empty even on an existing component.
+        /// A null reference is not a decision, it is a gap — usually because a later
+        /// run added the thing it should point at. Anything already pointing somewhere
+        /// is left alone.
+        /// </summary>
         public Wiring Ref(string path, Object value)
         {
             SerializedProperty p = Find(path);
-            if (p != null) p.objectReferenceValue = value;
+            if (p == null) return this;
+
+            if (!_fresh && p.objectReferenceValue != null) return this;
+            if (p.objectReferenceValue == value) return this;
+
+            p.objectReferenceValue = value;
+            Note(path);
             return this;
         }
 
+        /// <summary>Strings are filled when empty, on the same reasoning as Ref.</summary>
         public Wiring Str(string path, string value)
         {
             SerializedProperty p = Find(path);
-            if (p != null) p.stringValue = value;
+            if (p == null) return this;
+
+            if (!_fresh && !string.IsNullOrEmpty(p.stringValue)) return this;
+            if (p.stringValue == value) return this;
+
+            p.stringValue = value;
+            Note(path);
             return this;
         }
 
+        // Numbers, flags, enums and vectors are never written to an existing component.
+        // There is no way to tell "nobody set this" from "somebody set it to exactly
+        // that", so the only safe answer is to leave it.
+
         public Wiring Num(string path, float value)
         {
+            if (!_fresh) return this;
+
             SerializedProperty p = Find(path);
             if (p != null) p.floatValue = value;
             return this;
@@ -1115,6 +1511,8 @@ public static class TutorialSceneBuilder_NEW
 
         public Wiring Flag(string path, bool value)
         {
+            if (!_fresh) return this;
+
             SerializedProperty p = Find(path);
             if (p != null) p.boolValue = value;
             return this;
@@ -1122,6 +1520,8 @@ public static class TutorialSceneBuilder_NEW
 
         public Wiring Enum(string path, int value)
         {
+            if (!_fresh) return this;
+
             SerializedProperty p = Find(path);
             if (p != null) p.enumValueIndex = value;
             return this;
@@ -1129,6 +1529,8 @@ public static class TutorialSceneBuilder_NEW
 
         public Wiring Vec(string path, Vector3 value)
         {
+            if (!_fresh) return this;
+
             SerializedProperty p = Find(path);
             if (p != null) p.vector3Value = value;
             return this;
@@ -1137,6 +1539,16 @@ public static class TutorialSceneBuilder_NEW
         public void Apply()
         {
             _so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>
+        /// Report every write into something that already existed, so a second run is
+        /// never a silent edit of somebody's scene.
+        /// </summary>
+        void Note(string path)
+        {
+            _wired++;
+            if (!_fresh) Debug.Log("[TutorialSceneBuilder_NEW] Filled empty " + _name + "." + path + ".");
         }
 
         SerializedProperty Find(string path)

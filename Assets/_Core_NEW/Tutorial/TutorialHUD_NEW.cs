@@ -10,13 +10,12 @@ using UnityEngine.UI;
 ///
 /// Four elements exist in Phase 0–1:
 ///
-///   1. Control hint      "LEFT STICK · LOOK". First seen at A1, because the piece
-///                        should tell a walk-up visitor they can move the view before
-///                        it asks them to. That is a deliberate departure from GDD §7,
-///                        which puts the first prompt at B1 and wants nothing on screen
-///                        before it. Empty hintText on a later beat means "no change",
-///                        which is what the storyboard's "No new prompt" on B2 and B3
-///                        asks for.
+///   1. Control hint      What to do right now, e.g. "RIGHT STICK · LOOK UP". First seen
+///                        at A1, because the piece should tell a walk-up visitor they can
+///                        move the view before it asks them to — a deliberate departure
+///                        from GDD §7, which puts the first prompt at B1. Every gated
+///                        beat then rewrites it through HintMode, so the line always
+///                        states the current ask rather than the first one.
 ///   2. Control legend    First seen at B1 and never dismissed. It persists past the
 ///                        end of the tutorial into Phase −1, so there is deliberately
 ///                        no code path that hides it again.
@@ -50,7 +49,7 @@ public class TutorialHUD_NEW : MonoBehaviour
     [SerializeField] Text legendText;
 
     [Tooltip("GDD §4 gives this string verbatim.")]
-    [SerializeField] string legendContent = "STICK = LOOK      A = CONFIRM / RECENTRE";
+    [SerializeField] string legendContent = "RIGHT STICK = LOOK      A = CONFIRM / RECENTRE";
 
     [Tooltip("Beat at which the legend arrives and stays. GDD §7 says B1.")]
     [SerializeField] string legendFirstBeatId = "B1";
