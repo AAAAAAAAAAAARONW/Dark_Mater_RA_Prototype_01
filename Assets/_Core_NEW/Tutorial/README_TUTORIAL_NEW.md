@@ -2,7 +2,7 @@
 
 实现 [Tutorial GDD — Journey of Light](https://bird-tune-e6c.notion.site/Tutorial-GDD-Journey-of-Light-3d3abeb8074b817b8f93e22777f5888f)。
 
-**已实现：Phase 0（A1–A3）、Phase 1（B1–B4）、Phase 2（C1–C5），加上前面的 attract 状态。**
+**已实现：Phase 0（A1–A4）、Phase 1（B1–B4）、Phase 2（C1–C5），加上前面的 attract 状态。**
 Phase 3–4 尚未实现 —— 见文末「下一步」。
 
 ---
@@ -50,7 +50,7 @@ Phase 3–4 尚未实现 —— 见文末「下一步」。
 2. 需要新组件的话在 `Tutorial/` 下新建一个，**一个组件一件事**
 3. 跑 `Build or Update`
 
-拍子是 Director 的子物体、按 Hierarchy 顺序执行，新阶段会追加在后面 —— 也就是分镜顺序。想调整顺序在 Hierarchy 里拖，builder 不会把它拖回去。
+拍子是 Director 的子物体、**按 Hierarchy 顺序执行**。新建的拍子会被放到 builder 上一个走过的拍子之后 —— builder 是按分镜顺序走的，所以插在中间的一帧落在正确的位置，而不是被追加到列表末尾。已经存在的拍子永远不会被移动：在 Hierarchy 里重排是一个决定，builder 不撤销决定。
 
 **拍子不认识具体的效果，效果也不认识拍子。** 拍子只管门控和提示；`TutorialEmission_NEW` 这类只管效果，靠拍子的 `onEnter` UnityEvent 连起来。所以整条 Phase 2 时序在 Inspector 里是看得见的：点开 C3，它的 onEnter 上写着 `TutorialEmission_NEW.Emit`。重排分镜不用改任何 C# 文件。
 
@@ -72,15 +72,15 @@ Tutorial/
 ├─ TutorialTravel_NEW         匀速直线飞向类星体，不接受任何输入
 ├─ TutorialSpeedStreaks_NEW   近景拉丝层，速度取自 TutorialTravel_NEW
 ├─ TutorialZoom_NEW           左摇杆缩放 FOV，并按视场缩放视角灵敏度
-├─ TutorialRangeMap_NEW       右上角的距离条：还有多远到类星体
+├─ TutorialRangeMap_NEW       右上角小地图：自己、朝向、类星体、距离
 ├─ TutorialEmission_NEW       Phase 2 时序：加速 → 阈值 → 发射（反转航向、开拖尾）
 ├─ TutorialFlash_NEW          全屏闪白，颜色和时长由调用方给
 ├─ TutorialCameraShake_NEW    相机位移抖动，幅度由外部驱动
 ├─ Beats/
 │   ├─ Beat_Cinematic_NEW     A1 A2 A3 C1 C3（无动作，按分镜时长走）
+│   ├─ Beat_Zoom_NEW          A4（把视场收窄到阈值 —— 开场那段的教学）
 │   ├─ Beat_LookAt_NEW        B1 B2 C4（把目标带进准星）
 │   ├─ Beat_TurnAround_NEW    B3（转过 150° 且目标在画面里）
-│   ├─ Beat_Zoom_NEW          A4（把视场收窄到阈值）
 │   └─ Beat_Confirm_NEW       B4 C2 C5（按 A）
 └─ Editor/
     ├─ TutorialSceneBuilder_NEW   一键搭场景（布局）
@@ -438,17 +438,19 @@ GDD §4 写的是 “Stick — Look. **The only stick.**”。加左摇杆是偏
 
 **A4 不是分镜里的帧。** GDD 的 Phase 0 是三帧、标题叫 Silence、没有任何东西可按；这是第四帧而且带门控。改动记在这里。
 
-### 右上角的距离条
+### 右上角的小地图
 
-`TutorialRangeMap_NEW`：一条轨、轨上一个标记、旁边一个实时距离。跟图例和准星一起在 B1 出现。
+`TutorialRangeMap_NEW`：一个圆形俯视图 —— 中心是自己，一根短杆表示当前朝向，一个点是类星体，下面是实时距离。跟图例和准星一起在 B1 出现。
 
-**为什么需要它**：开场是一段很长的接近，而目标是一个增长极慢的亮点 —— 一个增长极慢的亮点和一个根本没在动的亮点，在画面上是分不清的。这条距离条把「我到底有没有在前进」变成一个看一眼就有答案的问题。
+第一版我做成了一条进度轨 —— **那是时间轴不是地图**。它只能回答「我走了百分之多少」，回答不了玩家在 B3 被要求转身的那一刻真正产生的问题：「我不再面朝前方之后，东西都在哪」。
 
-**是一条轨不是雷达图**：这段体验只有一个行进轴，没有任何东西需要绕开。做成俯视雷达是在回答没人问的问题。
+所以改成俯视平面图，**北朝上**：转视角时地图不转，转的是那根朝向杆；在 B3 转满一圈，类星体在地图上也跑到你身后。这个对应关系才是地图的意义所在，比一个百分比值钱。
 
-**发射之后标记会往回走、距离会变大** —— 因为事实就是如此，光正在离开。代码里没有为 C3 写任何特例，它一直读的就是那两个位置。
+**取 XZ 平面**，因为行进是水平的，这段体验没有垂直结构可丢。B2 抬头看喷流时地图没有任何反应 —— 这是对的：它是「你在哪」的地图，不是「你在指哪」的地图。
 
-`displayScale` 和 `unitSuffix` 留着：场景单位对观众没有意义，等叙事定下这段接近该用什么单位计量，改这两个字段即可。
+类星体超出地图范围时会**贴在边缘**并降低不透明度（接近过程的大部分时间都是如此）。这是小地图的常规约定，也正是「标记离开边缘、进到圈内」这一刻开始有意义的原因。
+
+`unitsPerPixel = 20`：90 像素半径覆盖 1800 单位。`displayScale` 和 `unitSuffix` 留着 —— 场景单位对观众没有意义，等叙事定下用什么单位计量再改。
 
 **灵敏度必须跟着视场走，这一点最容易漏。** 「度/秒」是常数，但「屏幕/秒」不是：视场从 40° 收到 12° 时，同样的摇杆推量扫过的画面是三倍，玩家正想看仔细的时候相机反而变得暴躁。`TutorialZoom_NEW` 把 `FirstPersonLookRig_NEW.SensitivityScale` 设成 `当前视场 / 基准视场`，视觉速度就保持不变了。
 

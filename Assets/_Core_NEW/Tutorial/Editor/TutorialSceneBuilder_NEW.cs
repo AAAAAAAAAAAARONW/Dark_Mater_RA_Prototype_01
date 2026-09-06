@@ -143,6 +143,9 @@ public static class TutorialSceneBuilder_NEW
     static int _created;
     static int _wired;
 
+    /// <summary>The last beat the builder walked past. See Beat.</summary>
+    static Transform _beatCursor;
+
     /// <summary>Build the rig, or fill in whatever is missing from the one that is there.</summary>
     [MenuItem("Tools/Journey NEW/Tutorial/Build or Update", false, 40)]
     public static void BuildOrUpdate()
@@ -232,6 +235,7 @@ public static class TutorialSceneBuilder_NEW
         _fresh.Clear();
         _created = 0;
         _wired = 0;
+        _beatCursor = null;
 
         Undo.SetCurrentGroupName(_freshBuild ? "Build tutorial scene" : "Update tutorial scene");
         int group = Undo.GetCurrentGroup();
@@ -281,7 +285,7 @@ public static class TutorialSceneBuilder_NEW
 
         GameObject reticle = BuildReticle(canvas.transform);
         GameObject legend = BuildLegend(canvas.transform);
-        GameObject map = BuildRangeMap(canvas.transform, player);
+        GameObject map = BuildRangeMap(canvas.transform, player, lookRig);
         GameObject hint = BuildHint(canvas.transform);
         GameObject prompt = BuildConfirmPrompt(canvas.transform);
         GameObject card = BuildAttractCard(canvas.transform);
@@ -1024,17 +1028,31 @@ public static class TutorialSceneBuilder_NEW
     // ── Object helpers ───────────────────────────────────────────────────────
 
     /// <summary>
-    /// The beat object for this storyboard frame, created if it is not there yet.
+    /// The beat object for this storyboard frame, created if it is not there yet, and
+    /// placed in sequence rather than at the end of the list.
     ///
-    /// Beats are children of the director and run in Hierarchy order, so a new phase
-    /// appended by a later run lands after the existing ones — which is the storyboard
-    /// order, because the storyboard runs A then B then C. Reordering after the fact is
-    /// a drag in the Hierarchy and the builder will not undo it.
+    /// Beats are children of the director and run in Hierarchy order. FindOrCreate
+    /// appends, which is right for a whole new phase arriving after the existing ones,
+    /// and wrong for a frame inserted into the middle — A4 was added between A3 and B1
+    /// and landed after C5, so the zoom lesson ran at the very end of the piece where
+    /// nobody would ever see it.
+    ///
+    /// So a beat this run created is moved to sit directly after the previous one the
+    /// builder walked past. The builder walks them in storyboard order, so that is the
+    /// right slot by construction. A beat that already existed is never moved: somebody
+    /// reordering the Hierarchy is making a decision, and the builder does not undo
+    /// decisions.
     /// </summary>
     static T Beat<T>(Transform parent, string name) where T : TutorialBeat_NEW
     {
         GameObject go = FindOrCreate(name, parent, Vector3.zero);
-        return AddIfMissing<T>(go);
+        T beat = AddIfMissing<T>(go);
+
+        if (IsFresh(go) && _beatCursor != null && _beatCursor.parent == go.transform.parent)
+            go.transform.SetSiblingIndex(_beatCursor.GetSiblingIndex() + 1);
+
+        _beatCursor = go.transform;
+        return beat;
     }
 
     // ── Find or create ───────────────────────────────────────────────────────
@@ -1378,51 +1396,94 @@ public static class TutorialSceneBuilder_NEW
     /// never sits between the player and the thing they are being asked to look at.
     /// A track and not a radar — there is one axis of travel in this piece.
     /// </summary>
-    static GameObject BuildRangeMap(Transform canvas, GameObject player)
+    static GameObject BuildRangeMap(Transform canvas, GameObject player, FirstPersonLookRig_NEW lookRig)
     {
         GameObject go = UIObject("RangeMap", canvas, new Vector2(1f, 1f),
-                                 new Vector2(-260f, -90f), new Vector2(420f, 110f));
+                                 new Vector2(-150f, -150f), new Vector2(220f, 260f));
 
-        AddChipBackground(go, 0.45f);
+        // The circle the map is drawn in. Its width is the map's diameter, so the
+        // component reads its reach off this rather than being told twice.
+        GameObject frame = UIObject("Frame", go.transform, new Vector2(0.5f, 1f),
+                                    new Vector2(0f, -100f), new Vector2(180f, 180f));
 
-        GameObject caption = UIObject("Caption", go.transform, new Vector2(0f, 1f),
-                                      new Vector2(150f, -26f), new Vector2(260f, 26f));
-        TMP_Text captionText = AddText(caption, "TO THE QUASAR", 18, TextAlignmentOptions.Left);
-        if (IsFresh(captionText)) captionText.color = new Color(1f, 1f, 1f, 0.5f);
+        Image frameImage = AddIfMissing<Image>(frame);
 
-        GameObject label = UIObject("Label", go.transform, new Vector2(0f, 1f),
-                                    new Vector2(160f, -58f), new Vector2(280f, 36f));
-        AddText(label, "0", 30, TextAlignmentOptions.Left);
-
-        GameObject track = UIObject("Track", go.transform, new Vector2(0.5f, 0f),
-                                    new Vector2(0f, 24f), new Vector2(340f, 3f));
-
-        Image trackImage = AddIfMissing<Image>(track);
-
-        if (IsFresh(trackImage))
+        if (IsFresh(frameImage))
         {
-            trackImage.color = new Color(1f, 1f, 1f, 0.25f);
-            trackImage.raycastTarget = false;
+            frameImage.sprite = TutorialWorldAssets_NEW.DiscSprite();
+            frameImage.color = new Color(0.02f, 0.02f, 0.05f, 0.5f);
+            frameImage.raycastTarget = false;
         }
 
-        GameObject marker = UIObject("Marker", track.transform, new Vector2(0.5f, 0.5f),
-                                     Vector2.zero, new Vector2(14f, 14f));
+        GameObject rim = UIObject("Rim", frame.transform, new Vector2(0.5f, 0.5f),
+                                  Vector2.zero, new Vector2(180f, 180f));
+
+        Image rimImage = AddIfMissing<Image>(rim);
+
+        if (IsFresh(rimImage))
+        {
+            rimImage.sprite = TutorialWorldAssets_NEW.RingSprite();
+            rimImage.color = new Color(1f, 1f, 1f, 0.28f);
+            rimImage.raycastTarget = false;
+        }
+
+        // The facing wedge, at the centre, rotating with the look. A stub pointing out
+        // of the middle reads as "you, looking that way" with no legend needed.
+        GameObject facing = UIObject("Facing", frame.transform, new Vector2(0.5f, 0.5f),
+                                     Vector2.zero, new Vector2(10f, 46f));
+
+        GameObject facingStem = UIObject("Stem", facing.transform, new Vector2(0.5f, 0f),
+                                         new Vector2(0f, 6f), new Vector2(4f, 30f));
+
+        Image stemImage = AddIfMissing<Image>(facingStem);
+
+        if (IsFresh(stemImage))
+        {
+            stemImage.color = new Color(1f, 1f, 1f, 0.75f);
+            stemImage.raycastTarget = false;
+        }
+
+        GameObject self = UIObject("Self", frame.transform, new Vector2(0.5f, 0.5f),
+                                   Vector2.zero, new Vector2(11f, 11f));
+
+        Image selfImage = AddIfMissing<Image>(self);
+
+        if (IsFresh(selfImage))
+        {
+            selfImage.sprite = TutorialWorldAssets_NEW.DiscSprite();
+            selfImage.color = Color.white;
+            selfImage.raycastTarget = false;
+        }
+
+        GameObject marker = UIObject("Quasar", frame.transform, new Vector2(0.5f, 0.5f),
+                                     Vector2.zero, new Vector2(16f, 16f));
 
         Image markerImage = AddIfMissing<Image>(marker);
 
         if (IsFresh(markerImage))
         {
             markerImage.sprite = TutorialWorldAssets_NEW.DiscSprite();
-            markerImage.color = new Color(1f, 0.93f, 0.78f, 0.95f);
+            markerImage.color = new Color(1f, 0.86f, 0.6f, 1f);
             markerImage.raycastTarget = false;
         }
+
+        GameObject label = UIObject("Label", go.transform, new Vector2(0.5f, 0f),
+                                    new Vector2(0f, 26f), new Vector2(220f, 34f));
+        AddText(label, "0", 26, TextAlignmentOptions.Center);
+
+        GameObject caption = UIObject("Caption", go.transform, new Vector2(0.5f, 0f),
+                                      new Vector2(0f, 4f), new Vector2(220f, 22f));
+        TMP_Text captionText = AddText(caption, "TO THE QUASAR", 15, TextAlignmentOptions.Center);
+        if (IsFresh(captionText)) captionText.color = new Color(1f, 1f, 1f, 0.45f);
 
         TutorialRangeMap_NEW map = AddIfMissing<TutorialRangeMap_NEW>(go);
 
         Wire(map)
             .Ref("travel", player.GetComponent<TutorialTravel_NEW>())
-            .Ref("track", track.GetComponent<RectTransform>())
-            .Ref("marker", marker.GetComponent<RectTransform>())
+            .Ref("lookRig", lookRig)
+            .Ref("frame", frame.GetComponent<RectTransform>())
+            .Ref("facing", facing.GetComponent<RectTransform>())
+            .Ref("destinationMarker", marker.GetComponent<RectTransform>())
             .Ref("distanceLabel", label.GetComponent<TMP_Text>())
             .Apply();
 
