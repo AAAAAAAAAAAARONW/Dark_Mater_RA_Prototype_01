@@ -20,6 +20,15 @@ Shader "Custom/Nebula"
         _StarThreshold ("Star Threshold", Range(0.95, 0.999)) = 0.992
         _StarBrightness ("Star Brightness", Range(0.5, 3)) = 1.2
 
+        [Header(Star twinkle)]
+        // Off by default so every material that already uses this shader renders
+        // exactly as it did before these three properties existed. Fifteen scenes
+        // reference it; none of them should change because the tutorial wanted a
+        // twinkle.
+        _StarTwinkle ("Star Twinkle", Float) = 0
+        _StarTwinkleSpeed ("Star Twinkle Speed", Range(0, 8)) = 1.5
+        _StarTwinkleAmount ("Star Twinkle Amount", Range(0, 1)) = 0.5
+
         [Header(Animation)]
         _Animate ("Animate", Float) = 1
         _Speed ("Speed", Range(0, 0.5)) = 0.05
@@ -40,6 +49,7 @@ Shader "Custom/Nebula"
             float4 _ColorDark, _ColorMid, _ColorBright, _ColorStar;
             float _Scale, _Persistence, _Density, _Sharpness;
             float _StarScale, _StarThreshold, _StarBrightness;
+            float _StarTwinkle, _StarTwinkleSpeed, _StarTwinkleAmount;
             float _Animate, _Speed;
             float _Octaves;
 
@@ -97,10 +107,31 @@ Shader "Custom/Nebula"
             }
 
             // star dots
+            //
+            // The twinkle needs a phase that is stable per star and different between
+            // neighbours, or the whole sky pulses in unison and reads as the screen
+            // flickering rather than as stars. The noise cell the star sits in gives
+            // exactly that: hash it once and the same star gets the same phase every
+            // frame, while the star next to it gets an unrelated one.
+            //
+            // The mask itself is left alone. Modulating the threshold over time would
+            // make stars appear and disappear, which is a different effect and a worse
+            // one — real stars do not blink out.
             float stars(float3 dir)
             {
-                float n = valueNoise3D(dir * _StarScale);
-                return step(_StarThreshold, n) * _StarBrightness;
+                float3 p = dir * _StarScale;
+                float mask = step(_StarThreshold, valueNoise3D(p));
+
+                float brightness = _StarBrightness;
+
+                if (_StarTwinkle > 0.5)
+                {
+                    float phase = hash(floor(p)) * 6.2831853;
+                    float pulse = sin(_Time.y * _StarTwinkleSpeed + phase) * 0.5 + 0.5;
+                    brightness *= lerp(1.0 - _StarTwinkleAmount, 1.0, pulse);
+                }
+
+                return mask * brightness;
             }
 
             struct appdata

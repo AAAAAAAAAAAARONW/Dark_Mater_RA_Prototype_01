@@ -21,9 +21,9 @@ using UnityEngine;
 ///                unusable; reproducing it as a fresh guess is how a tutorial ends up
 ///                feeling nothing like the game.
 ///   Deadband     0.1. Copies straight across.
-///   Recentre     resetXSpeed 50 deg/s, applied with MoveTowardsAngle — constant speed,
-///                not an eased fixed-duration lerp. resetYSpeed 1.5 axis-units becomes
-///                about 195 deg/s by the same arc conversion.
+///   Recentre     MoveTowardsAngle at a constant speed, not an eased fixed-duration
+///                lerp. The speed itself is the one number deliberately not copied —
+///                see resetXSpeed.
 ///   FOV          40 on the FreeLook, against Unity's default 60. Set by the builder on
 ///                the camera; a first person view at 60 reads as a different game.
 ///
@@ -31,13 +31,19 @@ using UnityEngine;
 /// person has no equivalent for, so `smoothTime` adds it back explicitly. Set it to 0
 /// for raw input.
 ///
-/// Two GDD rules are structural here, not options:
+/// A IS BOUND HERE, not in a beat. GDD §4 makes A confirm, recentre and emit — "one
+/// button, one meaning, tutorial and journey alike". A that only recentres during B4 is
+/// not one meaning, and it fails the obvious way: press A at any other moment and
+/// nothing happens. Beats where A means something else switch the binding off for their
+/// own duration through SetConfirmRecentres.
+///
+/// One GDD rule is structural here, and one is a knowing trade:
 ///
 ///   * The camera is never locked (§5). There is no SetLocked, deliberately. C3 in the
 ///     old build locked the camera and playtesters read it as a bug. A rig with no lock
 ///     cannot regress into one.
-///   * A recentres, and the player can interrupt it (B4). Touching the stick mid-recentre
-///     cancels it, because a recentre that fights the stick is a lock wearing a hat.
+///   * The recentre is NOT interruptible by default, which is the trade. See
+///     recentreCancellable for why, and for how to put it back.
 /// </summary>
 [DisallowMultipleComponent]
 [HierarchyBadge_NEW("FP LOOK", "#40B884")]
@@ -64,17 +70,33 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
     [SerializeField] float maxPitch = 80f;
 
     [Header("Recentre — from PlaytestBuild_NEW's Player")]
-    [Tooltip("Degrees per second, constant. PlaytestBuild scene value: 50.")]
-    [SerializeField] float resetXSpeed = 50f;
+    [Tooltip("A recentres the view. Off only for a rig where A means something else " +
+             "for the whole scene; individual beats use SetConfirmRecentres instead.")]
+    [SerializeField] bool recentreOnConfirm = true;
+
+    [Tooltip("Degrees per second, constant.\n\n" +
+             "PlaytestBuild stores 50, and that is right for a FreeLook that is rarely " +
+             "more than 90 degrees off axis. B4 always follows a turn of 150 degrees or " +
+             "more, where 50 deg/s is three and a half seconds of very slow drift — long " +
+             "enough that the press reads as having done nothing at all.")]
+    [SerializeField] float resetXSpeed = 140f;
 
     [Tooltip("Degrees per second, constant. PlaytestBuild's 1.5 axis-units across the " +
              "same arc is about 195 deg/s.")]
     [SerializeField] float resetYSpeed = 195f;
 
+    [Tooltip("Let look input interrupt a recentre in progress.\n\n" +
+             "Off by default, and this is the one place the tutorial knowingly trades " +
+             "against GDD §5's 'the camera is never locked'. The recentre lasts about a " +
+             "second, the player asked for it with a button press, and every attempt to " +
+             "keep it interruptible has instead made A look broken — a worn analog stick " +
+             "resting off centre cancels it before the view has visibly moved. Switch it " +
+             "back on once the exhibition pads are known good.")]
+    [SerializeField] bool recentreCancellable = false;
+
     [Tooltip("Stick deflection, 0-1, above which a recentre in progress is cancelled. " +
-             "The camera is never locked, so the player always outranks the lerp — but " +
-             "a resting thumb must not count, or A appears to do nothing.")]
-    [SerializeField] float recentreCancelStick = 0.35f;
+             "Only consulted when recentreCancellable is on.")]
+    [SerializeField] float recentreCancelStick = 0.6f;
 
     [Tooltip("Raw mouse movement per frame above which a recentre is cancelled. Well " +
              "above sensor noise on purpose: an earlier version compared a scaled " +
@@ -105,6 +127,7 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
 
     bool _recentring;
     float _recentreElapsed;
+    float _lastConfirmTime = -999f;
 
     // Mark used by the turn-around gate (B3).
     float _markYaw;
@@ -155,6 +178,15 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
     public void CancelRecentre()
     {
         _recentring = false;
+    }
+
+    /// <summary>
+    /// Turn the A-recentres binding on or off for a beat where A means something else.
+    /// C2 emits and E3 hands over; neither should also snap the view.
+    /// </summary>
+    public void SetConfirmRecentres(bool enabled)
+    {
+        recentreOnConfirm = enabled;
     }
 
     /// <summary>Snap the view to the forward axis with no lerp. Used by the attract reset.</summary>
@@ -222,14 +254,31 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
         float dx = TutorialInput_NEW.LookX(xSensitivity, stickDeadband, dt);
         float dy = TutorialInput_NEW.LookY(ySensitivity, stickDeadband, dt);
 
+        // A recentres. Here, not in a beat.
+        //
+        // GDD §4: "A — confirm / recentre / emit. One button, one meaning, tutorial and
+        // journey alike." A that only recentres during B4 is not one meaning, it is a
+        // beat-shaped exception, and it fails exactly the way it was reported failing:
+        // press A at any other moment and nothing happens. The rig owning the binding
+        // means A recentres from the first frame the player has a camera.
+        //
+        // Beats where A means something else — C2 emits, E3 hands over — switch this off
+        // for their duration through SetConfirmRecentres.
+        if (recentreOnConfirm && TutorialInput_NEW.ConfirmDown())
+        {
+            _lastConfirmTime = Time.unscaledTime;
+            BeginRecentre();
+        }
+
         if (_recentring)
         {
-            // The player outranks the recentre — but only a deliberate input counts.
-            // Read the devices, not the resulting per-frame delta. See the tooltips.
             _recentreElapsed += dt;
 
-            bool cancellable = _recentreElapsed >= recentreGrace;
-            bool cancelled = cancellable
+            // Cancellation is off by default. See the recentreCancellable tooltip: the
+            // player asked for this with a button press, it takes about a second, and a
+            // cancel that fires from stick drift is indistinguishable from A being broken.
+            bool cancelled = recentreCancellable
+                             && _recentreElapsed >= recentreGrace
                              && (TutorialInput_NEW.StickDeflection(stickDeadband) > recentreCancelStick
                                  || TutorialInput_NEW.MouseDeflection() > recentreCancelMouse);
 
@@ -312,10 +361,13 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
         string state = _recentring ? "RECENTRING" : "free";
         float offAxis = Mathf.Abs(Mathf.DeltaAngle(_yaw, _forwardYaw));
 
+        float sinceConfirm = Time.unscaledTime - _lastConfirmTime;
+        string lastA = sinceConfirm > 900f ? "never" : sinceConfirm.ToString("F1") + "s ago";
+
         GUI.Label(new Rect(10f, 50f, 900f, 22f),
-                  string.Format("CAMERA  {0}   off-axis {1:F0}deg   confirm-down {2}   stick {3:F2}",
-                                state, offAxis,
-                                TutorialInput_NEW.ConfirmDown() ? "YES" : "-",
-                                TutorialInput_NEW.StickDeflection(stickDeadband)));
+                  string.Format("CAMERA  {0}   off-axis {1:F0}deg   last A {2}   stick {3:F2}   A binding {4}",
+                                state, offAxis, lastA,
+                                TutorialInput_NEW.StickDeflection(stickDeadband),
+                                recentreOnConfirm ? "on" : "OFF"));
     }
 }

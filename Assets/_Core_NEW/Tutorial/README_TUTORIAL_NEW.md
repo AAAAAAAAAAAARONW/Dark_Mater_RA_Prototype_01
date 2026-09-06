@@ -80,6 +80,27 @@ Tutorial/
 
 ---
 
+## 星星闪烁（Nebula shader）
+
+原来的 `stars()` 是纯静态的 —— `step(_StarThreshold, valueNoise3D(dir * _StarScale))`，一个时间项都没有。现在能闪了，新增三个参数：
+
+| 属性 | 作用 |
+|---|---|
+| `_StarTwinkle` | 0 / 1 开关，**默认 0** |
+| `_StarTwinkleSpeed` | 每秒周期数，0–8 |
+| `_StarTwinkleAmount` | 谷底掉到多暗，0 = 不闪，1 = 闪到全黑 |
+
+**默认关，是刻意的。** 这个 shader 被 15 个场景引用，不该因为教程想要闪烁就让别人的画面全变了。已有材质渲染结果与之前逐像素一致。
+
+两个实现上的选择：
+
+- **相位来自星星所在的噪声格。** `hash(floor(dir * _StarScale))` 给每颗星一个稳定且与邻居无关的相位。不这么做的话整片天空会同步脉动，读起来是屏幕在闪，不是星星在闪。
+- **只调亮度，不调阈值。** 让阈值随时间变会导致星星整颗出现和消失 —— 那是另一种效果，而且是更糟的一种：真实的星星不会眨没。
+
+三个参数一路暴露到了数据层：`NebulaProfile_NEW` 加了 `starTwinkle / starTwinkleSpeed / starTwinkleAmount`，`NebulaResponder_NEW`（主旅程按层切换天空用的）和 `TutorialSky_NEW` 都会写。已有的 7 个 `NP_*.asset` 没有这三个字段，Unity 会填 C# 默认值（关闭），所以主旅程画面不变。
+
+---
+
 ## 开场渐显
 
 `TutorialFadeIn_NEW`：一张铺满屏幕的黑图，压在世界之上、其余 HUD 之下（所以标题卡是黑底白字，而不是被黑图盖住）。
@@ -124,7 +145,7 @@ Tutorial/
 | 水平灵敏度 | `xSensitivity: 100` | 100 °/s | 直接照抄 |
 | **垂直灵敏度** | `ySensitivity: 0.2` | **26 °/s** | 需要换算，见下 |
 | 死区 | `stickDeadband: 0.1` | 0.1 | 直接照抄 |
-| 回正水平 | `resetXSpeed: 50` | 50 °/s | `MoveTowardsAngle` 匀速，不是定时缓动 |
+| 回正水平 | `resetXSpeed: 50` | **140 °/s** | `MoveTowardsAngle` 匀速。**唯一没照抄的一格**，见下 |
 | 回正垂直 | `resetYSpeed: 1.5` | 195 °/s | 同样换算 |
 | FOV | FreeLook `FieldOfView: 40` | 40 | Unity 默认 60 会像另一个游戏 |
 
@@ -133,6 +154,16 @@ Tutorial/
 PlaytestBuild 的柔和感来自 Cinemachine 的 damping，第一人称没有对应物，所以 `smoothTime`（默认 0.06s）把它显式加回来。设成 0 就是原始输入。
 
 两根摇杆都读。分镜的 B1 提示写的是 `LEFT STICK · LOOK`，而工程里 `RightStickX/Y` 是手柄轴 4/5（右摇杆）、`Horizontal/Vertical` 是轴 1/2（左摇杆）。GDD §4 只说「只有一根摇杆，它负责看」，没说是哪根。两根都读意味着展陈现场的手柄不管驱动怎么报都能用，观众抓错摇杆也不会被惩罚。`Horizontal/Vertical` 同时带 WASD，所以在桌面上也能测。
+
+### A = 复位，绑在 rig 上，不绑在拍子上
+
+GDD §4 的原话是 “A — confirm / recentre / emit. **One button, one meaning**, tutorial and journey alike.”
+
+之前 A 只在 B4 那一拍触发复位，那不是「一个含义」，那是一个拍子形状的例外 —— 于是它就以最明显的方式失效：在其他任何时刻按 A，什么都不会发生。现在 `FirstPersonLookRig_NEW` 自己读 A，从玩家拿到相机的第一帧起 A 就复位。A 另有含义的拍子（C2 发射、E3 交接）在自己开着的期间用 `SetConfirmRecentres(false)` 关掉它，退出时交还。
+
+**回正默认不可打断**，这是本教程唯一一处明知故犯地违背 GDD §5「相机永不锁定」。理由：玩家是按了按钮主动要求的，全程约一秒，而每一次试图让它可打断的结果都是 A 看起来是坏的 —— 磨损的摇杆静止时读数就能超过阈值，在画面还没明显动之前就把回正取消掉。`recentreCancellable` 这个开关留着，等展陈用的手柄确认没问题再打开。
+
+**回正速度是唯一没照抄 PlaytestBuild 的数值。** 那边的 50 °/s 对一个很少偏离 90° 以上的 FreeLook 是合适的；而 B4 永远紧跟在一次 150° 以上的转身之后，50 °/s 就是三秒半的极慢漂移 —— 长到那一下按压读起来像什么都没发生。
 
 ---
 

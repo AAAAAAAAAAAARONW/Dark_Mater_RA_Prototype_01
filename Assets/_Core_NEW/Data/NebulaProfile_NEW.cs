@@ -31,6 +31,20 @@ public class NebulaProfile_NEW : ScriptableObject
     public float starThreshold = 0.992f;
     public float starBrightness = 1.2f;
 
+    [Header("Star twinkle")]
+    [Tooltip("1 = twinkle, 0 = steady. Snapped to one or the other.\n\n" +
+             "Defaults to 0, which is what the shader did before twinkle existed, so " +
+             "the seven existing profiles keep rendering exactly as they were.")]
+    public float starTwinkle = 0f;
+
+    [Tooltip("Cycles per second. Each star gets its own phase from the noise cell it " +
+             "sits in, so the sky does not pulse in unison.")]
+    public float starTwinkleSpeed = 1.5f;
+
+    [Tooltip("How far the brightness dips at the bottom of the cycle. 0 is no twinkle, " +
+             "1 takes stars all the way to black.")]
+    public float starTwinkleAmount = 0.5f;
+
     [Header("Animation")]
     [Tooltip("1 = animate, 0 = frozen. Snapped to one or the other.")]
     public float animate = 1f;
@@ -52,6 +66,11 @@ public class NebulaProfile_NEW : ScriptableObject
         starScale = Mathf.Clamp(starScale, 20f, 200f);
         starThreshold = Mathf.Clamp(starThreshold, 0.95f, 0.999f);
         starBrightness = Mathf.Clamp(starBrightness, 0.5f, 3f);
+
+        starTwinkle = starTwinkle >= 0.5f ? 1f : 0f;
+        starTwinkleSpeed = Mathf.Clamp(starTwinkleSpeed, 0f, 8f);
+        starTwinkleAmount = Mathf.Clamp01(starTwinkleAmount);
+
         animate = animate >= 0.5f ? 1f : 0f;
         speed = Mathf.Clamp(speed, 0f, 0.5f);
         blendDuration = Mathf.Max(0f, blendDuration);

@@ -36,8 +36,9 @@ public class Beat_Confirm_NEW : TutorialBeat_NEW
     [SerializeField] float promptDelaySeconds = 0f;
 
     [Header("Recentre")]
-    [Tooltip("Lerp the view back to the jet axis on the press. True for B4. False for " +
-             "the beats where A means emit or hand off rather than recentre.")]
+    [Tooltip("Whether A still means recentre while this beat is open. True for B4 — and " +
+             "the rig does the recentring, this only says not to suppress it. False for " +
+             "the beats where A means emit or hand off instead.")]
     [SerializeField] bool recentreOnPress = true;
 
     [Tooltip("Hold this beat open until the recentre lerp has arrived. Off by default; " +
@@ -66,9 +67,22 @@ public class Beat_Confirm_NEW : TutorialBeat_NEW
 
         if (lookRig == null) lookRig = FindObjectOfType<FirstPersonLookRig_NEW>();
 
-        if (recentreOnPress && lookRig == null)
-            Debug.LogError("[Beat_Confirm_NEW] " + BeatId + " asks for a recentre but has " +
-                           "no FirstPersonLookRig_NEW.", this);
+        if (lookRig == null)
+        {
+            Debug.LogError("[Beat_Confirm_NEW] " + BeatId + " has no FirstPersonLookRig_NEW.", this);
+            return;
+        }
+
+        // The rig owns the A-recentres binding, so this beat only has to say whether A
+        // still means recentre while it is open. C2 (emit) and E3 (hand over) set this
+        // false; B4 leaves it alone.
+        if (!recentreOnPress) lookRig.SetConfirmRecentres(false);
+    }
+
+    protected override void OnBeatExit()
+    {
+        // Hand the binding back, whatever this beat did with it.
+        if (lookRig != null) lookRig.SetConfirmRecentres(true);
     }
 
     protected override void OnBeatTick(float dt)
@@ -77,8 +91,6 @@ public class Beat_Confirm_NEW : TutorialBeat_NEW
         if (!TutorialInput_NEW.ConfirmDown()) return;
 
         _pressed = true;
-
-        if (recentreOnPress && lookRig != null) lookRig.BeginRecentre();
     }
 
     protected override bool GateSatisfied()

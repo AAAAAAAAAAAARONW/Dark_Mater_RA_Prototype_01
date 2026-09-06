@@ -66,6 +66,9 @@ public class NebulaResponder_NEW : LayerResponder_NEW
     static readonly int StarScaleId = Shader.PropertyToID("_StarScale");
     static readonly int StarThresholdId = Shader.PropertyToID("_StarThreshold");
     static readonly int StarBrightnessId = Shader.PropertyToID("_StarBrightness");
+    static readonly int StarTwinkleId = Shader.PropertyToID("_StarTwinkle");
+    static readonly int StarTwinkleSpeedId = Shader.PropertyToID("_StarTwinkleSpeed");
+    static readonly int StarTwinkleAmountId = Shader.PropertyToID("_StarTwinkleAmount");
     static readonly int AnimateId = Shader.PropertyToID("_Animate");
     static readonly int SpeedId = Shader.PropertyToID("_Speed");
 
@@ -74,6 +77,7 @@ public class NebulaResponder_NEW : LayerResponder_NEW
         public Color dark, mid, bright, star;
         public float scale, octaves, persistence, density, sharpness;
         public float starScale, starThreshold, starBrightness;
+        public float starTwinkle, starTwinkleSpeed, starTwinkleAmount;
         public float animate, speed;
     }
 
@@ -208,6 +212,9 @@ public class NebulaResponder_NEW : LayerResponder_NEW
         starScale = p.starScale,
         starThreshold = p.starThreshold,
         starBrightness = p.starBrightness,
+        starTwinkle = p.starTwinkle,
+        starTwinkleSpeed = p.starTwinkleSpeed,
+        starTwinkleAmount = p.starTwinkleAmount,
         animate = p.animate,
         speed = p.speed,
     };
@@ -226,6 +233,9 @@ public class NebulaResponder_NEW : LayerResponder_NEW
         starScale = m.HasProperty(StarScaleId) ? m.GetFloat(StarScaleId) : 80f,
         starThreshold = m.HasProperty(StarThresholdId) ? m.GetFloat(StarThresholdId) : 0.992f,
         starBrightness = m.HasProperty(StarBrightnessId) ? m.GetFloat(StarBrightnessId) : 1.2f,
+        starTwinkle = m.HasProperty(StarTwinkleId) ? m.GetFloat(StarTwinkleId) : 0f,
+        starTwinkleSpeed = m.HasProperty(StarTwinkleSpeedId) ? m.GetFloat(StarTwinkleSpeedId) : 1.5f,
+        starTwinkleAmount = m.HasProperty(StarTwinkleAmountId) ? m.GetFloat(StarTwinkleAmountId) : 0.5f,
         animate = m.HasProperty(AnimateId) ? m.GetFloat(AnimateId) : 1f,
         speed = m.HasProperty(SpeedId) ? m.GetFloat(SpeedId) : 0.05f,
     };
@@ -249,6 +259,9 @@ public class NebulaResponder_NEW : LayerResponder_NEW
             if (m.HasProperty(StarScaleId)) m.SetFloat(StarScaleId, s.starScale);
             if (m.HasProperty(StarThresholdId)) m.SetFloat(StarThresholdId, s.starThreshold);
             if (m.HasProperty(StarBrightnessId)) m.SetFloat(StarBrightnessId, s.starBrightness);
+            if (m.HasProperty(StarTwinkleId)) m.SetFloat(StarTwinkleId, s.starTwinkle >= 0.5f ? 1f : 0f);
+            if (m.HasProperty(StarTwinkleSpeedId)) m.SetFloat(StarTwinkleSpeedId, s.starTwinkleSpeed);
+            if (m.HasProperty(StarTwinkleAmountId)) m.SetFloat(StarTwinkleAmountId, s.starTwinkleAmount);
             if (m.HasProperty(AnimateId)) m.SetFloat(AnimateId, s.animate >= 0.5f ? 1f : 0f);
             if (m.HasProperty(SpeedId)) m.SetFloat(SpeedId, s.speed);
         }
@@ -290,6 +303,9 @@ public class NebulaResponder_NEW : LayerResponder_NEW
         starScale = Mathf.Lerp(a.starScale, b.starScale, t),
         starThreshold = Mathf.Lerp(a.starThreshold, b.starThreshold, t),
         starBrightness = Mathf.Lerp(a.starBrightness, b.starBrightness, t),
+        starTwinkle = Mathf.Lerp(a.starTwinkle, b.starTwinkle, t),
+        starTwinkleSpeed = Mathf.Lerp(a.starTwinkleSpeed, b.starTwinkleSpeed, t),
+        starTwinkleAmount = Mathf.Lerp(a.starTwinkleAmount, b.starTwinkleAmount, t),
         animate = Mathf.Lerp(a.animate, b.animate, t),
         speed = Mathf.Lerp(a.speed, b.speed, t),
     };

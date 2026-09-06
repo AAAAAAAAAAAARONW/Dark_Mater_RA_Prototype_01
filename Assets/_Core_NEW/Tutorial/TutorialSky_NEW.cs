@@ -59,6 +59,9 @@ public class TutorialSky_NEW : MonoBehaviour
     static readonly int StarScaleId = Shader.PropertyToID("_StarScale");
     static readonly int StarThresholdId = Shader.PropertyToID("_StarThreshold");
     static readonly int StarBrightnessId = Shader.PropertyToID("_StarBrightness");
+    static readonly int StarTwinkleId = Shader.PropertyToID("_StarTwinkle");
+    static readonly int StarTwinkleSpeedId = Shader.PropertyToID("_StarTwinkleSpeed");
+    static readonly int StarTwinkleAmountId = Shader.PropertyToID("_StarTwinkleAmount");
     static readonly int AnimateId = Shader.PropertyToID("_Animate");
     static readonly int SpeedId = Shader.PropertyToID("_Speed");
 
@@ -150,6 +153,10 @@ public class TutorialSky_NEW : MonoBehaviour
         m.SetFloat(StarScaleId, p.starScale);
         m.SetFloat(StarThresholdId, p.starThreshold);
         m.SetFloat(StarBrightnessId, p.starBrightness);
+
+        m.SetFloat(StarTwinkleId, p.starTwinkle >= 0.5f ? 1f : 0f);
+        m.SetFloat(StarTwinkleSpeedId, p.starTwinkleSpeed);
+        m.SetFloat(StarTwinkleAmountId, p.starTwinkleAmount);
 
         m.SetFloat(AnimateId, p.animate);
         m.SetFloat(SpeedId, p.speed);
