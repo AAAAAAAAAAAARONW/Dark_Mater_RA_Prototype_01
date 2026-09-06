@@ -281,12 +281,14 @@ public static class TutorialSceneBuilder_NEW
 
         GameObject reticle = BuildReticle(canvas.transform);
         GameObject legend = BuildLegend(canvas.transform);
+        GameObject map = BuildRangeMap(canvas.transform, player);
         GameObject hint = BuildHint(canvas.transform);
         GameObject prompt = BuildConfirmPrompt(canvas.transform);
         GameObject card = BuildAttractCard(canvas.transform);
 
         if (IsFresh(reticle)) reticle.SetActive(false);
         if (IsFresh(legend)) legend.SetActive(false);
+        if (IsFresh(map)) map.SetActive(false);
         if (IsFresh(hint)) hint.SetActive(false);
         if (IsFresh(prompt)) prompt.SetActive(false);
 
@@ -314,7 +316,7 @@ public static class TutorialSceneBuilder_NEW
 
         // ── HUD and attract components ───────────────────────────────────────
         TutorialHUD_NEW hud = AddIfMissing<TutorialHUD_NEW>(canvas);
-        WireHud(hud, director, legend, reticle, hint, prompt);
+        WireHud(hud, director, legend, reticle, map, hint, prompt);
 
         TutorialAttract_NEW attract = AddIfMissing<TutorialAttract_NEW>(canvas);
         WireAttract(attract, director, card, lookRig, player.GetComponent<TutorialTravel_NEW>());
@@ -765,12 +767,8 @@ public static class TutorialSceneBuilder_NEW
             .Str("beatId", "A2")
             .Str("description", "The flow brightens enough to read as orbiting something. " +
                                 "At the centre, a patch darker than black.")
-            // The second control, taught in the gap Phase 0 otherwise leaves open. See
-            // TutorialZoom_NEW: a departure from GDD §4, made because twenty seconds of
-            // being told you can look around, in a scene whose only subject is one
-            // distant bright point, is twenty seconds with nothing to do.
-            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
-            .Str("hintText", "LEFT STICK  ·  LOOK CLOSER")
+            // Keep: A4 is where the zoom is taught, and a hint here would put its line
+            // up before the beat that gates it.
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
             .Num("duration", 7f)
             .Apply();
@@ -787,6 +785,21 @@ public static class TutorialSceneBuilder_NEW
         // A3 is where the mote first appears. Nothing is on screen or in the world
         // before its own frame — a mote visible during A1 is a stray particle.
         AddActivateOnEnter(a3, moteA, true);
+
+        // A4 is not a storyboard frame. See Beat_Zoom_NEW: the left stick needs teaching
+        // the same way every other control is taught, which is with a gate, and the
+        // opening had the room for it.
+        Beat_Zoom_NEW a4 = Beat<Beat_Zoom_NEW>(parent, "A4");
+        Wire(a4)
+            .Str("beatId", "A4")
+            .Str("description", "Look closer. The left stick narrows the view; the quasar " +
+                                "goes from a point to a disc. Not in the storyboard — see " +
+                                "TutorialZoom_NEW for the departure from GDD section 4.")
+            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
+            .Str("hintText", "LEFT STICK  ·  LOOK CLOSER")
+            .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
+            .Num("requiredZoom", 0.55f)
+            .Apply();
     }
 
     static void BuildPhase1(Transform parent, FirstPersonLookRig_NEW lookRig,
@@ -1306,6 +1319,64 @@ public static class TutorialSceneBuilder_NEW
         return go;
     }
 
+    /// <summary>
+    /// The corner range map: a track, a marker on it, and the distance beside it.
+    ///
+    /// Top right, away from the reticle and from the prompts along the bottom, so it
+    /// never sits between the player and the thing they are being asked to look at.
+    /// A track and not a radar — there is one axis of travel in this piece.
+    /// </summary>
+    static GameObject BuildRangeMap(Transform canvas, GameObject player)
+    {
+        GameObject go = UIObject("RangeMap", canvas, new Vector2(1f, 1f),
+                                 new Vector2(-260f, -90f), new Vector2(420f, 110f));
+
+        AddChipBackground(go, 0.45f);
+
+        GameObject caption = UIObject("Caption", go.transform, new Vector2(0f, 1f),
+                                      new Vector2(150f, -26f), new Vector2(260f, 26f));
+        TMP_Text captionText = AddText(caption, "TO THE QUASAR", 18, TextAlignmentOptions.Left);
+        if (IsFresh(captionText)) captionText.color = new Color(1f, 1f, 1f, 0.5f);
+
+        GameObject label = UIObject("Label", go.transform, new Vector2(0f, 1f),
+                                    new Vector2(160f, -58f), new Vector2(280f, 36f));
+        AddText(label, "0", 30, TextAlignmentOptions.Left);
+
+        GameObject track = UIObject("Track", go.transform, new Vector2(0.5f, 0f),
+                                    new Vector2(0f, 24f), new Vector2(340f, 3f));
+
+        Image trackImage = AddIfMissing<Image>(track);
+
+        if (IsFresh(trackImage))
+        {
+            trackImage.color = new Color(1f, 1f, 1f, 0.25f);
+            trackImage.raycastTarget = false;
+        }
+
+        GameObject marker = UIObject("Marker", track.transform, new Vector2(0.5f, 0.5f),
+                                     Vector2.zero, new Vector2(14f, 14f));
+
+        Image markerImage = AddIfMissing<Image>(marker);
+
+        if (IsFresh(markerImage))
+        {
+            markerImage.sprite = TutorialWorldAssets_NEW.DiscSprite();
+            markerImage.color = new Color(1f, 0.93f, 0.78f, 0.95f);
+            markerImage.raycastTarget = false;
+        }
+
+        TutorialRangeMap_NEW map = AddIfMissing<TutorialRangeMap_NEW>(go);
+
+        Wire(map)
+            .Ref("travel", player.GetComponent<TutorialTravel_NEW>())
+            .Ref("track", track.GetComponent<RectTransform>())
+            .Ref("marker", marker.GetComponent<RectTransform>())
+            .Ref("distanceLabel", label.GetComponent<TMP_Text>())
+            .Apply();
+
+        return go;
+    }
+
     static GameObject BuildLegend(Transform canvas)
     {
         GameObject go = UIObject("Legend", canvas, new Vector2(0.5f, 0f), new Vector2(0f, 46f), new Vector2(1200f, 34f));
@@ -1478,7 +1549,8 @@ public static class TutorialSceneBuilder_NEW
     // ── Wiring ───────────────────────────────────────────────────────────────
 
     static void WireHud(TutorialHUD_NEW hud, TutorialDirector_NEW director,
-                        GameObject legend, GameObject reticle, GameObject hint, GameObject prompt)
+                        GameObject legend, GameObject reticle, GameObject map,
+                        GameObject hint, GameObject prompt)
     {
         Wire(hud)
             .Ref("director", director)
@@ -1486,6 +1558,7 @@ public static class TutorialSceneBuilder_NEW
             .Ref("legendText", legend.GetComponent<TMP_Text>())
             .Ref("legendGroup", legend.GetComponent<CanvasGroup>())
             .Ref("reticleRoot", reticle)
+            .Ref("mapRoot", map)
             .Ref("hintRoot", hint)
             .Ref("hintLabel", LabelIn(hint))
             .Ref("hintGroup", hint.GetComponent<CanvasGroup>())

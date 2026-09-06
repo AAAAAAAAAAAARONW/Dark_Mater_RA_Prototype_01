@@ -72,6 +72,7 @@ Tutorial/
 ├─ TutorialTravel_NEW         匀速直线飞向类星体，不接受任何输入
 ├─ TutorialSpeedStreaks_NEW   近景拉丝层，速度取自 TutorialTravel_NEW
 ├─ TutorialZoom_NEW           左摇杆缩放 FOV，并按视场缩放视角灵敏度
+├─ TutorialRangeMap_NEW       右上角的距离条：还有多远到类星体
 ├─ TutorialEmission_NEW       Phase 2 时序：加速 → 阈值 → 发射（反转航向、开拖尾）
 ├─ TutorialFlash_NEW          全屏闪白，颜色和时长由调用方给
 ├─ TutorialCameraShake_NEW    相机位移抖动，幅度由外部驱动
@@ -79,6 +80,7 @@ Tutorial/
 │   ├─ Beat_Cinematic_NEW     A1 A2 A3 C1 C3（无动作，按分镜时长走）
 │   ├─ Beat_LookAt_NEW        B1 B2 C4（把目标带进准星）
 │   ├─ Beat_TurnAround_NEW    B3（转过 150° 且目标在画面里）
+│   ├─ Beat_Zoom_NEW          A4（把视场收窄到阈值）
 │   └─ Beat_Confirm_NEW       B4 C2 C5（按 A）
 └─ Editor/
     ├─ TutorialSceneBuilder_NEW   一键搭场景（布局）
@@ -319,8 +321,9 @@ STICK = LOOK      A = CONFIRM / RECENTRE
 | Frame | 组件 | 门控 | 实现要点 |
 |---|---|---|---|
 | A1 | `Beat_Cinematic_NEW` | 无，8 秒 | 提示 `LEFT STICK · LOOK` 在这里出现；渐显也在这里开始；`onEnter` 挂 VO |
-| A2 | `Beat_Cinematic_NEW` | 无，7 秒 | 提示 `LEFT STICK · LOOK CLOSER`，教缩放。`onHalfway` 用于帧内变化 |
+| A2 | `Beat_Cinematic_NEW` | 无，7 秒 | `onHalfway` 用于「亮度升起来」这种帧内变化 |
 | A3 | `Beat_Cinematic_NEW` | 无，5 秒 | `onEnter` 激活光点；`onRumble` 见下方「已知缺口」 |
+| **A4** | `Beat_Zoom_NEW` | **把视场收窄过阈值** | 提示 `LEFT STICK · LOOK CLOSER`。分镜里没有这一帧 —— 见下 |
 | B1 | `Beat_LookAt_NEW` | 光点进入准星 | 提示 `LOOK RIGHT`。`holdSeconds = 0`，GDD 明写 not a dwell timer |
 | B2 | `Beat_LookAt_NEW` | 第二颗光点进入画面 | 提示 `LOOK UP`。光点从头顶掠过 |
 | B3 | `Beat_TurnAround_NEW` | 转过 150° **且**第三颗光点在画面里 | 提示 `TURN AROUND`。分镜的 B3 是「third mote, behind」，两个条件都要 —— 见下 |
@@ -397,13 +400,43 @@ GDD §6 把 Phase 0–1 写成「已经在吸积盘内部」。当前实现的�
 
 ---
 
-## 左摇杆缩放 —— 一处对 GDD 的有意偏离
+## 两根摇杆，各管各的
 
-GDD §4 写的是 “Stick — Look. **The only stick.**”。加左摇杆缩放是偏离它的，理由是开场那段的实际问题：Phase 0 有二十秒在告诉玩家「你可以转视角」，而画面里唯一能看的东西是一个远处的亮点，转来转去没有回报。
+| 控制 | 作用 |
+|---|---|
+| **右摇杆** | 转视角。`FirstPersonLookRig_NEW`，数值抄自 PlaytestBuild |
+| **左摇杆** | 缩放视场（FOV 40 → 12）。`TutorialZoom_NEW` |
+| **A** | 确认 / 复位 / 发射 |
 
-「把远处的东西看得更近」是天文展项能交给观众的、最不需要解释的一个动作，正好填上这二十秒。A2 的提示行改成 `LEFT STICK · LOOK CLOSER`。
+没有任何地方同时读两根摇杆，两个控制是可分离的。
 
-两根摇杆互不干涉：视角只读右，缩放只读左，没有任何地方同时读两根 —— 所以要撤掉这个功能，删掉 `TutorialZoom_NEW` 和 A2 的提示就行。
+### 缩放是一处对 GDD 的有意偏离
+
+GDD §4 写的是 “Stick — Look. **The only stick.**”。加左摇杆是偏离它的，理由是开场那段的实际问题：Phase 0 有二十秒在告诉玩家「你可以转视角」，而画面里唯一能看的东西是一个远处的亮点，转来转去没有回报。「把远处的东西看得更近」是天文展项能交给观众的、最不需要解释的动作。
+
+要撤掉：删 `TutorialZoom_NEW` 和 A4 拍子。
+
+### 它是被「教」的，不是被「提示」的
+
+第一版只加了一行提示，A2 显示 `LEFT STICK · LOOK CLOSER` 然后不管玩家碰没碰摇杆都往下走 —— **那不是教学**。这个教程里其他每一个控制都是同一种教法：拍子不满足就不推进。
+
+所以有了 **A4**（`Beat_Zoom_NEW`）：门控是把视场收窄过 `requiredZoom = 0.55`。它排在 A3 之后、B1 之前 —— 玩家那时已经用右摇杆自由看了二十秒，第二根摇杆是增补而不是竞争。
+
+`requireReturn` 可以要求再推回去（像 E2 的滑杆「推到两端」），默认关：一个动作一个门。
+
+**A4 不是分镜里的帧。** GDD 的 Phase 0 是三帧、标题叫 Silence、没有任何东西可按；这是第四帧而且带门控。改动记在这里。
+
+### 右上角的距离条
+
+`TutorialRangeMap_NEW`：一条轨、轨上一个标记、旁边一个实时距离。跟图例和准星一起在 B1 出现。
+
+**为什么需要它**：开场是一段很长的接近，而目标是一个增长极慢的亮点 —— 一个增长极慢的亮点和一个根本没在动的亮点，在画面上是分不清的。这条距离条把「我到底有没有在前进」变成一个看一眼就有答案的问题。
+
+**是一条轨不是雷达图**：这段体验只有一个行进轴，没有任何东西需要绕开。做成俯视雷达是在回答没人问的问题。
+
+**发射之后标记会往回走、距离会变大** —— 因为事实就是如此，光正在离开。代码里没有为 C3 写任何特例，它一直读的就是那两个位置。
+
+`displayScale` 和 `unitSuffix` 留着：场景单位对观众没有意义，等叙事定下这段接近该用什么单位计量，改这两个字段即可。
 
 **灵敏度必须跟着视场走，这一点最容易漏。** 「度/秒」是常数，但「屏幕/秒」不是：视场从 40° 收到 12° 时，同样的摇杆推量扫过的画面是三倍，玩家正想看仔细的时候相机反而变得暴躁。`TutorialZoom_NEW` 把 `FirstPersonLookRig_NEW.SensitivityScale` 设成 `当前视场 / 基准视场`，视觉速度就保持不变了。
 

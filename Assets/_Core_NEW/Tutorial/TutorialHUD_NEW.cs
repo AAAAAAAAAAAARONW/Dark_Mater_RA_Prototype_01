@@ -59,6 +59,12 @@ public class TutorialHUD_NEW : MonoBehaviour
     [Tooltip("Arrives with the legend. B1's gate is unplayable without it.")]
     [SerializeField] GameObject reticleRoot;
 
+    [Header("Range map")]
+    [Tooltip("Corner map showing how far the quasar still is. Arrives with the legend, " +
+             "because it answers 'am I going anywhere?' — a question the player only has " +
+             "once they have started looking around.")]
+    [SerializeField] GameObject mapRoot;
+
     [Header("Control hint")]
     [Tooltip("The line that says what to do with the stick. First seen at B1, and the " +
              "storyboard keeps it up through B2 and B3 with no new prompt.")]
@@ -210,6 +216,7 @@ public class TutorialHUD_NEW : MonoBehaviour
 
         if (legendRoot != null) legendRoot.SetActive(true);
         if (reticleRoot != null) reticleRoot.SetActive(true);
+        if (mapRoot != null) mapRoot.SetActive(true);
 
         if (debugLog) Debug.Log("[TutorialHUD_NEW] Legend and reticle on.", this);
     }
@@ -282,6 +289,7 @@ public class TutorialHUD_NEW : MonoBehaviour
     {
         if (legendRoot != null) legendRoot.SetActive(false);
         if (reticleRoot != null) reticleRoot.SetActive(false);
+        if (mapRoot != null) mapRoot.SetActive(false);
         if (hintRoot != null) hintRoot.SetActive(false);
         if (confirmPromptRoot != null) confirmPromptRoot.SetActive(false);
 
