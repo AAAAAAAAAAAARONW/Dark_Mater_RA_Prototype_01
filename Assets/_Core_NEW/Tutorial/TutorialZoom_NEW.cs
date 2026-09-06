@@ -64,6 +64,12 @@ public class TutorialZoom_NEW : MonoBehaviour
     /// <summary>0 at the base field of view, 1 at full zoom.</summary>
     public float Amount { get { return _applied; } }
 
+    /// <summary>The field of view right now, in degrees. Read by the gauge.</summary>
+    public float FieldOfView
+    {
+        get { return Mathf.Lerp(baseFieldOfView, zoomedFieldOfView, _applied); }
+    }
+
     void Awake()
     {
         _camera = GetComponent<Camera>();

@@ -327,6 +327,9 @@ public static class TutorialSceneBuilder_NEW
         TutorialAttract_NEW attract = AddIfMissing<TutorialAttract_NEW>(canvas);
         WireAttract(attract, director, card, lookRig, player.GetComponent<TutorialTravel_NEW>());
 
+        // Needs the director, so it is built after the director exists.
+        BuildZoomGauge(canvas.transform, zoom, director);
+
         TutorialFadeIn_NEW fade = AddIfMissing<TutorialFadeIn_NEW>(blackout);
         Wire(fade)
             .Ref("director", director)
@@ -1427,23 +1430,23 @@ public static class TutorialSceneBuilder_NEW
             rimImage.raycastTarget = false;
         }
 
-        // The facing wedge, at the centre, rotating with the look. A stub pointing out
-        // of the middle reads as "you, looking that way" with no legend needed.
-        GameObject facing = UIObject("Facing", frame.transform, new Vector2(0.5f, 0.5f),
-                                     Vector2.zero, new Vector2(10f, 46f));
+        // The quasar first, so the player's marker draws over it when they arrive.
+        GameObject marker = UIObject("Quasar", frame.transform, new Vector2(0.5f, 0.5f),
+                                     Vector2.zero, new Vector2(18f, 18f));
 
-        GameObject facingStem = UIObject("Stem", facing.transform, new Vector2(0.5f, 0f),
-                                         new Vector2(0f, 6f), new Vector2(4f, 30f));
+        Image markerImage = AddIfMissing<Image>(marker);
 
-        Image stemImage = AddIfMissing<Image>(facingStem);
-
-        if (IsFresh(stemImage))
+        if (IsFresh(markerImage))
         {
-            stemImage.color = new Color(1f, 1f, 1f, 0.75f);
-            stemImage.raycastTarget = false;
+            markerImage.sprite = TutorialWorldAssets_NEW.DiscSprite();
+            markerImage.color = new Color(1f, 0.86f, 0.6f, 1f);
+            markerImage.raycastTarget = false;
         }
 
-        GameObject self = UIObject("Self", frame.transform, new Vector2(0.5f, 0.5f),
+        // The player's marker is the thing that moves. The stem is its child, so the
+        // facing travels with it — see TutorialRangeMap_NEW on why the frame is the
+        // world rather than the player.
+        GameObject self = UIObject("Player", frame.transform, new Vector2(0.5f, 0.5f),
                                    Vector2.zero, new Vector2(11f, 11f));
 
         Image selfImage = AddIfMissing<Image>(self);
@@ -1455,16 +1458,18 @@ public static class TutorialSceneBuilder_NEW
             selfImage.raycastTarget = false;
         }
 
-        GameObject marker = UIObject("Quasar", frame.transform, new Vector2(0.5f, 0.5f),
-                                     Vector2.zero, new Vector2(16f, 16f));
+        GameObject facing = UIObject("Facing", self.transform, new Vector2(0.5f, 0.5f),
+                                     Vector2.zero, new Vector2(10f, 46f));
 
-        Image markerImage = AddIfMissing<Image>(marker);
+        GameObject facingStem = UIObject("Stem", facing.transform, new Vector2(0.5f, 0f),
+                                         new Vector2(0f, 6f), new Vector2(3f, 26f));
 
-        if (IsFresh(markerImage))
+        Image stemImage = AddIfMissing<Image>(facingStem);
+
+        if (IsFresh(stemImage))
         {
-            markerImage.sprite = TutorialWorldAssets_NEW.DiscSprite();
-            markerImage.color = new Color(1f, 0.86f, 0.6f, 1f);
-            markerImage.raycastTarget = false;
+            stemImage.color = new Color(1f, 1f, 1f, 0.7f);
+            stemImage.raycastTarget = false;
         }
 
         GameObject label = UIObject("Label", go.transform, new Vector2(0.5f, 0f),
@@ -1482,9 +1487,79 @@ public static class TutorialSceneBuilder_NEW
             .Ref("travel", player.GetComponent<TutorialTravel_NEW>())
             .Ref("lookRig", lookRig)
             .Ref("frame", frame.GetComponent<RectTransform>())
+            .Ref("playerMarker", self.GetComponent<RectTransform>())
             .Ref("facing", facing.GetComponent<RectTransform>())
             .Ref("destinationMarker", marker.GetComponent<RectTransform>())
             .Ref("distanceLabel", label.GetComponent<TMP_Text>())
+            .Apply();
+
+        return go;
+    }
+
+    /// <summary>
+    /// The zoom gauge: a vertical track that fills as the view narrows, on the right,
+    /// clear of the reticle and of the prompts along the bottom.
+    ///
+    /// The lesson needs this. A line of text and an image that gets bigger do not
+    /// obviously belong to each other — see TutorialZoomGauge_NEW.
+    /// </summary>
+    static GameObject BuildZoomGauge(Transform canvas, TutorialZoom_NEW zoom,
+                                     TutorialDirector_NEW director)
+    {
+        GameObject go = UIObject("ZoomGauge", canvas, new Vector2(1f, 0.5f),
+                                 new Vector2(-90f, 0f), new Vector2(70f, 260f));
+
+        AddIfMissing<CanvasGroup>(go);
+
+        GameObject track = UIObject("Track", go.transform, new Vector2(0.5f, 0.5f),
+                                    new Vector2(0f, 14f), new Vector2(6f, 190f));
+
+        Image trackImage = AddIfMissing<Image>(track);
+
+        if (IsFresh(trackImage))
+        {
+            trackImage.color = new Color(1f, 1f, 1f, 0.18f);
+            trackImage.raycastTarget = false;
+        }
+
+        // Bottom-anchored, so growing its height fills it upwards.
+        GameObject fill = UIObject("Fill", track.transform, new Vector2(0.5f, 0f),
+                                   Vector2.zero, new Vector2(6f, 0f));
+
+        if (IsFresh(fill))
+        {
+            RectTransform fillRect = fill.GetComponent<RectTransform>();
+            fillRect.pivot = new Vector2(0.5f, 0f);
+            fillRect.anchoredPosition = Vector2.zero;
+        }
+
+        Image fillImage = AddIfMissing<Image>(fill);
+
+        if (IsFresh(fillImage))
+        {
+            fillImage.color = new Color(1f, 0.92f, 0.76f, 0.95f);
+            fillImage.raycastTarget = false;
+        }
+
+        GameObject degrees = UIObject("Degrees", go.transform, new Vector2(0.5f, 0f),
+                                      new Vector2(0f, 100f), new Vector2(70f, 24f));
+        TMP_Text degreesText = AddText(degrees, "40°", 17, TextAlignmentOptions.Center);
+        if (IsFresh(degreesText)) degreesText.color = new Color(1f, 1f, 1f, 0.6f);
+
+        GameObject caption = UIObject("Caption", go.transform, new Vector2(0.5f, 1f),
+                                      new Vector2(0f, -6f), new Vector2(70f, 22f));
+        TMP_Text captionText = AddText(caption, "ZOOM", 15, TextAlignmentOptions.Center);
+        if (IsFresh(captionText)) captionText.color = new Color(1f, 1f, 1f, 0.5f);
+
+        TutorialZoomGauge_NEW gauge = AddIfMissing<TutorialZoomGauge_NEW>(go);
+
+        Wire(gauge)
+            .Ref("zoom", zoom)
+            .Ref("director", director)
+            .Ref("track", track.GetComponent<RectTransform>())
+            .Ref("fill", fill.GetComponent<RectTransform>())
+            .Ref("degreesLabel", degrees.GetComponent<TMP_Text>())
+            .Ref("group", go.GetComponent<CanvasGroup>())
             .Apply();
 
         return go;
