@@ -39,6 +39,7 @@ Phase 3–4 尚未实现 —— 见文末「下一步」。
 
 - **builder 拥有「存在性」和「接线」** —— 该有哪些物体、哪个门指向哪颗光点、HUD 订阅哪个 director。空引用是**缺口**不是决定（通常是因为后来的版本新增了它该指向的东西），所以会被填上，**并且每填一处都打一条 Console log**。
 - **你拥有「数值」** —— Transform、调过的参数、换过的材质、自己加的子物体、UnityEvent 上挂的东西。数字、布尔、枚举**永远不会**被写进一个已经存在的组件，因为分不清「没人设过」和「有人就是设成了这个值」。
+- **builder 拥有「文案」** —— 提示行、A 键提示、图例那串控制说明。这些是 builder 自己写的内容，不是谁调出来的数值，所以 `Build or Update` **会**改写它们，并把改前改后一起打进 Console。每个拍子（和 HUD）上有一个 `builderOwnsCopy`，默认开；取消勾选，那一处的文案就归你，builder 再也不碰。`beatId`、`legendFirstBeatId` 不算文案 —— 它们是标识符，走的还是「只填空」。
 
 拉过一个新增阶段的改动之后，跑一次 `Build or Update` 就行。Console 会告诉你它加了几个东西、填了几个引用，或者「没什么可做的」。
 
@@ -85,6 +86,7 @@ Tutorial/
 │   └─ Beat_Confirm_NEW       B4 C2 C5（按 A）
 └─ Editor/
     ├─ TutorialSceneBuilder_NEW   一键搭场景（布局）
+    ├─ TutorialBeatEditor_NEW     拍子的 Inspector：藏掉当前模式不读的字段
     └─ TutorialWorldAssets_NEW    资产查找与生成（取材）
 ```
 
@@ -293,24 +295,30 @@ GDD §2 记录了旧版 C3 锁相机被多名玩家读成 bug，§5 把「相机
 
 | 拍子 | 提示行 |
 |---|---|
-| A1（A2 A3 沿用） | `LEFT STICK  ·  LOOK AROUND` |
-| B1 | `LEFT STICK  ·  LOOK RIGHT` |
-| B2 | `LEFT STICK  ·  LOOK UP` |
-| B3 | `LEFT STICK  ·  TURN AROUND` |
+| A1（A2 A3 沿用） | `RIGHT STICK  ·  LOOK AROUND` |
+| A4 | `LEFT STICK  ·  LOOK CLOSER` |
+| B1 | `RIGHT STICK  ·  LOOK RIGHT` |
+| B2 | `RIGHT STICK  ·  LOOK UP` |
+| B3 | `RIGHT STICK  ·  TURN AROUND` |
 | B4 | `A  TO  RECENTRE` |
+| C3 | `A  TO  EMIT` |
+| C4 | `RIGHT STICK  ·  LOOK BACK` |
+| C5 | `A  TO  RECENTRE` |
 
-分镜在 B2 B3 上写的是 “No new prompt”，意思是**控制**已经教过、不用再教一遍 —— 这一点保留了，`LEFT STICK` 那半截自始至终不变。但提示行不只在教控制，它还在说下一步做什么，而一条写着 LOOK RIGHT 却在等玩家抬头的提示，比没有提示更糟。所以**控制那半截固定，动作那半截跟着拍子走**。
+分镜在 B2 B3 上写的是 “No new prompt”，意思是**控制**已经教过、不用再教一遍 —— 这一点保留了，`RIGHT STICK` 那半截自始至终不变（A4 是唯一的例外，它教的是另一根摇杆）。但提示行不只在教控制，它还在说下一步做什么，而一条写着 LOOK RIGHT 却在等玩家抬头的提示，比没有提示更糟。所以**控制那半截固定，动作那半截跟着拍子走**。
 
 底板说「做什么」，下方的圆形 A 图标说「用哪个键做」。两者不会同时说同一件事。
 
-文案全部在 `TutorialSceneBuilder_NEW.BuildPhase0 / BuildPhase1` 里，一处一行；场景搭好之后也能直接在每个拍子的 Inspector 里改。
+文案全部在 `TutorialSceneBuilder_NEW` 的 `BuildPhaseN` 里，一处一行 `.Copy("hintText", ...)`；场景搭好之后也能直接在拍子的 Inspector 里改 —— 但改之前先把那一拍的 `builderOwnsCopy` 取消勾选，否则下一次 `Build or Update` 会按 builder 里的文案把它改回来（并在 Console 里说明改了什么）。
+
+**`hintText` 只在 `hintMode` 是 `Show` 的时候被读。** 模式是 `Keep` 或 `Clear` 时那一栏在 Inspector 里直接不显示 —— 一个改了不会生效、也不报错的输入框，是最贵的一种坑。同理，`duration` 只在 Duration 模式下显示，`inputGraceSeconds` 只在 PlayerAction 模式下显示。这些由 `Editor/TutorialBeatEditor_NEW.cs` 负责，它挂在基类上（`true` = 包含派生类），所以新写的拍子自动就有。
 
 提示行放在 A1 是**有意偏离 GDD §7** 的：文档把第一个提示放在 B1、要求 B1 之前屏幕全空。走上来的观众应该先被告知「你可以转视角」，再被要求去转 —— 这是你定的顺序，不是我的解读。
 
-图例文案取自 GDD §4，一字不改：
+图例文案取自 GDD §4，按拆成两根摇杆之后的控制方案展开：
 
 ```
-STICK = LOOK      A = CONFIRM / RECENTRE
+RIGHT STICK = LOOK    LEFT STICK = ZOOM    A = CONFIRM / RECENTRE
 ```
 
 准星不在 GDD §7 的 UI 清单里，因为它不是玩家需要学的界面元素。但 B1 的门控是「光点保持在准星内」，准星不可见这条门就没法玩，所以它跟图例一起到场。
@@ -422,6 +430,16 @@ GDD §6 把 Phase 0–1 写成「已经在吸积盘内部」。当前实现的�
 `TutorialZoom_NEW` 在运行时也查一遍并报 error —— 因为这个坑的形成过程对两边都是隐形的，场景可以在没人做错任何事的情况下变成错的。
 
 **教训对以后一样有效**：改一个序列化字段的默认值，等于没改任何已有场景。要让它落地，得写迁移。
+
+### 同一个坑的第二种形状：文案冻在了第一次写下的样子
+
+上面那次修复把控制方案改对了，提示行却还写着 `LEFT STICK · LOOK AROUND`。原因是所有权规则的另一半：`Wire` 的 `Str()` 只填**空**字符串，非空一律当成「有人的决定」。
+
+但文案不是数值。`hintText` 里的那句话是 builder 自己写的，场景里那份只是它某一次运行留下的拷贝 —— 把它当成人的决定来保护，等于让文案永远追不上代码。控制改了、提示不改，玩家看到的是一条**错的**指令，这比丢掉某人的措辞坏得多。
+
+所以文案走 `Copy()`，不走 `Str()`：已有组件也照写，每改一处打一条 Console log 说明改前改后，`builderOwnsCopy` 取消勾选就完全免疫。区分标准是「这段字是谁写的」，不是「它现在空不空」。
+
+顺带一提，当时之所以查了很久，是因为改 A2 A3 的 `hintText` 也没反应 —— 那是第三件事：它们的 `hintMode` 是 `Keep`，那一栏根本不会被读。现在它在那种模式下不显示了。
 
 ### 缩放是一处对 GDD 的有意偏离
 

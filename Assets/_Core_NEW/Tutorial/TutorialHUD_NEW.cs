@@ -50,7 +50,11 @@ public class TutorialHUD_NEW : MonoBehaviour
     [SerializeField] TMP_Text legendText;
 
     [Tooltip("GDD §4 gives this string verbatim.")]
-    [SerializeField] string legendContent = "RIGHT STICK = LOOK      A = CONFIRM / RECENTRE";
+    [SerializeField] string legendContent = "RIGHT STICK = LOOK    LEFT STICK = ZOOM    A = CONFIRM / RECENTRE";
+
+    [Tooltip("Let the builder keep the legend wording in step with the control scheme. " +
+             "Untick to write your own and have it left alone.")]
+    [SerializeField] bool builderOwnsCopy = true;
 
     [Tooltip("Beat at which the legend arrives and stays. GDD §7 says B1.")]
     [SerializeField] string legendFirstBeatId = "B1";
@@ -89,6 +93,9 @@ public class TutorialHUD_NEW : MonoBehaviour
 
     [Header("Debug")]
     [SerializeField] bool debugLog = false;
+
+    /// <summary>Whether Build or Update may rewrite the legend wording.</summary>
+    public bool BuilderOwnsCopy { get { return builderOwnsCopy; } }
 
     bool _legendShown;
     bool _hintShown;

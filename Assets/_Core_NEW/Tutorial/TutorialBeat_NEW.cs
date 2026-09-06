@@ -69,8 +69,18 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
              "that wants a bare screen does not have to fake it with a blank string.")]
     [SerializeField] HintMode hintMode = HintMode.Keep;
 
-    [Tooltip("The line itself, e.g. LEFT STICK · LOOK. Only used when hintMode is Show.")]
+    [Tooltip("The line itself, e.g. RIGHT STICK · LOOK. Only used when hintMode is Show — " +
+             "the field is hidden otherwise, because editing a string nothing reads is a " +
+             "quiet way to lose ten minutes.")]
     [SerializeField] string hintText = "";
+
+    [Tooltip("Let the builder keep this beat's wording in step with the storyboard.\n\n" +
+             "Prompt copy is content the builder authored, not a value somebody tuned, so " +
+             "Build or Update rewrites it — which is how a prompt still reading LEFT STICK " +
+             "after look moved to the right stick gets corrected in a scene that already " +
+             "exists.\n\n" +
+             "Untick it to write your own wording and have the builder leave it alone.")]
+    [SerializeField] bool builderOwnsCopy = true;
 
     [Header("Advance")]
     [SerializeField] AdvanceMode advanceMode = AdvanceMode.Duration;
@@ -102,6 +112,12 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
 
     /// <summary>The hint line this beat shows. Only meaningful when Hint is Show.</summary>
     public string HintText { get { return hintText; } }
+
+    /// <summary>
+    /// Whether Build or Update may rewrite this beat's wording. The builder reads it
+    /// through SerializedObject; this is here so the intent is visible from code too.
+    /// </summary>
+    public bool BuilderOwnsCopy { get { return builderOwnsCopy; } }
     public AdvanceMode Mode { get { return advanceMode; } }
     public float Duration { get { return duration; } }
     public float Elapsed { get { return _elapsed; } }

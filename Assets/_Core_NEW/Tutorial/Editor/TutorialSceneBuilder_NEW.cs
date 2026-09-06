@@ -814,9 +814,9 @@ public static class TutorialSceneBuilder_NEW
         Beat_Cinematic_NEW a1 = Beat<Beat_Cinematic_NEW>(parent, "A1");
         Wire(a1)
             .Str("beatId", "A1")
-            .Str("description", "Near black. Dark red matter drifts in slow rotation deep in frame.")
+            .Copy("description", "Near black. Dark red matter drifts in slow rotation deep in frame.")
             .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
-            .Str("hintText", "RIGHT STICK  ·  LOOK AROUND")
+            .Copy("hintText", "RIGHT STICK  ·  LOOK AROUND")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
             .Num("duration", 8f)
             .Apply();
@@ -824,7 +824,7 @@ public static class TutorialSceneBuilder_NEW
         Beat_Cinematic_NEW a2 = Beat<Beat_Cinematic_NEW>(parent, "A2");
         Wire(a2)
             .Str("beatId", "A2")
-            .Str("description", "The flow brightens enough to read as orbiting something. " +
+            .Copy("description", "The flow brightens enough to read as orbiting something. " +
                                 "At the centre, a patch darker than black.")
             // Keep: A4 is where the zoom is taught, and a hint here would put its line
             // up before the beat that gates it.
@@ -835,7 +835,7 @@ public static class TutorialSceneBuilder_NEW
         Beat_Cinematic_NEW a3 = Beat<Beat_Cinematic_NEW>(parent, "A3");
         Wire(a3)
             .Str("beatId", "A3")
-            .Str("description", "A mote drifts out of frame at the right edge. One short controller rumble.")
+            .Copy("description", "A mote drifts out of frame at the right edge. One short controller rumble.")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
             .Num("duration", 5f)
             .Flag("rumbleOnEnter", true)
@@ -851,11 +851,11 @@ public static class TutorialSceneBuilder_NEW
         Beat_Zoom_NEW a4 = Beat<Beat_Zoom_NEW>(parent, "A4");
         Wire(a4)
             .Str("beatId", "A4")
-            .Str("description", "Look closer. The left stick narrows the view; the quasar " +
+            .Copy("description", "Look closer. The left stick narrows the view; the quasar " +
                                 "goes from a point to a disc. Not in the storyboard — see " +
                                 "TutorialZoom_NEW for the departure from GDD section 4.")
             .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
-            .Str("hintText", "LEFT STICK  ·  LOOK CLOSER")
+            .Copy("hintText", "LEFT STICK  ·  LOOK CLOSER")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
             .Num("requiredZoom", 0.55f)
             .Apply();
@@ -867,9 +867,9 @@ public static class TutorialSceneBuilder_NEW
         Beat_LookAt_NEW b1 = Beat<Beat_LookAt_NEW>(parent, "B1");
         Wire(b1)
             .Str("beatId", "B1")
-            .Str("description", "Player turns right, catches the mote, it blooms into a ripple.")
+            .Copy("description", "Player turns right, catches the mote, it blooms into a ripple.")
             .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
-            .Str("hintText", "RIGHT STICK  ·  LOOK RIGHT")
+            .Copy("hintText", "RIGHT STICK  ·  LOOK RIGHT")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
             .Ref("target", moteA.transform)
             .Ref("mote", moteA.GetComponent<GuideMote_NEW>())
@@ -889,10 +889,10 @@ public static class TutorialSceneBuilder_NEW
         Beat_LookAt_NEW b2 = Beat<Beat_LookAt_NEW>(parent, "B2");
         Wire(b2)
             .Str("beatId", "B2")
-            .Str("description", "The mote passes overhead. Looking up reveals the jet channel " +
+            .Copy("description", "The mote passes overhead. Looking up reveals the jet channel " +
                                 "running into the dark, which is the direction of travel.")
             .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
-            .Str("hintText", "RIGHT STICK  ·  LOOK UP")
+            .Copy("hintText", "RIGHT STICK  ·  LOOK UP")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
             .Ref("target", moteB.transform)
             .Ref("mote", moteB.GetComponent<GuideMote_NEW>())
@@ -906,10 +906,10 @@ public static class TutorialSceneBuilder_NEW
         Beat_TurnAround_NEW b3 = Beat<Beat_TurnAround_NEW>(parent, "B3");
         Wire(b3)
             .Str("beatId", "B3")
-            .Str("description", "Third mote, behind. Turning around, the player sees what they " +
+            .Copy("description", "Third mote, behind. Turning around, the player sees what they " +
                                 "are travelling away from. Spatial orientation lands here. Protect it.")
             .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
-            .Str("hintText", "RIGHT STICK  ·  TURN AROUND")
+            .Copy("hintText", "RIGHT STICK  ·  TURN AROUND")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
             .Ref("disc", moteC.transform)
             .Ref("lookRig", lookRig)
@@ -920,16 +920,16 @@ public static class TutorialSceneBuilder_NEW
         Beat_Confirm_NEW b4 = Beat<Beat_Confirm_NEW>(parent, "B4");
         Wire(b4)
             .Str("beatId", "B4")
-            .Str("description", "The view is left off-axis. The A prompt appears at the lower " +
+            .Copy("description", "The view is left off-axis. The A prompt appears at the lower " +
                                 "edge. One press smoothly recentres on the travel axis.")
             // The hint line switches from the look instruction to the recentre one, so
             // the two never sit on screen together. The plate says what to do; the
             // button affordance below it says which control does it.
             .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
-            .Str("hintText", "A  TO  RECENTRE")
+            .Copy("hintText", "A  TO  RECENTRE")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
             .Ref("lookRig", lookRig)
-            .Str("promptText", "RECENTRE")
+            .Copy("promptText", "RECENTRE")
             .Flag("recentreOnPress", true)
             .Flag("waitForRecentre", false)
             .Apply();
@@ -958,7 +958,7 @@ public static class TutorialSceneBuilder_NEW
         Beat_Cinematic_NEW c1 = Beat<Beat_Cinematic_NEW>(parent, "C1");
         Wire(c1)
             .Str("beatId", "C1")
-            .Str("description", "Spin-up. The disc accelerates, matter stretches into streaks, " +
+            .Copy("description", "Spin-up. The disc accelerates, matter stretches into streaks, " +
                                 "brightness and noise rise, audio swells.")
             .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Clear)
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
@@ -968,13 +968,13 @@ public static class TutorialSceneBuilder_NEW
         Beat_Confirm_NEW c2 = Beat<Beat_Confirm_NEW>(parent, "C2");
         Wire(c2)
             .Str("beatId", "C2")
-            .Str("description", "Threshold. Near blow-out white with high frequency frame jitter. " +
+            .Copy("description", "Threshold. Near blow-out white with high frequency frame jitter. " +
                                 "A single A prompt pulses at centre.")
             .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
-            .Str("hintText", "A  TO  EMIT")
+            .Copy("hintText", "A  TO  EMIT")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
             .Ref("lookRig", lookRig)
-            .Str("promptText", "EMIT")
+            .Copy("promptText", "EMIT")
             // A means emit here, not recentre. Beat_Confirm_NEW switches the rig's
             // binding off for the duration and hands it back on exit.
             .Flag("recentreOnPress", false)
@@ -983,7 +983,7 @@ public static class TutorialSceneBuilder_NEW
         Beat_Cinematic_NEW c3 = Beat<Beat_Cinematic_NEW>(parent, "C3");
         Wire(c3)
             .Str("beatId", "C3")
-            .Str("description", "Emission. One white frame, then a hard speed tunnel with matter " +
+            .Copy("description", "Emission. One white frame, then a hard speed tunnel with matter " +
                                 "streaking backwards. CRITICAL: the camera does not lock here — " +
                                 "the old build did and playtesters read it as a bug.")
             .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Clear)
@@ -994,10 +994,10 @@ public static class TutorialSceneBuilder_NEW
         Beat_LookAt_NEW c4 = Beat<Beat_LookAt_NEW>(parent, "C4");
         Wire(c4)
             .Str("beatId", "C4")
-            .Str("description", "Look back. Speed settles. Turning around, the quasar is already " +
+            .Copy("description", "Look back. Speed settles. Turning around, the quasar is already " +
                                 "a single bright point. Reuses the B1 lesson with no new control.")
             .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
-            .Str("hintText", "RIGHT STICK  ·  LOOK BACK")
+            .Copy("hintText", "RIGHT STICK  ·  LOOK BACK")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
             .Ref("target", quasar.transform)
             .Ref("lookRig", lookRig)
@@ -1008,13 +1008,13 @@ public static class TutorialSceneBuilder_NEW
         Beat_Confirm_NEW c5 = Beat<Beat_Confirm_NEW>(parent, "C5");
         Wire(c5)
             .Str("beatId", "C5")
-            .Str("description", "Orient forward. Facing forward again: empty dark, with very " +
+            .Copy("description", "Orient forward. Facing forward again: empty dark, with very " +
                                 "faint filaments a long way ahead.")
             .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
-            .Str("hintText", "A  TO  RECENTRE")
+            .Copy("hintText", "A  TO  RECENTRE")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
             .Ref("lookRig", lookRig)
-            .Str("promptText", "RECENTRE")
+            .Copy("promptText", "RECENTRE")
             .Flag("recentreOnPress", true)
             // C5's gate is "view recentred on the forward axis", so this one does wait
             // for the lerp rather than being satisfied on the press.
@@ -1753,6 +1753,7 @@ public static class TutorialSceneBuilder_NEW
             .Ref("confirmPromptRoot", prompt)
             .Ref("confirmPromptText", LabelIn(prompt))
             .Ref("promptGroup", prompt.GetComponent<CanvasGroup>())
+            .Copy("legendContent", "RIGHT STICK = LOOK    LEFT STICK = ZOOM    A = CONFIRM / RECENTRE")
             .Str("legendFirstBeatId", "B1")
             .Apply();
     }
@@ -1967,6 +1968,40 @@ public static class TutorialSceneBuilder_NEW
 
             p.stringValue = value;
             Note(path);
+            return this;
+        }
+
+        /// <summary>
+        /// Prompt copy: rewritten even on a component that already existed.
+        ///
+        /// Str's "fill only when empty" rule is right for a reference and wrong for
+        /// wording, and the difference is who wrote it. A prompt string was authored by
+        /// the builder, so a scene built last week holds last week's copy forever — which
+        /// is how a prompt reading LEFT STICK survived look moving to the right stick,
+        /// with nothing in the Console to say so.
+        ///
+        /// The target opts out with a `builderOwnsCopy` field set false, which is how
+        /// somebody writes their own wording and keeps it. A target with no such field
+        /// is treated as owning nothing, since only beats carry copy.
+        /// </summary>
+        public Wiring Copy(string path, string value)
+        {
+            SerializedProperty p = Find(path);
+            if (p == null) return this;
+            if (p.stringValue == value) return this;
+
+            if (!_fresh)
+            {
+                SerializedProperty owned = _so.FindProperty("builderOwnsCopy");
+                if (owned == null || !owned.boolValue) return this;
+
+                Debug.Log("[TutorialSceneBuilder_NEW] " + _name + "." + path + ": '" +
+                          p.stringValue + "' -> '" + value + "'. Untick builderOwnsCopy " +
+                          "on that beat to keep your own wording.");
+            }
+
+            p.stringValue = value;
+            _wired++;
             return this;
         }
 
