@@ -85,6 +85,8 @@ public static class TutorialWorldAssets_NEW
     const string ChipPath = GeneratedFolder + "/TutorialChip.png";
     const string RingPath = GeneratedFolder + "/TutorialRing.png";
     const string DiscPath = GeneratedFolder + "/TutorialDisc.png";
+    const string GlowPath = GeneratedFolder + "/TutorialGlow.png";
+    const string ArrowPath = GeneratedFolder + "/TutorialArrow.png";
 
     // ── Lookup ───────────────────────────────────────────────────────────────
 
@@ -286,6 +288,21 @@ public static class TutorialWorldAssets_NEW
         return GenerateSprite(DiscPath, 64, PaintDisc, 0f);
     }
 
+    /// <summary>Radial falloff to nothing. The halo that makes the quasar read as bright
+    /// rather than merely yellow.</summary>
+    public static Sprite GlowSprite()
+    {
+        return GenerateSprite(GlowPath, 64, PaintGlow, 0f);
+    }
+
+    /// <summary>Triangle, base at the bottom and point at the top. The player's facing on
+    /// the map — see TutorialRangeMap_NEW, which rests it pointing up and turns it from
+    /// there.</summary>
+    public static Sprite ArrowSprite()
+    {
+        return GenerateSprite(ArrowPath, 64, PaintArrow, 0f);
+    }
+
     delegate float Painter(float x, float y, int size);
 
     static Sprite GenerateSprite(string path, int size, Painter painter, float border)
@@ -368,6 +385,30 @@ public static class TutorialWorldAssets_NEW
         float r = Mathf.Sqrt((x - centre) * (x - centre) + (y - centre) * (y - centre));
 
         return Mathf.Clamp01(centre - 1f - r);
+    }
+
+    static float PaintGlow(float x, float y, int size)
+    {
+        float centre = (size - 1) * 0.5f;
+        float r = Mathf.Sqrt((x - centre) * (x - centre) + (y - centre) * (y - centre)) / centre;
+
+        // Squared falloff. Linear reads as a flat disc with a fuzzy rim; this has a bright
+        // middle that fades out, which is what a light source looks like.
+        float a = Mathf.Clamp01(1f - r);
+        return a * a;
+    }
+
+    static float PaintArrow(float x, float y, int size)
+    {
+        float max = size - 1f;
+        float centre = max * 0.5f;
+
+        // Base along the bottom edge, apex at the top middle: half the width at this row
+        // shrinks to nothing by the time it reaches the top.
+        float halfWidth = (1f - y / max) * centre;
+
+        // One-pixel soft edge, or the diagonals stair-step badly at twelve pixels across.
+        return Mathf.Clamp01(halfWidth - Mathf.Abs(x - centre) + 1f);
     }
 
     static Shader FindAdditiveParticleShader()

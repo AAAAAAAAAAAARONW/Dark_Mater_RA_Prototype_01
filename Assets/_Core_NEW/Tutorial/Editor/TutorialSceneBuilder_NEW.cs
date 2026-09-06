@@ -1147,6 +1147,75 @@ public static class TutorialSceneBuilder_NEW
         return go;
     }
 
+    /// <summary>
+    /// Sprite, colour and size on one HUD image.
+    ///
+    /// Normally this only fires on an element the run just made, because a colour or a
+    /// swapped sprite is exactly the kind of thing somebody tunes and the builder has no
+    /// business overwriting. `redesign` is the escape hatch, and the only caller passing
+    /// it true is the map, on the one build that brings it up from the round version — a
+    /// design that changed shape cannot be half applied, or the result is neither.
+    ///
+    /// `sliced` is for the 9-sliced chip, which is the only sprite here that stretches.
+    /// </summary>
+    static Image Paint(GameObject go, Sprite sprite, Color color, Vector2 size,
+                       bool sliced, bool redesign)
+    {
+        Image image = AddIfMissing<Image>(go);
+
+        if (!IsFresh(image) && !redesign) return image;
+
+        Undo.RecordObject(image, "Style the HUD");
+
+        image.sprite = sprite;
+        image.color = color;
+        image.type = sliced ? Image.Type.Sliced : Image.Type.Simple;
+        image.raycastTarget = false;
+
+        RectTransform rect = (RectTransform)go.transform;
+        Undo.RecordObject(rect, "Style the HUD");
+        rect.sizeDelta = size;
+
+        return image;
+    }
+
+    /// <summary>
+    /// Take the image off an object that has stopped being something you can see.
+    ///
+    /// The map's Frame used to be the dark circle; it is now nothing but the box the
+    /// markers are positioned inside, and leaving the old disc on it would draw a circle
+    /// on top of the new plate.
+    /// </summary>
+    static void Unpaint(GameObject go, bool redesign)
+    {
+        if (!redesign) return;
+
+        Image image = go.GetComponent<Image>();
+        if (image == null) return;
+
+        Debug.LogWarning("[TutorialSceneBuilder_NEW] Removed the image from " + go.name +
+                         ": it is a layout box now, not something drawn. Undo restores it.", go);
+
+        Undo.DestroyObjectImmediate(image);
+        _wired++;
+    }
+
+    /// <summary>
+    /// An object the design left behind. Same narrow exception as RetireBeat: it is not
+    /// somebody's edit, it is a leftover that draws over the thing that replaced it.
+    /// </summary>
+    static void RetireObject(Transform parent, string name, string why)
+    {
+        GameObject go = FindChild(parent, name);
+        if (go == null) return;
+
+        Debug.LogWarning("[TutorialSceneBuilder_NEW] Retired " + name + ": " + why +
+                         ". Undo brings it back.", parent);
+
+        Undo.DestroyObjectImmediate(go);
+        _wired++;
+    }
+
     static GameObject FindChild(Transform parent, string name)
     {
         Transform t = parent.Find(name);
@@ -1466,84 +1535,101 @@ public static class TutorialSceneBuilder_NEW
     static GameObject BuildRangeMap(Transform canvas, GameObject player, FirstPersonLookRig_NEW lookRig)
     {
         GameObject go = UIObject("RangeMap", canvas, new Vector2(1f, 1f),
-                                 new Vector2(-150f, -150f), new Vector2(220f, 260f));
+                                 new Vector2(-136f, -140f), new Vector2(200f, 232f));
 
-        // The circle the map is drawn in. Its width is the map's diameter, so the
-        // component reads its reach off this rather than being told twice.
+        // A round map says radar: everything around you, at every bearing. This one is a
+        // plan view of a straight line between two points, and a rounded rectangle is the
+        // honest shape for that. It also sits square in the corner rather than leaving
+        // four gaps.
+        //
+        // Restyling an existing map is normally the user's business and not the
+        // builder's. The exception is a design that changed shape, and the tell is
+        // structural rather than a colour comparison: no Plate means this scene is still
+        // on the round one, and that is a one-way trip.
+        bool roundVersion = FindChild(go.transform, "Plate") == null;
+
+
+        GameObject edge = UIObject("Edge", go.transform, new Vector2(0.5f, 0.5f),
+                                   Vector2.zero, new Vector2(202f, 234f));
+        Paint(edge, TutorialWorldAssets_NEW.ChipSprite(), new Color(1f, 1f, 1f, 0.22f),
+              new Vector2(202f, 234f), true, roundVersion);
+
+        GameObject plate = UIObject("Plate", go.transform, new Vector2(0.5f, 0.5f),
+                                    Vector2.zero, new Vector2(200f, 232f));
+        Paint(plate, TutorialWorldAssets_NEW.ChipSprite(), new Color(0.015f, 0.02f, 0.045f, 0.86f),
+              new Vector2(200f, 232f), true, roundVersion);
+
+        // The box the two markers live in. No image of its own — the plate behind it is
+        // the background. The component reads its reach off this rect, so the map is told
+        // its size once rather than twice.
         GameObject frame = UIObject("Frame", go.transform, new Vector2(0.5f, 1f),
-                                    new Vector2(0f, -100f), new Vector2(180f, 180f));
+                                    new Vector2(0f, -89f), new Vector2(164f, 150f));
 
-        Image frameImage = AddIfMissing<Image>(frame);
+        Unpaint(frame, roundVersion);
 
-        if (IsFresh(frameImage))
-        {
-            frameImage.sprite = TutorialWorldAssets_NEW.DiscSprite();
-            frameImage.color = new Color(0.02f, 0.02f, 0.05f, 0.5f);
-            frameImage.raycastTarget = false;
-        }
+        // The rim was the ring drawn around the old circle, and it was a child of Frame.
+        RetireObject(frame.transform, "Rim", "the round map became a rounded plate");
 
-        GameObject rim = UIObject("Rim", frame.transform, new Vector2(0.5f, 0.5f),
-                                  Vector2.zero, new Vector2(180f, 180f));
-
-        Image rimImage = AddIfMissing<Image>(rim);
-
-        if (IsFresh(rimImage))
-        {
-            rimImage.sprite = TutorialWorldAssets_NEW.RingSprite();
-            rimImage.color = new Color(1f, 1f, 1f, 0.28f);
-            rimImage.raycastTarget = false;
-        }
-
-        // The quasar first, so the player's marker draws over it when they arrive.
+        // The quasar first, so the player's marker draws over it on arrival.
         GameObject marker = UIObject("Quasar", frame.transform, new Vector2(0.5f, 0.5f),
-                                     Vector2.zero, new Vector2(18f, 18f));
+                                     Vector2.zero, new Vector2(30f, 30f));
+        Paint(marker, TutorialWorldAssets_NEW.GlowSprite(), new Color(1f, 0.82f, 0.32f, 0.5f),
+              new Vector2(30f, 30f), false, roundVersion);
 
-        Image markerImage = AddIfMissing<Image>(marker);
+        GameObject core = UIObject("Core", marker.transform, new Vector2(0.5f, 0.5f),
+                                   Vector2.zero, new Vector2(9f, 9f));
+        Paint(core, TutorialWorldAssets_NEW.DiscSprite(), new Color(1f, 0.94f, 0.74f, 1f),
+              new Vector2(9f, 9f), false, roundVersion);
 
-        if (IsFresh(markerImage))
-        {
-            markerImage.sprite = TutorialWorldAssets_NEW.DiscSprite();
-            markerImage.color = new Color(1f, 0.86f, 0.6f, 1f);
-            markerImage.raycastTarget = false;
-        }
+        // Named, because an unlabelled dot on a map is a dot. To the right of the glow
+        // rather than under it: the player's marker travels up the middle and ends up
+        // exactly here.
+        GameObject markerName = UIObject("Name", marker.transform, new Vector2(1f, 0.5f),
+                                         new Vector2(32f, 0f), new Vector2(58f, 16f));
+        TMP_Text markerLabel = AddText(markerName, "QUASAR", 11, TextAlignmentOptions.Left);
+        if (IsFresh(markerLabel)) markerLabel.color = new Color(1f, 0.86f, 0.5f, 0.85f);
 
-        // The player's marker is the thing that moves. The stem is its child, so the
-        // facing travels with it — see TutorialRangeMap_NEW on why the frame is the
-        // world rather than the player.
+        // The player's marker is the thing that moves — see TutorialRangeMap_NEW on why
+        // the frame is the world rather than the player. The arrow is a grandchild, so it
+        // travels with the dot and turns independently of it.
         GameObject self = UIObject("Player", frame.transform, new Vector2(0.5f, 0.5f),
-                                   Vector2.zero, new Vector2(11f, 11f));
-
-        Image selfImage = AddIfMissing<Image>(self);
-
-        if (IsFresh(selfImage))
-        {
-            selfImage.sprite = TutorialWorldAssets_NEW.DiscSprite();
-            selfImage.color = Color.white;
-            selfImage.raycastTarget = false;
-        }
+                                   Vector2.zero, new Vector2(10f, 10f));
+        Paint(self, TutorialWorldAssets_NEW.DiscSprite(), Color.white,
+              new Vector2(10f, 10f), false, roundVersion);
 
         GameObject facing = UIObject("Facing", self.transform, new Vector2(0.5f, 0.5f),
-                                     Vector2.zero, new Vector2(10f, 46f));
+                                     Vector2.zero, new Vector2(10f, 10f));
 
-        GameObject facingStem = UIObject("Stem", facing.transform, new Vector2(0.5f, 0.5f),
-                                         new Vector2(0f, 17f), new Vector2(3f, 26f));
-
-        Image stemImage = AddIfMissing<Image>(facingStem);
-
-        if (IsFresh(stemImage))
+        // The needle was a bar called Stem before it was an arrowhead. Renamed rather
+        // than replaced, so it keeps its place in the hierarchy and anything hanging off
+        // it comes along.
+        GameObject legacyStem = FindChild(facing.transform, "Stem");
+        if (legacyStem != null && FindChild(facing.transform, "Arrow") == null)
         {
-            stemImage.color = new Color(1f, 1f, 1f, 0.7f);
-            stemImage.raycastTarget = false;
+            Undo.RecordObject(legacyStem, "Rename the map needle");
+            legacyStem.name = "Arrow";
         }
 
+        GameObject arrow = UIObject("Arrow", facing.transform, new Vector2(0.5f, 0.5f),
+                                    new Vector2(0f, 8f), new Vector2(12f, 10f));
+        Paint(arrow, TutorialWorldAssets_NEW.ArrowSprite(), new Color(1f, 1f, 1f, 0.95f),
+              new Vector2(12f, 10f), false, roundVersion);
+
         GameObject label = UIObject("Label", go.transform, new Vector2(0.5f, 0f),
-                                    new Vector2(0f, 26f), new Vector2(220f, 34f));
-        AddText(label, "0", 26, TextAlignmentOptions.Center);
+                                    new Vector2(0f, 44f), new Vector2(180f, 32f));
+        AddText(label, "0", 24, TextAlignmentOptions.Center);
 
         GameObject caption = UIObject("Caption", go.transform, new Vector2(0.5f, 0f),
-                                      new Vector2(0f, 4f), new Vector2(220f, 22f));
-        TMP_Text captionText = AddText(caption, "TO THE QUASAR", 15, TextAlignmentOptions.Center);
-        if (IsFresh(captionText)) captionText.color = new Color(1f, 1f, 1f, 0.45f);
+                                      new Vector2(0f, 16f), new Vector2(180f, 20f));
+        // Not "TO THE QUASAR" any more: the dot up there says QUASAR now, and the same
+        // word twice sixty pixels apart reads as nobody having looked at it.
+        TMP_Text captionText = AddText(caption, "RANGE", 13, TextAlignmentOptions.Center);
+
+        if (IsFresh(captionText) || roundVersion)
+        {
+            captionText.text = "RANGE";
+            captionText.color = new Color(1f, 1f, 1f, 0.45f);
+        }
 
         TutorialRangeMap_NEW map = AddIfMissing<TutorialRangeMap_NEW>(go);
 
@@ -1553,29 +1639,29 @@ public static class TutorialSceneBuilder_NEW
             .Ref("frame", frame.GetComponent<RectTransform>())
             .Ref("playerMarker", self.GetComponent<RectTransform>())
             .Ref("facing", facing.GetComponent<RectTransform>())
-            .Ref("stem", facingStem.GetComponent<RectTransform>())
+            .Ref("arrow", arrow.GetComponent<RectTransform>())
             .Ref("destinationMarker", marker.GetComponent<RectTransform>())
             .Ref("distanceLabel", label.GetComponent<TMP_Text>())
             .Apply();
 
-        // After the wiring, because PlaceStem reads the reference the line above fills.
+        // After the wiring, because PlaceArrow reads the reference the line above fills.
         //
-        // One implementation of "which way does the needle mean", and it lives on the
-        // component — see TutorialRangeMap_NEW.PlaceStem. Called here as well as from
+        // One implementation of "which way does the arrow mean", and it lives on the
+        // component — see TutorialRangeMap_NEW.PlaceArrow. Called here as well as from
         // Awake, so the map reads right in the Scene view and not only once you press
         // Play. A map built by an earlier version has the needle BELOW the marker,
         // pointing back at where the player came from; this is what repairs it.
-        RectTransform stemRect = facingStem.GetComponent<RectTransform>();
-        Vector2 stemWas = stemRect.anchoredPosition;
+        RectTransform arrowRect = arrow.GetComponent<RectTransform>();
+        Vector2 arrowWas = arrowRect.anchoredPosition;
 
-        Undo.RecordObject(stemRect, "Place the map stem");
-        map.PlaceStem();
+        Undo.RecordObject(arrowRect, "Place the map arrow");
+        map.PlaceArrow();
 
-        if ((stemRect.anchoredPosition - stemWas).sqrMagnitude > 0.01f)
+        if ((arrowRect.anchoredPosition - arrowWas).sqrMagnitude > 0.01f)
         {
-            Debug.LogWarning("[TutorialSceneBuilder_NEW] Moved the map's facing needle to sit " +
+            Debug.LogWarning("[TutorialSceneBuilder_NEW] Moved the map's facing arrow to sit " +
                              "above the player marker. The map turns it from straight up, so " +
-                             "anywhere else it points the wrong way.", stemRect);
+                             "anywhere else it points the wrong way.", arrowRect);
             _wired++;
         }
 
