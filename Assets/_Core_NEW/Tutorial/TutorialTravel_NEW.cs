@@ -120,6 +120,35 @@ public class TutorialTravel_NEW : MonoBehaviour
             : Vector3.forward;
     }
 
+    /// <summary>
+    /// One line confirming the light is actually going where it should.
+    ///
+    /// "Is the player still moving forward?" is a question you cannot answer by looking
+    /// at a starfield — everything is far away and nothing has a known size. The angle
+    /// between the heading and the direction to the quasar is the answer: 0 means dead
+    /// on, and it should never move off 0, because nothing is allowed to change the
+    /// heading after Awake.
+    /// </summary>
+    void OnGUI()
+    {
+        if (!DebugView_NEW.Overlay) return;
+
+        float offAxis = 0f;
+        float remaining = 0f;
+
+        if (destination != null)
+        {
+            Vector3 toDestination = destination.position - transform.position;
+
+            remaining = toDestination.magnitude;
+            if (remaining > 0.001f) offAxis = Vector3.Angle(_direction, toDestination);
+        }
+
+        GUI.Label(new Rect(10f, 70f, 900f, 22f),
+                  string.Format("TRAVEL  {0:F1} u/s   travelled {1:F0}   to quasar {2:F0}   off-axis {3:F2}deg",
+                                speed, DistanceTravelled, remaining, offAxis));
+    }
+
     void OnDrawGizmosSelected()
     {
         if (!drawGizmo || !DebugView_NEW.Gizmos) return;

@@ -71,9 +71,21 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
              "same arc is about 195 deg/s.")]
     [SerializeField] float resetYSpeed = 195f;
 
-    [Tooltip("Stick deflection above this cancels a recentre in progress. The camera is " +
-             "never locked, so the player always outranks the lerp.")]
-    [SerializeField] float recentreCancelThreshold = 0.25f;
+    [Tooltip("Stick deflection, 0-1, above which a recentre in progress is cancelled. " +
+             "The camera is never locked, so the player always outranks the lerp — but " +
+             "a resting thumb must not count, or A appears to do nothing.")]
+    [SerializeField] float recentreCancelStick = 0.35f;
+
+    [Tooltip("Raw mouse movement per frame above which a recentre is cancelled. Well " +
+             "above sensor noise on purpose: an earlier version compared a scaled " +
+             "per-frame delta and cancelled the recentre on the frame it began.")]
+    [SerializeField] float recentreCancelMouse = 2f;
+
+    [Tooltip("Seconds after the press during which the recentre cannot be cancelled. " +
+             "The player has just spent eight seconds turning around; their thumb is " +
+             "still on the stick when they press A, and without this the recentre is " +
+             "cancelled by the input that was already happening.")]
+    [SerializeField] float recentreGrace = 0.25f;
 
     [Header("Debug")]
     [SerializeField] bool debugLog = false;
@@ -92,6 +104,7 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
     float _forwardPitch;
 
     bool _recentring;
+    float _recentreElapsed;
 
     // Mark used by the turn-around gate (B3).
     float _markYaw;
@@ -134,6 +147,8 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
     public void BeginRecentre()
     {
         _recentring = true;
+        _recentreElapsed = 0f;
+
         if (debugLog) Debug.Log("[FirstPersonLookRig_NEW] Recentre begun.", this);
     }
 
@@ -209,13 +224,19 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
 
         if (_recentring)
         {
-            // The player outranks the recentre. See the class summary.
-            float deflection = Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy)) / Mathf.Max(dt, 0.0001f);
+            // The player outranks the recentre — but only a deliberate input counts.
+            // Read the devices, not the resulting per-frame delta. See the tooltips.
+            _recentreElapsed += dt;
 
-            if (deflection > recentreCancelThreshold * Mathf.Max(xSensitivity, ySensitivity))
+            bool cancellable = _recentreElapsed >= recentreGrace;
+            bool cancelled = cancellable
+                             && (TutorialInput_NEW.StickDeflection(stickDeadband) > recentreCancelStick
+                                 || TutorialInput_NEW.MouseDeflection() > recentreCancelMouse);
+
+            if (cancelled)
             {
                 _recentring = false;
-                if (debugLog) Debug.Log("[FirstPersonLookRig_NEW] Recentre cancelled by stick.", this);
+                if (debugLog) Debug.Log("[FirstPersonLookRig_NEW] Recentre cancelled by look input.", this);
             }
             else
             {
@@ -274,5 +295,27 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
         degrees %= 360f;
         if (degrees > 180f) degrees -= 360f;
         return degrees;
+    }
+
+    /// <summary>
+    /// One line saying what the camera is doing and whether it saw the confirm press.
+    ///
+    /// "A does nothing" is a symptom with at least four causes — the button not being
+    /// read, the beat not being open, the recentre starting and being cancelled, and the
+    /// view already being on axis so there is nothing to see. This distinguishes them
+    /// without a breakpoint, which is what a whitebox session at the Observatories needs.
+    /// </summary>
+    void OnGUI()
+    {
+        if (!DebugView_NEW.Overlay) return;
+
+        string state = _recentring ? "RECENTRING" : "free";
+        float offAxis = Mathf.Abs(Mathf.DeltaAngle(_yaw, _forwardYaw));
+
+        GUI.Label(new Rect(10f, 50f, 900f, 22f),
+                  string.Format("CAMERA  {0}   off-axis {1:F0}deg   confirm-down {2}   stick {3:F2}",
+                                state, offAxis,
+                                TutorialInput_NEW.ConfirmDown() ? "YES" : "-",
+                                TutorialInput_NEW.StickDeflection(stickDeadband)));
     }
 }

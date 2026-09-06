@@ -5,21 +5,26 @@ using UnityEngine.UI;
 /// Everything that is on screen during the tutorial, and — more importantly — when it
 /// is not.
 ///
-/// GDD §7 lists the UI in the order it arrives and opens with the constraint that
-/// governs this class: nothing is on screen before B1. Phase 0 is titled Silence and
-/// means it. So the default state of every element here is off, and each one is
-/// switched on by a named beat rather than by being present in the scene.
+/// The default state of every element here is off, and each one is switched on by a
+/// named beat rather than by being present in the scene.
 ///
-/// Three elements exist in Phase 0–1:
+/// Four elements exist in Phase 0–1:
 ///
-///   1. Control legend    First seen at B1 and never dismissed. It persists past the
+///   1. Control hint      "LEFT STICK · LOOK". First seen at A1, because the piece
+///                        should tell a walk-up visitor they can move the view before
+///                        it asks them to. That is a deliberate departure from GDD §7,
+///                        which puts the first prompt at B1 and wants nothing on screen
+///                        before it. Empty hintText on a later beat means "no change",
+///                        which is what the storyboard's "No new prompt" on B2 and B3
+///                        asks for.
+///   2. Control legend    First seen at B1 and never dismissed. It persists past the
 ///                        end of the tutorial into Phase −1, so there is deliberately
 ///                        no code path that hides it again.
-///   2. Reticle           Not in the GDD's UI list, because it is not an interface
+///   3. Reticle           Not in the GDD's UI list, because it is not an interface
 ///                        element the player has to learn — but B1's gate is "mote held
 ///                        inside the reticle", which is unplayable if the reticle is
 ///                        invisible. It arrives with the legend.
-///   3. A prompt          First seen at B4. Owned here rather than by the beat because
+///   4. A prompt          First seen at B4. Owned here rather than by the beat because
 ///                        GDD §5 requires the continue affordance to be the same shape
 ///                        in the same position every time; only the words come from the
 ///                        beat.

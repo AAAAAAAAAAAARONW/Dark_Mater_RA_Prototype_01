@@ -42,6 +42,17 @@ public static class TutorialWorldAssets_NEW
     /// <summary>The quasar layer's sky look, shared with the journey so the two cannot drift.</summary>
     public const string QuasarNebulaProfilePath = "Assets/_Core_NEW/Assets/NP_Quasar.asset";
 
+    /// <summary>
+    /// The post-process profile PlaytestBuild_NEW's Main Camera uses. Shared rather than
+    /// copied: grade and bloom are what make the quasar read as bright rather than pale,
+    /// and a tutorial with its own grade would drift away from the journey's look with
+    /// nobody noticing until they are seen side by side.
+    /// </summary>
+    public const string PostProcessProfilePath = "Assets/Scenes/Test Level_Profiles/Main Camera Profile.asset";
+
+    /// <summary>Layer 11 in this project. PlaytestBuild puts its camera and volume here.</summary>
+    public const string PostProcessLayerName = "PostProcessing";
+
     // ── Generated assets ─────────────────────────────────────────────────────
 
     const string GeneratedFolder = "Assets/_Core_NEW/Tutorial/Assets";
@@ -49,6 +60,9 @@ public static class TutorialWorldAssets_NEW
     const string DustMaterialPath = GeneratedFolder + "/TutorialDiscDust.mat";
     const string MoteMaterialPath = GeneratedFolder + "/TutorialMote.mat";
     const string TrailMaterialPath = GeneratedFolder + "/TutorialPhotonTrail.mat";
+    const string ChipPath = GeneratedFolder + "/TutorialChip.png";
+    const string RingPath = GeneratedFolder + "/TutorialRing.png";
+    const string DiscPath = GeneratedFolder + "/TutorialDisc.png";
 
     // ── Lookup ───────────────────────────────────────────────────────────────
 
@@ -220,6 +234,118 @@ public static class TutorialWorldAssets_NEW
         Debug.Log("[TutorialWorldAssets_NEW] Generated " + MoteMaterialPath + ".");
 
         return material;
+    }
+
+    // ── HUD sprites ──────────────────────────────────────────────────────────
+    //
+    // The HUD was white Arial on nothing, which is a debug readout rather than an
+    // interface. These three sprites are what it takes for a prompt to read as a
+    // designed element at the back of a room: something behind the words, and a glyph
+    // that looks like a button rather than a letter.
+    //
+    // Generated rather than drawn because they are pure geometry at one colour — art
+    // replaces the PNGs in place and nothing in the builder changes.
+
+    /// <summary>Rounded rectangle, 9-sliced. The plate behind a prompt.</summary>
+    public static Sprite ChipSprite()
+    {
+        return GenerateSprite(ChipPath, 48, PaintRoundedRect, 16f);
+    }
+
+    /// <summary>Ring outline. The reticle.</summary>
+    public static Sprite RingSprite()
+    {
+        return GenerateSprite(RingPath, 64, PaintRing, 0f);
+    }
+
+    /// <summary>Filled circle with a soft edge. The button glyph behind the letter A.</summary>
+    public static Sprite DiscSprite()
+    {
+        return GenerateSprite(DiscPath, 64, PaintDisc, 0f);
+    }
+
+    delegate float Painter(float x, float y, int size);
+
+    static Sprite GenerateSprite(string path, int size, Painter painter, float border)
+    {
+        Sprite existing = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+        if (existing != null) return existing;
+
+        EnsureFolder();
+
+        Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+                texture.SetPixel(x, y, new Color(1f, 1f, 1f, painter(x, y, size)));
+
+        texture.Apply();
+
+        File.WriteAllBytes(path, texture.EncodeToPNG());
+        Object.DestroyImmediate(texture);
+
+        AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+
+        TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
+        if (importer != null)
+        {
+            importer.textureType = TextureImporterType.Sprite;
+            importer.alphaIsTransparency = true;
+            importer.mipmapEnabled = false;
+            importer.wrapMode = TextureWrapMode.Clamp;
+            importer.filterMode = FilterMode.Bilinear;
+
+            if (border > 0f)
+            {
+                // 9-slice, so one 48px plate stretches to any prompt width without the
+                // corners smearing.
+                TextureImporterSettings settings = new TextureImporterSettings();
+                importer.ReadTextureSettings(settings);
+                settings.spriteBorder = new Vector4(border, border, border, border);
+                settings.spriteMeshType = SpriteMeshType.FullRect;
+                importer.SetTextureSettings(settings);
+            }
+
+            importer.SaveAndReimport();
+        }
+
+        Debug.Log("[TutorialWorldAssets_NEW] Generated " + path + ".");
+
+        return AssetDatabase.LoadAssetAtPath<Sprite>(path);
+    }
+
+    static float PaintRoundedRect(float x, float y, int size)
+    {
+        float radius = size * 0.33f;
+        float max = size - 1f;
+
+        // Distance outside the rounded rectangle, in pixels.
+        float dx = Mathf.Max(radius - x, 0f, x - (max - radius));
+        float dy = Mathf.Max(radius - y, 0f, y - (max - radius));
+        float d = Mathf.Sqrt(dx * dx + dy * dy);
+
+        return Mathf.Clamp01(1f - (d - radius + 1f));
+    }
+
+    static float PaintRing(float x, float y, int size)
+    {
+        float centre = (size - 1) * 0.5f;
+        float r = Mathf.Sqrt((x - centre) * (x - centre) + (y - centre) * (y - centre));
+
+        float outer = centre - 1f;
+        float thickness = size * 0.09f;
+
+        // One-pixel soft edge on both sides, so the ring is not aliased at HUD scale.
+        float a = Mathf.Clamp01(outer - r) * Mathf.Clamp01(r - (outer - thickness));
+        return Mathf.Clamp01(a);
+    }
+
+    static float PaintDisc(float x, float y, int size)
+    {
+        float centre = (size - 1) * 0.5f;
+        float r = Mathf.Sqrt((x - centre) * (x - centre) + (y - centre) * (y - centre));
+
+        return Mathf.Clamp01(centre - 1f - r);
     }
 
     static Shader FindAdditiveParticleShader()

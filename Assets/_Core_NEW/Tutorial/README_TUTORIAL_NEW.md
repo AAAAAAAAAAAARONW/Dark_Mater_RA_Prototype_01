@@ -10,12 +10,15 @@ Phase 2–4 尚未实现，但拍子框架、控制方案和 HUD 都是按整套
 ## 五分钟跑起来
 
 1. 打开 `Assets/_Core_NEW/Tutorial.unity`
-2. 菜单 `Tools > Journey NEW > Build Tutorial Scene (Phase 0-1)`
-3. Play
+2. **在 Lighting 面板给场景 assign 天空盒** —— builder 不碰这个
+3. 菜单 `Tools > Journey NEW > Build Tutorial Scene (Phase 0-1)`
+4. Play
 
-看到的顺序：标题卡 →（按 A）→ 匀速朝远处的类星体直线飞行，20 秒无界面，第 15 秒一颗光点从右边缘飘出 → `LEFT STICK · LOOK` 提示出现，转右抓住它 → 抬头抓第二颗 → 转身抓第三颗 → `A · RECENTRE` 提示出现，按 A 视角平滑回到航向。
+看到的顺序：纯黑 → 标题卡 →（按 A）→ 黑保持一会儿后渐显出天空，玩家匀速朝远处的类星体直线飞行，`LEFT STICK · LOOK` 提示已经在了 → 第 15 秒一颗光点从右边缘飘出，转右抓住它 → 抬头抓第二颗 → 转身抓第三颗 → A 图标 + `RECENTRE` 出现，按 A 视角平滑回到航向。
 
-调试：`F2` 跳过当前拍子，左上角有当前 beat / 门控状态 / 空闲计时。两者都受 `DebugView_NEW.Overlay` 控制（`Tools > Journey NEW > Debug View`），出包时一起关掉。
+调试：`F2` 跳过当前拍子。左上角三行 —— 拍子与门控状态、相机状态（是否在回正、偏离航向多少度、**这一帧有没有收到 A**、摇杆推了多少）、航行状态（速度、已飞距离、距类星体、**航向偏差**）。全部受 `DebugView_NEW.Overlay` 控制（`Tools > Journey NEW > Debug View`），出包时一起关掉。
+
+那三行是为了让「A 没反应」「是不是没往前飞」这类问题**看一眼就能定位**，而不是靠打断点。
 
 **再跑一次不需要重开场景** —— 90 秒无输入自动回到标题卡，光点归位，HUD 清空，视角回正。这是展陈现场唯一重要的行为：下一位观众看到的必须是开头，而不是上一位停在半路的画面。
 
@@ -32,7 +35,8 @@ Tutorial/
 ├─ GuideMote_NEW              引导光点：漂移、趋近变亮、抓住绽放
 ├─ TutorialHUD_NEW            图例 / 准星 / A 提示，以及它们何时不在
 ├─ TutorialAttract_NEW        标题卡与整体重置
-├─ TutorialSky_NEW            把 NP_Quasar 写进 Custom/Nebula 天空盒
+├─ TutorialSky_NEW            把 NP_Quasar 写进 Custom/Nebula 天空盒（**builder 不挂**，按需自己加）
+├─ TutorialFadeIn_NEW         开场纯黑 → 渐显，时长与曲线全部暴露
 ├─ TutorialTravel_NEW         匀速直线飞向类星体，不接受任何输入
 ├─ Beats/
 │   ├─ Beat_Cinematic_NEW     A1 A2 A3（无动作，按分镜时长走）
@@ -50,11 +54,11 @@ Tutorial/
 
 ## 场景里看得见的东西是从哪来的
 
-第一版 builder 只生成灰色白球、天空盒还留在 Unity 默认值上，结果整个场景渲染出来是一片蓝灰虚空。现在屏幕上的每一样东西都来自工程里已有的资产：
+**天空盒不归 builder 管** —— `RenderSettings` 一行都不写，自己在 Lighting 面板里 assign。其余屏幕上的每一样东西都来自工程里已有的资产：
 
 | 元素 | 资产 | 负责哪几帧 |
 |---|---|---|
-| 天空 | `Materials/Custom_Nebula.mat` + `_Core_NEW/Assets/NP_Quasar.asset` | 全程。和主旅程的类星体层**共用同一份数值**，不会分家 |
+| 后处理 | `Scenes/Test Level_Profiles/Main Camera Profile.asset` | 全程。和 PlaytestBuild **共用同一份 profile**，不会分家 |
 | 类星体 | `Materials/BlazingQuasar.mat` | 远处的目标。A1 的暗斑、**B2 的 jet channel** 都是这一个物体 |
 | 光子拖尾 | `Shaders/Custom_PhotonTrail.mat` + `Scripts/PhotonSpectrumTrail.cs` | **Phase 0–1 关闭**，Phase 2 发射之后才亮 |
 | 星际尘埃 | 生成的 `TutorialDiscDust.mat` + `TutorialSoftDot.png` | A1「缓慢旋转的暗红物质」，同时提供飞行的速度感 |
@@ -62,11 +66,52 @@ Tutorial/
 
 `BlazingQuasar.shader` 值得单独说一句：它的 Properties 里直接有 `_AccretionDisk`、`_JetColor / _JetWidth / _JetLength`、`_SpinSpeed`、`_CoreRadius`，**吸积盘、双极喷流、核心亮斑在一个 shader 里**。喷流沿物体局部 Y 轴，所以类星体保持直立，B2「抬头看到喷流通道」就是字面发生的事。
 
-### 三个渲染上的坑，都已经处理
+### 后处理：和 PlaytestBuild 同一套接法
 
-1. **天空盒必须在编辑期写进场景。** `RenderSettings` 是场景数据。只在运行时设置的话 Scene 视图仍是默认天空，截图全是错的。builder 在搭场景时就写。
-2. **`NP_Quasar` 是克隆后再写。** `NebulaResponder_NEW` 的注释记着这个教训：曾经直接写 `RenderSettings.skybox`，那是磁盘上的 .mat，一次 playtest 永久改掉了材质、场景不再可复现。`TutorialSky_NEW` 克隆一份运行时实例，销毁时还原。
-3. **拖尾材质用的是副本，不是共享资产。** `PhotonSpectrumTrail` 是 `[ExecuteAlways]`，编辑期就往 `sharedMaterial` 写生成的光谱贴图 —— 直接挂 `Custom_PhotonTrail.mat` 的话，光是**打开场景**就会改写主旅程在用的材质。builder 复制出 `TutorialPhotonTrail.mat` 再挂。PlaytestBuild 用的是场景内嵌实例，同一个规避方式。
+三样东西，位置和 PlaytestBuild 的 Main Camera 一模一样：相机放在 `PostProcessing` 层（11）、`PostProcessLayer` 的 volume mask 指向同一层、`PostProcessVolume` 挂在相机自己身上且 `isGlobal`。抗锯齿用 FXAA，对齐 PlaytestBuild 的 `antialiasingMode: 1`，也是三种里最便宜的。
+
+**profile 是共享的，不是复制的。** bloom 和调色是类星体读起来「亮」而不是「灰」的主要原因，教程要是带自己的一份 grade，就会和主旅程慢慢分家，而且要等到两个画面并排看才会发现。
+
+### 一个资产安全坑
+
+**拖尾材质用的是副本，不是共享资产。** `PhotonSpectrumTrail` 是 `[ExecuteAlways]`，编辑期就往 `sharedMaterial` 写生成的光谱贴图 —— 直接挂 `Custom_PhotonTrail.mat` 的话，光是**打开场景**就会改写主旅程在用的材质。builder 复制出 `TutorialPhotonTrail.mat` 再挂。PlaytestBuild 用的是场景内嵌实例，同一个规避方式。
+
+（`NebulaResponder_NEW` 的注释记着同类的教训：曾经直接写 `RenderSettings.skybox`，那是磁盘上的 .mat，一次 playtest 永久改掉了材质、场景不再可复现。`TutorialSky_NEW` 用的是克隆再写的做法，但 builder 现在不挂它 —— 天空盒归你。）
+
+---
+
+## 开场渐显
+
+`TutorialFadeIn_NEW`：一张铺满屏幕的黑图，压在世界之上、其余 HUD 之下（所以标题卡是黑底白字，而不是被黑图盖住）。
+
+时序全部暴露在 Inspector：
+
+| 字段 | 作用 |
+|---|---|
+| `startBeatId` | 从哪一拍开始，默认 `A1` —— 所以纯黑一直持续到标题卡按下 A |
+| `holdSeconds` | 纯黑保持多久 |
+| `fadeSeconds` | 渐显多久 |
+| `curve` | 渐显的形状，默认缓入缓出 |
+| `onFadeStarted` / `onFadeComplete` | 给环境音床和第一句 VO 用 —— 它们要对着画面落，不是对着秒表 |
+
+黑图全透明之后会把 `Image` 组件关掉：一张全屏透明图在 Carnegie 的曲面屏上仍然是一整屏的 overdraw。
+
+---
+
+## HUD
+
+第一版是白色 Arial 浮在画面上，那是调试读数不是界面。现在：
+
+| 元素 | 长什么样 |
+|---|---|
+| 控制提示 | 深色圆角底板（9-slice）+ 一行大字。**底板是 HUD 和调试读数的分界线** —— 纯白字在明亮的类星体和星场前会消失，深底板在房间后排也读得住 |
+| A 提示 | 圆形按键图标里写 A，右边跟动词。做成圆盘而不是光秃秃一个字母，因为字母会被读成文字，而文字看起来不能按 |
+| 准星 | 圆环，不是方块。方块在暗屏中央会被读成坏点；圆环读作瞄准框，而且光点能留在环内 —— B1 的门控正是「光点在环内」 |
+| 图例 | 小字、低透明度。它要在整段体验里一直挂着，不能和当下的指令抢注意力 |
+
+底板、圆环、圆盘三张贴图是 builder 生成的（`TutorialChip.png` 九宫格、`TutorialRing.png`、`TutorialDisc.png`），纯几何单色。美术直接替换 PNG，builder 一行都不用动。
+
+**文案的归属没变**：形状和位置属于 HUD，词属于拍子。GDD §5 要求「继续」这个操作在每一处都是同样的形状、同样的位置，所以 `Beat_Confirm_NEW.promptText` 现在只写动词（`RECENTRE`），A 那个图标是 HUD 画的。
 
 ---
 
@@ -130,16 +175,18 @@ GDD §2 记录了旧版 C3 锁相机被多名玩家读成 bug，§5 把「相机
 
 由此派生的一条：B4 的回正是可以被打断的。推摇杆就取消 lerp —— 一个跟摇杆对抗的回正就是换了件外套的锁。
 
-### 3 · B1 之前屏幕上什么都没有
+### 3 · 每个 UI 元素由具名拍子打开
 
-`TutorialHUD_NEW` 里每个元素的默认状态都是关，由具名拍子打开：
+`TutorialHUD_NEW` 里每个元素的默认状态都是关：
 
 | 顺序 | 元素 | 首次出现 | 之后 |
 |---|---|---|---|
-| 1 | 控制图例 | B1 | **永不消失**，代码里没有隐藏它的路径 |
-| 2 | 准星 | B1 | 跟图例一起 |
-| 3 | 控制提示行 | B1 | 分镜的 B2 B3 都写 No new prompt，所以空的 `hintText` 表示「不变」而不是「清空」 |
+| 1 | 控制提示行 | **A1** | 分镜的 B2 B3 都写 No new prompt，所以空的 `hintText` 表示「不变」而不是「清空」 |
+| 2 | 控制图例 | B1 | **永不消失**，代码里没有隐藏它的路径 |
+| 3 | 准星 | B1 | 跟图例一起 |
 | 4 | A 提示 | B4 | 按下即隐 |
+
+提示行放在 A1 是**有意偏离 GDD §7** 的：文档把第一个提示放在 B1、要求 B1 之前屏幕全空。走上来的观众应该先被告知「你可以转视角」，再被要求去转 —— 这是你定的顺序，不是我的解读。
 
 图例文案取自 GDD §4，一字不改：
 
@@ -155,13 +202,13 @@ STICK = LOOK      A = CONFIRM / RECENTRE
 
 | Frame | 组件 | 门控 | 实现要点 |
 |---|---|---|---|
-| A1 | `Beat_Cinematic_NEW` | 无，8 秒 | `onEnter` 挂 VO |
+| A1 | `Beat_Cinematic_NEW` | 无，8 秒 | 提示 `LEFT STICK · LOOK` 在这里出现；渐显也在这里开始；`onEnter` 挂 VO |
 | A2 | `Beat_Cinematic_NEW` | 无，7 秒 | `onHalfway` 用于「亮度升起来」这种帧内变化 |
 | A3 | `Beat_Cinematic_NEW` | 无，5 秒 | `onEnter` 激活光点；`onRumble` 见下方「已知缺口」 |
-| B1 | `Beat_LookAt_NEW` | 光点进入准星 | `holdSeconds = 0`。GDD 明写 not a dwell timer。提示 `LEFT STICK · LOOK` |
+| B1 | `Beat_LookAt_NEW` | 光点进入准星 | `holdSeconds = 0`。GDD 明写 not a dwell timer |
 | B2 | `Beat_LookAt_NEW` | 第二颗光点进入画面 | 光点从头顶掠过。分镜写 No new prompt，所以 `hintText` 留空 |
 | B3 | `Beat_TurnAround_NEW` | 转过 150° **且**第三颗光点在画面里 | 分镜的 B3 是「third mote, behind」。两个条件都要 —— 见下 |
-| B4 | `Beat_Confirm_NEW` | 按下 A | 提示 `A · RECENTRE`。按下即满足，回正继续跑进下一拍 |
+| B4 | `Beat_Confirm_NEW` | 按下 A | A 图标 + `RECENTRE`。按下即满足，回正继续跑进下一拍 |
 
 **B3 为什么两个条件都要**：只判角度的话，一个低头发呆、摇杆漂移的玩家也能过。而 B3 是空间定位落地的地方，GDD 给它的批注是 “Protect it.”。一条能在没看见东西的情况下通过的门，什么都没保护到。
 

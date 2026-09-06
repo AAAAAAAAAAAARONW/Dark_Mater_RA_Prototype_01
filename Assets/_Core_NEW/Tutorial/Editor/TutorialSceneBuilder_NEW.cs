@@ -2,6 +2,7 @@ using UnityEditor;
 using UnityEditor.Events;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.Rendering.PostProcessing;
 using UnityEngine.UI;
 
 /// <summary>
@@ -17,24 +18,23 @@ using UnityEngine.UI;
 /// So this is the layout, in code, where it can be read and re-run. Running it twice is
 /// refused rather than duplicated — delete the [Tutorial] root and run it again.
 ///
-/// WHAT IT REUSES. The first version of this builder made grey primitive spheres and
-/// left the scene on Unity's default skybox, which is why it rendered as a blue-grey
-/// void. Everything visible now comes from assets the project already has:
+/// WHAT IT REUSES. Everything visible comes from assets the project already has:
 ///
-///   Custom_Nebula.mat + NP_Quasar     the sky, the same one the journey's quasar layer
-///                                     uses, so the two cannot drift apart
 ///   BlazingQuasar.mat                 core, halo, accretion disc and bipolar jets in
-///                                     one shader — A1's flow, A2's dark centre, B2's
-///                                     jet channel and B3's silhouette are all this
-///                                     one object
+///                                     one shader — the distant target, and B2's jet
+///                                     channel, are the same object
 ///   Custom_PhotonTrail.mat            the player's own light, with PhotonSpectrumTrail
+///   Main Camera Profile.asset         the journey's post-process grade, shared so the
+///                                     tutorial and the journey cannot look different
 ///
-/// See TutorialWorldAssets_NEW for the paths and for the two whitebox assets that get
-/// generated because the project has no equivalent.
+/// See TutorialWorldAssets_NEW for the paths and for the whitebox assets it generates.
 ///
-/// STAGING. The positions below are a defensible default, not a reading of the
-/// storyboard — see the geometry note above ComposeWorld. Everything is a serialized
-/// field with a gizmo, so moving it is a drag in the Scene view.
+/// WHAT IT DOES NOT TOUCH. RenderSettings, including the skybox. That is assigned by
+/// hand. TutorialSky_NEW exists if the tutorial ever wants the journey's exact quasar
+/// sky driven from NP_Quasar, but the builder does not add it.
+///
+/// STAGING. The positions below are a default. Everything is a serialized field with a
+/// gizmo, so moving it is a drag in the Scene view.
 /// </summary>
 public static class TutorialSceneBuilder_NEW
 {
@@ -106,14 +106,14 @@ public static class TutorialSceneBuilder_NEW
         GameObject root = NewObject(RootName, null, Vector3.zero);
 
         // ── Environment ──────────────────────────────────────────────────────
-        GameObject environment = NewObject("Environment", root.transform, Vector3.zero);
-        ApplySky(environment);
         DimSceneLights();
 
         // ── Player ───────────────────────────────────────────────────────────
         GameObject player = NewObject("Photon", root.transform, PlayerPosition);
         Camera camera = AcquireCamera(player.transform);
         FirstPersonLookRig_NEW lookRig = Undo.AddComponent<FirstPersonLookRig_NEW>(camera.gameObject);
+
+        ApplyPostProcessing(camera);
 
         // ── World ────────────────────────────────────────────────────────────
         GameObject world = NewObject("World", root.transform, Vector3.zero);
@@ -137,6 +137,10 @@ public static class TutorialSceneBuilder_NEW
 
         // ── HUD ──────────────────────────────────────────────────────────────
         GameObject canvas = BuildCanvas(root.transform);
+
+        // Order matters: the blackout is first so everything else draws over it, and the
+        // attract card reads as white text on black rather than being hidden by the fade.
+        GameObject blackout = BuildBlackout(canvas.transform);
 
         GameObject reticle = BuildReticle(canvas.transform);
         GameObject legend = BuildLegend(canvas.transform);
@@ -165,6 +169,13 @@ public static class TutorialSceneBuilder_NEW
         TutorialAttract_NEW attract = Undo.AddComponent<TutorialAttract_NEW>(canvas);
         WireAttract(attract, director, card, lookRig, player.GetComponent<TutorialTravel_NEW>());
 
+        TutorialFadeIn_NEW fade = Undo.AddComponent<TutorialFadeIn_NEW>(blackout);
+        Wire(fade)
+            .Ref("director", director)
+            .Ref("blackout", blackout.GetComponent<Image>())
+            .Str("startBeatId", "A1")
+            .Apply();
+
         Undo.CollapseUndoOperations(group);
         UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(root.scene);
         Selection.activeGameObject = root;
@@ -177,22 +188,55 @@ public static class TutorialSceneBuilder_NEW
     // ── Environment ──────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Put the scene on the nebula skybox and hand the quasar look to TutorialSky_NEW.
+    /// Post-processing, copied from PlaytestBuild_NEW's Main Camera.
     ///
-    /// The skybox is assigned here, at build time, because RenderSettings is scene data:
-    /// setting it at runtime only would leave the Scene view showing the default sky and
-    /// make every screenshot of the tutorial wrong.
+    /// Same three pieces in the same arrangement: the camera on the PostProcessing layer,
+    /// a PostProcessLayer on it whose volume mask is that same layer, and a global
+    /// PostProcessVolume on the camera itself pointing at the profile the journey uses.
+    ///
+    /// The profile is shared, not copied. Bloom and grade are most of why the quasar
+    /// reads as bright rather than pale, and a tutorial carrying its own grade drifts
+    /// away from the journey with nobody noticing until the two are seen side by side.
+    ///
+    /// The skybox is deliberately untouched — assigning it is the user's, per the brief.
+    /// Nothing here writes RenderSettings.
     /// </summary>
-    static void ApplySky(GameObject environment)
+    static void ApplyPostProcessing(Camera camera)
     {
-        Material nebula = TutorialWorldAssets_NEW.NebulaSkybox;
-        if (nebula != null) RenderSettings.skybox = nebula;
+        int layer = LayerMask.NameToLayer(TutorialWorldAssets_NEW.PostProcessLayerName);
 
-        // Fog over a scene with no ground plane only greys the sky out.
-        RenderSettings.fog = false;
+        if (layer < 0)
+        {
+            Debug.LogWarning("[TutorialSceneBuilder_NEW] No layer named '" +
+                             TutorialWorldAssets_NEW.PostProcessLayerName +
+                             "'. Skipping post-processing; add the layer and run again.");
+            return;
+        }
 
-        TutorialSky_NEW sky = Undo.AddComponent<TutorialSky_NEW>(environment);
-        Wire(sky).Ref("profile", TutorialWorldAssets_NEW.QuasarNebulaProfile).Apply();
+        Undo.RecordObject(camera.gameObject, "Set camera layer");
+        camera.gameObject.layer = layer;
+
+        PostProcessVolume volume = Undo.AddComponent<PostProcessVolume>(camera.gameObject);
+        volume.isGlobal = true;
+        volume.weight = 1f;
+        volume.priority = 0f;
+
+        PostProcessProfile profile =
+            AssetDatabase.LoadAssetAtPath<PostProcessProfile>(TutorialWorldAssets_NEW.PostProcessProfilePath);
+
+        if (profile != null) volume.sharedProfile = profile;
+        else Debug.LogWarning("[TutorialSceneBuilder_NEW] Could not load the post-process " +
+                              "profile at " + TutorialWorldAssets_NEW.PostProcessProfilePath +
+                              ". The layer is set up but has no grade.");
+
+        PostProcessLayer ppLayer = Undo.AddComponent<PostProcessLayer>(camera.gameObject);
+        ppLayer.volumeTrigger = camera.transform;
+        ppLayer.volumeLayer = 1 << layer;
+        ppLayer.stopNaNPropagation = true;
+
+        // FXAA, matching PlaytestBuild's antialiasingMode 1. Cheapest of the three,
+        // which matters on the Carnegie hardware.
+        ppLayer.antialiasingMode = PostProcessLayer.Antialiasing.FastApproximateAntialiasing;
     }
 
     /// <summary>
@@ -411,6 +455,7 @@ public static class TutorialSceneBuilder_NEW
         Wire(a1)
             .Str("beatId", "A1")
             .Str("description", "Near black. Dark red matter drifts in slow rotation deep in frame.")
+            .Str("hintText", "LEFT STICK  ·  LOOK")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
             .Num("duration", 8f)
             .Apply();
@@ -445,7 +490,6 @@ public static class TutorialSceneBuilder_NEW
         Wire(b1)
             .Str("beatId", "B1")
             .Str("description", "Player turns right, catches the mote, it blooms into a ripple.")
-            .Str("hintText", "LEFT STICK  ·  LOOK")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
             .Ref("target", moteA.transform)
             .Ref("mote", moteA.GetComponent<GuideMote_NEW>())
@@ -490,7 +534,7 @@ public static class TutorialSceneBuilder_NEW
                                 "edge. One press smoothly recentres on the travel axis.")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
             .Ref("lookRig", lookRig)
-            .Str("promptText", "A  ·  RECENTRE")
+            .Str("promptText", "RECENTRE")
             .Flag("recentreOnPress", true)
             .Flag("waitForRecentre", false)
             .Apply();
@@ -635,12 +679,39 @@ public static class TutorialSceneBuilder_NEW
         return go;
     }
 
-    static GameObject BuildReticle(Transform canvas)
+    /// <summary>Full-screen black. First child, so every other HUD element draws over it.</summary>
+    static GameObject BuildBlackout(Transform canvas)
     {
-        GameObject go = UIObject("Reticle", canvas, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(8f, 8f));
+        GameObject go = new GameObject("Blackout", typeof(RectTransform));
+        Undo.RegisterCreatedObjectUndo(go, "Create Blackout");
+
+        go.transform.SetParent(canvas, false);
+
+        RectTransform rect = (RectTransform)go.transform;
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
 
         Image image = Undo.AddComponent<Image>(go);
-        image.color = new Color(1f, 1f, 1f, 0.55f);
+        image.color = Color.black;
+        image.raycastTarget = false;
+
+        return go;
+    }
+
+    /// <summary>
+    /// A ring, not a dot. A filled square at the centre of a dark screen reads as a dead
+    /// pixel; a ring reads as an aiming reticle and leaves the mote visible inside it,
+    /// which matters because B1's gate is the mote being in there.
+    /// </summary>
+    static GameObject BuildReticle(Transform canvas)
+    {
+        GameObject go = UIObject("Reticle", canvas, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(34f, 34f));
+
+        Image image = Undo.AddComponent<Image>(go);
+        image.sprite = TutorialWorldAssets_NEW.RingSprite();
+        image.color = new Color(1f, 1f, 1f, 0.42f);
         image.raycastTarget = false;
 
         return go;
@@ -648,40 +719,95 @@ public static class TutorialSceneBuilder_NEW
 
     static GameObject BuildLegend(Transform canvas)
     {
-        GameObject go = UIObject("Legend", canvas, new Vector2(0.5f, 0f), new Vector2(0f, 48f), new Vector2(1200f, 40f));
+        GameObject go = UIObject("Legend", canvas, new Vector2(0.5f, 0f), new Vector2(0f, 46f), new Vector2(1200f, 34f));
 
         Undo.AddComponent<CanvasGroup>(go);
 
-        Text text = AddText(go, "STICK = LOOK      A = CONFIRM / RECENTRE", 26, TextAnchor.MiddleCenter);
-        text.color = new Color(1f, 1f, 1f, 0.75f);
+        Text text = AddText(go, "STICK = LOOK      A = CONFIRM / RECENTRE", 22, TextAnchor.MiddleCenter);
+
+        // Quiet. This is a reference card that never leaves, not an instruction — it has
+        // to survive being on screen for the whole piece without competing with it.
+        text.color = new Color(1f, 1f, 1f, 0.45f);
 
         return go;
     }
 
     /// <summary>
-    /// The control hint line. Sits above the legend: the legend is a permanent reference
-    /// card, the hint is what to do right now, and they should not be read as one block.
+    /// The control hint: a plate with a line of text on it.
+    ///
+    /// The plate is the difference between a HUD and a debug readout. White text alone
+    /// disappears into a bright quasar and a starfield; the same text on a dark plate
+    /// holds at the back of a room, which is the only viewing distance that matters at
+    /// the Observatories.
     /// </summary>
     static GameObject BuildHint(Transform canvas)
     {
-        GameObject go = UIObject("Hint", canvas, new Vector2(0.5f, 0f), new Vector2(0f, 240f), new Vector2(900f, 56f));
+        GameObject go = UIObject("Hint", canvas, new Vector2(0.5f, 0f), new Vector2(0f, 250f), new Vector2(620f, 76f));
 
         Undo.AddComponent<CanvasGroup>(go);
-        AddText(go, "LEFT STICK  ·  LOOK", 38, TextAnchor.MiddleCenter);
+        AddChipBackground(go, 0.55f);
+
+        GameObject label = UIObject("Label", go.transform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(600f, 60f));
+        AddText(label, "LEFT STICK  ·  LOOK", 34, TextAnchor.MiddleCenter);
 
         return go;
     }
 
+    /// <summary>
+    /// The continue affordance: a round button glyph with A in it, and the verb beside it.
+    ///
+    /// GDD §5 requires this to be the same shape in the same position every time, which
+    /// is why the shape lives here and only the words come from the beat. The glyph is a
+    /// disc rather than a bare letter because a bare letter is read as text, and text
+    /// does not look pressable.
+    /// </summary>
     static GameObject BuildConfirmPrompt(Transform canvas)
     {
-        // GDD B4: the A prompt appears at the lower edge. GDD §5: same shape, same
-        // position, every time. This rect is that position.
-        GameObject go = UIObject("ConfirmPrompt", canvas, new Vector2(0.5f, 0f), new Vector2(0f, 140f), new Vector2(400f, 90f));
+        // GDD B4: the A prompt appears at the lower edge.
+        GameObject go = UIObject("ConfirmPrompt", canvas, new Vector2(0.5f, 0f), new Vector2(0f, 140f), new Vector2(460f, 84f));
 
         Undo.AddComponent<CanvasGroup>(go);
-        AddText(go, "A", 64, TextAnchor.MiddleCenter);
+        AddChipBackground(go, 0.55f);
+
+        // Button glyph, left of centre.
+        GameObject glyph = UIObject("Glyph", go.transform, new Vector2(0.5f, 0.5f), new Vector2(-150f, 0f), new Vector2(52f, 52f));
+
+        Image disc = Undo.AddComponent<Image>(glyph);
+        disc.sprite = TutorialWorldAssets_NEW.DiscSprite();
+        disc.color = new Color(1f, 1f, 1f, 0.92f);
+        disc.raycastTarget = false;
+
+        GameObject glyphLabel = UIObject("A", glyph.transform, new Vector2(0.5f, 0.5f), new Vector2(0f, 0f), new Vector2(52f, 52f));
+        Text a = AddText(glyphLabel, "A", 30, TextAnchor.MiddleCenter);
+        a.color = new Color(0.04f, 0.04f, 0.07f, 1f);
+
+        // The verb. TutorialHUD_NEW writes the beat's promptText here, so the beat still
+        // owns the words and the HUD still owns the shape.
+        GameObject label = UIObject("Label", go.transform, new Vector2(0.5f, 0.5f), new Vector2(34f, 0f), new Vector2(340f, 60f));
+        AddText(label, "RECENTRE", 32, TextAnchor.MiddleLeft);
 
         return go;
+    }
+
+    /// <summary>Dark rounded plate behind a prompt. 9-sliced, so it stretches cleanly.</summary>
+    static void AddChipBackground(GameObject parent, float alpha)
+    {
+        GameObject go = new GameObject("Plate", typeof(RectTransform));
+        Undo.RegisterCreatedObjectUndo(go, "Create Plate");
+
+        go.transform.SetParent(parent.transform, false);
+
+        RectTransform rect = (RectTransform)go.transform;
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+
+        Image image = Undo.AddComponent<Image>(go);
+        image.sprite = TutorialWorldAssets_NEW.ChipSprite();
+        image.type = Image.Type.Sliced;
+        image.color = new Color(0.02f, 0.02f, 0.04f, alpha);
+        image.raycastTarget = false;
     }
 
     static GameObject BuildAttractCard(Transform canvas)
@@ -751,10 +877,10 @@ public static class TutorialSceneBuilder_NEW
             .Ref("legendGroup", legend.GetComponent<CanvasGroup>())
             .Ref("reticleRoot", reticle)
             .Ref("hintRoot", hint)
-            .Ref("hintLabel", hint.GetComponent<Text>())
+            .Ref("hintLabel", LabelIn(hint))
             .Ref("hintGroup", hint.GetComponent<CanvasGroup>())
             .Ref("confirmPromptRoot", prompt)
-            .Ref("confirmPromptText", prompt.GetComponent<Text>())
+            .Ref("confirmPromptText", LabelIn(prompt))
             .Ref("promptGroup", prompt.GetComponent<CanvasGroup>())
             .Str("legendFirstBeatId", "B1")
             .Apply();
@@ -818,6 +944,28 @@ public static class TutorialSceneBuilder_NEW
         Debug.LogWarning("[TutorialSceneBuilder_NEW] No field '" + fieldName + "' on " +
                          owner.GetType().Name + " or its base types.");
         return null;
+    }
+
+    /// <summary>
+    /// The Text named "Label" inside a prompt.
+    ///
+    /// Prompts are now a plate plus a glyph plus a label rather than one Text on the
+    /// root, so a GetComponent on the root finds nothing and a GetComponentInChildren
+    /// can find the A inside the button glyph instead. Named lookup, so adding another
+    /// piece of art to a prompt cannot silently repoint the HUD at it.
+    /// </summary>
+    static Text LabelIn(GameObject prompt)
+    {
+        Transform label = prompt.transform.Find("Label");
+
+        if (label == null)
+        {
+            Debug.LogError("[TutorialSceneBuilder_NEW] " + prompt.name + " has no child named " +
+                           "'Label'. The HUD will have nowhere to write its text.", prompt);
+            return null;
+        }
+
+        return label.GetComponent<Text>();
     }
 
     static Wiring Wire(Object target)

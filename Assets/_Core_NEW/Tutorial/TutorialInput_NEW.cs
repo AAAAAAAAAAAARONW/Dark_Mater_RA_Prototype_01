@@ -102,6 +102,35 @@ public static class TutorialInput_NEW
         return Mathf.Abs(stick) > Mathf.Abs(mouse) ? stick : mouse;
     }
 
+    /// <summary>
+    /// How hard the stick is being pushed, 0 to about 1, deadbanded.
+    ///
+    /// Separate from LookX/LookY because "is the player actively looking?" is a
+    /// different question from "how far should the view move this frame?", and
+    /// answering the first with the second is what broke the B4 recentre: a
+    /// per-frame degree delta divided by delta time reads mouse sensor noise as a
+    /// deliberate 30 degrees per second, so the recentre cancelled itself on the
+    /// frame it started. This reads the device, not the result.
+    /// </summary>
+    public static float StickDeflection(float deadband)
+    {
+        float x = Stick(RightStickXAxis, LeftStickXAxis, deadband);
+        float y = Stick(RightStickYAxis, LeftStickYAxis, deadband);
+
+        return Mathf.Max(Mathf.Abs(x), Mathf.Abs(y));
+    }
+
+    /// <summary>
+    /// Raw mouse movement this frame, in mouse units. Not deadbanded and not scaled
+    /// by time — callers wanting "did the player deliberately move the mouse" should
+    /// compare this against a threshold of a unit or two, well above sensor noise.
+    /// </summary>
+    public static float MouseDeflection()
+    {
+        return Mathf.Max(Mathf.Abs(Input.GetAxisRaw(MouseXAxis)),
+                         Mathf.Abs(Input.GetAxisRaw(MouseYAxis)));
+    }
+
     /// <summary>Whichever stick is being pushed hardest, deadbanded.</summary>
     static float Stick(string primaryAxis, string secondaryAxis, float deadband)
     {
