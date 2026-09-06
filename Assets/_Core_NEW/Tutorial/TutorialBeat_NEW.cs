@@ -55,16 +55,18 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
         /// <summary>Replace it with this beat's hintText.</summary>
         Show,
 
-        /// <summary>Take it away. B4 does this: the A prompt replaces the look prompt.</summary>
+        /// <summary>Take it away, leaving no hint line at all.</summary>
         Clear
     }
 
     [Header("Prompt")]
     [Tooltip("What this beat does to the control hint line when it opens.\n\n" +
-             "Keep is the common case and what the storyboard's 'No new prompt' means. " +
-             "Show replaces the line. Clear takes it away, which is what B4 wants — the " +
-             "player is being asked to try the recentre, so the instruction to look has " +
-             "done its job and should get out of the way.")]
+             "Keep is the common case and what the storyboard's 'No new prompt' means.\n\n" +
+             "Show replaces the line, which is what B4 does: the player is being asked " +
+             "to try the recentre, so LEFT STICK · LOOK is swapped for A TO RECENTRE " +
+             "rather than the two stacking up on screen together.\n\n" +
+             "Clear removes the line entirely. Nothing needs it yet; it exists so a beat " +
+             "that wants a bare screen does not have to fake it with a blank string.")]
     [SerializeField] HintMode hintMode = HintMode.Keep;
 
     [Tooltip("The line itself, e.g. LEFT STICK · LOOK. Only used when hintMode is Show.")]

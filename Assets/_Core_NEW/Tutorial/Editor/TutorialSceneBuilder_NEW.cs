@@ -612,7 +612,11 @@ public static class TutorialSceneBuilder_NEW
             .Str("beatId", "B4")
             .Str("description", "The view is left off-axis. The A prompt appears at the lower " +
                                 "edge. One press smoothly recentres on the travel axis.")
-            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Clear)
+            // The hint line switches from the look instruction to the recentre one, so
+            // the two never sit on screen together. The plate says what to do; the
+            // button affordance below it says which control does it.
+            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
+            .Str("hintText", "A  TO  RECENTRE")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
             .Ref("lookRig", lookRig)
             .Str("promptText", "RECENTRE")
