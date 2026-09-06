@@ -1525,9 +1525,8 @@ public static class TutorialSceneBuilder_NEW
         GameObject facing = UIObject("Facing", self.transform, new Vector2(0.5f, 0.5f),
                                      Vector2.zero, new Vector2(10f, 46f));
 
-        // Above the pivot, not below it. See PointTheStemUp.
-        GameObject facingStem = UIObject("Stem", facing.transform, new Vector2(0.5f, 1f),
-                                         new Vector2(0f, -6f), new Vector2(3f, 26f));
+        GameObject facingStem = UIObject("Stem", facing.transform, new Vector2(0.5f, 0.5f),
+                                         new Vector2(0f, 17f), new Vector2(3f, 26f));
 
         Image stemImage = AddIfMissing<Image>(facingStem);
 
@@ -1536,9 +1535,6 @@ public static class TutorialSceneBuilder_NEW
             stemImage.color = new Color(1f, 1f, 1f, 0.7f);
             stemImage.raycastTarget = false;
         }
-
-        PointTheStemUp(facing.GetComponent<RectTransform>(),
-                       facingStem.GetComponent<RectTransform>());
 
         GameObject label = UIObject("Label", go.transform, new Vector2(0.5f, 0f),
                                     new Vector2(0f, 26f), new Vector2(220f, 34f));
@@ -1557,60 +1553,33 @@ public static class TutorialSceneBuilder_NEW
             .Ref("frame", frame.GetComponent<RectTransform>())
             .Ref("playerMarker", self.GetComponent<RectTransform>())
             .Ref("facing", facing.GetComponent<RectTransform>())
+            .Ref("stem", facingStem.GetComponent<RectTransform>())
             .Ref("destinationMarker", marker.GetComponent<RectTransform>())
             .Ref("distanceLabel", label.GetComponent<TMP_Text>())
             .Apply();
 
+        // After the wiring, because PlaceStem reads the reference the line above fills.
+        //
+        // One implementation of "which way does the needle mean", and it lives on the
+        // component — see TutorialRangeMap_NEW.PlaceStem. Called here as well as from
+        // Awake, so the map reads right in the Scene view and not only once you press
+        // Play. A map built by an earlier version has the needle BELOW the marker,
+        // pointing back at where the player came from; this is what repairs it.
+        RectTransform stemRect = facingStem.GetComponent<RectTransform>();
+        Vector2 stemWas = stemRect.anchoredPosition;
+
+        Undo.RecordObject(stemRect, "Place the map stem");
+        map.PlaceStem();
+
+        if ((stemRect.anchoredPosition - stemWas).sqrMagnitude > 0.01f)
+        {
+            Debug.LogWarning("[TutorialSceneBuilder_NEW] Moved the map's facing needle to sit " +
+                             "above the player marker. The map turns it from straight up, so " +
+                             "anywhere else it points the wrong way.", stemRect);
+            _wired++;
+        }
+
         return go;
-    }
-
-    /// <summary>
-    /// Point the map's facing stem up.
-    ///
-    /// A yaw of 0 looks down world +Z, which is straight up on this north-up map, and
-    /// TutorialRangeMap_NEW rotates the stem away from there. So the stem has to be drawn
-    /// ABOVE its own pivot. It was drawn below it — bottom-anchored inside the Facing
-    /// rect — which put the marker 180 degrees out: it showed where the player had come
-    /// from, and swung the wrong way when they turned.
-    ///
-    /// Repaired on an existing map rather than left alone, on the same footing as
-    /// SeparateTheSticks: a stem pointing backwards is not a preference anybody could
-    /// hold, it is a map that lies. The test is the conflict — is the stem on the wrong
-    /// side of its own pivot — and not a comparison against the built numbers, so a
-    /// longer, shorter or thinner stem somebody tuned keeps its length and only gets
-    /// mirrored.
-    /// </summary>
-    static void PointTheStemUp(RectTransform facing, RectTransform stem)
-    {
-        if (facing == null || stem == null) return;
-
-        float parentHeight = facing.sizeDelta.y;
-        if (parentHeight <= 1f) return;
-
-        // Where the stem's middle sits relative to the marker it rotates around. Both
-        // rects are anchored to a point rather than stretched, so sizeDelta is the size.
-        float centreY = (stem.anchorMin.y - 0.5f) * parentHeight + stem.anchoredPosition.y;
-        if (centreY > 0.01f) return;
-
-        // Mirror it, keeping whatever length it has. A stem sitting exactly on the pivot
-        // points nowhere at all, so that one gets the built offset back.
-        float wanted = centreY < -0.01f
-            ? -centreY
-            : (parentHeight - stem.sizeDelta.y) * 0.5f - 6f;
-
-        Undo.RecordObject(stem, "Point the map stem forward");
-
-        stem.anchorMin = new Vector2(0.5f, 1f);
-        stem.anchorMax = new Vector2(0.5f, 1f);
-        stem.pivot = new Vector2(0.5f, 0.5f);
-        stem.anchoredPosition = new Vector2(stem.anchoredPosition.x, wanted - parentHeight * 0.5f);
-
-        Debug.LogWarning("[TutorialSceneBuilder_NEW] The map's facing stem pointed backwards " +
-                         "and has been flipped. It shows which way the light is looking, so " +
-                         "it has to sit above the marker: a yaw of 0 is up on a north-up map.",
-                         stem);
-
-        _wired++;
     }
 
     /// <summary>

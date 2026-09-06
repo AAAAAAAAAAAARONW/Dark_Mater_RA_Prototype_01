@@ -24,7 +24,8 @@ using UnityEngine;
 /// North up, with a stem on the player's marker showing where they are looking. Turn the
 /// view and the stem swings; turn all the way round at B3 and it points back down the
 /// map at where you came from. That correspondence is the whole point of a map, and it
-/// is worth more here than a percentage.
+/// is worth more here than a percentage — which also means a stem that is 180 degrees out
+/// is worse than no stem at all. See PointTheStem for how that is kept honest.
 /// </summary>
 [DisallowMultipleComponent]
 [HierarchyBadge_NEW("MAP", "#6FA8DC")]
@@ -44,8 +45,18 @@ public class TutorialRangeMap_NEW : MonoBehaviour
     [Tooltip("The player's marker. It is the thing that moves — see the class summary.")]
     [SerializeField] RectTransform playerMarker;
 
-    [Tooltip("Rotates to show where the light is looking. Parent it to the player marker.")]
+    [Tooltip("Rotates to show where the light is looking. Parent it to the player marker; " +
+             "it turns around its own centre, so that centre has to be the marker.")]
     [SerializeField] RectTransform facing;
+
+    [Tooltip("The needle drawn inside Facing. Left empty, the first child is used.\n\n" +
+             "Its position is not yours to set — PlaceStem parks it above the marker on " +
+             "every Awake, because where it sits relative to the point it rotates around " +
+             "IS which way it means. Length, width and colour are yours.")]
+    [SerializeField] RectTransform stem;
+
+    [Tooltip("Pixels between the marker and the base of the needle.")]
+    [SerializeField] float stemGap = 4f;
 
     [Tooltip("The quasar's marker. Fixed, because the quasar is.")]
     [SerializeField] RectTransform destinationMarker;
@@ -88,15 +99,49 @@ public class TutorialRangeMap_NEW : MonoBehaviour
     float _facingAngle;
     float _facingVelocity;
     float _sinceRefresh;
+    bool _checked;
 
     void Awake()
     {
         if (travel == null) travel = FindObjectOfType<TutorialTravel_NEW>();
         if (lookRig == null) lookRig = FindObjectOfType<FirstPersonLookRig_NEW>();
 
+        PlaceStem();
+
         if (travel == null)
             Debug.LogError("[TutorialRangeMap_NEW] No TutorialTravel_NEW. The map has " +
                            "nothing to place.", this);
+    }
+
+    /// <summary>
+    /// Park the needle directly above the point it rotates around.
+    ///
+    /// This is enforced rather than authored, and it is the one piece of layout in the
+    /// tutorial that is. PointTheStem turns the Facing rect to a bearing measured from
+    /// map +Y, so a needle drawn anywhere but straight up above the marker points at the
+    /// wrong part of the map — and the first version was drawn BELOW the marker, which is
+    /// 180 degrees out: it showed where the player had come from and swung the wrong way
+    /// when they turned.
+    ///
+    /// Two conventions that have to agree is one convention too many, so the component
+    /// owns it. Public because the builder calls it too, so the map looks right in the
+    /// Scene view and not only once you press Play.
+    ///
+    /// Length, width, sprite and colour are untouched.
+    /// </summary>
+    public void PlaceStem()
+    {
+        if (stem == null && facing != null && facing.childCount > 0)
+            stem = facing.GetChild(0) as RectTransform;
+
+        if (stem == null) return;
+
+        Vector2 centre = new Vector2(0.5f, 0.5f);
+
+        stem.anchorMin = centre;
+        stem.anchorMax = centre;
+        stem.pivot = centre;
+        stem.anchoredPosition = new Vector2(0f, stem.sizeDelta.y * 0.5f + stemGap);
     }
 
     /// <summary>Snap everything back to the start state. The attract return calls this.</summary>
@@ -107,6 +152,7 @@ public class TutorialRangeMap_NEW : MonoBehaviour
         _markerVelocity = Vector2.zero;
         _facingAngle = 0f;
         _facingVelocity = 0f;
+        _checked = false;
     }
 
     /// <summary>
@@ -145,6 +191,7 @@ public class TutorialRangeMap_NEW : MonoBehaviour
 
         PlaceMarkers(dt);
         PointTheStem(dt);
+        CheckTheNeedleAgrees();
 
         _sinceRefresh += dt;
         if (_sinceRefresh < refreshSeconds) return;
@@ -179,20 +226,80 @@ public class TutorialRangeMap_NEW : MonoBehaviour
         return new Vector2(offset.x, offset.z) / Mathf.Max(0.01f, _unitsPerPixel);
     }
 
+    /// <summary>
+    /// Turn the stem to where the light is looking.
+    ///
+    /// The angle comes from the camera's own forward vector put through THE SAME
+    /// PROJECTION as the markers — world X to map X, world Z to map Y. The earlier
+    /// version worked from lookRig.Yaw and a negation, which is two conventions that have
+    /// to agree with each other and with ToMap, and they did not: the stem pointed back
+    /// down the map at where the player had come from. Reading the direction off the
+    /// transform means the stem cannot disagree with the markers, because both are built
+    /// out of the same two numbers.
+    ///
+    /// The needle rests along map +Y, which PlaceStem guarantees. Anything else drawn
+    /// inside that rect wants to point the same way.
+    /// </summary>
     void PointTheStem(float dt)
     {
         if (facing == null || lookRig == null) return;
 
-        // A yaw of 0 looks down world +Z, which on this map is straight up, and UI
-        // rotation runs the other way round from compass bearing — hence the negation.
-        float target = -lookRig.Yaw;
+        Vector3 forward = lookRig.transform.forward;
+        Vector2 onMap = new Vector2(forward.x, forward.z);
 
-        _facingAngle = smoothTime <= 0f
-            ? target
-            : Mathf.SmoothDampAngle(_facingAngle, target, ref _facingVelocity, smoothTime,
-                                    Mathf.Infinity, dt);
+        // Looking exactly straight up or down. Nothing on a plan view to say about that,
+        // so hold the last bearing rather than snapping to an arbitrary one.
+        if (onMap.sqrMagnitude > 0.000001f)
+        {
+            // Atan2 is degrees counter-clockwise from map +X; the stem rests at +Y,
+            // which is a quarter turn further round.
+            float target = Mathf.Atan2(onMap.y, onMap.x) * Mathf.Rad2Deg - 90f;
+
+            _facingAngle = smoothTime <= 0f
+                ? target
+                : Mathf.SmoothDampAngle(_facingAngle, target, ref _facingVelocity, smoothTime,
+                                        Mathf.Infinity, dt);
+        }
 
         facing.localRotation = Quaternion.Euler(0f, 0f, _facingAngle);
+    }
+
+    /// <summary>
+    /// Once, at the start: does the needle point the same way the marker is about to
+    /// travel?
+    ///
+    /// It has to. Before the player turns, the light is looking along its own course, so
+    /// "which way am I facing" and "which way am I going" are the same arrow on the map.
+    /// Any sign error, any needle drawn on the wrong side of its pivot, any disagreement
+    /// between this and ToMap comes out as a dot product below zero — and this map has
+    /// been 180 degrees out twice, both times in a way that looked fine until somebody
+    /// watched it during a turn.
+    ///
+    /// Only run while the view is still near forward, because after that the two arrows
+    /// are supposed to differ.
+    /// </summary>
+    void CheckTheNeedleAgrees()
+    {
+        if (_checked || facing == null || stem == null || lookRig == null) return;
+        if (Mathf.Abs(lookRig.YawFromForward) > 5f) return;
+
+        _checked = true;
+
+        Vector2 course = ToMap(travel.Destination.position) - ToMap(travel.transform.position);
+        if (course.sqrMagnitude < 0.01f) return;
+
+        // Where the needle actually is on screen, not where it is meant to be: its offset
+        // inside Facing, turned by whatever Facing is turned to.
+        Vector3 offset = new Vector3(stem.anchoredPosition.x, stem.anchoredPosition.y, 0f);
+        Vector3 drawn = facing.localRotation * offset;
+
+        if (Vector2.Dot(new Vector2(drawn.x, drawn.y).normalized, course.normalized) > 0f) return;
+
+        Debug.LogError("[TutorialRangeMap_NEW] The facing needle points away from the " +
+                       "direction of travel while the light is still looking forward, so " +
+                       "the map is telling the player the opposite of the truth. Check that " +
+                       "the needle sits ABOVE the marker (PlaceStem) and that PointTheStem " +
+                       "and ToMap use the same two world axes.", this);
     }
 
     void WriteDistance(float distance)
