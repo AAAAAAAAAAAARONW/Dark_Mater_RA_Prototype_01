@@ -535,7 +535,7 @@ public static class TutorialSceneBuilder_NEW
             .Str("beatId", "A1")
             .Str("description", "Near black. Dark red matter drifts in slow rotation deep in frame.")
             .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
-            .Str("hintText", "LEFT STICK  ·  LOOK")
+            .Str("hintText", "LEFT STICK  ·  LOOK AROUND")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
             .Num("duration", 8f)
             .Apply();
@@ -570,6 +570,8 @@ public static class TutorialSceneBuilder_NEW
         Wire(b1)
             .Str("beatId", "B1")
             .Str("description", "Player turns right, catches the mote, it blooms into a ripple.")
+            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
+            .Str("hintText", "LEFT STICK  ·  LOOK RIGHT")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
             .Ref("target", moteA.transform)
             .Ref("mote", moteA.GetComponent<GuideMote_NEW>())
@@ -578,13 +580,21 @@ public static class TutorialSceneBuilder_NEW
             .Num("holdSeconds", 0f)
             .Apply();
 
-        // B2 and B3 carry no hintText: the storyboard says "No new prompt" for both, and
-        // an empty hint means the B1 line stays up rather than the line going away.
+        // Every gated beat states its own ask.
+        //
+        // The storyboard writes "No new prompt" against B2 and B3, meaning the control
+        // has already been taught and does not need re-teaching. But the hint line is
+        // not only teaching a control, it is saying what to do next — and a line reading
+        // LOOK RIGHT while the beat is waiting for the player to look up is worse than
+        // no line at all. The control half stays constant, which is the part the
+        // storyboard is protecting; the action half tracks the beat.
         Beat_LookAt_NEW b2 = Beat<Beat_LookAt_NEW>(parent, "B2");
         Wire(b2)
             .Str("beatId", "B2")
             .Str("description", "The mote passes overhead. Looking up reveals the jet channel " +
                                 "running into the dark, which is the direction of travel.")
+            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
+            .Str("hintText", "LEFT STICK  ·  LOOK UP")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
             .Ref("target", moteB.transform)
             .Ref("mote", moteB.GetComponent<GuideMote_NEW>())
@@ -600,6 +610,8 @@ public static class TutorialSceneBuilder_NEW
             .Str("beatId", "B3")
             .Str("description", "Third mote, behind. Turning around, the player sees what they " +
                                 "are travelling away from. Spatial orientation lands here. Protect it.")
+            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
+            .Str("hintText", "LEFT STICK  ·  TURN AROUND")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
             .Ref("disc", moteC.transform)
             .Ref("lookRig", lookRig)
@@ -833,7 +845,10 @@ public static class TutorialSceneBuilder_NEW
         AddChipBackground(go, 0.55f);
 
         GameObject label = UIObject("Label", go.transform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(600f, 60f));
-        AddText(label, "LEFT STICK  ·  LOOK", 34, TextAnchor.MiddleCenter);
+        // Placeholder only: TutorialHUD_NEW writes the running beat's hintText over this
+        // before the line is ever shown. It is here so the object reads correctly in the
+        // Scene view rather than as an empty rect.
+        AddText(label, "LEFT STICK  ·  LOOK AROUND", 34, TextAnchor.MiddleCenter);
 
         return go;
     }

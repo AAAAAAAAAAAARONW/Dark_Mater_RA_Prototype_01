@@ -14,7 +14,7 @@ Phase 2–4 尚未实现，但拍子框架、控制方案和 HUD 都是按整套
 3. 菜单 `Tools > Journey NEW > Build Tutorial Scene (Phase 0-1)`
 4. Play
 
-看到的顺序：纯黑 → 标题卡 →（按 A）→ 黑保持一会儿后渐显出天空，玩家匀速朝远处的类星体直线飞行，`LEFT STICK · LOOK` 提示已经在了 → 第 15 秒一颗光点从右边缘飘出，转右抓住它 → 抬头抓第二颗 → 转身抓第三颗 → 提示换成 `A TO RECENTRE`、下方出现 A 图标，按 A 视角平滑回到航向。
+看到的顺序：纯黑 → 标题卡 →（按 A）→ 黑保持一会儿后渐显出天空，玩家匀速朝远处的类星体直线飞行，提示行已经写着 `LOOK AROUND` → 第 15 秒一颗光点从右边缘飘出，提示变 `LOOK RIGHT` → `LOOK UP` → `TURN AROUND` → `A TO RECENTRE` 且下方出现 A 图标，按 A 视角平滑回到航向。**提示行始终是当下要做的那件事。**
 
 调试：`F2` 跳过当前拍子。左上角三行 —— 拍子与门控状态、相机状态（是否在回正、偏离航向多少度、**这一帧有没有收到 A**、摇杆推了多少）、航行状态（速度、已飞距离、距类星体、**航向偏差**）。全部受 `DebugView_NEW.Overlay` 控制（`Tools > Journey NEW > Debug View`），出包时一起关掉。
 
@@ -236,7 +236,7 @@ GDD §2 记录了旧版 C3 锁相机被多名玩家读成 bug，§5 把「相机
 
 | 顺序 | 元素 | 首次出现 | 之后 |
 |---|---|---|---|
-| 1 | 控制提示行 | **A1** | 到 B4 换成复位提示，见下 |
+| 1 | 控制提示行 | **A1** | 每个有门控的拍子都会改写它，见下 |
 | 2 | 控制图例 | B1 | **永不消失**，代码里没有隐藏它的路径 |
 | 3 | 准星 | B1 | 跟图例一起 |
 | 4 | A 提示 | B4 | 按下即隐 |
@@ -245,13 +245,25 @@ GDD §2 记录了旧版 C3 锁相机被多名玩家读成 bug，§5 把「相机
 
 | 值 | 含义 | 用在 |
 |---|---|---|
-| `Keep` | 保持现状 | 默认。分镜在 B2 B3 写的 “No new prompt” 就是这个 |
-| `Show` | 换成本拍的 `hintText` | A1 显示 `LEFT STICK · LOOK`；**B4** 换成 `A TO RECENTRE` |
-| `Clear` | 拿掉 | 目前没人用 |
+| `Keep` | 保持现状 | 默认。A2 A3 用它 —— 无动作的过场拍，沿用 A1 那句 |
+| `Show` | 换成本拍的 `hintText` | **每一个有门控的拍子** |
+| `Clear` | 拿掉 | 目前没人用，留着以免有人再用空字符串去伪装 |
 
-**B4 是替换，不是清空**：底板上的字从 `LEFT STICK · LOOK` 换成 `A TO RECENTRE`，两条不会同时挂在屏幕上。底板说「做什么」，下方的圆形 A 图标说「用哪个键做」。
+**提示行永远是「当下要玩家做的那件事」**：
 
-（之前是「空字符串 = 不变、空格 = 隐藏」这种约定，能用但是个坑 —— 三个具名的值在 Inspector 里自己就说清楚了。）
+| 拍子 | 提示行 |
+|---|---|
+| A1（A2 A3 沿用） | `LEFT STICK  ·  LOOK AROUND` |
+| B1 | `LEFT STICK  ·  LOOK RIGHT` |
+| B2 | `LEFT STICK  ·  LOOK UP` |
+| B3 | `LEFT STICK  ·  TURN AROUND` |
+| B4 | `A  TO  RECENTRE` |
+
+分镜在 B2 B3 上写的是 “No new prompt”，意思是**控制**已经教过、不用再教一遍 —— 这一点保留了，`LEFT STICK` 那半截自始至终不变。但提示行不只在教控制，它还在说下一步做什么，而一条写着 LOOK RIGHT 却在等玩家抬头的提示，比没有提示更糟。所以**控制那半截固定，动作那半截跟着拍子走**。
+
+底板说「做什么」，下方的圆形 A 图标说「用哪个键做」。两者不会同时说同一件事。
+
+文案全部在 `TutorialSceneBuilder_NEW.BuildPhase0 / BuildPhase1` 里，一处一行；场景搭好之后也能直接在每个拍子的 Inspector 里改。
 
 提示行放在 A1 是**有意偏离 GDD §7** 的：文档把第一个提示放在 B1、要求 B1 之前屏幕全空。走上来的观众应该先被告知「你可以转视角」，再被要求去转 —— 这是你定的顺序，不是我的解读。
 
@@ -272,9 +284,9 @@ STICK = LOOK      A = CONFIRM / RECENTRE
 | A1 | `Beat_Cinematic_NEW` | 无，8 秒 | 提示 `LEFT STICK · LOOK` 在这里出现；渐显也在这里开始；`onEnter` 挂 VO |
 | A2 | `Beat_Cinematic_NEW` | 无，7 秒 | `onHalfway` 用于「亮度升起来」这种帧内变化 |
 | A3 | `Beat_Cinematic_NEW` | 无，5 秒 | `onEnter` 激活光点；`onRumble` 见下方「已知缺口」 |
-| B1 | `Beat_LookAt_NEW` | 光点进入准星 | `holdSeconds = 0`。GDD 明写 not a dwell timer |
-| B2 | `Beat_LookAt_NEW` | 第二颗光点进入画面 | 光点从头顶掠过。分镜写 No new prompt，所以 `hintMode = Keep` |
-| B3 | `Beat_TurnAround_NEW` | 转过 150° **且**第三颗光点在画面里 | 分镜的 B3 是「third mote, behind」。两个条件都要 —— 见下 |
+| B1 | `Beat_LookAt_NEW` | 光点进入准星 | 提示 `LOOK RIGHT`。`holdSeconds = 0`，GDD 明写 not a dwell timer |
+| B2 | `Beat_LookAt_NEW` | 第二颗光点进入画面 | 提示 `LOOK UP`。光点从头顶掠过 |
+| B3 | `Beat_TurnAround_NEW` | 转过 150° **且**第三颗光点在画面里 | 提示 `TURN AROUND`。分镜的 B3 是「third mote, behind」，两个条件都要 —— 见下 |
 | B4 | `Beat_Confirm_NEW` | 按下 A | 底板换成 `A TO RECENTRE`，下方是 A 图标 + `RECENTRE` |
 
 **B3 为什么两个条件都要**：只判角度的话，一个低头发呆、摇杆漂移的玩家也能过。而 B3 是空间定位落地的地方，GDD 给它的批注是 “Protect it.”。一条能在没看见东西的情况下通过的门，什么都没保护到。
