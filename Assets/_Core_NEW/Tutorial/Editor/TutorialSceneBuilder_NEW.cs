@@ -962,13 +962,19 @@ public static class TutorialSceneBuilder_NEW
         return GameObject.Find(name);
     }
 
-    /// <summary>Add the component only if the object does not already have one.</summary>
+    /// <summary>
+    /// Add the component only if the object does not already have one.
+    ///
+    /// This is the one place in the file that may call Undo.AddComponent. Everywhere
+    /// else goes through here, so that "was this component added by this run?" has a
+    /// single answer — see MarkFresh.
+    /// </summary>
     static T AddIfMissing<T>(GameObject go) where T : Component
     {
         T existing = go.GetComponent<T>();
         if (existing != null) return existing;
 
-        T added = AddIfMissing<T>(go);
+        T added = Undo.AddComponent<T>(go);
         MarkFresh(added);
         return added;
     }
@@ -1114,16 +1120,20 @@ public static class TutorialSceneBuilder_NEW
         GameObject go = FindOrCreate("HUD", parent, Vector3.zero);
 
         Canvas canvas = AddIfMissing<Canvas>(go);
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        if (IsFresh(canvas)) canvas.renderMode = RenderMode.ScreenSpaceOverlay;
 
         CanvasScaler scaler = AddIfMissing<CanvasScaler>(go);
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920f, 1080f);
 
-        // The Observatories display is curved and very wide. Matching height keeps the
-        // legend a constant physical size as the aspect changes.
-        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-        scaler.matchWidthOrHeight = 1f;
+        if (IsFresh(scaler))
+        {
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+
+            // The Observatories display is curved and very wide. Matching height keeps
+            // the legend a constant physical size as the aspect changes.
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            scaler.matchWidthOrHeight = 1f;
+        }
 
         AddIfMissing<GraphicRaycaster>(go);
 
@@ -1164,21 +1174,10 @@ public static class TutorialSceneBuilder_NEW
     /// </summary>
     static GameObject BuildFlash(Transform canvas)
     {
-        GameObject go = FindOrCreate("Flash", canvas, Vector3.zero);
+        GameObject go = FullScreenUIObject("Flash", canvas);
 
-        if (IsFresh(go))
-        {
-            RectTransform rect = go.GetComponent<RectTransform>();
-            if (rect == null) rect = Undo.AddComponent<RectTransform>(go);
-
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-
-            // Straight after Blackout, so it is behind every prompt.
-            go.transform.SetSiblingIndex(1);
-        }
+        // Straight after Blackout, so it is behind every prompt.
+        if (IsFresh(go)) go.transform.SetSiblingIndex(1);
 
         Image image = AddIfMissing<Image>(go);
 
@@ -1196,12 +1195,23 @@ public static class TutorialSceneBuilder_NEW
     }
 
     /// <summary>Full-screen black. First child, so every other HUD element draws over it.</summary>
-    static GameObject BuildBlackout(Transform canvas)
+    /// <summary>
+    /// A named child stretched to fill its parent, created if it is not there.
+    ///
+    /// The full-screen overlays used to each build their own GameObject unconditionally,
+    /// so every update run added another Blackout and another Plate. This is the same
+    /// find-or-create contract as UIObject, for the stretch case.
+    /// </summary>
+    static GameObject FullScreenUIObject(string name, Transform parent)
     {
-        GameObject go = new GameObject("Blackout", typeof(RectTransform));
-        Undo.RegisterCreatedObjectUndo(go, "Create Blackout");
+        GameObject existing = FindChild(parent, name);
+        if (existing != null) return existing;
 
-        go.transform.SetParent(canvas, false);
+        GameObject go = new GameObject(name, typeof(RectTransform));
+        Undo.RegisterCreatedObjectUndo(go, "Create " + name);
+        MarkFresh(go);
+
+        go.transform.SetParent(parent, false);
 
         RectTransform rect = (RectTransform)go.transform;
         rect.anchorMin = Vector2.zero;
@@ -1209,9 +1219,20 @@ public static class TutorialSceneBuilder_NEW
         rect.offsetMin = Vector2.zero;
         rect.offsetMax = Vector2.zero;
 
+        return go;
+    }
+
+    static GameObject BuildBlackout(Transform canvas)
+    {
+        GameObject go = FullScreenUIObject("Blackout", canvas);
+
         Image image = AddIfMissing<Image>(go);
-        image.color = Color.black;
-        image.raycastTarget = false;
+
+        if (IsFresh(image))
+        {
+            image.color = Color.black;
+            image.raycastTarget = false;
+        }
 
         return go;
     }
@@ -1226,9 +1247,13 @@ public static class TutorialSceneBuilder_NEW
         GameObject go = UIObject("Reticle", canvas, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(34f, 34f));
 
         Image image = AddIfMissing<Image>(go);
-        image.sprite = TutorialWorldAssets_NEW.RingSprite();
-        image.color = new Color(1f, 1f, 1f, 0.42f);
-        image.raycastTarget = false;
+
+        if (IsFresh(image))
+        {
+            image.sprite = TutorialWorldAssets_NEW.RingSprite();
+            image.color = new Color(1f, 1f, 1f, 0.42f);
+            image.raycastTarget = false;
+        }
 
         return go;
     }
@@ -1243,7 +1268,7 @@ public static class TutorialSceneBuilder_NEW
 
         // Quiet. This is a reference card that never leaves, not an instruction — it has
         // to survive being on screen for the whole piece without competing with it.
-        text.color = new Color(1f, 1f, 1f, 0.45f);
+        if (IsFresh(text)) text.color = new Color(1f, 1f, 1f, 0.45f);
 
         return go;
     }
@@ -1292,13 +1317,17 @@ public static class TutorialSceneBuilder_NEW
         GameObject glyph = UIObject("Glyph", go.transform, new Vector2(0.5f, 0.5f), new Vector2(-150f, 0f), new Vector2(52f, 52f));
 
         Image disc = AddIfMissing<Image>(glyph);
-        disc.sprite = TutorialWorldAssets_NEW.DiscSprite();
-        disc.color = new Color(1f, 1f, 1f, 0.92f);
-        disc.raycastTarget = false;
+
+        if (IsFresh(disc))
+        {
+            disc.sprite = TutorialWorldAssets_NEW.DiscSprite();
+            disc.color = new Color(1f, 1f, 1f, 0.92f);
+            disc.raycastTarget = false;
+        }
 
         GameObject glyphLabel = UIObject("A", glyph.transform, new Vector2(0.5f, 0.5f), new Vector2(0f, 0f), new Vector2(52f, 52f));
         Text a = AddText(glyphLabel, "A", 30, TextAnchor.MiddleCenter);
-        a.color = new Color(0.04f, 0.04f, 0.07f, 1f);
+        if (IsFresh(a)) a.color = new Color(0.04f, 0.04f, 0.07f, 1f);
 
         // The verb. TutorialHUD_NEW writes the beat's promptText here, so the beat still
         // owns the words and the HUD still owns the shape.
@@ -1311,22 +1340,18 @@ public static class TutorialSceneBuilder_NEW
     /// <summary>Dark rounded plate behind a prompt. 9-sliced, so it stretches cleanly.</summary>
     static void AddChipBackground(GameObject parent, float alpha)
     {
-        GameObject go = new GameObject("Plate", typeof(RectTransform));
-        Undo.RegisterCreatedObjectUndo(go, "Create Plate");
-
-        go.transform.SetParent(parent.transform, false);
-
-        RectTransform rect = (RectTransform)go.transform;
-        rect.anchorMin = Vector2.zero;
-        rect.anchorMax = Vector2.one;
-        rect.offsetMin = Vector2.zero;
-        rect.offsetMax = Vector2.zero;
+        GameObject go = FullScreenUIObject("Plate", parent.transform);
 
         Image image = AddIfMissing<Image>(go);
+        if (!IsFresh(image)) return;
+
         image.sprite = TutorialWorldAssets_NEW.ChipSprite();
         image.type = Image.Type.Sliced;
         image.color = new Color(0.02f, 0.02f, 0.04f, alpha);
         image.raycastTarget = false;
+
+        // Behind the label, whatever order the children ended up in.
+        go.transform.SetAsFirstSibling();
     }
 
     static GameObject BuildAttractCard(Transform canvas)
@@ -1364,9 +1389,16 @@ public static class TutorialSceneBuilder_NEW
         return go;
     }
 
+    /// <summary>
+    /// Put a Text on the object, and style it only if this run created it.
+    ///
+    /// Font, size and alignment are the most retuned things in the whole rig, so an
+    /// update run that restyled every label would undo an afternoon of work.
+    /// </summary>
     static Text AddText(GameObject go, string content, int size, TextAnchor anchor)
     {
         Text text = AddIfMissing<Text>(go);
+        if (!IsFresh(text)) return text;
 
         text.text = content;
         text.fontSize = size;
