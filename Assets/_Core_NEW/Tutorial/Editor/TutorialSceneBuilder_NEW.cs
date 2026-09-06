@@ -151,17 +151,50 @@ public static class TutorialSceneBuilder_NEW
 
             if (!ok) return;
 
-            // Lift the camera out first. It is the scene's Main Camera and it lives
-            // under the rig, so deleting the rig would take it — along with whatever
-            // else is on it, which in this project is the post-process stack.
+            // The camera is the scene's, not the rig's — it was adopted on the first
+            // build — so lift it out rather than deleting it with everything else.
+            //
+            // But strip what the builder bolted onto it. Without this the rescue
+            // defeats the rebuild: the look rig, the shake and the post-process stack
+            // all ride on the camera, AddIfMissing finds them still attached and
+            // therefore not fresh, and every tuned value on them survives a "rebuild
+            // from scratch". The camera is yours; what we put on it is ours.
             Camera main = Camera.main;
+
             if (main != null && main.transform.IsChildOf(existing.transform))
+            {
                 Undo.SetTransformParent(main.transform, null, "Lift camera out of the rig");
+                StripBuilderComponents(main.gameObject);
+            }
 
             Undo.DestroyObjectImmediate(existing);
         }
 
         Run();
+    }
+
+    /// <summary>
+    /// Remove the components this builder adds to an object it does not own.
+    ///
+    /// Only the camera needs this, and only on a rebuild. The list is every type the
+    /// builder attaches to the camera — keep it in step with AcquireCamera,
+    /// ApplyPostProcessing and the Phase 2 rig, or a rebuild will quietly stop being one
+    /// for whatever gets left off.
+    /// </summary>
+    static void StripBuilderComponents(GameObject go)
+    {
+        Remove<FirstPersonLookRig_NEW>(go);
+        Remove<TutorialCameraShake_NEW>(go);
+        Remove<PostProcessLayer>(go);
+        Remove<PostProcessVolume>(go);
+    }
+
+    static void Remove<T>(GameObject go) where T : Component
+    {
+        T component = go.GetComponent<T>();
+        if (component == null) return;
+
+        Undo.DestroyObjectImmediate(component);
     }
 
     /// <summary>
@@ -271,17 +304,49 @@ public static class TutorialSceneBuilder_NEW
         UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(root.scene);
         Selection.activeGameObject = root;
 
+        Report(root, beats.transform);
+    }
+
+    /// <summary>
+    /// Say what the rig now contains, not only what changed.
+    ///
+    /// "Nothing to do" on its own is indistinguishable from a run that fell over before
+    /// it got anywhere, which is exactly the doubt a no-op should not leave. Listing the
+    /// beats answers the question somebody actually has after running this — did the new
+    /// phase land? — without opening the Hierarchy.
+    /// </summary>
+    static void Report(GameObject root, Transform beats)
+    {
+        System.Text.StringBuilder ids = new System.Text.StringBuilder();
+        int count = 0;
+
+        foreach (TutorialBeat_NEW beat in beats.GetComponentsInChildren<TutorialBeat_NEW>(true))
+        {
+            if (count > 0) ids.Append(' ');
+            ids.Append(beat.BeatId);
+            count++;
+        }
+
+        string inventory = count + " beats: " + ids;
+
         if (_freshBuild)
-            Debug.Log("[TutorialSceneBuilder_NEW] Tutorial rig built, Phase 0 to 2 (A1-C5). " +
+        {
+            Debug.Log("[TutorialSceneBuilder_NEW] Built from scratch. " + inventory + ".\n" +
                       "Press Play: the title card waits for A, then A1 runs. " +
                       "F2 skips a beat while the debug overlay is on.", root);
-        else if (_created == 0 && _wired == 0)
-            Debug.Log("[TutorialSceneBuilder_NEW] Nothing to do — the rig is already complete. " +
-                      "Your edits were not touched.", root);
-        else
-            Debug.Log("[TutorialSceneBuilder_NEW] Updated: " + _created + " object(s) or " +
-                      "component(s) added, " + _wired + " reference(s) filled. Everything " +
-                      "that already existed was left as it was.", root);
+            return;
+        }
+
+        if (_created == 0 && _wired == 0)
+        {
+            Debug.Log("[TutorialSceneBuilder_NEW] Checked the rig, nothing was missing. " +
+                      inventory + ". Nothing of yours was touched.", root);
+            return;
+        }
+
+        Debug.Log("[TutorialSceneBuilder_NEW] Updated: " + _created + " object(s) or " +
+                  "component(s) added, " + _wired + " reference(s) filled. " + inventory + ".\n" +
+                  "Everything that already existed was left as it was.", root);
     }
 
     // ── Environment ──────────────────────────────────────────────────────────
