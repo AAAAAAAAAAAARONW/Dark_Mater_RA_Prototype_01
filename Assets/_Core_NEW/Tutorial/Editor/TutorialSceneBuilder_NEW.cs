@@ -110,10 +110,11 @@ public static class TutorialSceneBuilder_NEW
     static readonly Vector3 MoteCPosition = new Vector3(-6f, 2f, -40f);
 
     /// <summary>
-    /// True while this run is allowed to overwrite values on objects that already
-    /// existed. See the OWNERSHIP note at the top of the file.
+    /// True when this run started with no rig in the scene, so everything it touches
+    /// is its own to configure. False on an update, where values belong to whoever
+    /// set them. See the OWNERSHIP note at the top of the file.
     /// </summary>
-    static bool _rebuilding;
+    static bool _freshBuild;
 
     /// <summary>Objects created by this run. Only these get their values written.</summary>
     static readonly System.Collections.Generic.HashSet<int> _fresh =
@@ -122,12 +123,16 @@ public static class TutorialSceneBuilder_NEW
     static int _created;
     static int _wired;
 
+    /// <summary>Build the rig, or fill in whatever is missing from the one that is there.</summary>
     [MenuItem("Tools/Journey NEW/Tutorial/Build or Update", false, 40)]
     public static void BuildOrUpdate()
     {
-        Run(false);
+        Run();
     }
 
+    /// <summary>
+    /// Delete the rig and build it again. Destructive, and says so before doing it.
+    /// </summary>
     [MenuItem("Tools/Journey NEW/Tutorial/Rebuild From Scratch (deletes your edits)", false, 41)]
     public static void RebuildFromScratch()
     {
@@ -146,23 +151,36 @@ public static class TutorialSceneBuilder_NEW
 
             if (!ok) return;
 
+            // Lift the camera out first. It is the scene's Main Camera and it lives
+            // under the rig, so deleting the rig would take it — along with whatever
+            // else is on it, which in this project is the post-process stack.
+            Camera main = Camera.main;
+            if (main != null && main.transform.IsChildOf(existing.transform))
+                Undo.SetTransformParent(main.transform, null, "Lift camera out of the rig");
+
             Undo.DestroyObjectImmediate(existing);
         }
 
-        Run(true);
+        Run();
     }
 
-    static void Run(bool rebuilding)
+    /// <summary>
+    /// One entry point, and one question asked once: is there a rig here already?
+    ///
+    /// If there is not, this run made everything it touches and may configure all of
+    /// it, including the scene's existing Main Camera. If there is, everything older
+    /// than this run belongs to whoever set it. Rebuild From Scratch does not need a
+    /// flag of its own — it deletes the rig first, so the answer becomes "no" by itself.
+    /// </summary>
+    static void Run()
     {
-        // A first build configures everything, including the scene's existing Main
-        // Camera. Only a run against a rig that is already there has to tread carefully.
-        _rebuilding = rebuilding || GameObject.Find(RootName) == null;
+        _freshBuild = GameObject.Find(RootName) == null;
 
         _fresh.Clear();
         _created = 0;
         _wired = 0;
 
-        Undo.SetCurrentGroupName(rebuilding ? "Rebuild tutorial scene" : "Build or update tutorial scene");
+        Undo.SetCurrentGroupName(_freshBuild ? "Build tutorial scene" : "Update tutorial scene");
         int group = Undo.GetCurrentGroup();
 
         GameObject root = FindOrCreate(RootName, null, Vector3.zero);
@@ -253,7 +271,7 @@ public static class TutorialSceneBuilder_NEW
         UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(root.scene);
         Selection.activeGameObject = root;
 
-        if (_rebuilding)
+        if (_freshBuild)
             Debug.Log("[TutorialSceneBuilder_NEW] Tutorial rig built, Phase 0 to 2 (A1-C5). " +
                       "Press Play: the title card waits for A, then A1 runs. " +
                       "F2 skips a beat while the debug overlay is on.", root);
@@ -285,7 +303,7 @@ public static class TutorialSceneBuilder_NEW
     static void ApplyPostProcessing(Camera camera)
     {
         // Already set up by an earlier run, and possibly retuned since. Leave it.
-        if (camera.GetComponent<PostProcessLayer>() != null && !_rebuilding) return;
+        if (camera.GetComponent<PostProcessLayer>() != null && !_freshBuild) return;
 
         int layer = LayerMask.NameToLayer(TutorialWorldAssets_NEW.PostProcessLayerName);
 
@@ -333,9 +351,15 @@ public static class TutorialSceneBuilder_NEW
     /// </summary>
     static void DimSceneLights()
     {
+        // Fresh build only. Somebody switching a light back on is a decision, and the
+        // earlier version turned it off again on every update — silently, and with a
+        // log line each time that made the run look like it had done real work.
+        if (!_freshBuild) return;
+
         foreach (Light light in Object.FindObjectsOfType<Light>())
         {
             if (light == null || light.type != LightType.Directional) continue;
+            if (!light.enabled) continue;
 
             Undo.RecordObject(light, "Disable directional light");
             light.enabled = false;
@@ -898,7 +922,7 @@ public static class TutorialSceneBuilder_NEW
     /// </summary>
     static bool IsFresh(Object o)
     {
-        if (_rebuilding) return true;
+        if (_freshBuild) return true;
         return o != null && _fresh.Contains(o.GetInstanceID());
     }
 
@@ -908,30 +932,43 @@ public static class TutorialSceneBuilder_NEW
     /// </summary>
     static Camera AcquireCamera(Transform parent)
     {
-        Camera existing = Camera.main;
-        Camera camera;
+        // Already under the rig from an earlier run. Its transform is somebody's — an
+        // offset eye height, a tilt — so do not touch it. The earlier version reparented
+        // and zeroed on every run, which quietly undid exactly that.
+        // includeInactive: a camera somebody switched off is still theirs, and missing it
+        // here would build a second one alongside it.
+        Camera underRig = parent.GetComponentInChildren<Camera>(true);
+        if (underRig != null) return Configure(underRig);
 
-        if (existing != null)
+        Camera main = Camera.main;
+
+        if (main != null)
         {
-            Undo.SetTransformParent(existing.transform, parent, "Reparent camera");
+            // Taking over the scene's camera. This happens once, on the first build.
+            Undo.SetTransformParent(main.transform, parent, "Reparent camera");
 
-            existing.transform.localPosition = Vector3.zero;
-            existing.transform.localRotation = Quaternion.identity;
+            main.transform.localPosition = Vector3.zero;
+            main.transform.localRotation = Quaternion.identity;
 
-            camera = existing;
-        }
-        else
-        {
-            GameObject go = FindOrCreate("Camera", parent, parent.position);
-            go.tag = "MainCamera";
-
-            camera = AddIfMissing<Camera>(go);
-            AddIfMissing<AudioListener>(go);
+            return Configure(main);
         }
 
-        // Only on a fresh build. FOV and clip planes are exactly the kind of thing
-        // somebody retunes, and a second run should not put them back.
-        if (!_rebuilding) return camera;
+        GameObject go = FindOrCreate("Camera", parent, parent.position);
+        go.tag = "MainCamera";
+
+        Camera created = AddIfMissing<Camera>(go);
+        AddIfMissing<AudioListener>(go);
+
+        return Configure(created);
+    }
+
+    /// <summary>
+    /// FOV, clear flags and clip planes. Fresh build only — these are exactly the kind
+    /// of thing somebody retunes, and a second run should not put them back.
+    /// </summary>
+    static Camera Configure(Camera camera)
+    {
+        if (!_freshBuild) return camera;
 
         Undo.RecordObject(camera, "Configure camera");
 
