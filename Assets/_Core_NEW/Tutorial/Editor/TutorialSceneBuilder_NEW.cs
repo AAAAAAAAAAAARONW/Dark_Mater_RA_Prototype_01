@@ -122,6 +122,7 @@ public static class TutorialSceneBuilder_NEW
 
         BuildTravel(player, quasar.transform, lookRig);
         BuildDust(player.transform);
+        BuildSpeedStreaks(player.transform);
         BuildPhotonTrail(player.transform);
 
         // Motes ride with the light. See MoteAPosition.
@@ -339,30 +340,37 @@ public static class TutorialSceneBuilder_NEW
         ParticleSystem.MainModule main = ps.main;
         main.duration = 20f;
         main.loop = true;
-        main.startLifetime = new ParticleSystem.MinMaxCurve(24f, 40f);
+
+        // Short lives and a tight shell, both on purpose. Parallax is an angular rate,
+        // so it comes from what is CLOSE: a particle 20 units away sweeps past at 25
+        // units a second, while one 160 units away barely moves. The first version put
+        // the shell at 160 and the dust may as well have been painted on.
+        main.startLifetime = new ParticleSystem.MinMaxCurve(4f, 9f);
         main.startSpeed = new ParticleSystem.MinMaxCurve(0.05f, 0.3f);
-        main.startSize = new ParticleSystem.MinMaxCurve(0.6f, 3.2f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.12f, 0.7f);
         main.startColor = new ParticleSystem.MinMaxGradient(
-            new Color(0.55f, 0.13f, 0.07f, 1f),
-            new Color(0.75f, 0.30f, 0.16f, 1f));
-        main.maxParticles = 1400;
+            new Color(0.55f, 0.20f, 0.12f, 1f),
+            new Color(0.85f, 0.55f, 0.35f, 1f));
+        main.maxParticles = 2500;
         main.playOnAwake = true;
 
-        // World space, or the dust would rotate with the emitter instead of orbiting.
+        // World space: new dust keeps appearing around the light while what is already
+        // there stays put and gets left behind. That difference is the parallax.
         main.simulationSpace = ParticleSystemSimulationSpace.World;
 
-        // Unscaled, so D2's future slow motion does not freeze the whole disc.
+        // Unscaled, so D2's future slow motion does not freeze the medium.
         main.useUnscaledTime = true;
 
         ParticleSystem.EmissionModule emission = ps.emission;
-        emission.rateOverTime = 90f;
+        emission.rateOverTime = 260f;
 
         // A shell around the light rather than a disc: the player is flying through the
-        // medium, not orbiting inside a ring.
+        // medium, not orbiting inside a ring. Radius sized so most of it is near enough
+        // to sweep visibly at the travel speed.
         ParticleSystem.ShapeModule shape = ps.shape;
         shape.enabled = true;
         shape.shapeType = ParticleSystemShapeType.Sphere;
-        shape.radius = 160f;
+        shape.radius = 70f;
 
         // "Slow rotation", from A1. Small — the dominant motion is the travel.
         ParticleSystem.VelocityOverLifetimeModule velocity = ps.velocityOverLifetime;
@@ -404,6 +412,77 @@ public static class TutorialSceneBuilder_NEW
             });
 
         return g;
+    }
+
+    /// <summary>
+    /// Near-field streaks. The layer that makes the travel legible.
+    ///
+    /// See TutorialSpeedStreaks_NEW for why this is simulated in local space with a real
+    /// velocity while the dust is simulated in world space with none. In short: Stretch
+    /// draws a particle along its own velocity vector, and a world-space particle sitting
+    /// still while the camera flies past has a velocity of zero.
+    /// </summary>
+    static void BuildSpeedStreaks(Transform parent)
+    {
+        Material material = TutorialWorldAssets_NEW.DiscDustMaterial();
+        if (material == null) return;
+
+        GameObject go = NewObject("Streaks", parent, parent.position);
+
+        ParticleSystem ps = Undo.AddComponent<ParticleSystem>(go);
+
+        ParticleSystem.MainModule main = ps.main;
+        main.duration = 5f;
+        main.loop = true;
+
+        // Long enough to cross the near field once, no longer. These exist to be seen
+        // going past, not to accumulate.
+        main.startLifetime = new ParticleSystem.MinMaxCurve(1.4f, 2.6f);
+        main.startSpeed = 0f;
+        main.startSize = new ParticleSystem.MinMaxCurve(0.06f, 0.22f);
+        main.startColor = new ParticleSystem.MinMaxGradient(
+            new Color(0.9f, 0.75f, 0.6f, 0.5f),
+            new Color(1f, 0.95f, 0.9f, 0.8f));
+        main.maxParticles = 400;
+        main.playOnAwake = true;
+        main.simulationSpace = ParticleSystemSimulationSpace.Local;
+        main.useUnscaledTime = true;
+
+        ParticleSystem.EmissionModule emission = ps.emission;
+        emission.rateOverTime = 90f;
+
+        // A hollow-ish sphere ahead of and around the light, so streaks arrive from the
+        // front and sweep outwards rather than appearing beside the player.
+        ParticleSystem.ShapeModule shape = ps.shape;
+        shape.enabled = true;
+        shape.shapeType = ParticleSystemShapeType.Sphere;
+        shape.radius = 26f;
+        shape.radiusThickness = 0.6f;
+        shape.position = new Vector3(0f, 0f, 22f);
+
+        ParticleSystem.ColorOverLifetimeModule colour = ps.colorOverLifetime;
+        colour.enabled = true;
+        colour.color = new ParticleSystem.MinMaxGradient(FadeInOutGradient());
+
+        ParticleSystemRenderer renderer = go.GetComponent<ParticleSystemRenderer>();
+        if (renderer != null)
+        {
+            renderer.sharedMaterial = material;
+
+            // Stretch along the particle's own velocity. This is the whole point of the
+            // layer, and the reason it cannot be simulated in world space.
+            renderer.renderMode = ParticleSystemRenderMode.Stretch;
+            renderer.velocityScale = 0.09f;
+            renderer.lengthScale = 1.4f;
+            renderer.cameraVelocityScale = 0f;
+
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            renderer.sortingFudge = 30f;
+        }
+
+        // Velocity comes from TutorialTravel_NEW, not from a second copy of the number.
+        Undo.AddComponent<TutorialSpeedStreaks_NEW>(go);
     }
 
     /// <summary>
@@ -455,6 +534,7 @@ public static class TutorialSceneBuilder_NEW
         Wire(a1)
             .Str("beatId", "A1")
             .Str("description", "Near black. Dark red matter drifts in slow rotation deep in frame.")
+            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
             .Str("hintText", "LEFT STICK  ·  LOOK")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
             .Num("duration", 8f)
@@ -532,6 +612,7 @@ public static class TutorialSceneBuilder_NEW
             .Str("beatId", "B4")
             .Str("description", "The view is left off-axis. The A prompt appears at the lower " +
                                 "edge. One press smoothly recentres on the travel axis.")
+            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Clear)
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
             .Ref("lookRig", lookRig)
             .Str("promptText", "RECENTRE")

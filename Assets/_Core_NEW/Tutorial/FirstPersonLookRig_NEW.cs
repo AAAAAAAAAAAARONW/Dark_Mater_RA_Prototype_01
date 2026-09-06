@@ -57,6 +57,12 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
              "an arc of roughly 130 degrees, which is about 26 deg/s. See the class summary.")]
     [SerializeField] float ySensitivity = 26f;
 
+    [Tooltip("Which stick turns the view. One of them, not both — see TutorialInput_NEW.\n\n" +
+             "Left matches the storyboard prompt. PlaytestBuild uses the right stick, so " +
+             "tutorial and journey currently disagree; changing this and the prompt text " +
+             "together is how that gets settled.")]
+    [SerializeField] TutorialInput_NEW.LookStick lookStick = TutorialInput_NEW.LookStick.Left;
+
     [Tooltip("Stick magnitude below this is ignored. PlaytestBuild scene value: 0.1.")]
     [SerializeField] float stickDeadband = 0.1f;
 
@@ -251,8 +257,8 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
     {
         float dt = Time.unscaledDeltaTime;
 
-        float dx = TutorialInput_NEW.LookX(xSensitivity, stickDeadband, dt);
-        float dy = TutorialInput_NEW.LookY(ySensitivity, stickDeadband, dt);
+        float dx = TutorialInput_NEW.LookX(lookStick, xSensitivity, stickDeadband, dt);
+        float dy = TutorialInput_NEW.LookY(lookStick, ySensitivity, stickDeadband, dt);
 
         // A recentres. Here, not in a beat.
         //
@@ -279,7 +285,7 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
             // cancel that fires from stick drift is indistinguishable from A being broken.
             bool cancelled = recentreCancellable
                              && _recentreElapsed >= recentreGrace
-                             && (TutorialInput_NEW.StickDeflection(stickDeadband) > recentreCancelStick
+                             && (TutorialInput_NEW.StickDeflection(lookStick, stickDeadband) > recentreCancelStick
                                  || TutorialInput_NEW.MouseDeflection() > recentreCancelMouse);
 
             if (cancelled)
@@ -367,7 +373,7 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
         GUI.Label(new Rect(10f, 50f, 900f, 22f),
                   string.Format("CAMERA  {0}   off-axis {1:F0}deg   last A {2}   stick {3:F2}   A binding {4}",
                                 state, offAxis, lastA,
-                                TutorialInput_NEW.StickDeflection(stickDeadband),
+                                TutorialInput_NEW.StickDeflection(lookStick, stickDeadband),
                                 recentreOnConfirm ? "on" : "OFF"));
     }
 }

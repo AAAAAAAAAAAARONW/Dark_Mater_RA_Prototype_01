@@ -46,12 +46,28 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
     [TextArea(1, 3)]
     [SerializeField] string description = "";
 
+    /// <summary>What a beat does to the control hint line when it opens.</summary>
+    public enum HintMode
+    {
+        /// <summary>Leave whatever is up. The storyboard's "No new prompt" on B2 and B3.</summary>
+        Keep,
+
+        /// <summary>Replace it with this beat's hintText.</summary>
+        Show,
+
+        /// <summary>Take it away. B4 does this: the A prompt replaces the look prompt.</summary>
+        Clear
+    }
+
     [Header("Prompt")]
-    [Tooltip("Control hint shown while this beat runs, e.g. LEFT STICK · LOOK.\n\n" +
-             "Empty means 'no change' rather than 'no hint', which is what the storyboard " +
-             "asks for: B1 introduces LEFT STICK · LOOK and B2 and B3 both say 'No new " +
-             "prompt', so the same line stays up across all three. A beat that needs the " +
-             "hint gone sets it to a single space.")]
+    [Tooltip("What this beat does to the control hint line when it opens.\n\n" +
+             "Keep is the common case and what the storyboard's 'No new prompt' means. " +
+             "Show replaces the line. Clear takes it away, which is what B4 wants — the " +
+             "player is being asked to try the recentre, so the instruction to look has " +
+             "done its job and should get out of the way.")]
+    [SerializeField] HintMode hintMode = HintMode.Keep;
+
+    [Tooltip("The line itself, e.g. LEFT STICK · LOOK. Only used when hintMode is Show.")]
     [SerializeField] string hintText = "";
 
     [Header("Advance")]
@@ -79,7 +95,10 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
     public string BeatId { get { return beatId; } }
     public string Description { get { return description; } }
 
-    /// <summary>Control hint for this beat. Empty means keep whatever is already up.</summary>
+    /// <summary>What this beat does to the control hint line.</summary>
+    public HintMode Hint { get { return hintMode; } }
+
+    /// <summary>The hint line this beat shows. Only meaningful when Hint is Show.</summary>
     public string HintText { get { return hintText; } }
     public AdvanceMode Mode { get { return advanceMode; } }
     public float Duration { get { return duration; } }

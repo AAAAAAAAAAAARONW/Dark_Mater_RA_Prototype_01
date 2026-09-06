@@ -31,18 +31,37 @@ public static class TutorialInput_NEW
     // These match the axes already defined in ProjectSettings/InputManager.asset.
     // Nothing here invents a new axis; adding one means editing that asset too.
 
-    // Both sticks drive look, and this is deliberate.
-    //
-    // The storyboard labels the B1 prompt LEFT STICK · LOOK, while the axes this project
-    // already defines put the right stick on RightStickX/Y (joystick axis 4 and 5) and
-    // the left stick on Horizontal/Vertical (axis 1 and 2). GDD §4 says there is only
-    // one stick and it looks — it does not say which. Reading both means the exhibition
-    // pad works whichever way round its driver reports, a visitor who grabs the wrong
-    // stick is not punished for it, and the prompt can say what the storyboard says.
-    //
+    /// <summary>
+    /// Which stick looks. One of them, not both.
+    ///
+    /// GDD §4: "Stick — Look. The only stick." A build where either stick works is not
+    /// that: it is two controls that happen to do the same thing, and the player learns
+    /// neither. It also makes the prompt a lie in one direction or the other.
+    ///
+    /// Left is the default because that is what the storyboard's B1 prompt says, and a
+    /// prompt reading LEFT STICK while only the right stick turns the view is the worst
+    /// of the available wrongs.
+    ///
+    /// Worth knowing for the handoff: PlaytestBuild puts look on the RIGHT stick
+    /// (RightStickX/Y, joystick axes 4 and 5) and uses Vertical for speed. The tutorial
+    /// has no speed control so nothing collides, but tutorial and journey currently
+    /// disagree about which stick looks. Changing this enum and the prompt text together
+    /// is how that gets settled.
+    /// </summary>
+    public enum LookStick
+    {
+        /// <summary>Horizontal / Vertical. Joystick axes 1 and 2. Also WASD and arrows.</summary>
+        Left,
+
+        /// <summary>RightStickX / RightStickY. Joystick axes 4 and 5. What the journey uses.</summary>
+        Right,
+
+        /// <summary>Both. Only for idle detection, where any input should count.</summary>
+        Either
+    }
+
     // Horizontal/Vertical also carry WASD and the arrow keys, which is why the tutorial
-    // is playable at a desk. Nothing else in the tutorial reads them, so there is no
-    // conflict with the journey, where they are the speed control.
+    // is playable at a desk.
 
     public const string LeftStickXAxis = "Horizontal";
     public const string LeftStickYAxis = "Vertical";
@@ -83,9 +102,9 @@ public static class TutorialInput_NEW
     /// tutorial that handles better than the thing it teaches is the wrong kind of
     /// improvement.
     /// </summary>
-    public static float LookX(float sensitivity, float deadband, float dt)
+    public static float LookX(LookStick which, float sensitivity, float deadband, float dt)
     {
-        float stick = Stick(RightStickXAxis, LeftStickXAxis, deadband) * sensitivity * dt;
+        float stick = StickX(which, deadband) * sensitivity * dt;
 
         // GetAxisRaw sidesteps Unity's own smoothing, which fights a per-frame apply.
         float mouse = Input.GetAxisRaw(MouseXAxis) * sensitivity * dt;
@@ -94,9 +113,9 @@ public static class TutorialInput_NEW
     }
 
     /// <summary>Vertical look, in degrees for this frame. Positive is up.</summary>
-    public static float LookY(float sensitivity, float deadband, float dt)
+    public static float LookY(LookStick which, float sensitivity, float deadband, float dt)
     {
-        float stick = Stick(RightStickYAxis, LeftStickYAxis, deadband) * sensitivity * dt;
+        float stick = StickY(which, deadband) * sensitivity * dt;
         float mouse = Input.GetAxisRaw(MouseYAxis) * sensitivity * dt;
 
         return Mathf.Abs(stick) > Mathf.Abs(mouse) ? stick : mouse;
@@ -112,12 +131,9 @@ public static class TutorialInput_NEW
     /// deliberate 30 degrees per second, so the recentre cancelled itself on the
     /// frame it started. This reads the device, not the result.
     /// </summary>
-    public static float StickDeflection(float deadband)
+    public static float StickDeflection(LookStick which, float deadband)
     {
-        float x = Stick(RightStickXAxis, LeftStickXAxis, deadband);
-        float y = Stick(RightStickYAxis, LeftStickYAxis, deadband);
-
-        return Mathf.Max(Mathf.Abs(x), Mathf.Abs(y));
+        return Mathf.Max(Mathf.Abs(StickX(which, deadband)), Mathf.Abs(StickY(which, deadband)));
     }
 
     /// <summary>
@@ -131,13 +147,25 @@ public static class TutorialInput_NEW
                          Mathf.Abs(Input.GetAxisRaw(MouseYAxis)));
     }
 
-    /// <summary>Whichever stick is being pushed hardest, deadbanded.</summary>
-    static float Stick(string primaryAxis, string secondaryAxis, float deadband)
+    static float StickX(LookStick which, float deadband)
     {
-        float primary = Deadband(Axis(primaryAxis), deadband);
-        float secondary = Deadband(Axis(secondaryAxis), deadband);
+        return Stick(which, LeftStickXAxis, RightStickXAxis, deadband);
+    }
 
-        return Mathf.Abs(primary) >= Mathf.Abs(secondary) ? primary : secondary;
+    static float StickY(LookStick which, float deadband)
+    {
+        return Stick(which, LeftStickYAxis, RightStickYAxis, deadband);
+    }
+
+    static float Stick(LookStick which, string leftAxis, string rightAxis, float deadband)
+    {
+        if (which == LookStick.Left) return Deadband(Axis(leftAxis), deadband);
+        if (which == LookStick.Right) return Deadband(Axis(rightAxis), deadband);
+
+        float left = Deadband(Axis(leftAxis), deadband);
+        float right = Deadband(Axis(rightAxis), deadband);
+
+        return Mathf.Abs(left) >= Mathf.Abs(right) ? left : right;
     }
 
     static float Deadband(float raw, float deadband)
@@ -190,8 +218,9 @@ public static class TutorialInput_NEW
     {
         if (Input.anyKeyDown) return true;
 
-        if (Mathf.Abs(Stick(RightStickXAxis, LeftStickXAxis, deadband)) > 0f) return true;
-        if (Mathf.Abs(Stick(RightStickYAxis, LeftStickYAxis, deadband)) > 0f) return true;
+        // Either, deliberately: a visitor pushing the stick that does not look is still
+        // a visitor who is present, and the piece should not reset the piece under them.
+        if (StickDeflection(LookStick.Either, deadband) > 0f) return true;
 
         if (Mathf.Abs(Input.GetAxisRaw(MouseXAxis)) > 0.01f) return true;
         if (Mathf.Abs(Input.GetAxisRaw(MouseYAxis)) > 0.01f) return true;

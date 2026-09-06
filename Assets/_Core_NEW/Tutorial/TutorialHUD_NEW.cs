@@ -134,8 +134,8 @@ public class TutorialHUD_NEW : MonoBehaviour
 
         if (!_legendShown && ReachedLegendBeat(beat)) ShowLegend();
 
-        // Empty means "no change". See TutorialBeat_NEW.hintText.
-        if (!string.IsNullOrEmpty(beat.HintText)) ShowHint(beat.HintText);
+        if (beat.Hint == TutorialBeat_NEW.HintMode.Show) ShowHint(beat.HintText);
+        else if (beat.Hint == TutorialBeat_NEW.HintMode.Clear) ClearHint();
 
         // Only a confirm beat asks for the prompt, and it decides when within the beat.
         _promptBeat = beat.GetComponent<Beat_Confirm_NEW>();
@@ -216,14 +216,26 @@ public class TutorialHUD_NEW : MonoBehaviour
 
     void ShowHint(string text)
     {
-        // A beat clears the hint by setting it to whitespace, so blank-but-present text
-        // has to count as "hide" rather than "show an empty line".
-        _hintShown = !string.IsNullOrEmpty(text) && text.Trim().Length > 0;
+        if (string.IsNullOrEmpty(text) || text.Trim().Length == 0)
+        {
+            // A beat set to Show with nothing to show meant Clear.
+            ClearHint();
+            return;
+        }
+
+        _hintShown = true;
 
         if (hintLabel != null) hintLabel.text = text;
         if (hintRoot != null) hintRoot.SetActive(true);
 
         if (debugLog) Debug.Log("[TutorialHUD_NEW] Hint: '" + text + "'.", this);
+    }
+
+    void ClearHint()
+    {
+        _hintShown = false;
+
+        if (debugLog) Debug.Log("[TutorialHUD_NEW] Hint cleared.", this);
     }
 
     void TickHintFade(float dt)
