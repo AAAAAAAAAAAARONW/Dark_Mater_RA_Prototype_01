@@ -65,6 +65,10 @@ public class TutorialAttract_NEW : MonoBehaviour
              "begins wherever the last one drifted to.")]
     [SerializeField] TutorialTravel_NEW travel;
 
+    [Tooltip("Back to the unzoomed view. A visitor who walks away mid-zoom should not " +
+             "hand the next one a telephoto lens.")]
+    [SerializeField] TutorialZoom_NEW zoom;
+
     [Header("Debug")]
     [SerializeField] bool debugLog = false;
 
@@ -76,6 +80,7 @@ public class TutorialAttract_NEW : MonoBehaviour
         if (director == null) director = FindObjectOfType<TutorialDirector_NEW>();
         if (lookRig == null) lookRig = FindObjectOfType<FirstPersonLookRig_NEW>();
         if (travel == null) travel = FindObjectOfType<TutorialTravel_NEW>();
+        if (zoom == null) zoom = FindObjectOfType<TutorialZoom_NEW>();
 
         if (director == null)
             Debug.LogError("[TutorialAttract_NEW] No TutorialDirector_NEW. Nothing can start.", this);
@@ -155,6 +160,8 @@ public class TutorialAttract_NEW : MonoBehaviour
         if (lookRig != null) lookRig.SnapToForward();
 
         if (travel != null) travel.ResetToStart();
+
+        if (zoom != null) zoom.ResetZoom();
 
         if (resetMotes) ResetAllMotes();
 

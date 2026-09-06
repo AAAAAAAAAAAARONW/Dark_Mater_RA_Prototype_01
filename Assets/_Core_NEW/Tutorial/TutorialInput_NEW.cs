@@ -9,11 +9,16 @@ using UnityEngine;
 ///
 /// What is settled:
 ///
-///   Stick   Look. The only stick. Live from B1, never taken away, carries into the
-///           journey unchanged. There is no move stick — the player never translates
-///           under their own control, which is what removes the "why is nothing
-///           happening" read from the May 2026 playtest by design rather than by text.
-///   A       Confirm / recentre / emit. One button, one meaning, everywhere.
+///   R stick  Look. Live from the first frame, never taken away, carries into the
+///            journey unchanged. There is no move stick — the player never translates
+///            under their own control, which is what removes the "why is nothing
+///            happening" read from the May 2026 playtest by design rather than by text.
+///   L stick  Zoom. A DEPARTURE from GDD §4, which says "Stick. Look. The only stick."
+///            Added because Phase 0 is twenty seconds of being told you can look around
+///            in a scene whose only subject is a distant bright point. See
+///            TutorialZoom_NEW. Nothing reads both sticks, so the two controls stay
+///            separable if this is reverted.
+///   A        Confirm / recentre / emit. One button, one meaning, everywhere.
 ///
 /// What is not settled: the three face buttons (GDD §10, item 1, blocked on Aaron).
 /// D5 needs one of them for inspect. Rather than guess a binding and have it quietly
@@ -147,12 +152,14 @@ public static class TutorialInput_NEW
                          Mathf.Abs(Input.GetAxisRaw(MouseYAxis)));
     }
 
-    static float StickX(LookStick which, float deadband)
+    /// <summary>Horizontal deflection of one stick, deadbanded. Raw, not scaled.</summary>
+    public static float StickX(LookStick which, float deadband)
     {
         return Stick(which, LeftStickXAxis, RightStickXAxis, deadband);
     }
 
-    static float StickY(LookStick which, float deadband)
+    /// <summary>Vertical deflection of one stick, deadbanded. TutorialZoom_NEW reads this.</summary>
+    public static float StickY(LookStick which, float deadband)
     {
         return Stick(which, LeftStickYAxis, RightStickYAxis, deadband);
     }

@@ -83,8 +83,11 @@ public static class TutorialSceneBuilder_NEW
     ///   Phase 1    player-gated and unbounded. TravelHoldDistance stops the cruise at
     ///              900 from the core, so a visitor who explores for two minutes parks
     ///              there instead of flying through the thing they are heading for.
-    ///   C1         closes whatever is left, in exactly 12 seconds, ending at rest at
-    ///              ArrivalStandoff. See TutorialTravel_NEW.ApproachTo.
+    ///   C1         closes whatever is left, in exactly 12 seconds, ending at rest close
+    ///              enough that the quasar overfills the frame. TutorialEmission_NEW
+    ///              works that distance out from the quasar's size and the camera's
+    ///              field of view rather than storing it, so rescaling the quasar cannot
+    ///              silently leave the player parked too far away.
     ///
     /// So a rushing visitor arrives at C1 from about 2100 out and an unhurried one from
     /// 900, and both reach the quasar as C2 opens.
@@ -93,13 +96,6 @@ public static class TutorialSceneBuilder_NEW
 
     /// <summary>Closest the cruise may get. C1's approach is what goes inside it.</summary>
     const float TravelHoldDistance = 900f;
-
-    /// <summary>
-    /// Where the light comes to rest, from the quasar's centre. Inside the halo and
-    /// just outside the core at radius 450: the player ends up at the thing that is
-    /// about to emit them, with it filling the frame.
-    /// </summary>
-    const float ArrivalStandoff = 560f;
 
     /// <summary>
     /// No tilt. BlazingQuasar draws its bipolar jets along the object's local Y, so
@@ -303,6 +299,11 @@ public static class TutorialSceneBuilder_NEW
         // ── Phase 2 rig ──────────────────────────────────────────────────────
         GameObject flashObject = BuildFlash(canvas.transform);
         TutorialCameraShake_NEW shake = AddIfMissing<TutorialCameraShake_NEW>(camera.gameObject);
+
+        // Left stick zooms. See TutorialZoom_NEW for why this exists and where it
+        // departs from GDD �4.
+        TutorialZoom_NEW zoom = AddIfMissing<TutorialZoom_NEW>(camera.gameObject);
+        Wire(zoom).Ref("lookRig", lookRig).Num("baseFieldOfView", FieldOfView).Apply();
         TutorialEmission_NEW emission = BuildEmission(player, lookRig, shake,
                                                       flashObject.GetComponent<TutorialFlash_NEW>(),
                                                       quasar.transform);
@@ -764,6 +765,12 @@ public static class TutorialSceneBuilder_NEW
             .Str("beatId", "A2")
             .Str("description", "The flow brightens enough to read as orbiting something. " +
                                 "At the centre, a patch darker than black.")
+            // The second control, taught in the gap Phase 0 otherwise leaves open. See
+            // TutorialZoom_NEW: a departure from GDD §4, made because twenty seconds of
+            // being told you can look around, in a scene whose only subject is one
+            // distant bright point, is twenty seconds with nothing to do.
+            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
+            .Str("hintText", "LEFT STICK  ·  LOOK CLOSER")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
             .Num("duration", 7f)
             .Apply();
@@ -1201,7 +1208,6 @@ public static class TutorialSceneBuilder_NEW
             .Ref("flash", flash)
             .Ref("quasar", quasar)
             .Ref("photonTrail", trail != null ? trail.gameObject : null)
-            .Num("arrivalStandoff", ArrivalStandoff)
             .Apply();
 
         return emission;
@@ -1306,7 +1312,7 @@ public static class TutorialSceneBuilder_NEW
 
         AddIfMissing<CanvasGroup>(go);
 
-        TMP_Text text = AddText(go, "RIGHT STICK = LOOK      A = CONFIRM / RECENTRE", 22, TextAlignmentOptions.Center);
+        TMP_Text text = AddText(go, "RIGHT STICK = LOOK    LEFT STICK = ZOOM    A = CONFIRM / RECENTRE", 22, TextAlignmentOptions.Center);
 
         // Quiet. This is a reference card that never leaves, not an instruction — it has
         // to survive being on screen for the whole piece without competing with it.

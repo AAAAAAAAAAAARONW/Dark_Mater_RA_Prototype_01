@@ -71,6 +71,7 @@ Tutorial/
 ├─ TutorialFadeIn_NEW         开场纯黑 → 渐显，时长与曲线全部暴露
 ├─ TutorialTravel_NEW         匀速直线飞向类星体，不接受任何输入
 ├─ TutorialSpeedStreaks_NEW   近景拉丝层，速度取自 TutorialTravel_NEW
+├─ TutorialZoom_NEW           左摇杆缩放 FOV，并按视场缩放视角灵敏度
 ├─ TutorialEmission_NEW       Phase 2 时序：加速 → 阈值 → 发射（反转航向、开拖尾）
 ├─ TutorialFlash_NEW          全屏闪白，颜色和时长由调用方给
 ├─ TutorialCameraShake_NEW    相机位移抖动，幅度由外部驱动
@@ -78,7 +79,7 @@ Tutorial/
 │   ├─ Beat_Cinematic_NEW     A1 A2 A3 C1 C3（无动作，按分镜时长走）
 │   ├─ Beat_LookAt_NEW        B1 B2 C4（把目标带进准星）
 │   ├─ Beat_TurnAround_NEW    B3（转过 150° 且目标在画面里）
-│   └─ Beat_Confirm_NEW       B4（按 A）
+│   └─ Beat_Confirm_NEW       B4 C2 C5（按 A）
 └─ Editor/
     ├─ TutorialSceneBuilder_NEW   一键搭场景（布局）
     └─ TutorialWorldAssets_NEW    资产查找与生成（取材）
@@ -318,7 +319,7 @@ STICK = LOOK      A = CONFIRM / RECENTRE
 | Frame | 组件 | 门控 | 实现要点 |
 |---|---|---|---|
 | A1 | `Beat_Cinematic_NEW` | 无，8 秒 | 提示 `LEFT STICK · LOOK` 在这里出现；渐显也在这里开始；`onEnter` 挂 VO |
-| A2 | `Beat_Cinematic_NEW` | 无，7 秒 | `onHalfway` 用于「亮度升起来」这种帧内变化 |
+| A2 | `Beat_Cinematic_NEW` | 无，7 秒 | 提示 `LEFT STICK · LOOK CLOSER`，教缩放。`onHalfway` 用于帧内变化 |
 | A3 | `Beat_Cinematic_NEW` | 无，5 秒 | `onEnter` 激活光点；`onRumble` 见下方「已知缺口」 |
 | B1 | `Beat_LookAt_NEW` | 光点进入准星 | 提示 `LOOK RIGHT`。`holdSeconds = 0`，GDD 明写 not a dwell timer |
 | B2 | `Beat_LookAt_NEW` | 第二颗光点进入画面 | 提示 `LOOK UP`。光点从头顶掠过 |
@@ -396,6 +397,18 @@ GDD §6 把 Phase 0–1 写成「已经在吸积盘内部」。当前实现的�
 
 ---
 
+## 左摇杆缩放 —— 一处对 GDD 的有意偏离
+
+GDD §4 写的是 “Stick — Look. **The only stick.**”。加左摇杆缩放是偏离它的，理由是开场那段的实际问题：Phase 0 有二十秒在告诉玩家「你可以转视角」，而画面里唯一能看的东西是一个远处的亮点，转来转去没有回报。
+
+「把远处的东西看得更近」是天文展项能交给观众的、最不需要解释的一个动作，正好填上这二十秒。A2 的提示行改成 `LEFT STICK · LOOK CLOSER`。
+
+两根摇杆互不干涉：视角只读右，缩放只读左，没有任何地方同时读两根 —— 所以要撤掉这个功能，删掉 `TutorialZoom_NEW` 和 A2 的提示就行。
+
+**灵敏度必须跟着视场走，这一点最容易漏。** 「度/秒」是常数，但「屏幕/秒」不是：视场从 40° 收到 12° 时，同样的摇杆推量扫过的画面是三倍，玩家正想看仔细的时候相机反而变得暴躁。`TutorialZoom_NEW` 把 `FirstPersonLookRig_NEW.SensitivityScale` 设成 `当前视场 / 基准视场`，视觉速度就保持不变了。
+
+---
+
 ## 到站：类星体的距离是算出来的，不是拍的
 
 玩家在 C1 结束、C2 打开的那一刻**正好抵达类星体并停住**，然后一直静止到被 A 发射出去。
@@ -416,7 +429,9 @@ GDD §6 把 Phase 0–1 写成「已经在吸积盘内部」。当前实现的�
 
 停住这件事是 `travel.Halt()` 做的 —— C2 全程速度为 0，直到 `Emit()` 反转航向并给出隧道速度。拉丝层读的是 `CurrentSpeed` 而不是 `Speed`，所以减速、静止、隧道它都跟得上；否则玩家会停在类星体前面而介质还在狂飙。
 
-`arrivalStandoff = 560` 对上类星体半径 450：停在核心外面一点、光晕里面。在 FOV 40 下它会占满画面 —— 这正是 C2「近乎爆白」想要的起点。
+**停多远是算出来的**，不是写死的数字。半径 R 的球在距离 d 处张开的半角是 `asin(R/d)`，所以想让它张开某个半角 a，距离就是 `R / sin(a)`。`arrivalScreenFill = 2.2` 表示「张开 2.2 倍的垂直视场」—— 类星体从每个边缘溢出去，按下 A 的那一刻画面里没有别的东西。
+
+R 从类星体的 Renderer bounds 读，视场从相机读，都不是手填的。**所以美术把类星体放大一倍，或者有人把 FOV 调掉，停靠距离会自己跟上** —— 写死 560 的话这两件事都会悄悄把玩家留在太远的地方。
 
 ---
 

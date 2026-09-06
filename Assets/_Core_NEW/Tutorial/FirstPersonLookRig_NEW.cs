@@ -138,6 +138,13 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
     // Mark used by the turn-around gate (B3).
     float _markYaw;
 
+    /// <summary>
+    /// Multiplier on both look sensitivities. TutorialZoom_NEW drives it from the field
+    /// of view, because degrees per second is constant while degrees per screen is not:
+    /// at a third of the field the same deflection sweeps three times as much picture.
+    /// </summary>
+    public float SensitivityScale { get; set; }
+
     // ── Public API ───────────────────────────────────────────────────────────
 
     public float Yaw { get { return _yaw; } }
@@ -257,8 +264,10 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
     {
         float dt = Time.unscaledDeltaTime;
 
-        float dx = TutorialInput_NEW.LookX(lookStick, xSensitivity, stickDeadband, dt);
-        float dy = TutorialInput_NEW.LookY(lookStick, ySensitivity, stickDeadband, dt);
+        float scale = SensitivityScale > 0f ? SensitivityScale : 1f;
+
+        float dx = TutorialInput_NEW.LookX(lookStick, xSensitivity * scale, stickDeadband, dt);
+        float dy = TutorialInput_NEW.LookY(lookStick, ySensitivity * scale, stickDeadband, dt);
 
         // A recentres. Here, not in a beat.
         //

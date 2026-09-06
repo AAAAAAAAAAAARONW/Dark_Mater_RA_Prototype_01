@@ -42,10 +42,17 @@ public class TutorialEmission_NEW : MonoBehaviour
              "reaches the quasar exactly as C2 opens.")]
     [SerializeField] float spinUpSeconds = 12f;
 
-    [Tooltip("Where the light comes to rest, as a distance from the quasar's centre. " +
-             "Inside the halo, outside the core: the player is at the thing that is " +
-             "about to emit them, not looking at it from across the room.")]
-    [SerializeField] float arrivalStandoff = 560f;
+    [Tooltip("How much of the camera's vertical field the quasar spans at the arrival.\n\n" +
+             "1 exactly fills it; above 1 overfills, so the quasar runs off every edge and " +
+             "there is nothing else on screen when A emits. The distance is worked out " +
+             "from this, the quasar's actual size and the camera's actual field of view — " +
+             "not typed in — so rescaling the quasar or retuning the FOV cannot silently " +
+             "leave the player parked too far away.")]
+    [SerializeField] float arrivalScreenFill = 2.2f;
+
+    [Tooltip("Used only when the quasar's size or the camera cannot be read. Distance " +
+             "from the quasar's centre.")]
+    [SerializeField] float arrivalStandoffFallback = 650f;
 
     [Tooltip("What the quasar is. Leave empty to take it from the travel destination.")]
     [SerializeField] Transform quasar;
@@ -172,7 +179,7 @@ public class TutorialEmission_NEW : MonoBehaviour
                 ? fromQuasar.normalized
                 : -travel.Direction;
 
-            travel.ApproachTo(quasar.position + standoffDirection * arrivalStandoff,
+            travel.ApproachTo(quasar.position + standoffDirection * ArrivalStandoff(),
                               spinUpSeconds, approachShape);
         }
         else
@@ -244,6 +251,60 @@ public class TutorialEmission_NEW : MonoBehaviour
         // travel.ResetToStart puts the heading and speed back; this only has to stop
         // driving them.
         CaptureCruise();
+    }
+
+    /// <summary>
+    /// How far from the quasar's centre to stop, so that it spans arrivalScreenFill of
+    /// the camera's vertical field.
+    ///
+    /// A sphere of radius R subtends a half-angle of asin(R/d) from distance d, so for a
+    /// wanted half-angle a the distance is R / sin(a). Everything else is reading R and
+    /// the field of view off the objects that actually have them rather than trusting a
+    /// number somebody typed while the quasar was a different size.
+    ///
+    /// The wanted half-angle is capped below 90°: past that the camera would be inside
+    /// the sphere, which is a different shot and not this one.
+    /// </summary>
+    float ArrivalStandoff()
+    {
+        float radius = QuasarRadius();
+        float verticalFov = CameraFieldOfView();
+
+        if (radius <= 0f || verticalFov <= 0f) return arrivalStandoffFallback;
+
+        float halfAngle = Mathf.Min(verticalFov * 0.5f * Mathf.Max(0.1f, arrivalScreenFill), 80f);
+        float standoff = radius / Mathf.Sin(halfAngle * Mathf.Deg2Rad);
+
+        // Never inside the geometry.
+        standoff = Mathf.Max(standoff, radius * 1.05f);
+
+        if (debugLog)
+            Debug.Log("[TutorialEmission_NEW] Arrival standoff " + standoff.ToString("F0") +
+                      " for a radius of " + radius.ToString("F0") + " at " +
+                      verticalFov.ToString("F0") + " degrees of field.", this);
+
+        return standoff;
+    }
+
+    /// <summary>The quasar's world radius, from its renderer rather than its scale.</summary>
+    float QuasarRadius()
+    {
+        if (quasar == null) return 0f;
+
+        Renderer renderer = quasar.GetComponent<Renderer>();
+        if (renderer != null) return renderer.bounds.extents.magnitude / Mathf.Sqrt(3f);
+
+        // No renderer: fall back to the transform, assuming a unit-diameter primitive.
+        Vector3 scale = quasar.lossyScale;
+        return Mathf.Max(scale.x, Mathf.Max(scale.y, scale.z)) * 0.5f;
+    }
+
+    float CameraFieldOfView()
+    {
+        Camera camera = lookRig != null ? lookRig.GetComponent<Camera>() : null;
+        if (camera == null) camera = Camera.main;
+
+        return camera != null ? camera.fieldOfView : 0f;
     }
 
     // ── Ramps ────────────────────────────────────────────────────────────────
