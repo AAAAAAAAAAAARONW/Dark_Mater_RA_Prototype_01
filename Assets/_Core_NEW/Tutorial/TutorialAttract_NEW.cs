@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Events;
 using TMPro;
 using UnityEngine.UI;
 
@@ -68,6 +69,16 @@ public class TutorialAttract_NEW : MonoBehaviour
     [Tooltip("Back to the unzoomed view. A visitor who walks away mid-zoom should not " +
              "hand the next one a telephoto lens.")]
     [SerializeField] TutorialZoom_NEW zoom;
+
+    [Header("Reset")]
+    [Tooltip("Anything else that has to be put back before the next visitor.\n\n" +
+             "The four resets above are direct references because they were the whole " +
+             "list when this was written. Phase 3 added three more — the spectrum, the " +
+             "atom and the time scale — and Phase 4 will add its own, so this is the " +
+             "seam that stops one field per phase accumulating on this component.\n\n" +
+             "GDD §5's restart has to be total. Anything that survives it is a bug that " +
+             "only appears on the exhibition floor, hours in, with a queue.")]
+    [SerializeField] UnityEvent onReset = new UnityEvent();
 
     [Header("Debug")]
     [SerializeField] bool debugLog = false;
@@ -164,6 +175,10 @@ public class TutorialAttract_NEW : MonoBehaviour
         if (zoom != null) zoom.ResetZoom();
 
         if (resetMotes) ResetAllMotes();
+
+        // Last, so anything hung here runs against a world that is already back at the
+        // start rather than half-way through being put there.
+        onReset.Invoke();
 
         if (debugLog) Debug.Log("[TutorialAttract_NEW] Attract shown.", this);
     }

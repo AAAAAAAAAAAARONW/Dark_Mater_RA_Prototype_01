@@ -283,16 +283,32 @@ public class TutorialRangeMap_NEW : MonoBehaviour
     ///
     /// Only run while the view is still near forward, because after that the two arrows
     /// are supposed to differ.
+    ///
+    /// THE COURSE IS TAKEN FROM THE HEADING, NOT FROM THE DESTINATION, and the
+    /// difference is not academic. This used to read "towards the quasar" — which is the
+    /// direction of travel for Phase 0 to Phase 2 and the exact opposite of it
+    /// afterwards, because C3's emission reverses the heading and leaves `destination`
+    /// pointing at the quasar the light is now leaving. The check then declared the
+    /// arrow 180 degrees out at the precise moment it had become right.
+    ///
+    /// It went unseen because the check is a one-shot, and in an unbroken playthrough it
+    /// spends itself during Phase 1 while the two still agree. Jumping straight into
+    /// Phase 3 runs it for the first time after the reversal, and it fired immediately.
+    /// A guard that is only correct before the one event it is not looking at is worse
+    /// than no guard: it cries wolf on the case it exists to catch.
     /// </summary>
     void CheckTheArrowAgrees()
     {
         if (_checked || facing == null || arrow == null || lookRig == null) return;
+        if (travel == null) return;
         if (Mathf.Abs(lookRig.YawFromForward) > 5f) return;
 
         _checked = true;
 
-        Vector2 course = ToMap(travel.Destination.position) - ToMap(travel.transform.position);
-        if (course.sqrMagnitude < 0.01f) return;
+        // ToMap is affine, so this is the heading in map pixels and nothing more.
+        Vector3 here = travel.transform.position;
+        Vector2 course = ToMap(here + travel.Direction) - ToMap(here);
+        if (course.sqrMagnitude < 0.000001f) return;
 
         // Where the arrow actually is on screen, not where it is meant to be: its offset
         // inside Facing, turned by whatever Facing is turned to.

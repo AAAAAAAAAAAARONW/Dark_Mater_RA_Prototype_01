@@ -20,10 +20,15 @@ using UnityEngine;
 ///            separable if this is reverted.
 ///   A        Confirm / recentre / emit. One button, one meaning, everywhere.
 ///
-/// What is not settled: the three face buttons (GDD §10, item 1, blocked on Aaron).
-/// D5 needs one of them for inspect. Rather than guess a binding and have it quietly
-/// disagree with the build later, InspectDown is wired to a placeholder key and reports
-/// InspectIsPlaceholder so callers can refuse to draw a label they cannot write yet.
+///   B        Inspect. D5 only. Read through the Fire2 axis rather than a key code —
+///            see InspectButton for why that distinction matters on a PlayStation pad.
+///
+/// GDD §10 item 1 listed the three face buttons as blocked. An audit of the build
+/// settled it: A is Fire1 and taken, X is Fire3 and shows the journey HUD, and B and Y
+/// are free. B is inspect. Confirm it on a running pad before D5's prompt copy is
+/// final — the audit covered C# source, and a binding made through a UnityEvent in a
+/// prefab would not appear in it. The director's overlay prints which buttons the pad
+/// is sending, for exactly that check.
 ///
 /// Mouse is kept alongside the stick because the whole thing has to be testable at a
 /// desk. The combination rule — whichever source is larger in magnitude wins, so only
@@ -84,14 +89,144 @@ public static class TutorialInput_NEW
     public const KeyCode ConfirmPadButton = KeyCode.JoystickButton0;
 
     /// <summary>
-    /// Placeholder for the inspect action used in D5. Not a decision — see the class
-    /// summary and GDD §10. Anything that draws a prompt for this must check
-    /// InspectIsPlaceholder first.
+    /// Inspect — D5. B on the pad, E on the keyboard.
+    ///
+    /// RESOLVED, and read through an axis name rather than a key code. Joystick button 1
+    /// is B on an Xbox pad and Cross on a PlayStation one, and ConfirmDown already
+    /// accepts Cross so that A keeps working when the layout detection guesses wrong. A
+    /// raw KeyCode.JoystickButton1 here would therefore make one button both confirm and
+    /// inspect on a PlayStation pad. Fire2 is bound to joystick button 1 in
+    /// InputManager.asset and carries no such double meaning.
+    ///
+    /// Xbox is the only supported target; the PlayStation layout is a development
+    /// convenience. See §12 for the audit that freed this button.
     /// </summary>
-    public const KeyCode InspectPlaceholderKey = KeyCode.E;
+    public const string InspectButton = "Fire2";
 
-    /// <summary>True until the three face buttons are confirmed against the build.</summary>
-    public const bool InspectIsPlaceholder = true;
+    /// <summary>Keyboard stand-in for B, so D5 is playable without a pad.</summary>
+    public const KeyCode InspectKey = KeyCode.E;
+
+    /// <summary>
+    /// False since the face-button audit: inspect is B, and D5's prompt copy can be
+    /// written. Kept as a constant because callers were told to check it before drawing
+    /// a label they could not write.
+    /// </summary>
+    public const bool InspectIsPlaceholder = false;
+
+    // ── Pad layout ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Which physical pad the axis and button numbers are being read for.
+    ///
+    /// DEBUG ONLY. The exhibition pad is the Xbox-layout one the journey was tuned on,
+    /// and Xbox is the default here and stays the default. This exists so the tutorial
+    /// can be driven from whatever pad is on the desk during development, which on this
+    /// project is usually a DualSense.
+    ///
+    /// Unity's legacy Input Manager has no notion of a pad model: it numbers axes and
+    /// buttons by hardware index, and a PlayStation pad on Windows reports through
+    /// DirectInput with a different numbering from an XInput pad. Two things move:
+    ///
+    ///   Right stick  XInput is axes 4 and 5, which is what RightStickX/Y read.
+    ///                DirectInput is axes 3 and 6, which is what PadRightStickX/Y read.
+    ///                Axis 4 on a DualSense is L2, so a build reading the Xbox names on
+    ///                a PlayStation pad turns the view when you pull the triggers.
+    ///   Confirm      XInput A is button 0. On a DualSense, button 0 is Square and Cross
+    ///                is button 1. Both are accepted rather than swapped, because there
+    ///                is no beat where Square means anything else and accepting one
+    ///                extra button costs nothing — and it keeps the confirm path free of
+    ///                the layout, so A still works if the detection guesses wrong.
+    ///
+    /// Left stick, mouse and keyboard are identical on both, so nothing else moves.
+    /// </summary>
+    public enum PadLayout
+    {
+        /// <summary>XInput numbering. The exhibition pad, and the default.</summary>
+        Xbox,
+
+        /// <summary>DirectInput numbering, as a DualSense or DualShock reports on Windows.</summary>
+        PlayStation
+    }
+
+    /// <summary>Right stick on a DirectInput pad. Axis 3, where the Xbox one is axis 4.</summary>
+    public const string PadRightStickXAxis = "PadRightStickX";
+
+    /// <summary>Right stick on a DirectInput pad. Axis 6 — axis 5 is R2.</summary>
+    public const string PadRightStickYAxis = "PadRightStickY";
+
+    /// <summary>Cross on a DualSense. Accepted alongside ConfirmPadButton, never instead.</summary>
+    public const KeyCode ConfirmPadCrossButton = KeyCode.JoystickButton1;
+
+    static PadLayout _pad = PadLayout.Xbox;
+    static bool _padDetected;
+
+    /// <summary>
+    /// The layout in force. Reading it detects once from the connected pad's name;
+    /// assigning it pins the answer and stops the detection running again, which is what
+    /// the director's debug toggle does when the guess is wrong.
+    /// </summary>
+    public static PadLayout Pad
+    {
+        get
+        {
+            if (!_padDetected) DetectPad();
+            return _pad;
+        }
+        set
+        {
+            _pad = value;
+            _padDetected = true;
+        }
+    }
+
+    /// <summary>
+    /// Guess the layout from the connected pad's reported name, once.
+    ///
+    /// Windows names a DualSense "Wireless Controller" and an Xbox pad "Controller
+    /// (Xbox ...)", so the test is for the PlayStation names and everything else falls
+    /// through to Xbox. Deliberately not re-run per frame: GetJoystickNames allocates an
+    /// array of strings, and a pad hot-plugged mid-session is what the toggle is for.
+    /// </summary>
+    public static void DetectPad()
+    {
+        _padDetected = true;
+        _pad = PadLayout.Xbox;
+
+        string[] names = Input.GetJoystickNames();
+
+        for (int i = 0; i < names.Length; i++)
+        {
+            if (string.IsNullOrEmpty(names[i])) continue;
+
+            string name = names[i].ToLowerInvariant();
+
+            if (name.Contains("dualsense") || name.Contains("dualshock") ||
+                name.Contains("wireless controller") ||
+                name.Contains("ps5") || name.Contains("ps4"))
+            {
+                _pad = PadLayout.PlayStation;
+                return;
+            }
+        }
+    }
+
+    /// <summary>Flip the layout by hand. The director's debug key calls this.</summary>
+    public static void TogglePad()
+    {
+        Pad = Pad == PadLayout.Xbox ? PadLayout.PlayStation : PadLayout.Xbox;
+    }
+
+    /// <summary>The right stick X axis name for the layout in force.</summary>
+    static string RightStickX
+    {
+        get { return Pad == PadLayout.PlayStation ? PadRightStickXAxis : RightStickXAxis; }
+    }
+
+    /// <summary>The right stick Y axis name for the layout in force.</summary>
+    static string RightStickY
+    {
+        get { return Pad == PadLayout.PlayStation ? PadRightStickYAxis : RightStickYAxis; }
+    }
 
     // ── Look ─────────────────────────────────────────────────────────────────
 
@@ -156,13 +291,13 @@ public static class TutorialInput_NEW
     /// <summary>Horizontal deflection of one stick, deadbanded. Raw, not scaled.</summary>
     public static float StickX(LookStick which, float deadband)
     {
-        return Stick(which, LeftStickXAxis, RightStickXAxis, deadband);
+        return Stick(which, LeftStickXAxis, RightStickX, deadband);
     }
 
     /// <summary>Vertical deflection of one stick, deadbanded. TutorialZoom_NEW reads this.</summary>
     public static float StickY(LookStick which, float deadband)
     {
-        return Stick(which, LeftStickYAxis, RightStickYAxis, deadband);
+        return Stick(which, LeftStickYAxis, RightStickY, deadband);
     }
 
     static float Stick(LookStick which, string leftAxis, string rightAxis, float deadband)
@@ -202,6 +337,11 @@ public static class TutorialInput_NEW
         if (Input.GetKeyDown(ConfirmKey)) return true;
         if (Input.GetKeyDown(ConfirmPadButton)) return true;
 
+        // Cross on a DualSense is button 1, not button 0. Accepted unconditionally
+        // rather than switched on the layout, so A keeps working on a PlayStation pad
+        // even when the detection has guessed Xbox. See PadLayout.
+        if (Input.GetKeyDown(ConfirmPadCrossButton)) return true;
+
         // GetButtonDown throws if the axis is missing from InputManager.asset. Submit is
         // defined in this project, but a scene copied elsewhere should not hard-fail on a
         // tutorial that is otherwise playable from the keyboard.
@@ -209,10 +349,16 @@ public static class TutorialInput_NEW
         catch (System.ArgumentException) { return false; }
     }
 
-    /// <summary>Inspect, pressed this frame. Placeholder binding — see the summary.</summary>
+    /// <summary>Inspect, pressed this frame. B on the pad, E at a desk.</summary>
     public static bool InspectDown()
     {
-        return Input.GetKeyDown(InspectPlaceholderKey);
+        if (Input.GetKeyDown(InspectKey)) return true;
+
+        // Fire2 is defined in this project, but a scene copied elsewhere should not
+        // hard-fail on a tutorial that is otherwise playable from the keyboard. Same
+        // reasoning as ConfirmDown.
+        try { return Input.GetButtonDown(InspectButton); }
+        catch (System.ArgumentException) { return false; }
     }
 
     // ── Idle detection ───────────────────────────────────────────────────────

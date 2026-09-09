@@ -260,7 +260,11 @@ public static class TutorialSceneBuilder_NEW
         BuildTravel(player, quasar.transform, lookRig);
         BuildDust(player.transform);
         BuildSpeedStreaks(player.transform);
-        BuildPhotonTrail(player.transform);
+
+        // Held onto: Phase 3's absorption buffer writes its lines into this trail's
+        // material, so D2's missing colour shows on the light itself and not only on
+        // the bar.
+        TrailRenderer photonTrail = BuildPhotonTrail(player.transform);
 
         // Motes ride with the light. See MoteAPosition.
         GameObject motes = FindOrCreate("Motes", player.transform, PlayerPosition);
@@ -316,9 +320,21 @@ public static class TutorialSceneBuilder_NEW
                                                       flashObject.GetComponent<TutorialFlash_NEW>(),
                                                       quasar.transform);
 
+        // ── Phase 3 rig ──────────────────────────────────────────────────────
+        TutorialUISlide_NEW spectrumSlide;
+        TutorialInspectView_NEW inspectView;
+        TutorialSpectrum_NEW spectrum = BuildSpectrum(root.transform, canvas.transform, photonTrail,
+                                                      out spectrumSlide, out inspectView);
+        TutorialSlowMotion_NEW slowMotion = BuildSlowMotion(root.transform);
+        TutorialTravel_NEW travel = player.GetComponent<TutorialTravel_NEW>();
+        TutorialAtom_NEW atom = BuildAtom(world.transform, camera.transform, travel);
+        TutorialAtomCluster_NEW cluster = BuildAtomCluster(world.transform, camera.transform,
+                                                           travel, spectrum);
+
         BuildPhase0(beats.transform, moteA);
         BuildPhase1(beats.transform, lookRig, moteA, moteB, moteC);
         BuildPhase2(beats.transform, lookRig, quasar, emission);
+        BuildPhase3(beats.transform, atom, slowMotion, spectrum, spectrumSlide, cluster, inspectView);
 
         // ── HUD and attract components ───────────────────────────────────────
         TutorialHUD_NEW hud = AddIfMissing<TutorialHUD_NEW>(canvas);
@@ -326,6 +342,23 @@ public static class TutorialSceneBuilder_NEW
 
         TutorialAttract_NEW attract = AddIfMissing<TutorialAttract_NEW>(canvas);
         WireAttract(attract, director, card, lookRig, player.GetComponent<TutorialTravel_NEW>());
+
+        // Phase 3's state has to go back too, or the second visitor of the day inherits
+        // the first one's spectrum, a half-flown atom, and — worst of the three — a
+        // world still running at a fifth speed.
+        AddCall(attract, "onReset", spectrum, "ResetForAttract");
+        AddCall(attract, "onReset", atom, "ResetForAttract");
+        AddCall(attract, "onReset", slowMotion, "RestoreNow");
+
+        // The bar has to go back to where it comes in from, not just be hidden. A
+        // restart that left it parked at the top would have the next visitor's D1 show
+        // a bar that never travelled.
+        AddCall(attract, "onReset", spectrumSlide, "ResetToStart");
+        AddCall(attract, "onReset", cluster, "ResetForAttract");
+
+        // A bar left enlarged over a dimmed screen is the first thing the next visitor
+        // would see, and there is no beat between D5 and the restart to put it back.
+        AddCall(attract, "onReset", inspectView, "ResetForAttract");
 
         // Needs the director, so it is built after the director exists.
         BuildZoomGauge(canvas.transform, zoom, director);
@@ -760,22 +793,50 @@ public static class TutorialSceneBuilder_NEW
     /// still, so a perfectly stationary tutorial player is a player with no visible
     /// light at all — in a piece whose entire premise is that the player IS the light.
     /// </summary>
-    static void BuildPhotonTrail(Transform player)
+    /// <summary>
+    /// Where the trail emits from, in the player's local space.
+    ///
+    /// ON THE LIGHT ITSELF, which is what PlaytestBuild does too — its Trail sits at the
+    /// player's origin. There the FreeLook orbits about three units behind, so the
+    /// ribbon streams away in front of the camera and is the most visible thing on
+    /// screen. First person has no vantage behind the light, so the same setup reads as
+    /// nothing ahead and the whole ribbon behind you. That is correct: you are the
+    /// light, and the light is not in front of itself.
+    ///
+    /// AN EARLIER VERSION PUT IT 2.6 UNITS FORWARD to make it visible while flying
+    /// forward, and that is the bug. The player transform never rotates — travel only
+    /// ever writes position — so a local +Z offset is a fixed WORLD offset that does not
+    /// follow the course. C3 reverses the heading and the same offset silently becomes
+    /// 2.6 units behind, so which side of you the ribbon starts on depends on the phase.
+    /// It also put the newest segment 2.6 units from a camera with a 0.1 near plane,
+    /// where turning towards it made it flicker.
+    ///
+    /// The drop on Y stays, and Y is the only axis this can safely use: the travel is
+    /// horizontal, so a vertical offset keeps its meaning through a course reversal
+    /// where an X or Z one does not. It lifts the newest quad off the eye rather than
+    /// letting it degenerate exactly at the camera.
+    /// </summary>
+    static readonly Vector3 TrailOffset = new Vector3(0f, -0.45f, 0f);
+
+    /// <summary>The forward offset this builder used to write. See TrailOffset.</summary>
+    static readonly Vector3 PastTrailOffset = new Vector3(0f, -0.45f, 2.6f);
+
+    static TrailRenderer BuildPhotonTrail(Transform player)
     {
         GameObject go = FindOrCreate("Trail", player, player.position);
-        if (!IsFresh(go)) return;
+
+        // Returns the renderer either way, because Phase 3's AbsorptionField_NEW needs
+        // it and has no auto-find — deliberately, on its own account: reaching for a
+        // type just to locate a component was the one thing tying that file to the old
+        // stack. So the builder hands it over instead.
+        if (!IsFresh(go))
+        {
+            RepairTrailOffset(go);
+            return go.GetComponent<TrailRenderer>();
+        }
 
 
-        // Ahead of the eye and slightly low, which is the first person equivalent of
-        // where PlaytestBuild puts it. There the trail sits at the player's origin and
-        // the FreeLook orbits about three units behind, so the ribbon is always a few
-        // units in front of the camera and plainly visible. Emitting from the camera
-        // position instead — which is what this did before — puts the newest segment
-        // inside the near plane, where it is either invisible or a full-screen smear.
-        //
-        // From here it streams back past and below the view: readable while flying
-        // forward, and unmistakable on C4's look back.
-        go.transform.localPosition = new Vector3(0f, -0.45f, 2.6f);
+        go.transform.localPosition = TrailOffset;
 
         TrailRenderer trail = AddIfMissing<TrailRenderer>(go);
 
@@ -805,6 +866,34 @@ public static class TutorialSceneBuilder_NEW
         // not something the player has been given a reason to care about yet.
         // TutorialEmission_NEW switches it on at C3.
         if (IsFresh(go)) go.SetActive(false);
+
+        return trail;
+    }
+
+    /// <summary>
+    /// Move a trail still emitting from 2.6 units ahead back onto the light.
+    ///
+    /// Same narrow test as RepairRect: only the exact offset this builder used to write
+    /// is replaced, so an offset somebody has since tuned is left alone. The trail is
+    /// built once and never revisited, so a new C# constant would otherwise never reach
+    /// a scene that already exists.
+    /// </summary>
+    static void RepairTrailOffset(GameObject trail)
+    {
+        Vector3 local = trail.transform.localPosition;
+
+        if (!Mathf.Approximately(local.x, PastTrailOffset.x)) return;
+        if (!Mathf.Approximately(local.y, PastTrailOffset.y)) return;
+        if (!Mathf.Approximately(local.z, PastTrailOffset.z)) return;
+
+        Undo.RecordObject(trail.transform, "Repair trail offset");
+        trail.transform.localPosition = TrailOffset;
+        EditorUtility.SetDirty(trail.transform);
+
+        Debug.LogWarning("[TutorialSceneBuilder_NEW] Moved the photon trail from 2.6 units " +
+                         "ahead onto the light itself. The forward offset was a fixed world " +
+                         "offset — the player never rotates — so C3's course reversal silently " +
+                         "put it behind instead, and the ribbon changed sides mid-piece.", trail);
     }
 
     // ── Phases ───────────────────────────────────────────────────────────────
@@ -1027,6 +1116,625 @@ public static class TutorialSceneBuilder_NEW
         AddEmissionCall(c1, emission, "BeginSpinUp");
         AddEmissionCall(c2, emission, "BeginThreshold");
         AddEmissionCall(c3, emission, "Emit");
+    }
+
+    /// <summary>
+    /// Phase 3 — First absorption. D1 and D2 so far, 1:50 to 2:12.
+    ///
+    /// Both are cinematic runs: GDD §6 gives D1's gate as "the atom closes on its own"
+    /// and D2's as "impact plays", and neither asks the player for anything. That is not
+    /// a timer standing in for an action — there is no action to stand in for — so
+    /// Duration is the right mode, the same reading as Phase 0's A1 and Phase 2's C1
+    /// and C3.
+    ///
+    /// WHAT THE PLAYER DOES HERE IS LOOK, and the beats deliberately do not require it.
+    /// D2 asks them to notice that the thing that just hit them took a colour out of
+    /// their own spectrum. Gating on "did you see it" would mean either a reticle test
+    /// on the impact — turning the piece's one causal moment into an aiming exercise —
+    /// or a dwell timer, which §6 rules out for B1 on the same grounds. So the frame
+    /// plays, the slow motion buys the time to look, and the bar stays on screen
+    /// afterwards for anyone who missed it.
+    ///
+    /// The beats own gating and prompts; the atom, the slow motion and the spectrum own
+    /// behaviour, and they meet on the beats' UnityEvents. Same shape as Phase 2, so the
+    /// storyboard can be reordered without touching C#.
+    ///
+    /// D3 to D5 are not built. D5 is a new beat type and needs the inspect button
+    /// confirmed on a running build first — see §12.
+    /// </summary>
+    static void BuildPhase3(Transform parent, TutorialAtom_NEW atom,
+                            TutorialSlowMotion_NEW slowMotion, TutorialSpectrum_NEW spectrum,
+                            TutorialUISlide_NEW slide, TutorialAtomCluster_NEW cluster,
+                            TutorialInspectView_NEW inspectView)
+    {
+        Beat_Cinematic_NEW d1 = Beat<Beat_Cinematic_NEW>(parent, "D1");
+        Wire(d1)
+            .Str("beatId", "D1")
+            .Copy("description", "Approach. A single small glowing particle ahead. No label. " +
+                                "The only moving thing in frame.")
+            // No new prompt. The player has been told they can look since A1 and there
+            // is nothing here to press — a hint line would imply otherwise.
+            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Clear)
+            .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
+            // Matches TutorialAtom_NEW.approachSeconds. The atom arrives as D1 ends and
+            // D2 opens on the contact.
+            .Num("duration", 10f)
+            .Apply();
+
+        Beat_Cinematic_NEW d2 = Beat<Beat_Cinematic_NEW>(parent, "D2");
+        Wire(d2)
+            .Str("beatId", "D2")
+            .Copy("description", "Contact. Time drops to 0.2x. The spectrum bar appears at centre " +
+                                "and one black line is cut into it. The whole causal chain of the " +
+                                "piece is in this frame: one atom, one line.")
+            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Clear)
+            .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
+            // WALL CLOCK, not stretched by the 0.2x — the storyboard's timings are
+            // seconds the player experiences, which is why useScaledTime is left off.
+            // See §12.
+            //
+            // Eight rather than the storyboard's twelve. §6 wrote D2 as 2:00–2:12 when
+            // the bar arrived on the impact and the player had to read a new element and
+            // a mark on it at once. The bar now arrives at D1 and is already familiar, so
+            // this frame has only one thing left to show — the notch — and twelve seconds
+            // of watching it is longer than the thing takes to land.
+            .Num("duration", 8f)
+            .Flag("useScaledTime", false)
+            .Apply();
+
+        // D1 arms the atom. Nothing else in the piece knows the atom exists.
+        AddCall(d1, "onEnter", atom, "Arm");
+
+        // THE BAR ARRIVES AT D1, EMPTY, and drifts up to its home over the next few
+        // seconds while the atom closes. A departure from §6, which has it appear on
+        // contact — see TutorialUISlide_NEW for why. The short version: you cannot see
+        // that a colour is missing unless you saw it there first, and D2 asking the
+        // player to read a spectrum and a gap in it in the same instant asks for the
+        // second before the first has landed.
+        AddCall(d1, "onEnter", spectrum, "Show");
+        AddCall(d1, "onEnter", spectrum, "Clear");
+
+        if (slide != null) AddCall(d1, "onEnter", slide, "Play");
+
+        // D2 is the impact, and now it is only the impact: one line cut into a bar the
+        // player has been looking at for ten seconds.
+        AddCall(d2, "onEnter", spectrum, "CutLine");
+
+        // The slow motion is D2's, not the atom's. Hanging it on the impact instead
+        // would drop the time scale a frame before the beat that owns it opens, and a
+        // beat that is already running when its own effects start is the kind of thing
+        // that only misbehaves when the beat is reached some other way — F2, a number
+        // key, or the attract restart.
+        AddCall(d2, "onEnter", slowMotion, "Enter");
+        AddCall(d2, "onSatisfied", slowMotion, "Exit");
+
+        Beat_Cinematic_NEW d3 = Beat<Beat_Cinematic_NEW>(parent, "D3");
+        Wire(d3)
+            .Str("beatId", "D3")
+            .Copy("description", "The spectrum starts to drift. The bar stops being a picture " +
+                                "of a spectrum and becomes a live reading, carrying the mark " +
+                                "the player just made.")
+            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Clear)
+            .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
+            .Num("duration", 8f)
+            .Apply();
+
+        // §6 gives D3 as the bar shrinking and travelling to its docked position. The
+        // travel moved to D1 — see TutorialUISlide_NEW — so what is left for this frame
+        // is the thing the storyboard did not have a place for: the data itself moving.
+        //
+        // Nothing new was written for it. AbsorptionField_NEW slides its buffer and
+        // SpectrumHUD_NEW slides the continuum template, both off one driftPerSecond on
+        // the profile, so the curve and the marks move as one. D3 swaps the profile for
+        // the same one with that number switched on.
+        AddCall(d3, "onEnter", spectrum, "StartDrift");
+
+        Beat_Cinematic_NEW d4 = Beat<Beat_Cinematic_NEW>(parent, "D4");
+        Wire(d4)
+            .Str("beatId", "D4")
+            .Copy("description", "A small group of atoms, not a cloud. Passing through cuts " +
+                                "three or four more lines. No slow motion — the lesson is that " +
+                                "this keeps happening, not that each one is its own event.")
+            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Clear)
+            .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
+            // §6 lists D4's player action as None and its gate as the notches standing on
+            // the spectrum. That is a description of the outcome, not a gate: nothing the
+            // player does causes them. Duration, or the beat could never be satisfied.
+            .Num("duration", 10f)
+            .Apply();
+
+        if (cluster != null) AddCall(d4, "onEnter", cluster, "Arm");
+
+        Beat_Inspect_NEW d5 = Beat<Beat_Inspect_NEW>(parent, "D5");
+        Wire(d5)
+            .Str("beatId", "D5")
+            .Copy("description", "Inspect. The prompt appears; pressing B freezes the scene and " +
+                                "enlarges the spectrum. The last frame of Phase 3, and the only " +
+                                "one where the player is given a moment to read what they have " +
+                                "been collecting.")
+            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
+            .Copy("hintText", "B  TO  INSPECT")
+            // Gated on the player, both ways: opened AND closed. Closing is the half
+            // that proves they can get back out, which is the B4 lesson again.
+            .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
+            .Ref("view", inspectView)
+            .Apply();
+
+        // The freeze is the slow motion at a deeper setting — it already owns
+        // Time.timeScale, and a second component writing the same global is how a world
+        // ends up stuck at a fifth speed with nothing admitting to it.
+        AddCall(d5, "onOpened", slowMotion, "Freeze");
+        AddCall(d5, "onClosed", slowMotion, "Exit");
+    }
+
+    // ── Phase 3 objects ──────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The tutorial's spectrum: the shared absorption buffer, the bar that draws it, and
+    /// the component that owns both.
+    ///
+    /// The buffer and the HUD are the journey's own components, unchanged. What the
+    /// tutorial adds is TutorialSpectrum_NEW in front of them — the same trick
+    /// TutorialSky_NEW plays on the nebula, and for the same reason: the journey drives
+    /// these through LayerGate → LayerState → SpectrumResponder, and the tutorial has no
+    /// layers and no gates to drive them with.
+    ///
+    /// The buffer is shared, so the line D2 cuts appears on the player's own photon
+    /// trail as well as on the bar. That is worth more than it costs: §3 item 3 is
+    /// "hitting hydrogen costs you colour", and the light visibly losing a colour is a
+    /// better statement of it than a readout is.
+    /// </summary>
+    static TutorialSpectrum_NEW BuildSpectrum(Transform root, Transform canvas, TrailRenderer trail,
+                                              out TutorialUISlide_NEW spectrumSlide,
+                                              out TutorialInspectView_NEW inspectView)
+    {
+        SpectrumProfile_NEW profile = TutorialWorldAssets_NEW.TutorialSpectrumProfile;
+
+        // ── The buffer ───────────────────────────────────────────────────────
+        GameObject fieldObject = FindOrCreate("Spectrum", root, Vector3.zero);
+        AbsorptionField_NEW field = AddIfMissing<AbsorptionField_NEW>(fieldObject);
+
+        Wire(field)
+            .Ref("targetTrail", trail)
+            .Ref("defaultProfile", profile)
+            // The tutorial has no PlayerRig_NEW, so the speed coupling has nothing to
+            // read. Off explicitly rather than left to find nothing, so the Inspector
+            // says what is happening.
+            .Flag("linkToPlayerSpeed", false)
+            .Apply();
+
+        // ── The bar ──────────────────────────────────────────────────────────
+        // Centre screen, which is where D2 puts it. D3 will move it to its docked
+        // position; that is a UI animation on D3's onEnter and not this object's shape.
+        //
+        // SIZE IS TAKEN FROM THE JOURNEY'S BAR, which is 100x100 carrying a localScale
+        // of (5, 0.5) — an effective 500 by 50. The first version here was 720 by 200,
+        // four times taller, and a graph that proportion with axes and an area fill
+        // reads as a slab across the middle of the screen rather than as a spectrum.
+        //
+        // Authored at its real size rather than copying the journey's non-uniform
+        // scale: scaling a RectTransform 5x horizontally and 0.5x vertically also
+        // stretches the line thickness by the same amounts, so the curve is drawn with
+        // a ten-to-one anisotropic pen. That is a hack the journey can keep; a new
+        // object does not need to inherit it.
+        //
+        // TOP CENTRE, which is this bar's permanent home. Every other element already
+        // has a side of the screen: the reticle owns the middle, the range map the top
+        // right, the zoom gauge the right edge, and the legend, hint and confirm prompt
+        // the bottom. The top strip is the only place a readout can live without moving
+        // something the player has already learned to find.
+        //
+        // §6 has D2 open the bar at centre and D3 dock it to its fixed position. D3 is
+        // not built, so it opens docked for now; when D3 lands, D2 gets the centre
+        // placement back and D3 animates centre to here.
+        GameObject bar = UIObject("SpectrumBar", canvas, new Vector2(0.5f, 1f),
+                                  SpectrumBarPosition, SpectrumBarSize);
+
+        PlaceSpectrumBar(bar);
+
+        // LineGraphRenderer_NEW is a BaseMeshEffect and requires a Graphic to rewrite.
+        // It calls vh.Clear() first, so this Image never draws its own quad — it is
+        // here to be a mesh source, not to be seen.
+        Image barImage = AddIfMissing<Image>(bar);
+        if (IsFresh(barImage)) barImage.raycastTarget = false;
+
+        LineGraphRenderer_NEW graph = AddIfMissing<LineGraphRenderer_NEW>(bar);
+
+        SpectrumHUD_NEW hud = AddIfMissing<SpectrumHUD_NEW>(bar);
+        Wire(hud)
+            // The HUD auto-finds the graph on its own object, so this is belt and
+            // braces — but a reference the builder set is one the System Map can show,
+            // and an auto-find is not.
+            .Ref("graph", graph)
+            .Ref("field", field)
+            .Apply();
+
+        // ── The tutorial's front end ─────────────────────────────────────────
+        TutorialSpectrum_NEW spectrum = AddIfMissing<TutorialSpectrum_NEW>(fieldObject);
+
+        Wire(spectrum)
+            .Ref("profile", profile)
+            .Ref("driftingProfile", TutorialWorldAssets_NEW.TutorialSpectrumDriftProfile())
+            .Ref("field", field)
+            .Ref("hud", hud)
+            .Ref("barRoot", bar)
+            .Apply();
+
+        RepairLinePositions(spectrum);
+
+        // ── The close look, D5 ───────────────────────────────────────────────
+        // The backdrop goes on the canvas under the bar, so an enlarged spectrum is read
+        // against something quiet rather than against a live starfield.
+        GameObject dim = UIObject("InspectBackdrop", canvas, new Vector2(0.5f, 0.5f),
+                                  Vector2.zero, new Vector2(4000f, 2400f));
+
+        Image dimImage = AddIfMissing<Image>(dim);
+        if (IsFresh(dimImage)) dimImage.raycastTarget = false;
+
+        // Under the bar and over the world. The bar was made first, so pushing the
+        // backdrop to the front of the sibling list puts it behind everything on the
+        // canvas — which is where a dimmer belongs.
+        if (IsFresh(dim))
+        {
+            dim.transform.SetAsFirstSibling();
+            dim.SetActive(false);
+        }
+
+        inspectView = AddIfMissing<TutorialInspectView_NEW>(bar);
+
+        Wire(inspectView)
+            .Ref("bar", bar.GetComponent<RectTransform>())
+            .Ref("backdrop", dimImage)
+            .Apply();
+
+        // ── The drift into place ─────────────────────────────────────────────
+        // Built at its home position, so `to` is where it already is and `from` is the
+        // only value that has to be authored. captureFromCurrent is therefore switched
+        // OFF here — the object is not sitting at its entry position, it is sitting at
+        // its destination.
+        spectrumSlide = AddIfMissing<TutorialUISlide_NEW>(bar);
+
+        Wire(spectrumSlide)
+            .Flag("captureFromCurrent", false)
+            .Vec2("from", SpectrumBarEntry)
+            .Vec2("to", SpectrumBarPosition)
+            .Num("seconds", 7f)
+            .Num("delaySeconds", 1.5f)
+            .Apply();
+
+        // Nothing is on screen before D1. TutorialSpectrum_NEW hides it on Awake as
+        // well, so a scene saved with the bar up does not flash it for a frame.
+        if (IsFresh(bar)) bar.SetActive(false);
+
+        return spectrum;
+    }
+
+    /// <summary>Where the spectrum bar lives, anchored to the top edge of the canvas.</summary>
+    static readonly Vector2 SpectrumBarPosition = new Vector2(0f, -78f);
+
+    /// <summary>
+    /// Where it comes in from at D1 — lower and nearer the middle, so the drift upward
+    /// is a real movement rather than a nudge.
+    ///
+    /// Still anchored to the top edge, so this is 420 pixels down from it: below the
+    /// centre line on a 1080 canvas, clear of the reticle, and plainly not where a HUD
+    /// element belongs. Ending up at the top is what makes it read as having found its
+    /// place rather than as having been put there.
+    /// </summary>
+    static readonly Vector2 SpectrumBarEntry = new Vector2(0f, -420f);
+
+    /// <summary>
+    /// How big it is. Wide and shallow, because a spectrum is read left to right and its
+    /// height carries only one number.
+    ///
+    /// The journey's bar is 100x100 carrying a localScale of (5, 0.5) — an effective 500
+    /// by 50. This is authored at its real size instead: scaling a RectTransform 5x
+    /// horizontally and 0.5x vertically stretches the drawn line thickness by the same
+    /// amounts, so the curve comes out of a ten-to-one anisotropic pen. That is a hack
+    /// the journey can keep and a new object does not need to inherit.
+    /// </summary>
+    static readonly Vector2 SpectrumBarSize = new Vector2(720f, 96f);
+
+    /// <summary>
+    /// Placements this builder has authored in the past, newest first.
+    ///
+    /// A bar sitting at any of these was put there by the builder and nobody has touched
+    /// it since, so it is safe to move to wherever the current placement says. A bar
+    /// anywhere else is somebody's decision and is left alone.
+    ///
+    /// Each entry is position then size.
+    /// </summary>
+    static readonly Vector2[] PastSpectrumBarPlacements =
+    {
+        new Vector2(0f, -90f),  new Vector2(560f, 90f),   // below centre, second guess
+        new Vector2(0f, -40f),  new Vector2(720f, 200f)   // centre slab, first guess
+    };
+
+    /// <summary>
+    /// Move a spectrum bar the builder placed badly to where it belongs now.
+    ///
+    /// UIObject never touches an object that already exists, which is right almost
+    /// always: somebody who moved or resized a HUD element made a decision, and the
+    /// builder does not undo decisions. This is the exception, and the test is narrow
+    /// enough to keep it one — neither of the past placements was a decision anybody
+    /// made, they were the builder's own guesses, and both put the bar over the middle
+    /// of the screen where the reticle lives.
+    ///
+    /// Anything not on that list is left exactly as it is, including a placement
+    /// somebody has since tuned.
+    ///
+    /// Same shape as RetireBeat and SeparateTheSticks: the builder can repair what the
+    /// builder got wrong, because a new C# constant does not reach a scene that has
+    /// already been saved.
+    /// </summary>
+    static void PlaceSpectrumBar(GameObject bar)
+    {
+        RepairRect(bar, new Vector2(0.5f, 1f), SpectrumBarPosition, SpectrumBarSize,
+                   "SpectrumBar", PastSpectrumBarPlacements);
+    }
+
+    /// <summary>
+    /// Move a rect the builder placed badly to where it belongs now — but only if it is
+    /// still sitting exactly where an earlier version of this builder put it.
+    ///
+    /// UIObject never touches an object that already exists, which is right almost
+    /// always: somebody who moved or resized a HUD element made a decision, and the
+    /// builder does not undo decisions. This is the exception. A rect still carrying a
+    /// placement this file used to write was not a decision anybody made — it is the
+    /// builder's own earlier output, reaching a scene that a new C# constant cannot.
+    ///
+    /// A rect at any other value is left exactly as it is, including one somebody has
+    /// since tuned. The test is equality against a written-down list, so the exception
+    /// cannot widen by accident.
+    ///
+    /// `past` is position then size, repeating.
+    /// </summary>
+    static void RepairRect(GameObject go, Vector2 anchor, Vector2 position, Vector2 size,
+                           string what, params Vector2[] past)
+    {
+        RectTransform rect = go != null ? go.GetComponent<RectTransform>() : null;
+        if (rect == null) return;
+
+        for (int i = 0; i + 1 < past.Length; i += 2)
+        {
+            if (!Approximately(rect.anchoredPosition, past[i])) continue;
+            if (!Approximately(rect.sizeDelta, past[i + 1])) continue;
+
+            rect.anchorMin = anchor;
+            rect.anchorMax = anchor;
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+            EditorUtility.SetDirty(rect);
+
+            Debug.LogWarning("[TutorialSceneBuilder_NEW] Repaired " + what + ": moved from " +
+                             past[i] + " " + past[i + 1] + " to " + position + " " + size +
+                             ". It was still at a placement this builder authored earlier.", go);
+            return;
+        }
+    }
+
+    static bool Approximately(Vector2 a, Vector2 b)
+    {
+        return Mathf.Approximately(a.x, b.x) && Mathf.Approximately(a.y, b.y);
+    }
+
+    /// <summary>The line positions this builder shipped before, and what replaces them.</summary>
+    static readonly float[] FirstLinePositions = { 0.30f, 0.22f, 0.36f, 0.15f, 0.39f };
+    static readonly float[] CurrentLinePositions = { 0.412f, 0.30f, 0.225f, 0.355f, 0.15f };
+
+    /// <summary>
+    /// Move D2's line onto the visible part of the curve.
+    ///
+    /// The first set put every line blueward in the forest, which is where a real
+    /// Lyman-alpha absorber lives and is astronomically right. It is also, on this
+    /// continuum, invisible: the template runs at 0.18 of full height below the peak and
+    /// 1.0 at it, so cutting 80% out of the forest region removes nine pixels from an
+    /// eleven pixel curve. D2 cut its line and the screen did not change.
+    ///
+    /// Same reasoning as RepairRect, and the same narrow test: only the exact array this
+    /// builder used to write is replaced. A set somebody has tuned is left alone.
+    /// </summary>
+    static void RepairLinePositions(TutorialSpectrum_NEW spectrum)
+    {
+        if (spectrum == null) return;
+
+        SerializedObject so = new SerializedObject(spectrum);
+        SerializedProperty positions = so.FindProperty("linePositions");
+
+        if (positions == null || !positions.isArray) return;
+        if (positions.arraySize != FirstLinePositions.Length) return;
+
+        for (int i = 0; i < FirstLinePositions.Length; i++)
+            if (!Mathf.Approximately(positions.GetArrayElementAtIndex(i).floatValue, FirstLinePositions[i]))
+                return;
+
+        for (int i = 0; i < CurrentLinePositions.Length; i++)
+            positions.GetArrayElementAtIndex(i).floatValue = CurrentLinePositions[i];
+
+        so.ApplyModifiedProperties();
+
+        Debug.LogWarning("[TutorialSceneBuilder_NEW] Moved D2's absorption line from 0.30 to " +
+                         "0.412, onto the bright flank of the Ly-alpha peak. At 0.30 the " +
+                         "continuum is 0.18 of full height, so the line was cut into eleven " +
+                         "pixels of curve and could not be seen.", spectrum);
+    }
+
+    /// <summary>
+    /// Give an atom built before the halo existed its own core material.
+    ///
+    /// The first version of this atom borrowed the guide motes' warm yellow, because it
+    /// was a whitebox sphere and the motes already had one. The halo that arrived later
+    /// is cold blue, and an atom built by the earlier run keeps the mote material — so
+    /// it comes in as a yellow core inside a blue glow, which is neither of the two
+    /// things it is meant to be.
+    ///
+    /// Narrow like the other repairs: only a renderer still carrying the shared mote
+    /// material is changed. Anything else is somebody's choice.
+    /// </summary>
+    static void RepairAtomCoreMaterial(MeshRenderer renderer)
+    {
+        if (renderer == null) return;
+
+        Material mote = TutorialWorldAssets_NEW.MoteMaterial();
+        if (mote == null || renderer.sharedMaterial != mote) return;
+
+        Material core = TutorialWorldAssets_NEW.AtomCoreMaterial();
+        if (core == null) return;
+
+        Undo.RecordObject(renderer, "Repair atom core material");
+        renderer.sharedMaterial = core;
+        EditorUtility.SetDirty(renderer);
+
+        Debug.LogWarning("[TutorialSceneBuilder_NEW] Gave the atom its own core material. It " +
+                         "was still using the guide motes' warm yellow, which reads as a " +
+                         "fourth mote inside a cold halo — and the atom is the first thing " +
+                         "in the piece that is not a guide.", renderer);
+    }
+
+    /// <summary>
+    /// D2's time scale, on its own object.
+    ///
+    /// Its own object rather than a component on the director, because it restores the
+    /// time scale in OnDisable and OnDestroy — and something that has to run on teardown
+    /// should not share a lifetime with the thing that drives the whole piece.
+    /// </summary>
+    static TutorialSlowMotion_NEW BuildSlowMotion(Transform root)
+    {
+        GameObject go = FindOrCreate("SlowMotion", root, Vector3.zero);
+        return AddIfMissing<TutorialSlowMotion_NEW>(go);
+    }
+
+    /// <summary>
+    /// The single hydrogen atom of D1 and D2.
+    ///
+    /// Parented to the world, not to the light: it has to close the distance, and a
+    /// child of the player would ride along and never arrive. TutorialAtom_NEW places it
+    /// at Arm() using the travel heading, so its position here is only where it sits
+    /// before D1 opens.
+    ///
+    /// A whitebox sphere with a point light. Replacing the mesh and the material is all
+    /// the real asset needs; the builder does not have to change.
+    /// </summary>
+    /// <summary>
+    /// D4's group. Four atoms, spread across the course, arriving one after another.
+    ///
+    /// Each one is the same TutorialAtom_NEW as D1's, so the cluster owns only the
+    /// timing and the spread. Each atom's onImpact cuts a line, which is why the group
+    /// leaves three or four notches without anything counting them.
+    ///
+    /// Spread in metres across the course, not in world axes — see spawnSpread. They
+    /// come from different parts of the frame and all arrive at the light, because §6
+    /// asks for a group the player passes THROUGH and not one they could miss.
+    /// </summary>
+    static readonly Vector2[] ClusterSpread =
+    {
+        new Vector2(-14f,   5f),
+        new Vector2( 11f,  -7f),
+        new Vector2( -6f, -11f),
+        new Vector2( 17f,   8f)
+    };
+
+    static TutorialAtomCluster_NEW BuildAtomCluster(Transform world, Transform camera,
+                                                    TutorialTravel_NEW travel,
+                                                    TutorialSpectrum_NEW spectrum)
+    {
+        GameObject root = FindOrCreate("Cluster_D4", world, Vector3.zero);
+        TutorialAtomCluster_NEW cluster = AddIfMissing<TutorialAtomCluster_NEW>(root);
+
+        for (int i = 0; i < ClusterSpread.Length; i++)
+        {
+            TutorialAtom_NEW atom = BuildAtom(root.transform, camera, travel, "Atom_D4_" + (i + 1));
+
+            Wire(atom)
+                .Vec2("spawnSpread", ClusterSpread[i])
+                // Nearer and quicker than D1's. D1 is the frame where one atom arriving
+                // is the whole event and it gets ten seconds; here four of them share
+                // the frame and each one only has to be seen coming.
+                .Num("spawnDistance", 140f)
+                .Num("approachSeconds", 4.5f)
+                .Apply();
+
+            // The atom does not know what a spectrum is. This is the whole of D4.
+            AddCall(atom, "onImpact", spectrum, "CutLine");
+        }
+
+        return cluster;
+    }
+
+    static TutorialAtom_NEW BuildAtom(Transform world, Transform camera, TutorialTravel_NEW travel)
+    {
+        return BuildAtom(world, camera, travel, "Atom_D1");
+    }
+
+    static TutorialAtom_NEW BuildAtom(Transform world, Transform camera, TutorialTravel_NEW travel,
+                                      string name)
+    {
+        // A hard core inside a soft halo. The core gives it an edge so it still reads as
+        // an object at 200 metres; the halo is what makes it read as light rather than
+        // as a grey ball. Cold white against the motes' warm yellow, because this is the
+        // first thing in the piece that is not a guide.
+        GameObject go = Primitive(name, world, Vector3.zero, Vector3.one * 0.5f);
+
+        MeshRenderer renderer = go.GetComponent<MeshRenderer>();
+
+        if (IsFresh(go) && renderer != null)
+        {
+            Material material = TutorialWorldAssets_NEW.AtomCoreMaterial();
+            if (material != null) renderer.sharedMaterial = material;
+
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+        }
+        else
+        {
+            RepairAtomCoreMaterial(renderer);
+        }
+
+        GameObject halo = FindOrCreate("Halo", go.transform, Vector3.zero);
+
+        if (IsFresh(halo))
+        {
+            // A quad rather than a second sphere: it is billboarded at the camera every
+            // frame by TutorialAtom_NEW, so it never needs a third dimension.
+            GameObject source = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            AddIfMissing<MeshFilter>(halo).sharedMesh = source.GetComponent<MeshFilter>().sharedMesh;
+            Object.DestroyImmediate(source);
+
+            MeshRenderer haloRenderer = AddIfMissing<MeshRenderer>(halo);
+            Material haloMaterial = TutorialWorldAssets_NEW.AtomHaloMaterial();
+            if (haloMaterial != null) haloRenderer.sharedMaterial = haloMaterial;
+
+            haloRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            haloRenderer.receiveShadows = false;
+        }
+
+        GameObject glowObject = FindOrCreate("Light", go.transform, Vector3.zero);
+        Light glow = AddIfMissing<Light>(glowObject);
+
+        if (IsFresh(glow))
+        {
+            glow.type = LightType.Point;
+            glow.range = 40f;
+            glow.shadows = LightShadows.None;
+
+            // Cooler than a mote's warm yellow. Hydrogen is not one of the guides, and
+            // the player should not be waiting for it to bloom the way B1's mote did.
+            glow.color = new Color(0.72f, 0.86f, 1f);
+        }
+
+        TutorialAtom_NEW atom = AddIfMissing<TutorialAtom_NEW>(go);
+
+        Wire(atom)
+            .Ref("target", camera)
+            .Ref("travel", travel)
+            .Ref("glow", glow)
+            .Ref("halo", halo.transform)
+            .Apply();
+
+        // Nothing is on screen before D1. TutorialAtom_NEW also hides itself on Awake.
+        if (IsFresh(go)) go.SetActive(false);
+
+        return atom;
     }
 
     // ── Object helpers ───────────────────────────────────────────────────────
@@ -1784,6 +2492,27 @@ public static class TutorialSceneBuilder_NEW
     /// disc rather than a bare letter because a bare letter is read as text, and text
     /// does not look pressable.
     /// </summary>
+    // ── Confirm prompt geometry ──────────────────────────────────────────────
+    // Written as arithmetic rather than as four tuned numbers, because the numbers are
+    // not independent: the label is left aligned, so its left edge is what has to clear
+    // the glyph, and that edge moves whenever either the glyph or the label's width does.
+
+    const float PromptWidth = 520f;
+    const float PromptGlyphX = -168f;
+    const float PromptGlyphSize = 56f;
+
+    /// <summary>Gap between the disc and the first letter.</summary>
+    const float PromptGap = 24f;
+
+    /// <summary>Right edge of the disc, plus the gap. Where text may start.</summary>
+    const float PromptTextLeft = PromptGlyphX + PromptGlyphSize * 0.5f + PromptGap;
+
+    /// <summary>From the first letter to the right edge of the plate, less a margin.</summary>
+    const float PromptLabelWidth = PromptWidth * 0.5f - PromptTextLeft - 20f;
+
+    /// <summary>Centre of a left-aligned box whose left edge sits at PromptTextLeft.</summary>
+    const float PromptLabelX = PromptTextLeft + PromptLabelWidth * 0.5f;
+
     static GameObject BuildConfirmPrompt(Transform canvas)
     {
         // GDD B4: the A prompt appears at the lower edge.
@@ -1810,8 +2539,23 @@ public static class TutorialSceneBuilder_NEW
 
         // The verb. TutorialHUD_NEW writes the beat's promptText here, so the beat still
         // owns the words and the HUD still owns the shape.
-        GameObject label = UIObject("Label", go.transform, new Vector2(0.5f, 0.5f), new Vector2(36f, 0f), new Vector2(380f, 64f));
+        //
+        // THE LEFT EDGE HAS TO CLEAR THE GLYPH, and it did not. The text is left
+        // aligned, so it starts at the box's left edge rather than at its centre: a
+        // 380-wide box at x=36 begins at -154, and the glyph ends at -140. The first
+        // letter was printed 14 pixels inside the disc, which is why A sat on top of the
+        // R of RECENTRE.
+        //
+        // Derived rather than typed, so moving the glyph cannot silently re-open the
+        // same gap.
+        GameObject label = UIObject("Label", go.transform, new Vector2(0.5f, 0.5f),
+                                    new Vector2(PromptLabelX, 0f), new Vector2(PromptLabelWidth, 64f));
         AddText(label, "RECENTRE", 32, TextAlignmentOptions.Left);
+
+        RepairRect(label, new Vector2(0.5f, 0.5f),
+                   new Vector2(PromptLabelX, 0f), new Vector2(PromptLabelWidth, 64f),
+                   "ConfirmPrompt label",
+                   new Vector2(36f, 0f), new Vector2(380f, 64f));
 
         return go;
     }
@@ -1973,21 +2717,52 @@ public static class TutorialSceneBuilder_NEW
     /// </summary>
     static void AddEmissionCall(TutorialBeat_NEW beat, TutorialEmission_NEW emission, string method)
     {
-        UnityEvent onEnter = GetEvent(beat, "onEnter");
-        if (onEnter == null || HasListenerFor(onEnter, emission)) return;
+        AddCall(beat, "onEnter", emission, method);
+    }
 
-        UnityAction call = System.Delegate.CreateDelegate(typeof(UnityAction), emission, method, false, false)
+    /// <summary>
+    /// Wire one no-argument method on one component to one of a beat's UnityEvents.
+    ///
+    /// This is AddEmissionCall generalised, and the generalisation is not cosmetic: it
+    /// matches on the METHOD as well as the target, where HasListenerFor matches on the
+    /// target alone. Phase 2 never noticed, because each of its beats drives the
+    /// emission exactly once. D2 calls three methods on the same TutorialSpectrum_NEW
+    /// from one event — show the bar, empty it, cut the line — and a target-only check
+    /// would silently drop the second and the third.
+    ///
+    /// Still idempotent, which is what the builder needs: running Build or Update twice
+    /// does not stack duplicate listeners.
+    /// </summary>
+    static void AddCall(Object owner, string eventName, Object target, string method)
+    {
+        if (owner == null || target == null) return;
+
+        UnityEvent e = GetEvent(owner, eventName);
+        if (e == null || HasCall(e, target, method)) return;
+
+        UnityAction call = System.Delegate.CreateDelegate(typeof(UnityAction), target, method, false, false)
                            as UnityAction;
 
         if (call == null)
         {
-            Debug.LogWarning("[TutorialSceneBuilder_NEW] TutorialEmission_NEW has no method '" +
-                             method + "'. " + beat.name + " will not drive the emission.", beat);
+            Debug.LogWarning("[TutorialSceneBuilder_NEW] " + target.GetType().Name + " has no " +
+                             "no-argument method '" + method + "'. " + owner.name + "." + eventName +
+                             " will not call it.", owner);
             return;
         }
 
-        UnityEventTools.AddPersistentListener(onEnter, call);
-        EditorUtility.SetDirty(beat);
+        UnityEventTools.AddPersistentListener(e, call);
+        EditorUtility.SetDirty(owner);
+    }
+
+    /// <summary>Is this exact target and method already on this event?</summary>
+    static bool HasCall(UnityEventBase e, Object target, string method)
+    {
+        for (int i = 0; i < e.GetPersistentEventCount(); i++)
+            if (e.GetPersistentTarget(i) == target && e.GetPersistentMethodName(i) == method)
+                return true;
+
+        return false;
     }
 
     /// <summary>
@@ -2214,6 +2989,14 @@ public static class TutorialSceneBuilder_NEW
 
             SerializedProperty p = Find(path);
             if (p != null) p.vector3Value = value;
+            return this;
+        }
+        public Wiring Vec2(string path, Vector2 value)
+        {
+            if (!_fresh) return this;
+
+            SerializedProperty p = Find(path);
+            if (p != null) p.vector2Value = value;
             return this;
         }
 

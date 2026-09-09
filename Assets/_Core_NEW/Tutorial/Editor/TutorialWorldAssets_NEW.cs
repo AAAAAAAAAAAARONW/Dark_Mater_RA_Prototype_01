@@ -44,6 +44,26 @@ public static class TutorialWorldAssets_NEW
     public const string QuasarNebulaProfilePath = "Assets/_Core_NEW/Assets/NP_Quasar.asset";
 
     /// <summary>
+    /// The tutorial's own spectrum settings. NOT shared with the journey, which is the
+    /// opposite of how the sky is handled and is deliberate.
+    ///
+    /// The journey's SP_* profiles spawn a background Lyman-alpha forest — four lines a
+    /// second — and AbsorptionField_NEW.ClearLines() says in its own summary that
+    /// "Background spawning continues". D2 has to be one atom and one line, so a
+    /// tutorial running on a journey profile buries its single hydrogen line under forty
+    /// others inside ten seconds, and the frame the whole of Phase 3 rests on reads as
+    /// noise.
+    ///
+    /// So SP_Tutorial holds spawnRatePerSecond, initialLineCount and driftPerSecond at
+    /// zero. TutorialSpectrum_NEW checks that at runtime rather than trusting it.
+    /// </summary>
+    public const string TutorialSpectrumProfilePath = "Assets/_Core_NEW/Assets/SP_Tutorial.asset";
+
+    /// <summary>SP_Tutorial with the redshift drift on. Generated, not authored.</summary>
+    public const string TutorialSpectrumDriftProfilePath =
+        "Assets/_Core_NEW/Assets/SP_Tutorial_Drift.asset";
+
+    /// <summary>
     /// The post-process profile PlaytestBuild_NEW's Main Camera uses. Shared rather than
     /// copied: grade and bloom are what make the quasar read as bright rather than pale,
     /// and a tutorial with its own grade would drift away from the journey's look with
@@ -81,6 +101,8 @@ public static class TutorialWorldAssets_NEW
     const string SoftDotPath = GeneratedFolder + "/TutorialSoftDot.png";
     const string DustMaterialPath = GeneratedFolder + "/TutorialDiscDust.mat";
     const string MoteMaterialPath = GeneratedFolder + "/TutorialMote.mat";
+    const string AtomCoreMaterialPath = GeneratedFolder + "/TutorialAtomCore.mat";
+    const string AtomHaloMaterialPath = GeneratedFolder + "/TutorialAtomHalo.mat";
     const string TrailMaterialPath = GeneratedFolder + "/TutorialPhotonTrail.mat";
     const string ChipPath = GeneratedFolder + "/TutorialChip.png";
     const string RingPath = GeneratedFolder + "/TutorialRing.png";
@@ -135,6 +157,77 @@ public static class TutorialWorldAssets_NEW
     public static NebulaProfile_NEW QuasarNebulaProfile
     {
         get { return Load<NebulaProfile_NEW>(QuasarNebulaProfilePath, "quasar nebula profile"); }
+    }
+
+    /// <summary>
+    /// The tutorial's spectrum profile. Create it with Assets > Create > Journey NEW >
+    /// Spectrum Profile if it is missing, and zero the three spawn fields — see
+    /// TutorialSpectrumProfilePath.
+    /// </summary>
+    public static SpectrumProfile_NEW TutorialSpectrumProfile
+    {
+        get { return Load<SpectrumProfile_NEW>(TutorialSpectrumProfilePath, "tutorial spectrum profile"); }
+    }
+
+    /// <summary>
+    /// The same profile with the redshift drift switched on. D3 swaps to this.
+    ///
+    /// Generated from SP_Tutorial rather than authored beside it, so the two cannot
+    /// disagree about anything except the one number they are meant to differ on. The
+    /// seed is copied deliberately: Configure only re-seeds when the seed changes, and a
+    /// re-seed at D3 would change what the forest does under a line the player has just
+    /// watched being cut.
+    /// </summary>
+    /// <summary>
+    /// How fast the tutorial's spectrum drifts, in fractions of the spectrum per second.
+    ///
+    /// FASTER THAN THE JOURNEY'S 0.00778, deliberately, and this is the one number where
+    /// the two are allowed to disagree. The journey drifts for an hour and wants a rate
+    /// nobody notices; D3 has eight seconds to make the player notice, and at the
+    /// journey's rate the bar moves about six pixels a second — below the speed at which
+    /// motion registers as motion at all.
+    ///
+    /// At this rate it is roughly fifteen pixels a second on a 720 pixel bar: plainly
+    /// moving, and slow enough that the line D2 cut is still on screen at the end of D4.
+    /// </summary>
+    const float TutorialDriftPerSecond = 0.02f;
+
+    public static SpectrumProfile_NEW TutorialSpectrumDriftProfile()
+    {
+        SpectrumProfile_NEW existing =
+            AssetDatabase.LoadAssetAtPath<SpectrumProfile_NEW>(TutorialSpectrumDriftProfilePath);
+
+        if (existing != null)
+        {
+            // Generated content, not a tuned value — the same distinction beats draw with
+            // builderOwnsCopy. A rate this file used to write is corrected on the next
+            // run, because a changed constant otherwise never reaches an asset that has
+            // already been created.
+            if (!Mathf.Approximately(existing.driftPerSecond, TutorialDriftPerSecond))
+            {
+                Debug.Log("[TutorialWorldAssets_NEW] " + existing.name + " drift " +
+                          existing.driftPerSecond + " -> " + TutorialDriftPerSecond + ".");
+
+                existing.driftPerSecond = TutorialDriftPerSecond;
+                EditorUtility.SetDirty(existing);
+                AssetDatabase.SaveAssets();
+            }
+
+            return existing;
+        }
+
+        SpectrumProfile_NEW still = TutorialSpectrumProfile;
+        if (still == null) return null;
+
+        SpectrumProfile_NEW drifting = Object.Instantiate(still);
+        drifting.name = "SP_Tutorial_Drift";
+        drifting.driftPerSecond = TutorialDriftPerSecond;
+
+        AssetDatabase.CreateAsset(drifting, TutorialSpectrumDriftProfilePath);
+        Debug.Log("[TutorialWorldAssets_NEW] Generated " + TutorialSpectrumDriftProfilePath +
+                  " from " + still.name + ", with drift switched on.");
+
+        return drifting;
     }
 
     static T Load<T>(string path, string label) where T : Object
@@ -209,6 +302,74 @@ public static class TutorialWorldAssets_NEW
     }
 
     /// <summary>Additive dust material for the accretion disc particles.</summary>
+    /// <summary>
+    /// The hydrogen atom's core. A hard, small, cold-white point.
+    ///
+    /// Separate from the mote material and deliberately a different colour. The guide
+    /// motes are warm yellow and mean "come and look at this"; the atom is the first
+    /// thing in the piece that is not a guide, and a player who reads it as a fourth
+    /// mote will be waiting for it to bloom rather than watching it arrive.
+    ///
+    /// Unlit rather than additive, so the core stays a solid object with an edge and
+    /// the halo around it does the glowing. An additive core has no silhouette and reads
+    /// as a smudge at distance, which is most of D1.
+    /// </summary>
+    public static Material AtomCoreMaterial()
+    {
+        Material existing = AssetDatabase.LoadAssetAtPath<Material>(AtomCoreMaterialPath);
+        if (existing != null) return existing;
+
+        Shader shader = Shader.Find("Unlit/Color");
+        if (shader == null) return null;
+
+        EnsureFolder();
+
+        Material material = new Material(shader);
+        material.name = "TutorialAtomCore";
+
+        // Above white on the blue channel, so the post-process bloom the tutorial shares
+        // with PlaytestBuild catches it and the core carries a halo of its own.
+        material.SetColor("_Color", new Color(0.86f, 0.95f, 1f, 1f));
+
+        AssetDatabase.CreateAsset(material, AtomCoreMaterialPath);
+        Debug.Log("[TutorialWorldAssets_NEW] Generated " + AtomCoreMaterialPath + ".");
+
+        return material;
+    }
+
+    /// <summary>
+    /// The soft glow around the atom. Additive, on the same soft dot the dust uses.
+    ///
+    /// This is what actually makes a point of light read as a point of light in a scene
+    /// with nothing near it. A lit sphere at 200 metres is two pixels of flat colour;
+    /// the same sphere inside an additive halo that grows as it closes is something
+    /// arriving.
+    /// </summary>
+    public static Material AtomHaloMaterial()
+    {
+        Material existing = AssetDatabase.LoadAssetAtPath<Material>(AtomHaloMaterialPath);
+        if (existing != null) return existing;
+
+        Shader shader = FindAdditiveParticleShader();
+        if (shader == null) return null;
+
+        EnsureFolder();
+
+        Material material = new Material(shader);
+        material.name = "TutorialAtomHalo";
+        material.mainTexture = SoftDot();
+
+        // Cool, and well under white: additive stacks, and the halo overlaps itself at
+        // the centre where the core already is.
+        if (material.HasProperty("_TintColor"))
+            material.SetColor("_TintColor", new Color(0.38f, 0.62f, 0.92f, 0.5f));
+
+        AssetDatabase.CreateAsset(material, AtomHaloMaterialPath);
+        Debug.Log("[TutorialWorldAssets_NEW] Generated " + AtomHaloMaterialPath + ".");
+
+        return material;
+    }
+
     public static Material DiscDustMaterial()
     {
         Material existing = AssetDatabase.LoadAssetAtPath<Material>(DustMaterialPath);

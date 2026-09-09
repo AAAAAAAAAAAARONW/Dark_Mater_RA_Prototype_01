@@ -382,7 +382,7 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
         float sinceConfirm = Time.unscaledTime - _lastConfirmTime;
         string lastA = sinceConfirm > 900f ? "never" : sinceConfirm.ToString("F1") + "s ago";
 
-        GUI.Label(new Rect(10f, 50f, 900f, 22f),
+        GUI.Label(DebugOverlayRows_NEW.Row(DebugOverlayRows_NEW.Camera),
                   string.Format("CAMERA  {0}   off-axis {1:F0}deg   last A {2}   stick {3:F2}   A binding {4}",
                                 state, offAxis, lastA,
                                 TutorialInput_NEW.StickDeflection(lookStick, stickDeadband),

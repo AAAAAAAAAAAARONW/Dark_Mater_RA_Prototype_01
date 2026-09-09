@@ -92,6 +92,22 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
              "Stops a press meant for the previous beat carrying through. Not a timeout.")]
     [SerializeField] float inputGraceSeconds = 0.15f;
 
+    [Tooltip("Run this beat's clock in scaled time instead of real time.\n\n" +
+             "OFF is correct for every beat built so far, and is the answer for D2: the " +
+             "storyboard's durations are seconds the PLAYER EXPERIENCES, so D2's twelve " +
+             "seconds are twelve seconds of wall clock and are not stretched to sixty by " +
+             "its 0.2x time scale.\n\n" +
+             "This exists as an escape hatch for a beat that genuinely wants to be " +
+             "stretched by slow motion, and it governs THIS BEAT'S CLOCK ONLY. The " +
+             "camera rig and the zoom stay on real time in every case — they read " +
+             "Time.unscaledDeltaTime directly and never see this flag. That is " +
+             "deliberate: a beat that slowed the camera down with the world would be " +
+             "locking it, which GDD section 5 forbids, and D2 explicitly needs the " +
+             "player free to look between the impact and the bar.\n\n" +
+             "Turning it on also scales inputGraceSeconds, since the grace is measured " +
+             "on the same clock.")]
+    [SerializeField] bool useScaledTime = false;
+
     [Header("Events")]
     [Tooltip("Fires the frame this beat opens. VO, VFX and audio cues go here.")]
     [SerializeField] UnityEvent onEnter = new UnityEvent();
@@ -167,9 +183,19 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
         if (rumbleOnEnter) onRumble.Invoke();
     }
 
-    public void Tick(float dt)
+    /// <summary>
+    /// Advance this beat by one frame.
+    ///
+    /// The director hands in real seconds, because everything in the tutorial runs on
+    /// an unscaled clock. useScaledTime converts here rather than at the director, so
+    /// one beat can be stretched by slow motion without the rest of the piece — and,
+    /// more importantly, without the camera, which never sees this conversion.
+    /// </summary>
+    public void Tick(float unscaledDt)
     {
         if (!_active) return;
+
+        float dt = useScaledTime ? unscaledDt * Time.timeScale : unscaledDt;
 
         _elapsed += dt;
         OnBeatTick(dt);

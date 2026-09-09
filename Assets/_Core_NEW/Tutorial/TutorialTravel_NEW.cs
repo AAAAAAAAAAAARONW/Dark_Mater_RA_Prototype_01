@@ -126,6 +126,23 @@ public class TutorialTravel_NEW : MonoBehaviour
     /// </summary>
     public void SetCourse(Vector3 direction, float newSpeed)
     {
+        // AN APPROACH IN PROGRESS HAS TO STOP HERE. A scripted approach owns the
+        // position outright — Update runs TickApproach instead of the cruise, so it
+        // ignores both direction and speed — and this method is a statement that the
+        // light is now going a particular way at a particular rate. The two cannot both
+        // be true, and until this line the approach quietly won.
+        //
+        // C3's emission is the case that matters: it reverses the course while C1's
+        // arrival approach may still be running. In an unbroken playthrough C1's twelve
+        // seconds always outlast the approach, so the approach has already halted and
+        // nothing goes wrong. Replay C1 and C3 in the same frame — which is what a debug
+        // jump into Phase 3 does — and the approach is still live, so the reversal was
+        // discarded and the light was dragged back towards the quasar and then halted
+        // on arrival. It read as being bounced off the atom.
+        //
+        // Not a jump bug. The jump only removed the twelve seconds that were hiding it.
+        CancelApproach();
+
         if (direction.sqrMagnitude > 0.0001f)
         {
             _direction = direction.normalized;
@@ -135,9 +152,24 @@ public class TutorialTravel_NEW : MonoBehaviour
         speed = Mathf.Max(0f, newSpeed);
     }
 
+    /// <summary>
+    /// Drop a scripted approach without stopping the light, unlike Halt.
+    ///
+    /// Halt means "you have arrived and you are standing still". This means "something
+    /// else is driving now", which is what both SetCourse and SetSpeed are saying.
+    /// </summary>
+    public void CancelApproach()
+    {
+        _approaching = false;
+    }
+
     /// <summary>Change speed without touching the heading. C1's spin-up uses this.</summary>
     public void SetSpeed(float newSpeed)
     {
+        // Same reasoning as SetCourse: setting a speed while an approach is driving the
+        // position would set a number nothing reads.
+        CancelApproach();
+
         speed = Mathf.Max(0f, newSpeed);
     }
 
@@ -293,7 +325,7 @@ public class TutorialTravel_NEW : MonoBehaviour
             if (remaining > 0.001f) offAxis = Vector3.Angle(_direction, toDestination);
         }
 
-        GUI.Label(new Rect(10f, 70f, 900f, 22f),
+        GUI.Label(DebugOverlayRows_NEW.Row(DebugOverlayRows_NEW.Travel),
                   string.Format("TRAVEL  {0:F1} u/s   travelled {1:F0}   to quasar {2:F0}   off-axis {3:F2}deg",
                                 speed, DistanceTravelled, remaining, offAxis));
     }
