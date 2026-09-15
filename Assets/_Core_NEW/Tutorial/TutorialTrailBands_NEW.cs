@@ -44,6 +44,21 @@ public class TutorialTrailBands_NEW : MonoBehaviour
              "are the band edges everything here uses.")]
     [SerializeField] PhotonSpectrumTrail spectrumTrail;
 
+    [Header("Which way round the spectrum runs")]
+    [Tooltip("Mirror the ribbon's wavelength axis, so UV and IR swap sides on screen.\n\n" +
+             "WHY THIS IS A CHECKBOX AND NOT A CONSTANT. The absorption line is drawn " +
+             "twice — as a dip in the bar's curve and as a dark stripe across the " +
+             "ribbon — and the two only read as one wavelength if they run the same way " +
+             "left to right. The bar is fixed: UV on the left, IR on the right. The " +
+             "ribbon is not: it is a TrailRenderer facing the camera, so which edge Unity " +
+             "calls uv.y = 0 comes out of a cross product between the direction of travel " +
+             "and the direction to the camera, and which of those lands on screen-left " +
+             "cannot be worked out from the source — it has to be looked at.\n\n" +
+             "So: run it, watch the stripe appear, and if it is on the opposite side of " +
+             "the ribbon's centre from the dip in the bar, tick this. Same reasoning as " +
+             "flipAcross on TutorialLineIndicator_NEW, and the two want the same answer.")]
+    [SerializeField] bool mirrorAcross = false;
+
     [Header("Unfold / fold UV and IR")]
     [Tooltip("Seconds for the ribbon to widen from the visible band to the full spectrum, " +
              "or back.")]
@@ -128,7 +143,12 @@ public class TutorialTrailBands_NEW : MonoBehaviour
     /// </summary>
     public float WidthFraction(float wavelength)
     {
-        return 1f - (wavelength - _shownLow) / Mathf.Max(0.001f, _shownSpan);
+        float u = (wavelength - _shownLow) / Mathf.Max(0.001f, _shownSpan);
+
+        // Unmirrored the shader reads specT off (1 - uv.y), so the inverse flips; mirrored
+        // it reads it off uv.y directly and the inverse does not. Kept here rather than at
+        // the caller so the arrow and the stripe cannot end up on different edges.
+        return mirrorAcross ? u : 1f - u;
     }
 
     float _shownLow;
@@ -222,8 +242,18 @@ public class TutorialTrailBands_NEW : MonoBehaviour
 
         _trail.GetPropertyBlock(_block);
 
-        _block.SetFloat(SpectrumScaleId, scale);
-        _block.SetFloat(SpectrumOffsetId, lo / scale);
+        // The shader computes specT = frac(((1 - uv.y) + offset) * scale), so the lowest
+        // wavelength shown is offset * scale and the span is scale.
+        //
+        // Mirroring is a negative scale: at uv.y = 1 that gives (0 + offset) * -span = hi
+        // and at uv.y = 0 it gives (1 + offset) * -span = hi - span = lo, which is the
+        // same window traversed the other way. frac of a negative is still its positive
+        // fractional part, and both ends already sit inside 0 to 1, so nothing wraps.
+        float signedScale = mirrorAcross ? -scale : scale;
+        float offset = mirrorAcross ? -hi / scale : lo / scale;
+
+        _block.SetFloat(SpectrumScaleId, signedScale);
+        _block.SetFloat(SpectrumOffsetId, offset);
         _block.SetFloat(UVGlowId, uvGlow);
         _block.SetFloat(IRGlowId, irGlow);
         _block.SetFloat(VisibleStartId, visStart);

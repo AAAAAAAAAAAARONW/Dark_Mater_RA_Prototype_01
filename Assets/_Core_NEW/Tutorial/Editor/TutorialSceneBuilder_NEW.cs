@@ -1440,6 +1440,31 @@ public static class TutorialSceneBuilder_NEW
                          "white head cap switched back on — PhotonSpectrumTrail was writing " +
                          "_ShowHead = 0 to the material every frame, so the light had no front.");
 
+        // AND IT HAS TO BE TINY, which the shipped default is not — turning the cap on at
+        // headWidth 0.04 whited out most of the ribbon.
+        //
+        // The number is a fraction of the trail's LENGTH, and the trail runs from the
+        // light back past the camera. Perspective therefore spends most of the screen on
+        // the near end: the first few per cent of the length is the part right in front
+        // of the eye and covers far more pixels than the hundred-odd units behind it,
+        // which shrink to a thread. So 4 per cent of the length is most of the picture,
+        // and since the cap is additive white at 1.8 brightness on a Blend SrcAlpha One
+        // shader, that is not a bright tip — it is the rainbow gone.
+        //
+        // The cap's shape does not change with this: it is always a semicircle spanning
+        // the full width, and headWidth only says how far back along the trail it is
+        // stretched. Smaller is a flatter, shorter nose, which is what a leading edge is.
+        RepairSerialized(spectrumTrail, "headWidth",
+                         p => Mathf.Approximately(p.floatValue, 0.04f),
+                         p => p.floatValue = 0.005f,
+                         "head cap shortened to 0.5% of the trail length. At 4% it covered the " +
+                         "near end of the ribbon, which is most of what is on screen.");
+
+        RepairSerialized(spectrumTrail, "headBrightness",
+                         p => Mathf.Approximately(p.floatValue, 1.8f),
+                         p => p.floatValue = 1f,
+                         "head cap dimmed. Additive white at 1.8 blows out whatever it covers.");
+
         // UV, visible and IR at their share of a log-wavelength axis from 100 nm to
         // 2000 nm: UV 45%, visible 23%, IR 33%. The old 15 / 70 / 15 made the visible
         // band three times too wide — and the point of D1 is that most of the light is
@@ -1550,18 +1575,15 @@ public static class TutorialSceneBuilder_NEW
                                          Vector2.zero, new Vector2(22f, 22f));
         IndicatorArrow(trailArrow, arrowColor);
 
-        // The leader joining the two.
-        GameObject leader = UIObject("LineLeader", canvas, new Vector2(0.5f, 0.5f),
-                                     Vector2.zero, new Vector2(2f, 2f));
-        IndicatorLeader(leader, arrowColor);
-
-        // Immediately under the trail arrow, which is the only one of the two that is a
-        // sibling — the bar arrow lives inside the bar. A line running into the middle
-        // of an arrowhead reads as one shape with a stem, which is what this should look
-        // like, rather than as a line crossing it. Not sent to the back: index 0 on this
-        // canvas is the blackout, which everything is supposed to draw OVER.
-        if (IsFresh(leader))
-            leader.transform.SetSiblingIndex(trailArrow.transform.GetSiblingIndex());
+        // ── Retired: the leader between the two arrows ───────────────────────
+        // It drew a line from the arrow on the trail to the arrow on the bar, on the
+        // reading that the pairing needed a connector. It does not. The two marks ARE
+        // one wavelength seen twice, and the way to say that is to put them at the same
+        // place across the screen and let the eye do it — a diagonal line between two
+        // points that do not line up says the opposite, that they are two things needing
+        // to be joined. See TutorialTrailBands_NEW for the alignment that replaces it.
+        RetireObject(canvas, "LineLeader", "the two marks are aligned now, not joined by " +
+                                           "a line drawn between them");
 
         GameObject holder = FindOrCreate("LineIndicator", canvas, canvas.position);
         TutorialLineIndicator_NEW indicator = AddIfMissing<TutorialLineIndicator_NEW>(holder);
@@ -1577,8 +1599,6 @@ public static class TutorialSceneBuilder_NEW
             .Ref("barArrowGroup", barArrow.GetComponent<CanvasGroup>())
             .Ref("trailArrow", trailArrow.GetComponent<RectTransform>())
             .Ref("trailArrowGroup", trailArrow.GetComponent<CanvasGroup>())
-            .Ref("leaderLine", leader.GetComponent<RectTransform>())
-            .Ref("leaderLineGroup", leader.GetComponent<CanvasGroup>())
             .Apply();
 
         // The bar moved to the bottom of the frame, so its arrow moved to the top of the
@@ -1590,30 +1610,6 @@ public static class TutorialSceneBuilder_NEW
                          "line arrow now clears the band labels above the bar.");
 
         return indicator;
-    }
-
-    /// <summary>
-    /// The leader: a plain filled rectangle, stretched and turned every frame by
-    /// TutorialLineIndicator_NEW into a line between the two arrows.
-    ///
-    /// No sprite. A UI Image with none draws a solid quad of its own colour, which is
-    /// all a straight line is, and it costs no asset. It is put behind the arrows by
-    /// sibling order rather than by a sorting field, which is the only ordering a
-    /// ScreenSpaceOverlay canvas has.
-    /// </summary>
-    static void IndicatorLeader(GameObject go, Color color)
-    {
-        Image image = AddIfMissing<Image>(go);
-
-        if (IsFresh(image))
-        {
-            image.sprite = null;
-            image.color = color;
-            image.raycastTarget = false;
-        }
-
-        CanvasGroup group = AddIfMissing<CanvasGroup>(go);
-        if (IsFresh(group)) group.alpha = 0f;
     }
 
     /// <summary>
