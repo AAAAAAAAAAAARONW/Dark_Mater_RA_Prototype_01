@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 /// <summary>
 /// The tutorial's spectrum bar: when it exists, what is on it, and what cuts a line
@@ -53,8 +54,11 @@ public class TutorialSpectrum_NEW : MonoBehaviour
     [Tooltip("The tutorial's own SpectrumProfile_NEW. Create one with " +
              "Assets > Create > Journey NEW > Spectrum Profile.\n\n" +
              "It MUST have spawnRatePerSecond and initialLineCount at 0, or the field " +
-             "grows a forest under D2's single line. driftPerSecond at 0 too, unless the " +
-             "storyboard asks for the lines to move. See the class summary.")]
+             "grows a forest under the player's own lines. See the class summary.\n\n" +
+             "driftPerSecond is NOT 0 here any more. The spectrum slides redward from the " +
+             "moment the bar is on screen, which is what makes it read as a live " +
+             "measurement rather than a picture of one — and it is what lets every atom " +
+             "cut its own line instead of deepening one shared mark.")]
     [SerializeField] SpectrumProfile_NEW profile;
 
     [Tooltip("The same settings with the redshift drift switched on. D3 swaps to this.\n\n" +
@@ -121,18 +125,19 @@ public class TutorialSpectrum_NEW : MonoBehaviour
              "having been there, so D2 wants it.")]
     [SerializeField] bool pulseOnCut = true;
 
-    [Tooltip("How dark the FIRST absorption cuts, 0 to 1 — D5's line.\n\n" +
-             "Strong, because D5 is the moment the player has to see it at all, on the bar " +
-             "and on the trail at once, and a faint first line blinks into nothing.")]
+    [Tooltip("How dark EVERY hydrogen absorption cuts, 0 to 1.\n\n" +
+             "One number, not two. Every atom is the same atom doing the same thing, and " +
+             "the player has to be able to see that: an atom that cut a weaker mark than " +
+             "the one before it would be saying the light is running out of something to " +
+             "lose, which is not what happens and not what §3 item 3 says.\n\n" +
+             "Strong, because each one has to be seen at all — on the bar and on the " +
+             "trail at once — and a faint line blinks into nothing.\n\n" +
+             "Two atoms that strike before the drift has carried the first mark clear " +
+             "stack, and the buffer saturates at 1: a line cannot remove more than all " +
+             "of the light at its wavelength.")]
     [Range(0.05f, 1f)]
-    [SerializeField] float firstAbsorbDepth = 0.7f;
-
-    [Tooltip("How much each LATER hydrogen atom adds to a line, 0 to 1. The line saturates " +
-             "at 1 — it cannot remove more than all of the light at that wavelength.\n\n" +
-             "Small, so D6's atoms visibly DEEPEN D5's line over several hits instead of " +
-             "slamming it to black on the first.")]
-    [Range(0.02f, 1f)]
-    [SerializeField] float absorbDepth = 0.1f;
+    [FormerlySerializedAs("firstAbsorbDepth")]
+    [SerializeField] float atomAbsorbDepth = 0.7f;
 
     [Header("Debug")]
     [SerializeField] bool debugLog = false;
@@ -297,6 +302,16 @@ public class TutorialSpectrum_NEW : MonoBehaviour
 
         if (field != null) field.ClearLines();
 
+        // THE CURVE GOES BACK TOO, not just the lines. The spectrum drifts from the
+        // moment the scene loads — that is what makes it read as a live measurement
+        // rather than a picture — but the drift only accumulates, so by the time the bar
+        // arrives the Ly-alpha peak has slid by however long this visitor spent on
+        // Phases 0 to 2. Left alone, the bar would open on a different-looking curve
+        // every run, the authored line positions would land somewhere new each time, and
+        // there would be nothing to rehearse against. GDD §5's restart has to be total,
+        // and that includes the clock the curve is drawn from.
+        if (hud != null) hud.ResetRedshift();
+
         if (debugLog) Debug.Log("[TutorialSpectrum_NEW] Cleared.", this);
     }
 
@@ -308,33 +323,41 @@ public class TutorialSpectrum_NEW : MonoBehaviour
     /// glitching rather than as another absorption.
     /// </summary>
     /// <summary>
-    /// One hydrogen atom absorbs at the rest-frame wavelength. D5's impact, each of D6's
-    /// atoms, and D8's atom during the redshift all call this.
+    /// One hydrogen atom absorbs at the rest-frame wavelength. Every atom in the piece
+    /// calls this, and every atom gets the same result: a new black line, cut at the
+    /// same depth, at the wavelength ground-state hydrogen always takes.
     ///
-    /// Stamps add depth, so a second hit on an undrifted spectrum deepens the same line.
-    /// After the drift starts the old line has moved, so the same call cuts a new one.
+    /// THE SAME EVENT EVERY TIME, and that is the lesson rather than a simplification.
+    /// §3 item 3 is "hitting hydrogen costs you colour", and it is one rule: the tenth
+    /// atom does what the first did. An effect that changed with the count would be
+    /// teaching that the light gets used up, or that the first collision was special,
+    /// and neither is true.
+    ///
+    /// SO WHY A NEW LINE RATHER THAN A DEEPER ONE. Because the spectrum is always
+    /// drifting. The wavelength is the same every time — that is the physics, and the
+    /// whole mechanism of the forest — but by the time the next atom arrives, the mark
+    /// the last one made has been carried redward and is no longer here. The atom cuts
+    /// into clean spectrum and a second line appears beside the first. Run it for long
+    /// enough and what accumulates is a forest: a row of lines whose spacing is a record
+    /// of how much time and distance passed between the atoms that made them.
+    ///
+    /// Two atoms close enough together that the drift has not separated them still
+    /// stack, which is also correct — that is one absorber twice as thick, and the
+    /// buffer saturates because a line cannot take more than all of the light.
     /// </summary>
     public void AbsorbAtRestFrame()
     {
         if (field == null) return;
 
-        // A fresh line at the rest frame — the very first, or D8's after the drift has
-        // carried the first away — cuts at full strength. Anything landing on a line that
-        // is still there deepens it.
-        bool freshLine = !_tracking || Mathf.Abs(_trackedPosition - RestFramePosition) > lineWidth;
-        float depth = freshLine ? firstAbsorbDepth : absorbDepth;
-
-        field.StampLine(Mathf.Clamp01(RestFramePosition), depth, lineWidth, pulseOnCut);
+        field.StampLine(Mathf.Clamp01(RestFramePosition), atomAbsorbDepth, lineWidth, pulseOnCut);
         _cut++;
 
-        // The first line is the one the indicator follows. Later absorptions either
-        // deepen it (no drift yet) or cut new lines at the rest frame, which the
-        // indicator does not chase.
-        if (!_tracking)
-        {
-            _tracking = true;
-            _trackedPosition = RestFramePosition;
-        }
+        // The indicator follows the NEWEST mark, not the first. The newest is the one the
+        // player just caused, and it is the one that has to be paired with the collision
+        // they have this second watched — the earlier lines have said their piece and are
+        // on their way red.
+        _tracking = true;
+        _trackedPosition = RestFramePosition;
 
         if (debugLog) Debug.Log("[TutorialSpectrum_NEW] Absorption " + _cut + " at rest frame.", this);
     }

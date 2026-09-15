@@ -192,6 +192,13 @@ public static class TutorialWorldAssets_NEW
     /// </summary>
     const float TutorialDriftPerSecond = 0.02f;
 
+    /// <summary>
+    /// The same rate, for the builder to put on the still profile — which is not still
+    /// any more. Both profiles now drift; the pair is kept because Configure is the seam
+    /// D7 uses and removing it would mean rewiring a beat to prove a point.
+    /// </summary>
+    public static float DriftPerSecond { get { return TutorialDriftPerSecond; } }
+
     public static SpectrumProfile_NEW TutorialSpectrumDriftProfile()
     {
         SpectrumProfile_NEW existing =
@@ -314,12 +321,29 @@ public static class TutorialWorldAssets_NEW
     /// the halo around it does the glowing. An additive core has no silhouette and reads
     /// as a smudge at distance, which is most of D1.
     /// </summary>
+    /// <summary>
+    /// The atom's core: a translucent cold-blue sphere, not a solid bright one.
+    ///
+    /// IT USED TO BE Unlit/Color AT NEARLY WHITE, on the reasoning that it needed a hard
+    /// edge to read as an object at 200 metres and that sitting above the bloom
+    /// threshold would give it a halo of its own. Both are true and together they made
+    /// it a headlight: a flat white ball, brighter than the quasar it is flying past,
+    /// and — because it is opaque — a hole punched in whatever is behind it.
+    ///
+    /// Hydrogen is a single atom. It should read as something the light is passing
+    /// THROUGH, which means you have to be able to see through it. Alpha blended at a
+    /// low tint gives a soft body you can see the starfield in, and the separate
+    /// additive halo still does the work of making it visible at distance.
+    ///
+    /// The legacy particle shaders take colour AND alpha through _TintColor and multiply
+    /// the result by two, which is why the numbers below look half of what they are.
+    /// </summary>
     public static Material AtomCoreMaterial()
     {
         Material existing = AssetDatabase.LoadAssetAtPath<Material>(AtomCoreMaterialPath);
         if (existing != null) return existing;
 
-        Shader shader = Shader.Find("Unlit/Color");
+        Shader shader = FindAlphaBlendedParticleShader();
         if (shader == null) return null;
 
         EnsureFolder();
@@ -327,14 +351,60 @@ public static class TutorialWorldAssets_NEW
         Material material = new Material(shader);
         material.name = "TutorialAtomCore";
 
-        // Above white on the blue channel, so the post-process bloom the tutorial shares
-        // with PlaytestBuild catches it and the core carries a halo of its own.
-        material.SetColor("_Color", new Color(0.86f, 0.95f, 1f, 1f));
+        ApplyAtomCoreLook(material);
 
         AssetDatabase.CreateAsset(material, AtomCoreMaterialPath);
         Debug.Log("[TutorialWorldAssets_NEW] Generated " + AtomCoreMaterialPath + ".");
 
         return material;
+    }
+
+    /// <summary>
+    /// The core's colour and translucency, in one place so the builder can apply it to a
+    /// material generated before the atom stopped being opaque.
+    ///
+    /// Doubled by the shader, so this is half the colour you want and half the alpha.
+    /// 0.22 of alpha lands at about 45% opaque: a body, with the sky visible through it.
+    /// </summary>
+    public static void ApplyAtomCoreLook(Material material)
+    {
+        if (material == null) return;
+
+        material.mainTexture = null;
+
+        if (material.HasProperty("_TintColor"))
+            material.SetColor("_TintColor", new Color(0.30f, 0.40f, 0.50f, 0.22f));
+
+        // Left over from the opaque version, and ignored by the particle shaders — but a
+        // stale white here is exactly the sort of thing that gets read as the live value
+        // when somebody comes back to this in three months.
+        if (material.HasProperty("_Color"))
+            material.SetColor("_Color", new Color(0.60f, 0.80f, 1f, 0.45f));
+    }
+
+    /// <summary>
+    /// An alpha-blended particle shader, by the same reasoning and the same order as
+    /// FindAdditiveParticleShader.
+    ///
+    /// Falls back to the additive one rather than to nothing: additive is see-through
+    /// too, which is the half of this that matters, and a dim atom beats no atom.
+    /// </summary>
+    /// <summary>The shader AtomCoreMaterial would pick, for the builder's repair.</summary>
+    public static Shader AlphaBlendedParticleShader() { return FindAlphaBlendedParticleShader(); }
+
+    static Shader FindAlphaBlendedParticleShader()
+    {
+        Shader shader = Shader.Find("Mobile/Particles/Alpha Blended");
+        if (shader != null) return shader;
+
+        shader = Shader.Find("Legacy Shaders/Particles/Alpha Blended");
+        if (shader != null) return shader;
+
+        Debug.LogWarning("[TutorialWorldAssets_NEW] No built-in alpha blended particle shader " +
+                         "found; the atom's core will be additive instead. It will still be " +
+                         "see-through, just brighter where it overlaps its own halo.");
+
+        return FindAdditiveParticleShader();
     }
 
     /// <summary>

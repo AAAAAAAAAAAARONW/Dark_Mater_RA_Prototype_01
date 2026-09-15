@@ -53,15 +53,23 @@ public class Beat_TurnAround_NEW : TutorialBeat_NEW
     bool _forced;
 
     /// <summary>
-    /// Hold the look stick sideways, the short way round to the disc.
+    /// Push the look stick sideways, the short way round to the disc, by as much of the
+    /// turn as is still left.
     ///
-    /// A HOLD AND NOT A CIRCLE. The obvious picture for "turn around" is a knob going
+    /// A PUSH AND NOT A CIRCLE. The obvious picture for "turn around" is a knob going
     /// round the ring, and it is the wrong one: rolling the stick round its rim is a
     /// different gesture from pushing it to one side, and this beat is satisfied by the
     /// second. A visitor who copied the circle would spin the view and arrive back where
     /// they started, which — because yaw is measured with shortest-angle deltas — reads
     /// as not having turned at all. The gate would be right and the picture would have
     /// caused the failure.
+    ///
+    /// THE TWO HALVES OF THE GATE ARE ANSWERED IN ORDER, which is also the order they
+    /// are actually met in. Until the turn is far enough, the knob reports how much of
+    /// the 150 degrees is left; after that it reports how far off frame the disc still
+    /// is, so a player who has turned past the threshold looking at their feet is told
+    /// to bring it into view rather than left staring at a dot that says nothing. Both
+    /// come off the same numbers GateSatisfied is judged on.
     ///
     /// WHICH SIDE is read off the disc, so the diagram sends the player the short way
     /// round to the thing the gate also requires to be in frame. Beyond 180 degrees both
@@ -75,13 +83,35 @@ public class Beat_TurnAround_NEW : TutorialBeat_NEW
             if (lookRig == null || disc == null) return base.StickGesture;
 
             Vector3 local = lookRig.transform.InverseTransformPoint(disc.position);
+            TutorialStickGuide_NEW.StickSide side = Beat_LookAt_NEW.LookSide(lookRig);
 
-            // Behind and dead centre is the one bearing with no short way round. Right
-            // is as good an answer as left, and a fixed answer beats a flickering one.
-            float side = Mathf.Abs(local.x) > 0.0001f ? Mathf.Sign(local.x) : 1f;
+            if (!TurnedFar())
+            {
+                // Behind and dead centre is the one bearing with no short way round.
+                // Right is as good an answer as left, and a fixed answer beats a
+                // flickering one.
+                float way = Mathf.Abs(local.x) > 0.0001f ? Mathf.Sign(local.x) : 1f;
 
-            return TutorialStickGuide_NEW.Gesture.Hold(Beat_LookAt_NEW.LookSide(lookRig),
-                                                       new Vector2(side, 0f));
+                float left = minYawDegrees > 0.0001f
+                    ? (minYawDegrees - YawTurned()) / minYawDegrees
+                    : 0f;
+
+                return TutorialStickGuide_NEW.Gesture.Track(side, new Vector2(way, 0f),
+                                                            Mathf.Clamp01(left));
+            }
+
+            // Turned far enough; the disc still has to be in frame. Now it is the same
+            // question Beat_LookAt_NEW asks, so it gets the same answer.
+            float flat = new Vector2(local.x, local.z).magnitude;
+
+            Vector2 bearing = new Vector2(Mathf.Atan2(local.x, local.z) * Mathf.Rad2Deg,
+                                          Mathf.Atan2(local.y, flat) * Mathf.Rad2Deg);
+
+            float offBy = Vector3.Angle(Vector3.forward, local) - discInFrameHalfAngle;
+
+            return TutorialStickGuide_NEW.Gesture.Track(
+                side, bearing,
+                Mathf.Clamp01(offBy / TutorialStickGuide_NEW.FullDeflectionDegrees));
         }
     }
 

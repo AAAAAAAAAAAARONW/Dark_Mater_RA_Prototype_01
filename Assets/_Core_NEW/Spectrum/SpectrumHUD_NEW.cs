@@ -77,6 +77,25 @@ public class SpectrumHUD_NEW : MonoBehaviour
 
     // ── Public API ───────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Put the continuum back where it started, as if no time had passed.
+    ///
+    /// The redshift offset only ever accumulates, which is right for a journey that runs
+    /// once and forward. It is not right for anything that restarts: the tutorial loops
+    /// all day on an attract timer, and a spectrum that drifts from the moment the scene
+    /// loads would show its Ly-alpha peak at a different place on every run, depending
+    /// on how long the last visitor took. Nobody can rehearse against that, and the
+    /// authored line positions stop meaning what they say.
+    ///
+    /// Nothing in the journey calls this; it is here so a restart has somewhere to put
+    /// the clock back to.
+    /// </summary>
+    public void ResetRedshift()
+    {
+        _redshiftOffset = 0f;
+        Redraw();
+    }
+
     /// <summary>Apply a layer's continuum shape. Rebakes the table if the peak moved.</summary>
     public void Configure(SpectrumProfile_NEW profile)
     {

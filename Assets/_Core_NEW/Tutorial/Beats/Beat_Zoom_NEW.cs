@@ -69,14 +69,22 @@ public class Beat_Zoom_NEW : TutorialBeat_NEW
     public Direction Way { get { return direction; } }
 
     /// <summary>
-    /// Push the left stick up to zoom in, down to zoom out.
+    /// Push the left stick up to zoom in, down to zoom out, by as much as the gate is
+    /// still short by.
     ///
-    /// A PUSH AND NOT A HOLD, which is the distinction the two motions exist to make.
-    /// The look gates are reached by holding until something arrives; the zoom is a rate,
-    /// and the lesson is only that the stick moves the view — "not that it can be
-    /// pinned", as the threshold's own tooltip puts it. A knob that parked at the rim
-    /// would be teaching a visitor to hold the view at its narrowest, which is exactly
-    /// the state A3 then exists to get them back out of.
+    /// THE KNOB COMES HOME AS THE VIEW ARRIVES, which is what makes this teach a rate
+    /// rather than a position. The lesson is that the stick moves the view — "not that
+    /// it can be pinned", as the threshold's own tooltip puts it — and a diagram that
+    /// stayed hard over after the gate was met would be teaching a visitor to hold the
+    /// view at its narrowest, which is exactly the state A3 then exists to get them out
+    /// of. Reaching zero says stop as clearly as the rim says push.
+    ///
+    /// AND IT POINTS THE OTHER WAY WHILE THE VIEW HAS TO BE BACKED OFF FIRST. A beat
+    /// that opens with its gate already true asks the player to leave the threshold
+    /// before crossing it — see _mustLeaveFirst — and for those few seconds the honest
+    /// instruction is the opposite of the beat's own name. A diagram still pointing at
+    /// ZOOM IN while the beat is waiting for the player to zoom out would be the one
+    /// thing worse than no diagram.
     ///
     /// The left stick because that is the only stick this component reads, and the sign
     /// from its invert flag rather than from a constant — see TutorialZoom_NEW.Inverted.
@@ -88,8 +96,24 @@ public class Beat_Zoom_NEW : TutorialBeat_NEW
             bool up = direction == Direction.In;
             if (zoom != null && zoom.Inverted) up = !up;
 
-            return TutorialStickGuide_NEW.Gesture.Push(TutorialStickGuide_NEW.StickSide.Left,
-                                                       up ? Vector2.up : Vector2.down);
+            // Backing off first: the other way, and firmly — the ask is not "a little
+            // less", it is "off the threshold".
+            if (_mustLeaveFirst)
+                return TutorialStickGuide_NEW.Gesture.Track(TutorialStickGuide_NEW.StickSide.Left,
+                                                            up ? Vector2.down : Vector2.up, 1f);
+
+            float amount = zoom != null ? zoom.Amount : 0f;
+
+            // How much of the range is still between the view and the gate. Each side is
+            // scaled by its own half of the range, so half a knob means half the work
+            // left whichever way the beat is asking.
+            float demand = direction == Direction.In
+                ? (threshold - amount) / Mathf.Max(threshold, 0.01f)
+                : (amount - threshold) / Mathf.Max(1f - threshold, 0.01f);
+
+            return TutorialStickGuide_NEW.Gesture.Track(TutorialStickGuide_NEW.StickSide.Left,
+                                                        up ? Vector2.up : Vector2.down,
+                                                        Mathf.Clamp01(demand));
         }
     }
 

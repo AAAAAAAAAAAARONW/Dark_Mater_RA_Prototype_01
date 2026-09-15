@@ -18,16 +18,28 @@ using TMPro;
 /// as the A prompt's disc and verb, which is deliberate: one grammar for every control
 /// this piece teaches.
 ///
-/// THREE MOTIONS, AND THE DIFFERENCE BETWEEN THEM IS THE LESSON:
+/// IT IS NOT A LOOP. A canned animation says what to do and then says it again, and
+/// keeps saying it in exactly the same words whether the player has done nothing or is
+/// one degree short. The knob instead sits where the RUNNING BEAT'S OWN GATE says the
+/// stick still has to go, and comes home as they get there — hard over when the mote is
+/// behind them, half out when it is at the edge of frame, home the moment it is in the
+/// reticle. Move the stick and the dot moves with it.
 ///
-///   Push   Out and straight back. A nudge — the control does something and lets go.
-///          The zoom lesson is this: A2 and A3 ask for a push, not for a position.
-///   Hold   Out, and stays out. "Keep pushing until something happens", which is what
-///          every look gate actually asks for — B1's mote and B3's 150° turn are both
-///          reached by holding, and a diagram that flicked back would be telling the
-///          player to let go before they had arrived.
+/// That makes it a readout of how far they are from the next frame of the piece, which
+/// is the thing a walk-up visitor has no other way to know. It also closes the loop the
+/// May 2026 playtest found open: the failure was non-gamers not working out the camera,
+/// and what they were missing was not an instruction but the feedback that their thumb
+/// was connected to anything at all.
+///
+/// FOUR MOTIONS. The first is the one that matters and the other three are canned:
+///
+///   Track  The knob follows the gate. Every gated beat uses this, and each one works
+///          its own demand out of the same numbers its gate is judged on, so the
+///          picture cannot disagree with the gate — see TutorialBeat_NEW.StickGesture.
+///   Push   Out and straight back. A nudge.
+///   Hold   Out, and stays out.
 ///   Sweep  Round the ring. "Anywhere you like" — A1's LOOK AROUND, which is the one
-///          prompt in the piece with no target and no direction.
+///          prompt in the piece with no target, no direction and no gate to read.
 ///
 /// WHERE THE DIRECTION COMES FROM. Nothing here decides it. The running beat does, and
 /// most of them work it out rather than storing it: Beat_LookAt_NEW points the knob at
@@ -63,8 +75,25 @@ public class TutorialStickGuide_NEW : MonoBehaviour
         Hold,
 
         /// <summary>Round the ring. "Anywhere you like."</summary>
-        Sweep
+        Sweep,
+
+        /// <summary>
+        /// The knob sits where the beat's own gate says the player still has to push,
+        /// and comes home as they get there. Not a loop at all — see the class summary.
+        /// </summary>
+        Track
     }
+
+    /// <summary>
+    /// How far off a gate has to be before the knob is asking for everything the stick
+    /// has, in degrees.
+    ///
+    /// Shared by every beat that measures an angle, so "hard over" means the same amount
+    /// of work wherever the player meets it. 45 is a little under half a turn of the
+    /// head: past that the diagram stops saying how far and starts only saying which way,
+    /// which is the right thing to say about a target that is not on screen yet.
+    /// </summary>
+    public const float FullDeflectionDegrees = 45f;
 
     /// <summary>
     /// The authored answer, for a beat that cannot work its own out.
@@ -105,6 +134,15 @@ public class TutorialStickGuide_NEW : MonoBehaviour
         /// </summary>
         public Vector2 direction;
 
+        /// <summary>
+        /// Track only: how far the stick still has to go, 0 to 1.
+        ///
+        /// 1 is hard over, 0 is "you are there". It is the gate's own error, so it falls
+        /// as the player closes on whatever the beat is waiting for and reaches zero the
+        /// moment the beat is satisfied.
+        /// </summary>
+        public float demand;
+
         public bool IsNone { get { return stick == StickSide.None; } }
 
         public static Gesture None
@@ -120,6 +158,21 @@ public class TutorialStickGuide_NEW : MonoBehaviour
         public static Gesture Hold(StickSide stick, Vector2 direction)
         {
             return new Gesture { stick = stick, motion = StickMotion.Hold, direction = direction };
+        }
+
+        /// <summary>
+        /// The knob follows the gate. `demand` is how far the stick still has to go,
+        /// 1 hard over and 0 arrived.
+        /// </summary>
+        public static Gesture Track(StickSide stick, Vector2 direction, float demand)
+        {
+            return new Gesture
+            {
+                stick = stick,
+                motion = StickMotion.Track,
+                direction = direction,
+                demand = Mathf.Clamp01(demand)
+            };
         }
 
         public static Gesture Sweep(StickSide stick, float sign)
@@ -192,9 +245,36 @@ public class TutorialStickGuide_NEW : MonoBehaviour
     [Tooltip("Seconds to fade in or out when the instruction changes.")]
     [SerializeField] float fadeSeconds = 0.25f;
 
+    [Header("Tracking")]
+    [Tooltip("Seconds for the knob to catch up with the gate. Short, but not zero.\n\n" +
+             "The demand is computed from live input, so it carries the stick's own " +
+             "jitter and the recentre's ramp. Following it exactly would make the knob " +
+             "shiver; a little lag turns the same signal into something that reads as a " +
+             "thumb moving.")]
+    [SerializeField] float trackSmoothing = 0.12f;
+
+    [Tooltip("How far the knob breathes in and out while it is waiting, as a fraction of " +
+             "where it is sitting.\n\n" +
+             "A player who has not touched the stick yet is looking at a dot that does " +
+             "not move, and a HUD element that does not move reads as decoration. This " +
+             "is small — enough to say the diagram is live, not enough to be read as the " +
+             "movement being asked for.")]
+    [Range(0f, 0.3f)]
+    [SerializeField] float breathe = 0.08f;
+
+    [SerializeField] float breatheSpeed = 2.2f;
+
+    [Tooltip("Below this demand the beat is as good as satisfied and the knob sits home.")]
+    [Range(0f, 0.3f)]
+    [SerializeField] float arrivedBelow = 0.04f;
+
     Gesture _gesture;
     float _phase;
     float _alpha;
+
+    /// <summary>Where the knob actually is, 0 to 1, lagging the demand by trackSmoothing.</summary>
+    float _shownDemand;
+    float _demandVelocity;
 
     /// <summary>Where the knob was last drawn, so a direction change eases rather than jumps.</summary>
     Vector2 _shownDirection = Vector2.right;
@@ -208,8 +288,10 @@ public class TutorialStickGuide_NEW : MonoBehaviour
     public void SetGesture(Gesture gesture)
     {
         // A new kind of instruction restarts the animation, so the player sees the whole
-        // motion from the beginning rather than joining it half way out.
-        if (!_gesture.SameShapeAs(gesture)) _phase = 0f;
+        // motion from the beginning rather than joining it half way out. A tracked knob
+        // starts from wherever the last beat left it and eases to the new demand, which
+        // is one continuous movement across a beat change rather than two.
+        if (!_gesture.SameShapeAs(gesture) && gesture.motion != StickMotion.Track) _phase = 0f;
 
         _gesture = gesture;
 
@@ -228,6 +310,8 @@ public class TutorialStickGuide_NEW : MonoBehaviour
         _gesture = Gesture.None;
         _phase = 0f;
         _alpha = 0f;
+        _shownDemand = 0f;
+        _demandVelocity = 0f;
 
         Apply();
     }
@@ -252,6 +336,11 @@ public class TutorialStickGuide_NEW : MonoBehaviour
             : (_gesture.IsNone ? 0f : 1f);
 
         if (!_gesture.IsNone) _phase += dt;
+
+        _shownDemand = trackSmoothing > 0f
+            ? Mathf.SmoothDamp(_shownDemand, _gesture.demand, ref _demandVelocity, trackSmoothing,
+                               Mathf.Infinity, dt)
+            : _gesture.demand;
 
         Apply();
     }
@@ -293,6 +382,17 @@ public class TutorialStickGuide_NEW : MonoBehaviour
         // last one rather than collapsing to the centre stops the knob flickering as the
         // player arrives — which is the exact moment they are looking at it.
         if (dir.sqrMagnitude > 0.0001f) _shownDirection = dir.normalized;
+
+        if (_gesture.motion == StickMotion.Track)
+        {
+            // Arrived: home, and no breathing. A knob still twitching at a gate that is
+            // already met would be asking for something the player has finished doing.
+            if (_shownDemand <= arrivedBelow) return Vector2.zero;
+
+            float alive = 1f + breathe * Mathf.Sin(_phase * breatheSpeed);
+
+            return _shownDirection * travelRadius * Mathf.Clamp01(_shownDemand * alive);
+        }
 
         float period = _gesture.motion == StickMotion.Hold ? holdSeconds : pushSeconds;
         float t = period > 0f ? Mathf.Repeat(_phase, period) / period : 0f;

@@ -329,6 +329,13 @@ public static class TutorialSceneBuilder_NEW
         TutorialSlowMotion_NEW slowMotion = BuildSlowMotion(root.transform);
         TutorialPause_NEW pause = BuildPause(root.transform, director, slowMotion);
         TutorialTravel_NEW travel = player.GetComponent<TutorialTravel_NEW>();
+
+        // Before any atom is built, so the three that follow all pick up the corrected
+        // materials rather than the first one repairing an asset the other two have
+        // already been handed.
+        RepairAtomCoreTranslucency();
+        RepairAtomHaloBrightness();
+
         TutorialAtom_NEW atom = BuildAtom(world.transform, camera.transform, travel);
         TutorialAtomCluster_NEW cluster = BuildAtomCluster(world.transform, camera.transform,
                                                            travel, spectrum);
@@ -1247,17 +1254,21 @@ public static class TutorialSceneBuilder_NEW
         Wire(d5).Flag("useScaledTime", false).Apply();
 
         Beat_Cinematic_NEW d6 = Cinematic(parent, "D6", 10f,
-            "More atoms. No redshift yet, so every atom absorbs the same wavelength and the " +
-            "same line gets deeper — up to all of the light at that wavelength.");
+            "More atoms, one after another. Every one absorbs the same wavelength — that " +
+            "is what hydrogen does — but the spectrum has carried the last mark redward " +
+            "by the time the next arrives, so each atom cuts its own line and a row of " +
+            "them builds up. This is a forest forming.");
 
         Beat_Cinematic_NEW d7 = Cinematic(parent, "D7", 8f,
-            "Redshift. The UV, visible and IR bands stay where they are; the spectrum " +
-            "stretches toward red underneath them, and the line moves with it.");
+            "Redshift, named. The UV, visible and IR bands stay where they are; the " +
+            "spectrum the player has been watching slide is the light stretching toward " +
+            "red, and it carries every line it has collected with it.");
 
         Beat_Cinematic_NEW d8 = Cinematic(parent, "D8", 10f,
-            "One more atom, mid-redshift. It absorbs at the same wavelength as before, but " +
-            "the first line has already moved on — so a second line appears. This is how " +
-            "a forest of lines forms.");
+            "One more atom, with the row already on screen. It absorbs at the same " +
+            "wavelength as all the others and lands at the blue end of the row, which is " +
+            "where the newest line always is — the spacing is a record of the distance " +
+            "between the atoms that made them.");
 
         Beat_Cinematic_NEW d9 = Cinematic(parent, "D9", 5f,
             "UV and IR fold away, leaving the visible light and the lines carried in it.");
@@ -1576,6 +1587,7 @@ public static class TutorialSceneBuilder_NEW
         IndicatorArrow(trailArrow, arrowColor);
 
         // ── Retired: the leader between the two arrows ───────────────────────
+        // (See below for why the arrow is back under the bar as well.)
         // It drew a line from the arrow on the trail to the arrow on the bar, on the
         // reading that the pairing needed a connector. It does not. The two marks ARE
         // one wavelength seen twice, and the way to say that is to put them at the same
@@ -1601,13 +1613,13 @@ public static class TutorialSceneBuilder_NEW
             .Ref("trailArrowGroup", trailArrow.GetComponent<CanvasGroup>())
             .Apply();
 
-        // The bar moved to the bottom of the frame, so its arrow moved to the top of the
-        // bar — see barArrowAbove. Six pixels of gap was fine hanging under the bar and
-        // is not above it, where the UV / VISIBLE / IR labels already overhang by ten.
+        // The arrow hangs under the bar again, where nothing else is, now that the bar is
+        // back on the top strip. The wider gap was only there to clear the UV / VISIBLE /
+        // IR labels, which overhang the TOP edge.
         RepairSerialized(indicator, "barArrowGap",
-                         p => Mathf.Approximately(p.floatValue, 6f),
-                         p => p.floatValue = 22f,
-                         "line arrow now clears the band labels above the bar.");
+                         p => Mathf.Approximately(p.floatValue, 22f),
+                         p => p.floatValue = 6f,
+                         "line arrow back to a six pixel gap under the bar.");
 
         return indicator;
     }
@@ -1834,12 +1846,24 @@ public static class TutorialSceneBuilder_NEW
 
         RepairLinePositions(spectrum);
 
-        // absorbDepth used to be every atom's depth, 0.35. It is now only the LATER atoms'
-        // (the first cuts at firstAbsorbDepth), and at 0.35 D6 would black the line out
-        // on its first hit instead of deepening it.
-        RepairSerialized(spectrum, "absorbDepth", p => Mathf.Approximately(p.floatValue, 0.35f),
-                         p => p.floatValue = 0.1f,
-                         "later atoms now deepen the line by 0.1 each; the first cuts at 0.7.");
+        // absorbDepth was the shallow top-up every atom after the first added to one
+        // shared line. There is no shared line any more — the spectrum drifts from the
+        // start, so each atom cuts its own — and no first-and-later split either: every
+        // atom is the same atom and does the same thing. atomAbsorbDepth is the one
+        // number, and Unity carries the tuned value across through FormerlySerializedAs.
+        //
+        // Nothing to repair, then. Left as a note because a field vanishing from the
+        // Inspector without explanation is how somebody spends an afternoon looking for it.
+
+        // The spectrum drifts from the start now, so the D3 swap has nothing left to
+        // switch on and a scene still pointing at the still profile would hold the curve
+        // motionless until D7. Both profiles carry the same rate; this is the one that
+        // shipped at zero.
+        RepairSerialized(profile, "driftPerSecond",
+                         p => Mathf.Approximately(p.floatValue, 0f),
+                         p => p.floatValue = TutorialWorldAssets_NEW.DriftPerSecond,
+                         "the tutorial's spectrum drifts from the moment it is on screen, " +
+                         "not from D7 — so every atom's line is cut into clean spectrum.");
 
         // ── Retired: the enlarged spectrum on pause ──────────────────────────
         // D5 used to bring the bar to the middle of the screen, enlarged over a dimmed
@@ -1875,19 +1899,19 @@ public static class TutorialSceneBuilder_NEW
             .Num("delaySeconds", 1.5f)
             .Apply();
 
-        // A scene built before the bar moved down still carries the top-edge journey in
-        // its slide, so D3 would take the bar off the bottom of the screen and park it
-        // where it no longer lives. Only the exact pair this builder used to write is
-        // replaced; a journey somebody has tuned is left alone.
+        // A scene that took the bar's one commit at the bottom of the frame still carries
+        // that journey in its slide, so D3 would drift it back down to a dock that no
+        // longer exists. Only the exact pair this builder used to write is replaced; a
+        // journey somebody has tuned is left alone.
         RepairSerialized(spectrumSlide, "from",
                          p => Approximately(p.vector2Value, PastSpectrumBarEntry),
                          p => p.vector2Value = SpectrumBarEntry,
-                         "spectrum bar now enters from above and settles at the bottom.");
+                         "spectrum bar enters from below the centre again and settles at the top.");
 
         RepairSerialized(spectrumSlide, "to",
                          p => Approximately(p.vector2Value, PastSpectrumBarPosition),
                          p => p.vector2Value = SpectrumBarPosition,
-                         "spectrum bar now docks at the bottom of the frame, near the light.");
+                         "spectrum bar docks at the top strip again.");
 
         // Nothing is on screen before D1. TutorialSpectrum_NEW hides it on Awake as
         // well, so a scene saved with the bar up does not flash it for a frame.
@@ -1897,39 +1921,35 @@ public static class TutorialSceneBuilder_NEW
     }
 
     /// <summary>
-    /// Where the spectrum bar lives, anchored to the BOTTOM edge of the canvas.
+    /// Where the spectrum bar lives, anchored to the top edge of the canvas.
     ///
-    /// It docked at the top until now, on the reasoning that every other element had
-    /// already claimed a side and the top strip was the only space left. That was true
-    /// about the space and wrong about the reading. The bar is a readout OF the light,
-    /// and since the follow view put the light and its trail in the lower half of the
-    /// frame, a bar at the top edge was the one element on screen furthest from the
-    /// thing it describes — the eye had to cross the whole picture to pair a mark on the
-    /// ribbon with a mark on the graph, which is the single pairing Phase 3 exists to
-    /// teach. The leader line in TutorialLineIndicator_NEW was drawing that crossing.
+    /// Every other element has a side: the reticle owns the middle, the range map the
+    /// top right, the zoom gauge the right edge, and the legend, hint and A prompt the
+    /// bottom. The top strip is the only place a readout can live without moving
+    /// something the player has already learned to find.
     ///
-    /// 360 from the bottom is the lowest it can sit without moving anything: the hint
-    /// plate's top edge is at 292, and the bar is 96 tall about this centre, so it runs
-    /// 312 to 408 with a clear 20 pixel gap under it. Going lower means restacking the
-    /// hint, the A prompt and the legend, which are placed by GDD §5's rule that the
-    /// continue affordance is in the same position every time.
+    /// IT WAS TRIED AT THE BOTTOM, on the reasoning that a readout of the light belongs
+    /// near the light. It does not pay: the bottom already carries the three things the
+    /// player is told to act on, and the bar is the one thing they are asked to read.
+    /// Putting it in among them buys a few hundred pixels of proximity and costs the
+    /// separation between "do this" and "look at this".
     /// </summary>
-    static readonly Vector2 SpectrumBarPosition = new Vector2(0f, 360f);
+    static readonly Vector2 SpectrumBarPosition = new Vector2(0f, -78f);
 
     /// <summary>
-    /// Where it comes in from at D1 — higher and nearer the middle, so the drift down
-    /// into place is a real movement rather than a nudge.
+    /// Where it comes in from at D1 — lower and nearer the middle, so the drift upward
+    /// is a real movement rather than a nudge.
     ///
-    /// Anchored to the bottom edge like the dock, so this is 700 pixels up from it:
-    /// above the centre line on a 1080 canvas, clear of the reticle, and plainly not
-    /// where a HUD element belongs. Settling at the bottom is what makes it read as
-    /// having found its place rather than as having been put there.
+    /// Still anchored to the top edge, so this is 420 pixels down from it: below the
+    /// centre line on a 1080 canvas, clear of the reticle, and plainly not where a HUD
+    /// element belongs. Ending up at the top is what makes it read as having found its
+    /// place rather than as having been put there.
     /// </summary>
-    static readonly Vector2 SpectrumBarEntry = new Vector2(0f, 700f);
+    static readonly Vector2 SpectrumBarEntry = new Vector2(0f, -420f);
 
-    /// <summary>The top-edge dock and entry this builder wrote before the bar moved down.</summary>
-    static readonly Vector2 PastSpectrumBarPosition = new Vector2(0f, -78f);
-    static readonly Vector2 PastSpectrumBarEntry = new Vector2(0f, -420f);
+    /// <summary>The bottom-edge dock and entry this builder wrote for one commit.</summary>
+    static readonly Vector2 PastSpectrumBarPosition = new Vector2(0f, 360f);
+    static readonly Vector2 PastSpectrumBarEntry = new Vector2(0f, 700f);
 
     /// <summary>
     /// How big it is. Wide and shallow, because a spectrum is read left to right and its
@@ -1954,7 +1974,7 @@ public static class TutorialSceneBuilder_NEW
     /// </summary>
     static readonly Vector2[] PastSpectrumBarPlacements =
     {
-        PastSpectrumBarPosition, SpectrumBarSize,         // top edge, third guess
+        PastSpectrumBarPosition, SpectrumBarSize,         // bottom edge, fourth guess
         new Vector2(0f, -90f),  new Vector2(560f, 90f),   // below centre, second guess
         new Vector2(0f, -40f),  new Vector2(720f, 200f)   // centre slab, first guess
     };
@@ -1982,8 +2002,8 @@ public static class TutorialSceneBuilder_NEW
                    "SpectrumBar", PastSpectrumBarPlacements);
     }
 
-    /// <summary>Bottom edge of the canvas. See SpectrumBarPosition for why it moved.</summary>
-    static readonly Vector2 SpectrumBarAnchor = new Vector2(0.5f, 0f);
+    /// <summary>Top edge of the canvas. See SpectrumBarPosition.</summary>
+    static readonly Vector2 SpectrumBarAnchor = new Vector2(0.5f, 1f);
 
     /// <summary>
     /// Move a rect the builder placed badly to where it belongs now — but only if it is
@@ -2069,6 +2089,72 @@ public static class TutorialSceneBuilder_NEW
                          "0.412, onto the bright flank of the Ly-alpha peak. At 0.30 the " +
                          "continuum is 0.18 of full height, so the line was cut into eleven " +
                          "pixels of curve and could not be seen.", spectrum);
+    }
+
+    /// <summary>
+    /// Make the atom see-through, on a material generated while it was opaque.
+    ///
+    /// AtomCoreMaterial only generates the asset when it is missing, which is right —
+    /// it is a material somebody may have tuned — but it means a corrected default never
+    /// reaches a project that already has one. This is the same exception RepairRect
+    /// makes, and the same narrow test: only a material still on Unlit/Color, which is
+    /// what this builder used to write and what nobody would choose for a translucent
+    /// atom, is changed.
+    ///
+    /// Run once per build rather than per atom, so three atoms do not log it three times.
+    /// </summary>
+    static void RepairAtomCoreTranslucency()
+    {
+        Material core = TutorialWorldAssets_NEW.AtomCoreMaterial();
+        if (core == null || core.shader == null) return;
+        if (core.shader.name != "Unlit/Color") return;
+
+        Shader replacement = TutorialWorldAssets_NEW.AlphaBlendedParticleShader();
+        if (replacement == null) return;
+
+        Undo.RecordObject(core, "Repair atom core translucency");
+        core.shader = replacement;
+        TutorialWorldAssets_NEW.ApplyAtomCoreLook(core);
+        EditorUtility.SetDirty(core);
+        AssetDatabase.SaveAssets();
+
+        Debug.LogWarning("[TutorialSceneBuilder_NEW] The hydrogen atom's core is translucent " +
+                         "now. It was an opaque near-white sphere, which read as a headlight " +
+                         "and punched a hole in whatever was behind it — the light is " +
+                         "supposed to be passing THROUGH the atom.", core);
+    }
+
+    /// <summary>
+    /// Take the glare off the halo, on a material generated while it was bright.
+    ///
+    /// Same reasoning and the same narrow test as RepairAtomCoreTranslucency: only the
+    /// exact tint this builder used to write is replaced.
+    /// </summary>
+    static readonly Color PastAtomHaloTint = new Color(0.38f, 0.62f, 0.92f, 0.5f);
+    static readonly Color AtomHaloTint = new Color(0.22f, 0.34f, 0.52f, 0.30f);
+
+    static void RepairAtomHaloBrightness()
+    {
+        Material halo = TutorialWorldAssets_NEW.AtomHaloMaterial();
+        if (halo == null || !halo.HasProperty("_TintColor")) return;
+
+        Color tint = halo.GetColor("_TintColor");
+
+        if (!Approximately(tint, PastAtomHaloTint)) return;
+
+        Undo.RecordObject(halo, "Repair atom halo brightness");
+        halo.SetColor("_TintColor", AtomHaloTint);
+        EditorUtility.SetDirty(halo);
+        AssetDatabase.SaveAssets();
+
+        Debug.LogWarning("[TutorialSceneBuilder_NEW] Dimmed the atom's halo. Additive stacks, " +
+                         "and it overlaps itself at the centre where the core already is.", halo);
+    }
+
+    static bool Approximately(Color a, Color b)
+    {
+        return Mathf.Approximately(a.r, b.r) && Mathf.Approximately(a.g, b.g) &&
+               Mathf.Approximately(a.b, b.b) && Mathf.Approximately(a.a, b.a);
     }
 
     /// <summary>
@@ -2304,6 +2390,23 @@ public static class TutorialSceneBuilder_NEW
             .Ref("glow", glow)
             .Ref("halo", halo.transform)
             .Apply();
+
+        // The third thing making the atom a headlight, after the opaque core and the
+        // halo: a point light running to 6 at impact, in a scene whose only other light
+        // is a quasar 900 units away. It lit the player's own trail from the side.
+        //
+        // Still there, and still growing with the approach — the atom has to look like
+        // it is arriving — just at a level that reads as a glow rather than a flash.
+        RepairSerialized(atom, "glowAtImpact",
+                         p => Mathf.Approximately(p.floatValue, 6f),
+                         p => p.floatValue = 2.2f,
+                         "atom's light dimmed at impact. It was brighter than anything else " +
+                         "in the frame.");
+
+        RepairSerialized(atom, "glowAtSpawn",
+                         p => Mathf.Approximately(p.floatValue, 0.4f),
+                         p => p.floatValue = 0.15f,
+                         "atom's light dimmed at spawn, to keep the growth through the approach.");
 
         // Nothing is on screen before D1. TutorialAtom_NEW also hides itself on Awake.
         if (IsFresh(go)) go.SetActive(false);

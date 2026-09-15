@@ -48,19 +48,8 @@ public class TutorialLineIndicator_NEW : MonoBehaviour
 
     [SerializeField] CanvasGroup barArrowGroup;
 
-    [Tooltip("Pixels between the edge of the bar and the tip of the arrow.\n\n" +
-             "Above the bar this has to clear the UV / VISIBLE / IR labels, which hang " +
-             "ten pixels over the top edge and are eighteen tall.")]
-    [SerializeField] float barArrowGap = 22f;
-
-    [Tooltip("Hang the arrow ABOVE the bar, pointing down at the line, instead of below " +
-             "it pointing up.\n\n" +
-             "Above, since the bar docks at the bottom of the frame and the trail is up " +
-             "and to the middle from there: the two marks read as one column that way, " +
-             "and an arrow on the underside would put the tip on the far side of the bar " +
-             "from everything it relates to. Below the bar is also where the hint line is.\n\n" +
-             "Untick it if the bar is ever moved back to the top edge.")]
-    [SerializeField] bool barArrowAbove = true;
+    [Tooltip("Pixels between the bottom of the bar and the tip of the arrow.")]
+    [SerializeField] float barArrowGap = 6f;
 
     [Header("Trail arrow")]
     [SerializeField] RectTransform trailArrow;
@@ -128,16 +117,11 @@ public class TutorialLineIndicator_NEW : MonoBehaviour
 
         float x = Mathf.Clamp01(spectrum.TrackedLinePosition);
 
-        // Which edge it hangs off, and which way it then points. The pivot is the
-        // sprite's apex either way — top centre — so turning it half round about its own
-        // apex leaves the tip exactly where it was, and the gap is always to the tip.
-        float edge = barArrowAbove ? 1f : 0f;
-
-        barArrow.anchorMin = new Vector2(x, edge);
-        barArrow.anchorMax = new Vector2(x, edge);
+        barArrow.anchorMin = new Vector2(x, 0f);
+        barArrow.anchorMax = new Vector2(x, 0f);
         barArrow.pivot = new Vector2(0.5f, 1f);
-        barArrow.anchoredPosition = new Vector2(0f, barArrowAbove ? barArrowGap : -barArrowGap);
-        barArrow.localEulerAngles = new Vector3(0f, 0f, barArrowAbove ? 180f : 0f);
+        barArrow.anchoredPosition = new Vector2(0f, -barArrowGap);
+        barArrow.localEulerAngles = Vector3.zero;
 
         return true;
     }

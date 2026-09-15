@@ -50,7 +50,7 @@ public class Beat_LookAt_NEW : TutorialBeat_NEW
     bool _forced;
 
     /// <summary>
-    /// Hold the look stick towards wherever the target actually is.
+    /// Push the look stick towards the target, by as much as is still missing.
     ///
     /// COMPUTED, NOT AUTHORED, for exactly the reason the beat has no direction field:
     /// "the direction the player has to look is encoded by where the target sits in the
@@ -59,14 +59,17 @@ public class Beat_LookAt_NEW : TutorialBeat_NEW
     /// Scene view, a diagram still leaning right, and a visitor doing what the picture
     /// says and never passing the gate.
     ///
-    /// It is a bearing in degrees rather than a projection, so a target BEHIND the
-    /// player still reads correctly: C4 reuses this beat for the quasar after C3 has
+    /// THE DEMAND IS THE GATE'S OWN ERROR, off the same angle IsInReticle is judged on
+    /// and against the same reticleHalfAngle. So the knob is hard over while the mote is
+    /// behind them, eases back as they turn towards it, and is home on the frame the
+    /// gate opens — there is no second definition of "close enough" to fall out of step
+    /// with the first.
+    ///
+    /// Direction is a bearing in degrees rather than a projection, so a target BEHIND
+    /// the player still reads correctly: C4 reuses this beat for the quasar after C3 has
     /// reversed the course, and a projected direction would collapse to nearly nothing
     /// at the moment the answer matters most. Yaw of ±180 leans the knob hard sideways,
     /// which is the right instruction — turn first, then look up or down.
-    ///
-    /// Hold rather than Push: every gate here is "keep going until it is in the
-    /// reticle", and a knob that flicked back would be saying let go before you arrive.
     /// </summary>
     public override TutorialStickGuide_NEW.Gesture StickGesture
     {
@@ -74,8 +77,25 @@ public class Beat_LookAt_NEW : TutorialBeat_NEW
         {
             if (lookRig == null || target == null) return base.StickGesture;
 
-            return TutorialStickGuide_NEW.Gesture.Hold(LookSide(lookRig), BearingToTarget());
+            return TutorialStickGuide_NEW.Gesture.Track(LookSide(lookRig), BearingToTarget(),
+                                                        Demand());
         }
+    }
+
+    /// <summary>
+    /// How far off the reticle the target still is, as a fraction of a full push.
+    ///
+    /// Measured from the camera as it actually points, which is what IsInReticle does,
+    /// so this reaches zero exactly when the gate opens.
+    /// </summary>
+    float Demand()
+    {
+        Vector3 local = lookRig.transform.InverseTransformPoint(target.position);
+        if (local.sqrMagnitude < 0.0001f) return 0f;
+
+        float offBy = Vector3.Angle(Vector3.forward, local) - reticleHalfAngle;
+
+        return Mathf.Clamp01(offBy / TutorialStickGuide_NEW.FullDeflectionDegrees);
     }
 
     /// <summary>
