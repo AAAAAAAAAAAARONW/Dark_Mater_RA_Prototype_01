@@ -64,6 +64,16 @@ public class TutorialZoom_NEW : MonoBehaviour
     /// <summary>0 at the base field of view, 1 at full zoom.</summary>
     public float Amount { get { return _applied; } }
 
+    /// <summary>
+    /// True when pulling the stick DOWN zooms in.
+    ///
+    /// Read by Beat_Zoom_NEW so the stick diagram leans the way this component actually
+    /// reads the stick. Ticking invert without it would leave every zoom prompt in the
+    /// piece drawing the opposite of what works — which is the same class of quiet
+    /// disagreement WarnIfSharingAStick exists to catch.
+    /// </summary>
+    public bool Inverted { get { return invert; } }
+
     /// <summary>The field of view right now, in degrees. Read by the gauge.</summary>
     public float FieldOfView
     {

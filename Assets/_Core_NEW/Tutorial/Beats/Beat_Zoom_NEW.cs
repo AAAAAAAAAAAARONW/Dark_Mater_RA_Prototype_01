@@ -68,6 +68,31 @@ public class Beat_Zoom_NEW : TutorialBeat_NEW
     /// a wrong hint line can be caught without opening the Inspector.</summary>
     public Direction Way { get { return direction; } }
 
+    /// <summary>
+    /// Push the left stick up to zoom in, down to zoom out.
+    ///
+    /// A PUSH AND NOT A HOLD, which is the distinction the two motions exist to make.
+    /// The look gates are reached by holding until something arrives; the zoom is a rate,
+    /// and the lesson is only that the stick moves the view — "not that it can be
+    /// pinned", as the threshold's own tooltip puts it. A knob that parked at the rim
+    /// would be teaching a visitor to hold the view at its narrowest, which is exactly
+    /// the state A3 then exists to get them back out of.
+    ///
+    /// The left stick because that is the only stick this component reads, and the sign
+    /// from its invert flag rather than from a constant — see TutorialZoom_NEW.Inverted.
+    /// </summary>
+    public override TutorialStickGuide_NEW.Gesture StickGesture
+    {
+        get
+        {
+            bool up = direction == Direction.In;
+            if (zoom != null && zoom.Inverted) up = !up;
+
+            return TutorialStickGuide_NEW.Gesture.Push(TutorialStickGuide_NEW.StickSide.Left,
+                                                       up ? Vector2.up : Vector2.down);
+        }
+    }
+
     protected override void OnBeatEnter()
     {
         _forced = false;

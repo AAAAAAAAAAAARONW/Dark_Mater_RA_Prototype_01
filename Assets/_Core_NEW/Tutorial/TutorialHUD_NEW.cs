@@ -16,7 +16,10 @@ using UnityEngine.UI;
 ///                        move the view before it asks them to — a deliberate departure
 ///                        from GDD §7, which puts the first prompt at B1. Every gated
 ///                        beat then rewrites it through HintMode, so the line always
-///                        states the current ask rather than the first one.
+///                        states the current ask rather than the first one. A stick
+///                        diagram hangs off its left end — TutorialStickGuide_NEW — as
+///                        a child of the plate, so the picture and the words arrive,
+///                        fade and leave as one thing.
 ///   2. Control legend    First seen at B1 and never dismissed. It persists past the
 ///                        end of the tutorial into Phase −1, so there is deliberately
 ///                        no code path that hides it again.
@@ -85,6 +88,14 @@ public class TutorialHUD_NEW : MonoBehaviour
     [SerializeField] TMP_Text hintLabel;
     [SerializeField] CanvasGroup hintGroup;
 
+    [Tooltip("The stick diagram beside the hint line. Optional — with none in the scene " +
+             "the piece is exactly what it was, a line of text.\n\n" +
+             "Driven from the CURRENT beat rather than from whichever beat last wrote the " +
+             "hint line: B2 and B3 keep B1's words and ask for a different movement, so " +
+             "following the words would leave the diagram pointing at a mote the player " +
+             "has already caught.")]
+    [SerializeField] TutorialStickGuide_NEW stickGuide;
+
     [Header("A prompt")]
     [Tooltip("Root of the continue affordance. Same shape, same position, every time.")]
     [SerializeField] GameObject confirmPromptRoot;
@@ -111,6 +122,12 @@ public class TutorialHUD_NEW : MonoBehaviour
 
     /// <summary>The beat whose words are on the hint line, polled for LiveHintText.</summary>
     TutorialBeat_NEW _hintBeat;
+
+    /// <summary>
+    /// The beat that is open, whatever it did to the hint line. The stick diagram
+    /// follows this one — see the stickGuide tooltip for why the two are not the same.
+    /// </summary>
+    TutorialBeat_NEW _currentBeat;
 
     /// <summary>What the beats want on the hint line when the piece is not paused.</summary>
     string _beatHintText;
@@ -156,6 +173,31 @@ public class TutorialHUD_NEW : MonoBehaviour
         TickLegendFade(Time.unscaledDeltaTime);
         TickLiveHint();
         TickHintFade(Time.unscaledDeltaTime);
+        TickStickGuide();
+    }
+
+    /// <summary>
+    /// Hand the stick diagram the current beat's gesture, every frame.
+    ///
+    /// Polled rather than pushed, because most beats compute their gesture from the
+    /// world — the bearing to a mote, which side the disc is on — and there is no event
+    /// for "the player has turned a bit". See TutorialBeat_NEW.StickGesture.
+    ///
+    /// Nothing while paused. The pause card owns the screen and the one instruction that
+    /// matters there is B TO RESUME; a stick diagram behind it would be asking for a
+    /// movement that is not going to do anything.
+    /// </summary>
+    void TickStickGuide()
+    {
+        if (stickGuide == null) return;
+
+        bool paused = pause != null && pause.IsPaused;
+
+        bool live = !paused && _currentBeat != null && _currentBeat.IsActive;
+
+        stickGuide.SetGesture(live
+            ? _currentBeat.StickGesture
+            : TutorialStickGuide_NEW.Gesture.None);
     }
 
     /// <summary>
@@ -202,6 +244,8 @@ public class TutorialHUD_NEW : MonoBehaviour
     {
         if (beat == null) return;
 
+        _currentBeat = beat;
+
         if (!_legendShown && ReachedLegendBeat(beat)) ShowLegend();
 
         // Record what the beat wants; TickLiveHint puts it on screen, so a beat that opens
@@ -244,6 +288,7 @@ public class TutorialHUD_NEW : MonoBehaviour
         _shownHintText = null;
         _promptBeat = null;
         _hintBeat = null;
+        _currentBeat = null;
         _beatHintText = null;
 
         HideAll();
@@ -379,5 +424,7 @@ public class TutorialHUD_NEW : MonoBehaviour
         if (legendGroup != null) legendGroup.alpha = 0f;
         if (hintGroup != null) hintGroup.alpha = 0f;
         if (promptGroup != null) promptGroup.alpha = 0f;
+
+        if (stickGuide != null) stickGuide.ResetForAttract();
     }
 }

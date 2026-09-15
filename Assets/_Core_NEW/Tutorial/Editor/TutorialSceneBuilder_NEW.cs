@@ -291,6 +291,7 @@ public static class TutorialSceneBuilder_NEW
         GameObject legend = BuildLegend(canvas.transform);
         GameObject map = BuildRangeMap(canvas.transform, player, lookRig);
         GameObject hint = BuildHint(canvas.transform);
+        GameObject stickGuide = BuildStickGuide(hint);
         GameObject prompt = BuildConfirmPrompt(canvas.transform);
         GameObject card = BuildAttractCard(canvas.transform);
 
@@ -360,7 +361,8 @@ public static class TutorialSceneBuilder_NEW
 
         // ── HUD and attract components ───────────────────────────────────────
         TutorialHUD_NEW hud = AddIfMissing<TutorialHUD_NEW>(canvas);
-        WireHud(hud, director, legend, reticle, map, hint, prompt);
+        WireHud(hud, director, legend, reticle, map, hint, prompt,
+                stickGuide.GetComponent<TutorialStickGuide_NEW>());
 
         TutorialAttract_NEW attract = AddIfMissing<TutorialAttract_NEW>(canvas);
         WireAttract(attract, director, card, lookRig, player.GetComponent<TutorialTravel_NEW>());
@@ -939,7 +941,23 @@ public static class TutorialSceneBuilder_NEW
             .Copy("hintText", "RIGHT STICK  ·  LOOK AROUND")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
             .Num("duration", 8f)
+            // The only beat that has to be told. A1 is cinematic — there is no target to
+            // read a direction off and no gate to fail — and it is also the first eight
+            // seconds a walk-up visitor spends with the pad, so it is the one frame where
+            // the diagram is doing the most work. Sweep, because LOOK AROUND is the
+            // single prompt in the piece with no direction in it.
+            .Enum("stickGuide", (int)TutorialStickGuide_NEW.GuideKind.LookAround)
             .Apply();
+
+        // Build or Update never writes an enum to a beat that already exists, so a scene
+        // built before the diagram existed would keep A1 at None forever and open on a
+        // hint line with nothing beside it. Narrow test: only a beat still at None, which
+        // is what "nobody has chosen" looks like.
+        RepairSerialized(a1, "stickGuide",
+                         p => p.enumValueIndex == (int)TutorialStickGuide_NEW.GuideKind.None,
+                         p => p.enumValueIndex = (int)TutorialStickGuide_NEW.GuideKind.LookAround,
+                         "A1 now shows the stick diagram sweeping the ring. Every other beat " +
+                         "works its own out from its gate.");
 
         // A2 and A3 are the zoom lesson, in two halves. The GDD has them as silent
         // cinematic frames; teaching the second stick here is the departure, and the
@@ -1405,6 +1423,23 @@ public static class TutorialSceneBuilder_NEW
                          "absorption lines enabled on the trail — PhotonSpectrumTrail was " +
                          "turning them off every frame.");
 
+        // THE LIGHT NEEDS ITS WHITE CAP BACK, and it went the same way the absorption
+        // lines did. PhotonTrailRainbow draws the head as a bright white semicircle
+        // clipped out of the leading end of the ribbon — that cap IS the light, and
+        // without it the player is a ribbon that starts in mid-air at a square edge.
+        //
+        // The cap is drawn when _ShowHead is 1 and PhotonSpectrumTrail writes that float
+        // from its own showHead flag every frame, in PushLiveParams. The flag ships off
+        // (it is a per-preset choice, and the journey's presets mostly clear it), so the
+        // material's own value never survives a frame no matter what it is set to.
+        //
+        // Off is a decision the journey gets to make per preset. In the tutorial the
+        // light is the subject of the whole piece and has to have a front.
+        RepairSerialized(spectrumTrail, "showHead", p => !p.boolValue,
+                         p => p.boolValue = true,
+                         "white head cap switched back on — PhotonSpectrumTrail was writing " +
+                         "_ShowHead = 0 to the material every frame, so the light had no front.");
+
         // UV, visible and IR at their share of a log-wavelength axis from 100 nm to
         // 2000 nm: UV 45%, visible 23%, IR 33%. The old 15 / 70 / 15 made the visible
         // band three times too wide — and the point of D1 is that most of the light is
@@ -1515,6 +1550,19 @@ public static class TutorialSceneBuilder_NEW
                                          Vector2.zero, new Vector2(22f, 22f));
         IndicatorArrow(trailArrow, arrowColor);
 
+        // The leader joining the two.
+        GameObject leader = UIObject("LineLeader", canvas, new Vector2(0.5f, 0.5f),
+                                     Vector2.zero, new Vector2(2f, 2f));
+        IndicatorLeader(leader, arrowColor);
+
+        // Immediately under the trail arrow, which is the only one of the two that is a
+        // sibling — the bar arrow lives inside the bar. A line running into the middle
+        // of an arrowhead reads as one shape with a stem, which is what this should look
+        // like, rather than as a line crossing it. Not sent to the back: index 0 on this
+        // canvas is the blackout, which everything is supposed to draw OVER.
+        if (IsFresh(leader))
+            leader.transform.SetSiblingIndex(trailArrow.transform.GetSiblingIndex());
+
         GameObject holder = FindOrCreate("LineIndicator", canvas, canvas.position);
         TutorialLineIndicator_NEW indicator = AddIfMissing<TutorialLineIndicator_NEW>(holder);
 
@@ -1529,9 +1577,43 @@ public static class TutorialSceneBuilder_NEW
             .Ref("barArrowGroup", barArrow.GetComponent<CanvasGroup>())
             .Ref("trailArrow", trailArrow.GetComponent<RectTransform>())
             .Ref("trailArrowGroup", trailArrow.GetComponent<CanvasGroup>())
+            .Ref("leaderLine", leader.GetComponent<RectTransform>())
+            .Ref("leaderLineGroup", leader.GetComponent<CanvasGroup>())
             .Apply();
 
+        // The bar moved to the bottom of the frame, so its arrow moved to the top of the
+        // bar — see barArrowAbove. Six pixels of gap was fine hanging under the bar and
+        // is not above it, where the UV / VISIBLE / IR labels already overhang by ten.
+        RepairSerialized(indicator, "barArrowGap",
+                         p => Mathf.Approximately(p.floatValue, 6f),
+                         p => p.floatValue = 22f,
+                         "line arrow now clears the band labels above the bar.");
+
         return indicator;
+    }
+
+    /// <summary>
+    /// The leader: a plain filled rectangle, stretched and turned every frame by
+    /// TutorialLineIndicator_NEW into a line between the two arrows.
+    ///
+    /// No sprite. A UI Image with none draws a solid quad of its own colour, which is
+    /// all a straight line is, and it costs no asset. It is put behind the arrows by
+    /// sibling order rather than by a sorting field, which is the only ordering a
+    /// ScreenSpaceOverlay canvas has.
+    /// </summary>
+    static void IndicatorLeader(GameObject go, Color color)
+    {
+        Image image = AddIfMissing<Image>(go);
+
+        if (IsFresh(image))
+        {
+            image.sprite = null;
+            image.color = color;
+            image.raycastTarget = false;
+        }
+
+        CanvasGroup group = AddIfMissing<CanvasGroup>(go);
+        if (IsFresh(group)) group.alpha = 0f;
     }
 
     /// <summary>
@@ -1699,13 +1781,12 @@ public static class TutorialSceneBuilder_NEW
         // TOP CENTRE, which is this bar's permanent home. Every other element already
         // has a side of the screen: the reticle owns the middle, the range map the top
         // right, the zoom gauge the right edge, and the legend, hint and confirm prompt
-        // the bottom. The top strip is the only place a readout can live without moving
-        // something the player has already learned to find.
+        // the bottom edge.
         //
-        // §6 has D2 open the bar at centre and D3 dock it to its fixed position. D3 is
-        // not built, so it opens docked for now; when D3 lands, D2 gets the centre
-        // placement back and D3 animates centre to here.
-        GameObject bar = UIObject("SpectrumBar", canvas, new Vector2(0.5f, 1f),
+        // It sits above that bottom stack rather than at the top, which is a change —
+        // see SpectrumBarPosition for the reading it buys and for the gap it has to
+        // keep.
+        GameObject bar = UIObject("SpectrumBar", canvas, SpectrumBarAnchor,
                                   SpectrumBarPosition, SpectrumBarSize);
 
         PlaceSpectrumBar(bar);
@@ -1798,6 +1879,20 @@ public static class TutorialSceneBuilder_NEW
             .Num("delaySeconds", 1.5f)
             .Apply();
 
+        // A scene built before the bar moved down still carries the top-edge journey in
+        // its slide, so D3 would take the bar off the bottom of the screen and park it
+        // where it no longer lives. Only the exact pair this builder used to write is
+        // replaced; a journey somebody has tuned is left alone.
+        RepairSerialized(spectrumSlide, "from",
+                         p => Approximately(p.vector2Value, PastSpectrumBarEntry),
+                         p => p.vector2Value = SpectrumBarEntry,
+                         "spectrum bar now enters from above and settles at the bottom.");
+
+        RepairSerialized(spectrumSlide, "to",
+                         p => Approximately(p.vector2Value, PastSpectrumBarPosition),
+                         p => p.vector2Value = SpectrumBarPosition,
+                         "spectrum bar now docks at the bottom of the frame, near the light.");
+
         // Nothing is on screen before D1. TutorialSpectrum_NEW hides it on Awake as
         // well, so a scene saved with the bar up does not flash it for a frame.
         if (IsFresh(bar)) bar.SetActive(false);
@@ -1805,19 +1900,40 @@ public static class TutorialSceneBuilder_NEW
         return spectrum;
     }
 
-    /// <summary>Where the spectrum bar lives, anchored to the top edge of the canvas.</summary>
-    static readonly Vector2 SpectrumBarPosition = new Vector2(0f, -78f);
+    /// <summary>
+    /// Where the spectrum bar lives, anchored to the BOTTOM edge of the canvas.
+    ///
+    /// It docked at the top until now, on the reasoning that every other element had
+    /// already claimed a side and the top strip was the only space left. That was true
+    /// about the space and wrong about the reading. The bar is a readout OF the light,
+    /// and since the follow view put the light and its trail in the lower half of the
+    /// frame, a bar at the top edge was the one element on screen furthest from the
+    /// thing it describes — the eye had to cross the whole picture to pair a mark on the
+    /// ribbon with a mark on the graph, which is the single pairing Phase 3 exists to
+    /// teach. The leader line in TutorialLineIndicator_NEW was drawing that crossing.
+    ///
+    /// 360 from the bottom is the lowest it can sit without moving anything: the hint
+    /// plate's top edge is at 292, and the bar is 96 tall about this centre, so it runs
+    /// 312 to 408 with a clear 20 pixel gap under it. Going lower means restacking the
+    /// hint, the A prompt and the legend, which are placed by GDD §5's rule that the
+    /// continue affordance is in the same position every time.
+    /// </summary>
+    static readonly Vector2 SpectrumBarPosition = new Vector2(0f, 360f);
 
     /// <summary>
-    /// Where it comes in from at D1 — lower and nearer the middle, so the drift upward
-    /// is a real movement rather than a nudge.
+    /// Where it comes in from at D1 — higher and nearer the middle, so the drift down
+    /// into place is a real movement rather than a nudge.
     ///
-    /// Still anchored to the top edge, so this is 420 pixels down from it: below the
-    /// centre line on a 1080 canvas, clear of the reticle, and plainly not where a HUD
-    /// element belongs. Ending up at the top is what makes it read as having found its
-    /// place rather than as having been put there.
+    /// Anchored to the bottom edge like the dock, so this is 700 pixels up from it:
+    /// above the centre line on a 1080 canvas, clear of the reticle, and plainly not
+    /// where a HUD element belongs. Settling at the bottom is what makes it read as
+    /// having found its place rather than as having been put there.
     /// </summary>
-    static readonly Vector2 SpectrumBarEntry = new Vector2(0f, -420f);
+    static readonly Vector2 SpectrumBarEntry = new Vector2(0f, 700f);
+
+    /// <summary>The top-edge dock and entry this builder wrote before the bar moved down.</summary>
+    static readonly Vector2 PastSpectrumBarPosition = new Vector2(0f, -78f);
+    static readonly Vector2 PastSpectrumBarEntry = new Vector2(0f, -420f);
 
     /// <summary>
     /// How big it is. Wide and shallow, because a spectrum is read left to right and its
@@ -1842,6 +1958,7 @@ public static class TutorialSceneBuilder_NEW
     /// </summary>
     static readonly Vector2[] PastSpectrumBarPlacements =
     {
+        PastSpectrumBarPosition, SpectrumBarSize,         // top edge, third guess
         new Vector2(0f, -90f),  new Vector2(560f, 90f),   // below centre, second guess
         new Vector2(0f, -40f),  new Vector2(720f, 200f)   // centre slab, first guess
     };
@@ -1865,9 +1982,12 @@ public static class TutorialSceneBuilder_NEW
     /// </summary>
     static void PlaceSpectrumBar(GameObject bar)
     {
-        RepairRect(bar, new Vector2(0.5f, 1f), SpectrumBarPosition, SpectrumBarSize,
+        RepairRect(bar, SpectrumBarAnchor, SpectrumBarPosition, SpectrumBarSize,
                    "SpectrumBar", PastSpectrumBarPlacements);
     }
+
+    /// <summary>Bottom edge of the canvas. See SpectrumBarPosition for why it moved.</summary>
+    static readonly Vector2 SpectrumBarAnchor = new Vector2(0.5f, 0f);
 
     /// <summary>
     /// Move a rect the builder placed badly to where it belongs now — but only if it is
@@ -2942,6 +3062,105 @@ public static class TutorialSceneBuilder_NEW
         return go;
     }
 
+    // ── Stick diagram geometry ───────────────────────────────────────────────
+    // Written as arithmetic for the same reason the confirm prompt's is: the numbers are
+    // not independent. The knob has to stay inside the ring, and the whole diagram has
+    // to clear the hint plate it hangs off, so both follow from the ring's size.
+
+    /// <summary>Outside diameter of the ring, in pixels.</summary>
+    const float StickRingSize = 104f;
+
+    const float StickKnobSize = 34f;
+
+    /// <summary>Centre of the ring to centre of the knob at full deflection.</summary>
+    const float StickTravel = (StickRingSize - StickKnobSize) * 0.5f - 6f;
+
+    /// <summary>Gap between the left edge of the hint plate and the right edge of the ring.</summary>
+    const float StickGap = 26f;
+
+    /// <summary>
+    /// The stick diagram, hanging off the left end of the hint plate.
+    ///
+    /// A CHILD OF THE HINT, not a sibling, and that is the whole of its visibility
+    /// logic. The diagram and the line it illustrates are one statement: the hint's
+    /// CanvasGroup fades them together and the HUD's SetActive takes them away together,
+    /// so there is no state in which a picture of a stick is on screen with nothing
+    /// asking for it. A separate root would have needed its own copy of all of that, and
+    /// the copy would have drifted.
+    ///
+    /// Left of the plate rather than above or below it. Below is the legend and the A
+    /// prompt; above, now, is the spectrum bar. Beside it is also simply how a control
+    /// label reads — glyph first, then the words, the same order as the A prompt's disc
+    /// and verb.
+    /// </summary>
+    static GameObject BuildStickGuide(GameObject hint)
+    {
+        RectTransform hintRect = hint.GetComponent<RectTransform>();
+        float plateWidth = hintRect != null ? hintRect.sizeDelta.x : 860f;
+
+        // Anchored to the plate's own left edge, so widening the plate takes the diagram
+        // with it instead of leaving it sitting on top of the first word.
+        GameObject go = UIObject("StickGuide", hint.transform, new Vector2(0f, 0.5f),
+                                 new Vector2(-(StickGap + StickRingSize * 0.5f), 0f),
+                                 new Vector2(StickRingSize, StickRingSize));
+
+        // Off the left of a 1920 canvas is the one way this placement can fail, and it
+        // fails silently — the diagram is simply not there. Worth a line in the Console.
+        float leftEdge = -plateWidth * 0.5f - StickGap - StickRingSize;
+        if (leftEdge < -940f)
+            Debug.LogWarning("[TutorialSceneBuilder_NEW] The stick diagram reaches " +
+                             (-leftEdge).ToString("F0") + " pixels left of centre, which is " +
+                             "off a 1920 canvas. Narrow the hint plate or move the diagram.", go);
+
+        AddIfMissing<CanvasGroup>(go);
+
+        GameObject ring = UIObject("Ring", go.transform, new Vector2(0.5f, 0.5f),
+                                   Vector2.zero, new Vector2(StickRingSize, StickRingSize));
+
+        Image ringImage = AddIfMissing<Image>(ring);
+
+        if (IsFresh(ringImage))
+        {
+            // The reticle's own sprite. The player has already learned that this shape
+            // means "the thing you aim", and the stick is the thing that aims it.
+            ringImage.sprite = TutorialWorldAssets_NEW.RingSprite();
+            ringImage.color = new Color(1f, 1f, 1f, 0.38f);
+            ringImage.raycastTarget = false;
+        }
+
+        GameObject knob = UIObject("Knob", go.transform, new Vector2(0.5f, 0.5f),
+                                   Vector2.zero, new Vector2(StickKnobSize, StickKnobSize));
+
+        Image knobImage = AddIfMissing<Image>(knob);
+
+        if (IsFresh(knobImage))
+        {
+            // Solid and bright against the faint ring: the knob is the part that moves
+            // and therefore the part being read.
+            knobImage.sprite = TutorialWorldAssets_NEW.DiscSprite();
+            knobImage.color = new Color(1f, 1f, 1f, 0.95f);
+            knobImage.raycastTarget = false;
+        }
+
+        // L or R, under the ring rather than inside it — the knob crosses the middle.
+        GameObject side = UIObject("Side", go.transform, new Vector2(0.5f, 0f),
+                                   new Vector2(0f, -14f), new Vector2(60f, 24f));
+
+        TMP_Text sideText = AddText(side, "R", 18, TextAlignmentOptions.Center);
+        if (IsFresh(sideText)) sideText.color = new Color(1f, 1f, 1f, 0.55f);
+
+        TutorialStickGuide_NEW guide = AddIfMissing<TutorialStickGuide_NEW>(go);
+
+        Wire(guide)
+            .Ref("knob", knob.GetComponent<RectTransform>())
+            .Ref("stickLabel", sideText)
+            .Ref("group", go.GetComponent<CanvasGroup>())
+            .Num("travelRadius", StickTravel)
+            .Apply();
+
+        return go;
+    }
+
     /// <summary>
     /// The continue affordance: a round button glyph with A in it, and the verb beside it.
     ///
@@ -3112,9 +3331,11 @@ public static class TutorialSceneBuilder_NEW
 
     static void WireHud(TutorialHUD_NEW hud, TutorialDirector_NEW director,
                         GameObject legend, GameObject reticle, GameObject map,
-                        GameObject hint, GameObject prompt)
+                        GameObject hint, GameObject prompt,
+                        TutorialStickGuide_NEW stickGuide)
     {
         Wire(hud)
+            .Ref("stickGuide", stickGuide)
             .Ref("director", director)
             .Ref("legendRoot", legend)
             .Ref("legendText", legend.GetComponent<TMP_Text>())

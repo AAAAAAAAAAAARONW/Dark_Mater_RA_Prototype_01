@@ -82,6 +82,18 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
              "Untick it to write your own wording and have the builder leave it alone.")]
     [SerializeField] bool builderOwnsCopy = true;
 
+    [Tooltip("The stick diagram shown beside the hint line while this beat is open.\n\n" +
+             "MOST BEATS LEAVE THIS AT NONE AND STILL GET A DIAGRAM. Beat_LookAt_NEW, " +
+             "Beat_TurnAround_NEW and Beat_Zoom_NEW each work their own out from what " +
+             "they are gated on — where the target actually sits, which way the view has " +
+             "to turn, which way the field of view has to move — so the picture cannot " +
+             "disagree with the gate. This field is for the cinematic frames, which have " +
+             "no gate to read it off.\n\n" +
+             "None also means none: a frame that asks for nothing shows nothing, which " +
+             "is what the Phase 3 frames want.")]
+    [SerializeField] TutorialStickGuide_NEW.GuideKind stickGuide =
+        TutorialStickGuide_NEW.GuideKind.None;
+
     [Header("Advance")]
     [SerializeField] AdvanceMode advanceMode = AdvanceMode.Duration;
 
@@ -147,6 +159,23 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
     /// its own words without ever holding a reference to the HUD.
     /// </summary>
     public virtual string LiveHintText { get { return hintText; } }
+
+    /// <summary>
+    /// The stick diagram this beat wants beside its hint line, RIGHT NOW.
+    ///
+    /// Polled every frame by TutorialHUD_NEW, on the same reasoning as LiveHintText: a
+    /// beat says what it wants and never holds a reference to the HUD. Polling rather
+    /// than an event is what lets the answer be computed instead of stored — Beat_LookAt
+    /// _NEW returns the live bearing to its target, so the knob leans wherever the mote
+    /// has actually got to, including while the player is turning towards it.
+    ///
+    /// The default is the authored field, which is None for everything that has not
+    /// deliberately set one. A beat that asks the player for nothing shows nothing.
+    /// </summary>
+    public virtual TutorialStickGuide_NEW.Gesture StickGesture
+    {
+        get { return TutorialStickGuide_NEW.Gesture.From(stickGuide); }
+    }
 
     /// <summary>
     /// Whether Build or Update may rewrite this beat's wording. The builder reads it

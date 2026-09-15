@@ -45,7 +45,7 @@ Material:
     - _HeadBrightness: 1.8
     - _HeadWidth: 0.04
     - _IRGlowStrength: 1.2
-    - _ShowHead: 0
+    - _ShowHead: 1
     - _SpectrumOffset: 0
     - _SpectrumScale: 1
     - _UVGlowStrength: 1.8

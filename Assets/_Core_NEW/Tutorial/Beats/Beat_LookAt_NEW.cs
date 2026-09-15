@@ -49,6 +49,67 @@ public class Beat_LookAt_NEW : TutorialBeat_NEW
     float _insideFor;
     bool _forced;
 
+    /// <summary>
+    /// Hold the look stick towards wherever the target actually is.
+    ///
+    /// COMPUTED, NOT AUTHORED, for exactly the reason the beat has no direction field:
+    /// "the direction the player has to look is encoded by where the target sits in the
+    /// scene, not by a field here". A stored direction would be a second copy of that,
+    /// and the failure would be silent and specific — B1's mote dragged left in the
+    /// Scene view, a diagram still leaning right, and a visitor doing what the picture
+    /// says and never passing the gate.
+    ///
+    /// It is a bearing in degrees rather than a projection, so a target BEHIND the
+    /// player still reads correctly: C4 reuses this beat for the quasar after C3 has
+    /// reversed the course, and a projected direction would collapse to nearly nothing
+    /// at the moment the answer matters most. Yaw of ±180 leans the knob hard sideways,
+    /// which is the right instruction — turn first, then look up or down.
+    ///
+    /// Hold rather than Push: every gate here is "keep going until it is in the
+    /// reticle", and a knob that flicked back would be saying let go before you arrive.
+    /// </summary>
+    public override TutorialStickGuide_NEW.Gesture StickGesture
+    {
+        get
+        {
+            if (lookRig == null || target == null) return base.StickGesture;
+
+            return TutorialStickGuide_NEW.Gesture.Hold(LookSide(lookRig), BearingToTarget());
+        }
+    }
+
+    /// <summary>
+    /// Yaw and pitch to the target, in degrees, as screen axes: x right, y up.
+    ///
+    /// Measured from the camera as it actually points — offset behind the light and
+    /// tilted down by the follow view — because that is what IsInReticle measures from
+    /// too. The picture and the gate then cannot disagree about which way is towards it.
+    /// </summary>
+    Vector2 BearingToTarget()
+    {
+        Vector3 local = lookRig.transform.InverseTransformPoint(target.position);
+
+        float flat = new Vector2(local.x, local.z).magnitude;
+
+        float yaw = Mathf.Atan2(local.x, local.z) * Mathf.Rad2Deg;
+        float pitch = Mathf.Atan2(local.y, flat) * Mathf.Rad2Deg;
+
+        return new Vector2(yaw, pitch);
+    }
+
+    /// <summary>
+    /// Which stick the diagram should draw, taken from the rig rather than assumed.
+    ///
+    /// The sticks have moved once already — see SeparateTheSticks — and a hard-coded
+    /// R here would be the one part of the HUD that did not move with them.
+    /// </summary>
+    internal static TutorialStickGuide_NEW.StickSide LookSide(FirstPersonLookRig_NEW rig)
+    {
+        return rig != null && rig.LookStickSetting == TutorialInput_NEW.LookStick.Left
+            ? TutorialStickGuide_NEW.StickSide.Left
+            : TutorialStickGuide_NEW.StickSide.Right;
+    }
+
     protected override void OnBeatEnter()
     {
         _insideFor = 0f;
