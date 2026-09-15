@@ -139,6 +139,16 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
     public string HintText { get { return hintText; } }
 
     /// <summary>
+    /// The hint line this beat wants on screen RIGHT NOW. Defaults to HintText.
+    ///
+    /// For a beat whose instruction changes while it is open — D5 says B TO PAUSE, and
+    /// once paused, B TO RESUME. TutorialHUD_NEW polls this for the beat it is showing,
+    /// the same way it already polls a confirm beat's PromptVisible, so a beat can change
+    /// its own words without ever holding a reference to the HUD.
+    /// </summary>
+    public virtual string LiveHintText { get { return hintText; } }
+
+    /// <summary>
     /// Whether Build or Update may rewrite this beat's wording. The builder reads it
     /// through SerializedObject; this is here so the intent is visible from code too.
     /// </summary>

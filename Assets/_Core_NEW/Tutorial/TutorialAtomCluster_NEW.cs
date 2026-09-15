@@ -109,9 +109,9 @@ public class TutorialAtomCluster_NEW : MonoBehaviour
     {
         if (!_running) return;
 
-        // Unscaled, like every other clock in the tutorial. D4 has no slow motion of its
-        // own, but D2's can still be easing out as this opens.
-        _elapsed += Time.unscaledDeltaTime;
+        // The world clock (TutorialClock_NEW): ignores D2's slow motion, which can still
+        // be easing out as this opens, but stops while the piece is paused.
+        _elapsed += TutorialClock_NEW.DeltaTime;
 
         if (_elapsed < secondsApart) return;
 

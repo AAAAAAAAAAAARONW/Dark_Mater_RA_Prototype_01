@@ -18,6 +18,13 @@ Shader "Custom/PhotonTrail"
         _IRGlowColor     ("IR Glow Color",  Color) = (0.6, 0.05, 0.0, 1)
         _UVGlowColor     ("UV Glow Color",  Color) = (0.45, 0.0, 0.9, 1)
 
+        // Visible band highlight — added for the tutorial's "this is the light your eyes
+        // can see" moment. Brightens only the wavelengths between the two edges.
+        // Highlight 0 (the default) changes nothing, so existing materials look the same.
+        _VisibleBandStart ("Visible Band Start",     Range(0, 1)) = 0.15
+        _VisibleBandEnd   ("Visible Band End",       Range(0, 1)) = 0.85
+        _VisibleHighlight ("Visible Band Highlight", Range(0, 3)) = 0
+
         // Glow
         _GlowIntensity ("Glow Intensity", Range(0, 5)) = 1.31
         _GlowFalloff   ("Glow Falloff",   Range(0.1, 10)) = 5.29
@@ -75,6 +82,10 @@ Shader "Custom/PhotonTrail"
             float4 _UVGlowColor;
             float  _IRGlowStrength;
             float  _UVGlowStrength;
+
+            float  _VisibleBandStart;
+            float  _VisibleBandEnd;
+            float  _VisibleHighlight;
 
             float  _GlowIntensity;
             float  _GlowFalloff;
@@ -164,6 +175,14 @@ Shader "Custom/PhotonTrail"
                 baseColor.rgb += _UVGlowColor.rgb * uvFactor * _UVGlowStrength * _UseSpectrum * 0.3;
                 baseColor.rgb += _IRGlowColor.rgb * irFactor * _IRGlowStrength * _UseSpectrum * 0.3;
 
+                // ── 1b. Visible band highlight ────────────────────────────
+                // Same wavelength coordinate (specT) as the colours and the absorption
+                // lines, so the edges land exactly on the band PhotonSpectrumTrail paints.
+                // A very narrow smoothstep only to anti-alias the edge. Applied at the end,
+                // in step 9 — see there for why.
+                float visMask = smoothstep(_VisibleBandStart - 0.004, _VisibleBandStart + 0.004, specT)
+                              * (1.0 - smoothstep(_VisibleBandEnd - 0.004, _VisibleBandEnd + 0.004, specT));
+
                 // ── 2. Texture sample ─────────────────────────────────────
                 float4 texSample = tex2D(_MainTex, uv);
                 baseColor *= texSample;
@@ -238,6 +257,18 @@ Shader "Custom/PhotonTrail"
                 col.rgb   += emission;
                 col.rgb   *= (1.0 + glow * 0.5);
                 col.rgb   += _HeadColor.rgb * headGlow;
+
+                // Visible band highlight. ADDITIVE and at EQUAL BRIGHTNESS per hue, and
+                // applied after the centre glow. Multiplying the colour instead made the
+                // flash scale with how bright each colour already was, and the centre of
+                // the ribbon — where the glow and emission peak, and where cyan and green
+                // sit — outshone red and violet so far that only the middle appeared to
+                // flash. Normalising each colour to its brightest channel lifts every
+                // visible wavelength by the same amount in its own hue. Absorbed
+                // wavelengths are not lifted, so lines stay dark through the flash.
+                float huePeak = max(specColor.r, max(specColor.g, specColor.b));
+                float3 hue    = specColor.rgb / max(huePeak, 0.001);
+                col.rgb      += hue * visMask * _VisibleHighlight * 0.6 * (1.0 - absorp);
 
                 // headClip cuts the rectangle corners into a semicircle shape
                 float alpha = col.a

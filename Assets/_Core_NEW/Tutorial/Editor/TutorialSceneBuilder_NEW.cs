@@ -322,19 +322,41 @@ public static class TutorialSceneBuilder_NEW
 
         // ── Phase 3 rig ──────────────────────────────────────────────────────
         TutorialUISlide_NEW spectrumSlide;
-        TutorialInspectView_NEW inspectView;
+
         TutorialSpectrum_NEW spectrum = BuildSpectrum(root.transform, canvas.transform, photonTrail,
-                                                      out spectrumSlide, out inspectView);
+                                                      out spectrumSlide);
         TutorialSlowMotion_NEW slowMotion = BuildSlowMotion(root.transform);
+        TutorialPause_NEW pause = BuildPause(root.transform, director, slowMotion);
         TutorialTravel_NEW travel = player.GetComponent<TutorialTravel_NEW>();
         TutorialAtom_NEW atom = BuildAtom(world.transform, camera.transform, travel);
         TutorialAtomCluster_NEW cluster = BuildAtomCluster(world.transform, camera.transform,
                                                            travel, spectrum);
 
+        TutorialTrailBands_NEW trailBands = BuildTrailBands(photonTrail);
+        TutorialSpectrumBands_NEW spectrumBands = BuildSpectrumBands(canvas.transform, trailBands, spectrum);
+        TutorialAtom_NEW forestAtom = BuildForestAtom(world.transform, camera.transform, travel,
+                                                      spectrum, spectrumBands);
+        TutorialLineIndicator_NEW lineIndicator = BuildLineIndicator(canvas.transform, spectrum, trailBands,
+                                                                     photonTrail, travel, camera);
+
+        Phase3Rig phase3 = new Phase3Rig
+        {
+            trailBands = trailBands,
+            spectrumBands = spectrumBands,
+            spectrum = spectrum,
+            slide = spectrumSlide,
+            atom = atom,
+            slowMotion = slowMotion,
+            cluster = cluster,
+            forestAtom = forestAtom,
+            pause = pause,
+            lineIndicator = lineIndicator
+        };
+
         BuildPhase0(beats.transform, moteA);
         BuildPhase1(beats.transform, lookRig, moteA, moteB, moteC);
         BuildPhase2(beats.transform, lookRig, quasar, emission);
-        BuildPhase3(beats.transform, atom, slowMotion, spectrum, spectrumSlide, cluster, inspectView);
+        BuildPhase3(beats.transform, phase3);
 
         // ── HUD and attract components ───────────────────────────────────────
         TutorialHUD_NEW hud = AddIfMissing<TutorialHUD_NEW>(canvas);
@@ -356,12 +378,21 @@ public static class TutorialSceneBuilder_NEW
         AddCall(attract, "onReset", spectrumSlide, "ResetToStart");
         AddCall(attract, "onReset", cluster, "ResetForAttract");
 
-        // A bar left enlarged over a dimmed screen is the first thing the next visitor
-        // would see, and there is no beat between D5 and the restart to put it back.
-        AddCall(attract, "onReset", inspectView, "ResetForAttract");
+        // A restart taken while paused must not leave the next visitor with a stopped world.
+        AddCall(attract, "onReset", pause, "ResumeNow");
+
+        // The trail back to the visible band with no redshift; the bar's bands open and
+        // still; the mid-redshift atom back out of the world.
+        AddCall(attract, "onReset", trailBands, "ResetForAttract");
+        AddCall(attract, "onReset", spectrumBands, "ResetForAttract");
+        AddCall(attract, "onReset", forestAtom, "ResetForAttract");
+        AddCall(attract, "onReset", lineIndicator, "ResetForAttract");
 
         // Needs the director, so it is built after the director exists.
         BuildZoomGauge(canvas.transform, zoom, director);
+
+        // Last on the canvas, over everything above — see BuildPauseCard.
+        BuildPauseCard(canvas.transform, pause);
 
         TutorialFadeIn_NEW fade = AddIfMissing<TutorialFadeIn_NEW>(blackout);
         Wire(fade)
@@ -1118,153 +1149,501 @@ public static class TutorialSceneBuilder_NEW
         AddEmissionCall(c3, emission, "Emit");
     }
 
-    /// <summary>
-    /// Phase 3 — First absorption. D1 and D2 so far, 1:50 to 2:12.
-    ///
-    /// Both are cinematic runs: GDD §6 gives D1's gate as "the atom closes on its own"
-    /// and D2's as "impact plays", and neither asks the player for anything. That is not
-    /// a timer standing in for an action — there is no action to stand in for — so
-    /// Duration is the right mode, the same reading as Phase 0's A1 and Phase 2's C1
-    /// and C3.
-    ///
-    /// WHAT THE PLAYER DOES HERE IS LOOK, and the beats deliberately do not require it.
-    /// D2 asks them to notice that the thing that just hit them took a colour out of
-    /// their own spectrum. Gating on "did you see it" would mean either a reticle test
-    /// on the impact — turning the piece's one causal moment into an aiming exercise —
-    /// or a dwell timer, which §6 rules out for B1 on the same grounds. So the frame
-    /// plays, the slow motion buys the time to look, and the bar stays on screen
-    /// afterwards for anyone who missed it.
-    ///
-    /// The beats own gating and prompts; the atom, the slow motion and the spectrum own
-    /// behaviour, and they meet on the beats' UnityEvents. Same shape as Phase 2, so the
-    /// storyboard can be reordered without touching C#.
-    ///
-    /// D3 to D5 are not built. D5 is a new beat type and needs the inspect button
-    /// confirmed on a running build first — see §12.
-    /// </summary>
-    static void BuildPhase3(Transform parent, TutorialAtom_NEW atom,
-                            TutorialSlowMotion_NEW slowMotion, TutorialSpectrum_NEW spectrum,
-                            TutorialUISlide_NEW slide, TutorialAtomCluster_NEW cluster,
-                            TutorialInspectView_NEW inspectView)
+    /// <summary>Everything Phase 3's beats drive, gathered so BuildPhase3 takes one argument.</summary>
+    sealed class Phase3Rig
     {
-        Beat_Cinematic_NEW d1 = Beat<Beat_Cinematic_NEW>(parent, "D1");
-        Wire(d1)
-            .Str("beatId", "D1")
-            .Copy("description", "Approach. A single small glowing particle ahead. No label. " +
-                                "The only moving thing in frame.")
-            // No new prompt. The player has been told they can look since A1 and there
-            // is nothing here to press — a hint line would imply otherwise.
-            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Clear)
-            .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
-            // Matches TutorialAtom_NEW.approachSeconds. The atom arrives as D1 ends and
-            // D2 opens on the contact.
-            .Num("duration", 10f)
-            .Apply();
+        public TutorialTrailBands_NEW trailBands;
+        public TutorialSpectrumBands_NEW spectrumBands;
+        public TutorialSpectrum_NEW spectrum;
+        public TutorialUISlide_NEW slide;
+        public TutorialAtom_NEW atom;
+        public TutorialSlowMotion_NEW slowMotion;
+        public TutorialAtomCluster_NEW cluster;
+        public TutorialAtom_NEW forestAtom;
+        public TutorialPause_NEW pause;
+        public TutorialLineIndicator_NEW lineIndicator;
 
-        Beat_Cinematic_NEW d2 = Beat<Beat_Cinematic_NEW>(parent, "D2");
-        Wire(d2)
-            .Str("beatId", "D2")
-            .Copy("description", "Contact. Time drops to 0.2x. The spectrum bar appears at centre " +
-                                "and one black line is cut into it. The whole causal chain of the " +
-                                "piece is in this frame: one atom, one line.")
-            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Clear)
-            .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
-            // WALL CLOCK, not stretched by the 0.2x — the storyboard's timings are
-            // seconds the player experiences, which is why useScaledTime is left off.
-            // See §12.
-            //
-            // Eight rather than the storyboard's twelve. §6 wrote D2 as 2:00–2:12 when
-            // the bar arrived on the impact and the player had to read a new element and
-            // a mark on it at once. The bar now arrives at D1 and is already familiar, so
-            // this frame has only one thing left to show — the notch — and twelve seconds
-            // of watching it is longer than the thing takes to land.
-            .Num("duration", 8f)
-            .Flag("useScaledTime", false)
-            .Apply();
+        /// <summary>
+        /// Every object the builder wires Phase 3's beats to. A listener on a Phase 3 beat
+        /// that points at one of these is the builder's, and is cleared and rewired each
+        /// run; a listener pointing anywhere else is somebody's own and is left alone.
+        /// </summary>
+        public Object[] All()
+        {
+            return new Object[]
+            {
+                trailBands, spectrumBands, spectrum, slide, atom, slowMotion, cluster,
+                forestAtom, pause, lineIndicator
+            };
+        }
+    }
 
-        // D1 arms the atom. Nothing else in the piece knows the atom exists.
-        AddCall(d1, "onEnter", atom, "Arm");
+    /// <summary>
+    /// Phase 3 — light, its spectrum, and what hydrogen does to it. D1 to D10.
+    ///
+    /// A sequence the voice-over will be laid against, so EVERY STEP IS ITS OWN BEAT
+    /// with its own duration. Beat_Cinematic_NEW already carries a voice-over slot; the
+    /// timing of each explanation is one number on one beat, and the debug jumps, F2
+    /// and the attract restart keep working because nothing here is a coroutine.
+    ///
+    ///   D1   UV and IR unfold out of the trail's edges.
+    ///   D2   The visible band flashes: the part of the light eyes can see.
+    ///   D3   The spectrum bar appears, with UV, visible and IR marked on it.
+    ///   D4   The bar moves up; an atom closes on the light.
+    ///   D5   Contact, 0.2x: a line appears on the light and on the bar, and blinks.
+    ///   D6   More atoms. No redshift yet, so they all absorb at the same wavelength and
+    ///        the same line deepens.
+    ///   D7   Redshift begins. The bands stay put; the spectrum and its line slide red.
+    ///   D8   One more atom during the redshift. It absorbs at the same wavelength as
+    ///        before, but the old line has moved — a second line. This is how the
+    ///        Lyman-alpha forest forms.
+    ///   D9   UV and IR fold away.
+    ///   D10  Pause is introduced.
+    ///
+    /// Durations are starting values for the voice-over to replace; the builder never
+    /// overwrites a duration somebody has set, except where a beat's meaning changed
+    /// underneath it (see RepairPhase3Durations).
+    /// </summary>
+    static void BuildPhase3(Transform parent, Phase3Rig rig)
+    {
+        Beat_Cinematic_NEW d1 = Cinematic(parent, "D1", 4f,
+            "UV and IR. The trail widens from the colours the eye can see to the whole " +
+            "spectrum the light carries, with ultraviolet and infrared at its edges.");
 
-        // THE BAR ARRIVES AT D1, EMPTY, and drifts up to its home over the next few
-        // seconds while the atom closes. A departure from §6, which has it appear on
-        // contact — see TutorialUISlide_NEW for why. The short version: you cannot see
-        // that a colour is missing unless you saw it there first, and D2 asking the
-        // player to read a spectrum and a gap in it in the same instant asks for the
-        // second before the first has landed.
-        AddCall(d1, "onEnter", spectrum, "Show");
-        AddCall(d1, "onEnter", spectrum, "Clear");
+        Beat_Cinematic_NEW d2 = Cinematic(parent, "D2", 5f,
+            "The visible band flashes: this is the part of the light human eyes can see.");
 
-        if (slide != null) AddCall(d1, "onEnter", slide, "Play");
+        Beat_Cinematic_NEW d3 = Cinematic(parent, "D3", 5f,
+            "The spectrum. The bar appears, empty, with UV, visible and IR marked on it.");
 
-        // D2 is the impact, and now it is only the impact: one line cut into a bar the
-        // player has been looking at for ten seconds.
-        AddCall(d2, "onEnter", spectrum, "CutLine");
+        Beat_Cinematic_NEW d4 = Cinematic(parent, "D4", 10f,
+            "Approach. The bar moves up out of the way; a single hydrogen atom closes on " +
+            "the light.");
 
-        // The slow motion is D2's, not the atom's. Hanging it on the impact instead
-        // would drop the time scale a frame before the beat that owns it opens, and a
-        // beat that is already running when its own effects start is the kind of thing
-        // that only misbehaves when the beat is reached some other way — F2, a number
-        // key, or the attract restart.
-        AddCall(d2, "onEnter", slowMotion, "Enter");
-        AddCall(d2, "onSatisfied", slowMotion, "Exit");
+        Beat_Cinematic_NEW d5 = Cinematic(parent, "D5", 8f,
+            "Contact, at 0.2x. A line appears on the light and on the bar at the same " +
+            "wavelength, and blinks: that colour has been absorbed.");
 
-        Beat_Cinematic_NEW d3 = Beat<Beat_Cinematic_NEW>(parent, "D3");
-        Wire(d3)
-            .Str("beatId", "D3")
-            .Copy("description", "The spectrum starts to drift. The bar stops being a picture " +
-                                "of a spectrum and becomes a live reading, carrying the mark " +
-                                "the player just made.")
-            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Clear)
-            .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
-            .Num("duration", 8f)
-            .Apply();
+        // Wall clock, not stretched by the slow motion — storyboard timings are seconds
+        // the player experiences. See §12.
+        Wire(d5).Flag("useScaledTime", false).Apply();
 
-        // §6 gives D3 as the bar shrinking and travelling to its docked position. The
-        // travel moved to D1 — see TutorialUISlide_NEW — so what is left for this frame
-        // is the thing the storyboard did not have a place for: the data itself moving.
-        //
-        // Nothing new was written for it. AbsorptionField_NEW slides its buffer and
-        // SpectrumHUD_NEW slides the continuum template, both off one driftPerSecond on
-        // the profile, so the curve and the marks move as one. D3 swaps the profile for
-        // the same one with that number switched on.
-        AddCall(d3, "onEnter", spectrum, "StartDrift");
+        Beat_Cinematic_NEW d6 = Cinematic(parent, "D6", 10f,
+            "More atoms. No redshift yet, so every atom absorbs the same wavelength and the " +
+            "same line gets deeper — up to all of the light at that wavelength.");
 
-        Beat_Cinematic_NEW d4 = Beat<Beat_Cinematic_NEW>(parent, "D4");
-        Wire(d4)
-            .Str("beatId", "D4")
-            .Copy("description", "A small group of atoms, not a cloud. Passing through cuts " +
-                                "three or four more lines. No slow motion — the lesson is that " +
-                                "this keeps happening, not that each one is its own event.")
-            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Clear)
-            .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
-            // §6 lists D4's player action as None and its gate as the notches standing on
-            // the spectrum. That is a description of the outcome, not a gate: nothing the
-            // player does causes them. Duration, or the beat could never be satisfied.
-            .Num("duration", 10f)
-            .Apply();
+        Beat_Cinematic_NEW d7 = Cinematic(parent, "D7", 8f,
+            "Redshift. The UV, visible and IR bands stay where they are; the spectrum " +
+            "stretches toward red underneath them, and the line moves with it.");
 
-        if (cluster != null) AddCall(d4, "onEnter", cluster, "Arm");
+        Beat_Cinematic_NEW d8 = Cinematic(parent, "D8", 10f,
+            "One more atom, mid-redshift. It absorbs at the same wavelength as before, but " +
+            "the first line has already moved on — so a second line appears. This is how " +
+            "a forest of lines forms.");
 
-        Beat_Inspect_NEW d5 = Beat<Beat_Inspect_NEW>(parent, "D5");
-        Wire(d5)
-            .Str("beatId", "D5")
-            .Copy("description", "Inspect. The prompt appears; pressing B freezes the scene and " +
-                                "enlarges the spectrum. The last frame of Phase 3, and the only " +
-                                "one where the player is given a moment to read what they have " +
-                                "been collecting.")
+        Beat_Cinematic_NEW d9 = Cinematic(parent, "D9", 5f,
+            "UV and IR fold away, leaving the visible light and the lines carried in it.");
+
+        Beat_Inspect_NEW d10 = Beat<Beat_Inspect_NEW>(parent, "D10");
+        Wire(d10)
+            .Str("beatId", "D10")
+            .Copy("description", "Pause. B TO PAUSE appears; the player pauses and resumes. Pause " +
+                                "works everywhere once the tutorial is running — this is only " +
+                                "where it is introduced.")
             .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
-            .Copy("hintText", "B  TO  INSPECT")
-            // Gated on the player, both ways: opened AND closed. Closing is the half
-            // that proves they can get back out, which is the B4 lesson again.
+            .Copy("hintText", "B  TO  PAUSE")
+            // Gated on the player, both ways: paused AND resumed.
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
-            .Ref("view", inspectView)
+            .Ref("pause", rig.pause)
             .Apply();
 
-        // The freeze is the slow motion at a deeper setting — it already owns
-        // Time.timeScale, and a second component writing the same global is how a world
-        // ends up stuck at a fifth speed with nothing admitting to it.
-        AddCall(d5, "onOpened", slowMotion, "Freeze");
-        AddCall(d5, "onClosed", slowMotion, "Exit");
+        RepairPhase3Durations(d1, d2, d3);
+
+        // ── Wiring ───────────────────────────────────────────────────────────
+        // Cleared and rewired every run, because the frames were renumbered: D1 used to
+        // arm the atom, D2 used to cut the line, D3 used to start the drift. Listeners
+        // left over from that would fire the wrong effect on the wrong frame. Only
+        // listeners pointing at Phase 3's own rig are touched.
+        Object[] owned = rig.All();
+        TutorialBeat_NEW[] beats = { d1, d2, d3, d4, d5, d6, d7, d8, d9 };
+
+        for (int i = 0; i < beats.Length; i++)
+        {
+            ClearRigCalls(beats[i], "onEnter", owned);
+            ClearRigCalls(beats[i], "onSatisfied", owned);
+        }
+
+        AddCall(d1, "onEnter", rig.trailBands, "UnfoldUVIR");
+
+        AddCall(d2, "onEnter", rig.trailBands, "FlashVisible");
+
+        // Order matters and is the order added: on screen, empty, back at its entry
+        // position, bands open.
+        AddCall(d3, "onEnter", rig.spectrum, "Show");
+        AddCall(d3, "onEnter", rig.spectrum, "Clear");
+        AddCall(d3, "onEnter", rig.slide, "ResetToStart");
+        AddCall(d3, "onEnter", rig.spectrumBands, "UnfoldUVIR");
+
+        AddCall(d4, "onEnter", rig.atom, "Arm");
+        AddCall(d4, "onEnter", rig.slide, "Play");
+
+        // The slow motion is D5's, not the atom's: hung on the impact it would start a
+        // frame before the beat that owns it, which only misbehaves when the beat is
+        // reached some other way — F2, a number key, or the attract restart.
+        AddCall(d5, "onEnter", rig.spectrum, "AbsorbAtRestFrame");
+        AddCall(d5, "onEnter", rig.slowMotion, "Enter");
+        AddCall(d5, "onEnter", rig.trailBands, "BlinkLines");
+        AddCall(d5, "onEnter", rig.spectrumBands, "BlinkLine");
+        AddCall(d5, "onSatisfied", rig.slowMotion, "Exit");
+
+        // Arrows at the line on the bar and on the trail, from contact until the redshift
+        // frame ends — long enough to watch the line move and still be pointed at.
+        AddCall(d5, "onEnter", rig.lineIndicator, "Show");
+
+        // Each atom in the group absorbs at the rest frame on impact — see
+        // BuildAtomCluster. With no drift yet, that deepens D5's line.
+        AddCall(d6, "onEnter", rig.cluster, "Arm");
+
+        // Nothing new for the drift itself: AbsorptionField_NEW slides the lines and
+        // SpectrumHUD_NEW slides the curve, both from one driftPerSecond on the profile.
+        AddCall(d7, "onEnter", rig.spectrum, "StartDrift");
+        AddCall(d7, "onEnter", rig.trailBands, "Redden");
+        AddCall(d7, "onSatisfied", rig.lineIndicator, "Hide");
+
+        AddCall(d8, "onEnter", rig.forestAtom, "Arm");
+
+        AddCall(d9, "onEnter", rig.trailBands, "FoldUVIR");
+        AddCall(d9, "onEnter", rig.spectrumBands, "FoldUVIR");
+    }
+
+    /// <summary>One cinematic Phase 3 frame: an id, a starting duration and the storyboard words.</summary>
+    static Beat_Cinematic_NEW Cinematic(Transform parent, string id, float duration, string description)
+    {
+        Beat_Cinematic_NEW beat = Beat<Beat_Cinematic_NEW>(parent, id);
+
+        Wire(beat)
+            .Str("beatId", id)
+            .Copy("description", description)
+            // Nothing to press in any of these frames, so no hint line; a line would
+            // imply otherwise. The pause still puts B TO RESUME up when it is used.
+            .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Clear)
+            // Duration, not PlayerAction: there is no action to stand in for.
+            .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
+            .Num("duration", duration)
+            .Apply();
+
+        return beat;
+    }
+
+    /// <summary>
+    /// D1 to D3 existed before the renumbering with different jobs and different
+    /// durations — ten seconds of approach, eight of contact, eight of drift. Those
+    /// numbers belong to frames that no longer exist, so where a beat still holds
+    /// exactly the old value it takes the new one. Any other value is somebody's tuning
+    /// and is left alone.
+    /// </summary>
+    static void RepairPhase3Durations(TutorialBeat_NEW d1, TutorialBeat_NEW d2, TutorialBeat_NEW d3)
+    {
+        RepairSerialized(d1, "duration", p => Mathf.Approximately(p.floatValue, 10f),
+                         p => p.floatValue = 4f, "was the old approach frame's 10s; now UV/IR, 4s.");
+        RepairSerialized(d2, "duration", p => Mathf.Approximately(p.floatValue, 8f),
+                         p => p.floatValue = 5f, "was the old contact frame's 8s; now the visible flash, 5s.");
+        RepairSerialized(d3, "duration", p => Mathf.Approximately(p.floatValue, 8f),
+                         p => p.floatValue = 5f, "was the old drift frame's 8s; now the spectrum, 5s.");
+    }
+
+    /// <summary>
+    /// Remove the listeners on one event that point at the builder's own objects, or at
+    /// nothing. Listeners that point anywhere else — a voice-over cue, an audio source
+    /// somebody wired by hand — are kept.
+    /// </summary>
+    static void ClearRigCalls(Object owner, string eventName, Object[] owned)
+    {
+        if (owner == null) return;
+
+        UnityEvent e = GetEvent(owner, eventName);
+        if (e == null) return;
+
+        bool changed = false;
+
+        for (int i = e.GetPersistentEventCount() - 1; i >= 0; i--)
+        {
+            Object target = e.GetPersistentTarget(i);
+            if (target != null && System.Array.IndexOf(owned, target) < 0) continue;
+
+            UnityEventTools.RemovePersistentListener(e, i);
+            changed = true;
+        }
+
+        if (changed) EditorUtility.SetDirty(owner);
+    }
+
+    /// <summary>
+    /// The trail's spectrum display: UV/IR unfold, the visible flash, the line blink and
+    /// the redden. On the trail itself, next to the PhotonSpectrumTrail whose band edges
+    /// it reads.
+    /// </summary>
+    static TutorialTrailBands_NEW BuildTrailBands(TrailRenderer trail)
+    {
+        if (trail == null) return null;
+
+        TutorialTrailBands_NEW bands = AddIfMissing<TutorialTrailBands_NEW>(trail.gameObject);
+        PhotonSpectrumTrail spectrumTrail = trail.GetComponent<PhotonSpectrumTrail>();
+
+        Wire(bands)
+            .Ref("spectrumTrail", spectrumTrail)
+            .Apply();
+
+        // THE TRAIL MUST BE ALLOWED TO SHOW ABSORPTION LINES. PhotonSpectrumTrail writes
+        // _UseAbsorptionLine from its own useAbsorptionLines flag every frame, and that flag
+        // was off — so AbsorptionField_NEW switched the lines on once in Start and
+        // PhotonSpectrumTrail switched them off again on the next frame, forever. The HUD
+        // reads the buffer directly, which is why the bar showed the line and the light
+        // did not.
+        RepairSerialized(spectrumTrail, "useAbsorptionLines", p => !p.boolValue,
+                         p => p.boolValue = true,
+                         "absorption lines enabled on the trail — PhotonSpectrumTrail was " +
+                         "turning them off every frame.");
+
+        // UV, visible and IR at their share of a log-wavelength axis from 100 nm to
+        // 2000 nm: UV 45%, visible 23%, IR 33%. The old 15 / 70 / 15 made the visible
+        // band three times too wide — and the point of D1 is that most of the light is
+        // light the eye cannot see. Both values are past the 0.4 the Inspector slider
+        // allows, which is why the builder writes them.
+        RepairSerialized(spectrumTrail, "uvBandWidth", p => Mathf.Approximately(p.floatValue, 0.15f),
+                         p => p.floatValue = 0.45f, "UV band 0.15 -> 0.45 (log axis, 100-2000 nm).");
+        RepairSerialized(spectrumTrail, "irBandWidth", p => Mathf.Approximately(p.floatValue, 0.15f),
+                         p => p.floatValue = 0.33f, "IR band 0.15 -> 0.33 (log axis, 100-2000 nm).");
+
+        // D5's blink takes the line fully out and back, not to 15%. With a strong first
+        // absorption that reads as the line flashing; dimming it only part way did not.
+        RepairSerialized(bands, "lineBlinkLow", p => Mathf.Approximately(p.floatValue, 0.15f),
+                         p => p.floatValue = 0f, "line blink now goes fully off and back.");
+
+        return bands;
+    }
+
+    /// <summary>
+    /// UV, visible and IR marked on the spectrum bar, plus the marker that blinks over a
+    /// new line. Children of the bar so they move with it.
+    ///
+    /// Tints are faint on purpose: they sit over the curve, and their job is to say which
+    /// part of the graph is which, not to compete with it.
+    /// </summary>
+    static TutorialSpectrumBands_NEW BuildSpectrumBands(Transform canvas, TutorialTrailBands_NEW trailBands,
+                                                        TutorialSpectrum_NEW spectrum)
+    {
+        GameObject bar = FindChild(canvas, "SpectrumBar");
+
+        if (bar == null)
+        {
+            Debug.LogWarning("[TutorialSceneBuilder_NEW] No SpectrumBar to mark the bands on.");
+            return null;
+        }
+
+        GameObject root = FullScreenUIObject("Bands", bar.transform);
+
+        GameObject uv = FullScreenUIObject("UV", root.transform);
+        GameObject visible = FullScreenUIObject("Visible", root.transform);
+        GameObject ir = FullScreenUIObject("IR", root.transform);
+
+        BandTint(uv, new Color(0.55f, 0.20f, 1.00f, 0.10f));
+        Image visibleTint = BandTint(visible, new Color(1f, 1f, 1f, 0.06f));
+        BandTint(ir, new Color(0.90f, 0.15f, 0.05f, 0.10f));
+
+        BandLabel(uv, "UV");
+        BandLabel(visible, "VISIBLE");
+        BandLabel(ir, "IR");
+
+        GameObject marker = UIObject("LineMarker", root.transform, new Vector2(0.5f, 0.5f),
+                                     Vector2.zero, new Vector2(4f, 0f));
+
+        Image markerImage = AddIfMissing<Image>(marker);
+
+        if (IsFresh(markerImage))
+        {
+            markerImage.color = new Color(1f, 1f, 1f, 0f);
+            markerImage.raycastTarget = false;
+        }
+
+        TutorialSpectrumBands_NEW bands = AddIfMissing<TutorialSpectrumBands_NEW>(root);
+
+        Wire(bands)
+            .Ref("trailBands", trailBands)
+            .Ref("spectrum", spectrum)
+            .Ref("uvBand", uv.GetComponent<RectTransform>())
+            .Ref("visibleBand", visible.GetComponent<RectTransform>())
+            .Ref("irBand", ir.GetComponent<RectTransform>())
+            .Ref("uvGroup", AddIfMissing<CanvasGroup>(uv))
+            .Ref("irGroup", AddIfMissing<CanvasGroup>(ir))
+            .Ref("visibleTint", visibleTint)
+            .Ref("lineMarker", marker.GetComponent<RectTransform>())
+            .Ref("lineMarkerImage", markerImage)
+            .Apply();
+
+        return bands;
+    }
+
+    /// <summary>
+    /// The two arrows at the first absorption line: under the bar, and on the trail.
+    ///
+    /// The bar arrow is a child of the bar's bands so it rides the bar's slide; the trail
+    /// arrow is on the canvas itself, because it is placed from a world position every
+    /// frame and belongs to no HUD element.
+    /// </summary>
+    static TutorialLineIndicator_NEW BuildLineIndicator(Transform canvas, TutorialSpectrum_NEW spectrum,
+                                                        TutorialTrailBands_NEW trailBands,
+                                                        TrailRenderer trail, TutorialTravel_NEW travel,
+                                                        Camera camera)
+    {
+        GameObject bar = FindChild(canvas, "SpectrumBar");
+        GameObject bands = bar != null ? FindChild(bar.transform, "Bands") : null;
+
+        if (bands == null)
+        {
+            Debug.LogWarning("[TutorialSceneBuilder_NEW] No SpectrumBar/Bands for the line indicator.");
+            return null;
+        }
+
+        Color arrowColor = new Color(1f, 0.93f, 0.66f, 1f);
+
+        GameObject barArrow = UIObject("LineArrow", bands.transform, new Vector2(0.5f, 0f),
+                                       new Vector2(0f, -6f), new Vector2(18f, 18f));
+        IndicatorArrow(barArrow, arrowColor);
+
+        GameObject trailArrow = UIObject("TrailLineArrow", canvas, new Vector2(0.5f, 0.5f),
+                                         Vector2.zero, new Vector2(22f, 22f));
+        IndicatorArrow(trailArrow, arrowColor);
+
+        GameObject holder = FindOrCreate("LineIndicator", canvas, canvas.position);
+        TutorialLineIndicator_NEW indicator = AddIfMissing<TutorialLineIndicator_NEW>(holder);
+
+        Wire(indicator)
+            .Ref("spectrum", spectrum)
+            .Ref("trailBands", trailBands)
+            .Ref("trail", trail)
+            .Ref("travel", travel)
+            .Ref("viewCamera", camera)
+            .Ref("canvasRect", canvas.GetComponent<RectTransform>())
+            .Ref("barArrow", barArrow.GetComponent<RectTransform>())
+            .Ref("barArrowGroup", barArrow.GetComponent<CanvasGroup>())
+            .Ref("trailArrow", trailArrow.GetComponent<RectTransform>())
+            .Ref("trailArrowGroup", trailArrow.GetComponent<CanvasGroup>())
+            .Apply();
+
+        return indicator;
+    }
+
+    /// <summary>
+    /// The pause card: a dim over the whole screen with PAUSED and B TO RESUME centred.
+    ///
+    /// Last on the canvas, so it sits over every other HUD element — including the hint
+    /// line, the spectrum bar and the flash — while the world is stopped.
+    /// </summary>
+    static TutorialPauseCard_NEW BuildPauseCard(Transform canvas, TutorialPause_NEW pause)
+    {
+        GameObject card = FullScreenUIObject("PauseCard", canvas);
+
+        Image dim = AddIfMissing<Image>(card);
+
+        if (IsFresh(dim))
+        {
+            // Well short of black: the camera is still live behind the card.
+            dim.color = new Color(0.02f, 0.02f, 0.05f, 0.55f);
+            dim.raycastTarget = false;
+        }
+
+        CanvasGroup group = AddIfMissing<CanvasGroup>(card);
+        if (IsFresh(group)) group.alpha = 0f;
+
+        GameObject title = UIObject("Title", card.transform, new Vector2(0.5f, 0.5f),
+                                    new Vector2(0f, 34f), new Vector2(900f, 90f));
+        AddText(title, "PAUSED", 64, TextAlignmentOptions.Center);
+
+        GameObject resume = UIObject("Resume", card.transform, new Vector2(0.5f, 0.5f),
+                                     new Vector2(0f, -40f), new Vector2(900f, 50f));
+        TMP_Text resumeText = AddText(resume, "B  TO  RESUME", 30, TextAlignmentOptions.Center);
+        if (IsFresh(resumeText)) resumeText.color = new Color(1f, 1f, 1f, 0.8f);
+
+        // Every run, not only when fresh: canvas elements the builder adds later in the
+        // same build (the zoom gauge, anything new) would otherwise land on top of it,
+        // and a pause card under the HUD cannot do its one job.
+        card.transform.SetAsLastSibling();
+
+        TutorialPauseCard_NEW component = AddIfMissing<TutorialPauseCard_NEW>(card);
+
+        Wire(component)
+            .Ref("pause", pause)
+            .Ref("group", group)
+            .Ref("resumeLabel", resumeText)
+            .Apply();
+
+        return component;
+    }
+
+    static void IndicatorArrow(GameObject go, Color color)
+    {
+        Image image = AddIfMissing<Image>(go);
+
+        if (IsFresh(image))
+        {
+            image.sprite = TutorialWorldAssets_NEW.ArrowSprite();
+            image.color = color;
+            image.raycastTarget = false;
+        }
+
+        CanvasGroup group = AddIfMissing<CanvasGroup>(go);
+        if (IsFresh(group)) group.alpha = 0f;
+    }
+
+    static Image BandTint(GameObject go, Color color)
+    {
+        Image image = AddIfMissing<Image>(go);
+
+        if (IsFresh(image))
+        {
+            image.color = color;
+            image.raycastTarget = false;
+        }
+
+        return image;
+    }
+
+    static void BandLabel(GameObject band, string text)
+    {
+        GameObject label = UIObject("Label", band.transform, new Vector2(0.5f, 1f),
+                                    new Vector2(0f, 10f), new Vector2(160f, 18f));
+
+        TMP_Text t = AddText(label, text, 12, TextAlignmentOptions.Center);
+        if (IsFresh(t)) t.color = new Color(1f, 1f, 1f, 0.55f);
+    }
+
+    /// <summary>
+    /// D8's atom — one more, while the spectrum is already drifting. It absorbs at the
+    /// same rest-frame wavelength as every other atom, but the earlier line has moved on,
+    /// so it cuts a second, separate line. The marker blinks where the new line forms.
+    ///
+    /// Six seconds of approach inside a ten second frame, so by impact the first line
+    /// has drifted clear and the two read as two.
+    /// </summary>
+    static TutorialAtom_NEW BuildForestAtom(Transform world, Transform camera, TutorialTravel_NEW travel,
+                                            TutorialSpectrum_NEW spectrum,
+                                            TutorialSpectrumBands_NEW spectrumBands)
+    {
+        TutorialAtom_NEW atom = BuildAtom(world, camera, travel, "Atom_D8");
+
+        Wire(atom)
+            .Num("spawnDistance", 160f)
+            .Num("approachSeconds", 6f)
+            .Apply();
+
+        Object[] owned = { spectrum, spectrumBands };
+        ClearRigCalls(atom, "onImpact", owned);
+
+        AddCall(atom, "onImpact", spectrum, "AbsorbAtRestFrame");
+        if (spectrumBands != null) AddCall(atom, "onImpact", spectrumBands, "BlinkLine");
+
+        return atom;
     }
 
     // ── Phase 3 objects ──────────────────────────────────────────────────────
@@ -1285,8 +1664,7 @@ public static class TutorialSceneBuilder_NEW
     /// better statement of it than a readout is.
     /// </summary>
     static TutorialSpectrum_NEW BuildSpectrum(Transform root, Transform canvas, TrailRenderer trail,
-                                              out TutorialUISlide_NEW spectrumSlide,
-                                              out TutorialInspectView_NEW inspectView)
+                                              out TutorialUISlide_NEW spectrumSlide)
     {
         SpectrumProfile_NEW profile = TutorialWorldAssets_NEW.TutorialSpectrumProfile;
 
@@ -1347,7 +1725,24 @@ public static class TutorialSceneBuilder_NEW
             // and an auto-find is not.
             .Ref("graph", graph)
             .Ref("field", field)
+            .Flag("useUnscaledTime", false)
             .Apply();
+
+        // THE CURVE AND THE LINES MUST DRIFT ON THE SAME CLOCK. AbsorptionField_NEW slides
+        // its lines on scaled time; SpectrumHUD_NEW slides the continuum template on
+        // unscaled time by default. They agree only while the time scale is 1. Pause the
+        // piece at D5 and the curve keeps scrolling under lines that have stopped — they
+        // part company for good, and every line the player has collected ends up sitting
+        // on the wrong part of the spectrum. D2's slow-motion ease-out already did this by
+        // a few pixels.
+        //
+        // Scaled time on the tutorial's HUD fixes it. This is a setting on the journey's
+        // component in the tutorial scene only; the journey's own HUD is untouched.
+        RepairSerialized(hud, "useUnscaledTime",
+                         p => p.boolValue,
+                         p => p.boolValue = false,
+                         "SpectrumHUD now drifts on scaled time, the same clock as the absorption " +
+                         "lines — otherwise pausing D5 slid the curve out from under them.");
 
         // ── The tutorial's front end ─────────────────────────────────────────
         TutorialSpectrum_NEW spectrum = AddIfMissing<TutorialSpectrum_NEW>(fieldObject);
@@ -1362,30 +1757,31 @@ public static class TutorialSceneBuilder_NEW
 
         RepairLinePositions(spectrum);
 
-        // ── The close look, D5 ───────────────────────────────────────────────
-        // The backdrop goes on the canvas under the bar, so an enlarged spectrum is read
-        // against something quiet rather than against a live starfield.
-        GameObject dim = UIObject("InspectBackdrop", canvas, new Vector2(0.5f, 0.5f),
-                                  Vector2.zero, new Vector2(4000f, 2400f));
+        // absorbDepth used to be every atom's depth, 0.35. It is now only the LATER atoms'
+        // (the first cuts at firstAbsorbDepth), and at 0.35 D6 would black the line out
+        // on its first hit instead of deepening it.
+        RepairSerialized(spectrum, "absorbDepth", p => Mathf.Approximately(p.floatValue, 0.35f),
+                         p => p.floatValue = 0.1f,
+                         "later atoms now deepen the line by 0.1 each; the first cuts at 0.7.");
 
-        Image dimImage = AddIfMissing<Image>(dim);
-        if (IsFresh(dimImage)) dimImage.raycastTarget = false;
+        // ── Retired: the enlarged spectrum on pause ──────────────────────────
+        // D5 used to bring the bar to the middle of the screen, enlarged over a dimmed
+        // backdrop. D5 became a plain pause, and the pause does not move the HUD, so the
+        // close look and its backdrop are removed from scenes built before that.
+        TutorialInspectView_NEW retiredView = bar.GetComponent<TutorialInspectView_NEW>();
 
-        // Under the bar and over the world. The bar was made first, so pushing the
-        // backdrop to the front of the sibling list puts it behind everything on the
-        // canvas — which is where a dimmer belongs.
-        if (IsFresh(dim))
+        if (retiredView != null)
         {
-            dim.transform.SetAsFirstSibling();
-            dim.SetActive(false);
+            Debug.LogWarning("[TutorialSceneBuilder_NEW] Removed TutorialInspectView_NEW from " +
+                             bar.name + ": pausing no longer enlarges the spectrum. Undo " +
+                             "restores it.", bar);
+
+            Undo.DestroyObjectImmediate(retiredView);
+            _wired++;
         }
 
-        inspectView = AddIfMissing<TutorialInspectView_NEW>(bar);
-
-        Wire(inspectView)
-            .Ref("bar", bar.GetComponent<RectTransform>())
-            .Ref("backdrop", dimImage)
-            .Apply();
+        RetireObject(canvas, "InspectBackdrop", "pausing no longer dims the screen behind an " +
+                                                "enlarged spectrum");
 
         // ── The drift into place ─────────────────────────────────────────────
         // Built at its home position, so `to` is where it already is and `from` is the
@@ -1601,7 +1997,65 @@ public static class TutorialSceneBuilder_NEW
     static TutorialSlowMotion_NEW BuildSlowMotion(Transform root)
     {
         GameObject go = FindOrCreate("SlowMotion", root, Vector3.zero);
-        return AddIfMissing<TutorialSlowMotion_NEW>(go);
+        TutorialSlowMotion_NEW slowMotion = AddIfMissing<TutorialSlowMotion_NEW>(go);
+
+        // D5 became a pause. The first freeze value was 0.01 — near-still, chosen on a
+        // mistaken belief that a time scale of 0 stops Update. It does not; only
+        // FixedUpdate stops. A pause should be a pause.
+        RepairSerialized(slowMotion, "freezeScale",
+                         p => Mathf.Approximately(p.floatValue, 0.01f),
+                         p => p.floatValue = 0f,
+                         "D5's freeze is now a true pause (time scale 0, was 0.01).");
+
+        return slowMotion;
+    }
+
+    /// <summary>
+    /// B pauses and resumes the piece, everywhere once it is running.
+    ///
+    /// On its own object, like the slow motion, because it releases the world clock and
+    /// the time scale on disable — and something that has to run on teardown should not
+    /// share a lifetime with the thing that drives the whole piece.
+    /// </summary>
+    static TutorialPause_NEW BuildPause(Transform root, TutorialDirector_NEW director,
+                                        TutorialSlowMotion_NEW slowMotion)
+    {
+        GameObject go = FindOrCreate("Pause", root, Vector3.zero);
+        TutorialPause_NEW pause = AddIfMissing<TutorialPause_NEW>(go);
+
+        Wire(pause)
+            .Ref("director", director)
+            .Ref("slowMotion", slowMotion)
+            .Copy("resumeHintText", "B  TO  RESUME")
+            .Apply();
+
+        return pause;
+    }
+
+    /// <summary>
+    /// Change one serialized value on an existing component, but only if it still holds
+    /// what this builder used to write.
+    ///
+    /// The generic form of RepairLinePositions and RepairTrailOffset: Wire only writes to
+    /// components this run created, so a corrected default never reaches a scene that
+    /// already exists. isStale decides whether the current value is the builder's old
+    /// output — anything else is somebody's decision and is left alone.
+    /// </summary>
+    static void RepairSerialized(Object target, string path,
+                                 System.Func<SerializedProperty, bool> isStale,
+                                 System.Action<SerializedProperty> fix, string message)
+    {
+        if (target == null) return;
+
+        SerializedObject so = new SerializedObject(target);
+        SerializedProperty p = so.FindProperty(path);
+
+        if (p == null || !isStale(p)) return;
+
+        fix(p);
+        so.ApplyModifiedProperties();
+
+        Debug.LogWarning("[TutorialSceneBuilder_NEW] " + target.name + ": " + message, target);
     }
 
     /// <summary>
@@ -1654,8 +2108,12 @@ public static class TutorialSceneBuilder_NEW
                 .Num("approachSeconds", 4.5f)
                 .Apply();
 
-            // The atom does not know what a spectrum is. This is the whole of D4.
-            AddCall(atom, "onImpact", spectrum, "CutLine");
+            // The atom does not know what a spectrum is. Every one absorbs at the rest
+            // frame: with no redshift yet, D6's group deepens the one line D5 cut rather
+            // than scattering new ones — the old CutLine wiring put each at a different
+            // wavelength, which no hydrogen at one redshift can do.
+            ClearRigCalls(atom, "onImpact", new Object[] { spectrum });
+            AddCall(atom, "onImpact", spectrum, "AbsorbAtRestFrame");
         }
 
         return cluster;
@@ -1725,7 +2183,7 @@ public static class TutorialSceneBuilder_NEW
         TutorialAtom_NEW atom = AddIfMissing<TutorialAtom_NEW>(go);
 
         Wire(atom)
-            .Ref("target", camera)
+            .Ref("viewCamera", camera)
             .Ref("travel", travel)
             .Ref("glow", glow)
             .Ref("halo", halo.transform)

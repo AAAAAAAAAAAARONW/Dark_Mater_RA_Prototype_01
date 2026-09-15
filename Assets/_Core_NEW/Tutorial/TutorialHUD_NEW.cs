@@ -42,6 +42,14 @@ public class TutorialHUD_NEW : MonoBehaviour
     [Tooltip("Leave empty to find the director in the scene.")]
     [SerializeField] TutorialDirector_NEW director;
 
+    [Tooltip("Leave empty to find it in the scene. While it holds the piece, the hint " +
+             "line reads B TO RESUME in every beat.")]
+    [SerializeField] TutorialPause_NEW pause;
+
+    [Tooltip("Leave empty to find it. When present, it shows B TO RESUME and the hint line " +
+             "stays clear while paused.")]
+    [SerializeField] TutorialPauseCard_NEW pauseCard;
+
     [Header("Control legend")]
     [Tooltip("Root of the legend. Hidden until the legend beat is reached, then never " +
              "hidden again.")]
@@ -99,12 +107,22 @@ public class TutorialHUD_NEW : MonoBehaviour
 
     bool _legendShown;
     bool _hintShown;
+    string _shownHintText;
+
+    /// <summary>The beat whose words are on the hint line, polled for LiveHintText.</summary>
+    TutorialBeat_NEW _hintBeat;
+
+    /// <summary>What the beats want on the hint line when the piece is not paused.</summary>
+    string _beatHintText;
+
     int _legendBeatIndex = -1;
     Beat_Confirm_NEW _promptBeat;
 
     void Awake()
     {
         if (director == null) director = FindObjectOfType<TutorialDirector_NEW>();
+        if (pause == null) pause = FindObjectOfType<TutorialPause_NEW>();
+        if (pauseCard == null) pauseCard = FindObjectOfType<TutorialPauseCard_NEW>();
 
         if (director == null)
             Debug.LogError("[TutorialHUD_NEW] No TutorialDirector_NEW. The HUD will stay dark.", this);
@@ -136,7 +154,46 @@ public class TutorialHUD_NEW : MonoBehaviour
     {
         TickPrompt(Time.unscaledDeltaTime);
         TickLegendFade(Time.unscaledDeltaTime);
+        TickLiveHint();
         TickHintFade(Time.unscaledDeltaTime);
+    }
+
+    /// <summary>
+    /// Decide what the hint line says this frame, and change it only if that differs.
+    ///
+    /// Two sources, in priority order:
+    ///
+    ///   The pause. While TutorialPause_NEW holds the piece, the line reads B TO RESUME
+    ///       in every beat, including the ones that normally show no hint at all. A
+    ///       pause with no visible way out reads as a crash.
+    ///   The current beat. Otherwise, whatever the beat that last set the line wants —
+    ///       polled through LiveHintText, so a beat can change its own words mid-beat
+    ///       without holding a reference to the HUD. A beat set to Keep leaves the
+    ///       previous beat's words standing, which is what "no new prompt" means.
+    ///
+    /// Compared as strings every frame, which is cheap and needs no events: resuming
+    /// hands the line straight back to the beat, cleared or not.
+    /// </summary>
+    void TickLiveHint()
+    {
+        if (_hintBeat != null && _hintBeat.IsActive) _beatHintText = _hintBeat.LiveHintText;
+
+        bool paused = pause != null && pause.IsPaused;
+
+        // With a pause card in the scene the card carries B TO RESUME, and the hint line
+        // clears so the same words are not on screen twice. Without one, the hint line
+        // still carries it, so a pause is never left with no way out on screen.
+        string wanted = paused
+            ? (pauseCard != null ? null : pause.ResumeHintText)
+            : _beatHintText;
+
+        if (wanted == _shownHintText) return;
+
+        // Blank and cleared are the same state; without this a beat asking for an empty
+        // line would be cleared again every frame.
+        if (string.IsNullOrEmpty(wanted) && string.IsNullOrEmpty(_shownHintText)) return;
+
+        ShowHint(wanted);
     }
 
     // ── Director events ──────────────────────────────────────────────────────
@@ -147,8 +204,22 @@ public class TutorialHUD_NEW : MonoBehaviour
 
         if (!_legendShown && ReachedLegendBeat(beat)) ShowLegend();
 
-        if (beat.Hint == TutorialBeat_NEW.HintMode.Show) ShowHint(beat.HintText);
-        else if (beat.Hint == TutorialBeat_NEW.HintMode.Clear) ClearHint();
+        // Record what the beat wants; TickLiveHint puts it on screen, so a beat that opens
+        // while the piece is paused (a debug jump) does not cover B TO RESUME.
+        if (beat.Hint == TutorialBeat_NEW.HintMode.Show)
+        {
+            _hintBeat = beat;
+            _beatHintText = beat.LiveHintText;
+        }
+        else if (beat.Hint == TutorialBeat_NEW.HintMode.Clear)
+        {
+            _hintBeat = null;
+            _beatHintText = null;
+        }
+
+        // Keep leaves the line and its owner alone, which is what "no new prompt" means.
+
+        TickLiveHint();
 
         // Only a confirm beat asks for the prompt, and it decides when within the beat.
         _promptBeat = beat.GetComponent<Beat_Confirm_NEW>();
@@ -170,7 +241,10 @@ public class TutorialHUD_NEW : MonoBehaviour
     {
         _legendShown = false;
         _hintShown = false;
+        _shownHintText = null;
         _promptBeat = null;
+        _hintBeat = null;
+        _beatHintText = null;
 
         HideAll();
     }
@@ -239,6 +313,7 @@ public class TutorialHUD_NEW : MonoBehaviour
 
         _hintShown = true;
 
+        _shownHintText = text;
         if (hintLabel != null) hintLabel.text = text;
         if (hintRoot != null) hintRoot.SetActive(true);
 
@@ -248,6 +323,7 @@ public class TutorialHUD_NEW : MonoBehaviour
     void ClearHint()
     {
         _hintShown = false;
+        _shownHintText = null;
 
         if (debugLog) Debug.Log("[TutorialHUD_NEW] Hint cleared.", this);
     }

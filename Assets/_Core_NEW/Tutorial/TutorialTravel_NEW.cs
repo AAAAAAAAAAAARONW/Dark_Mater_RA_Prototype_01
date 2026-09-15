@@ -234,11 +234,12 @@ public class TutorialTravel_NEW : MonoBehaviour
 
     void Update()
     {
-        float dt = Time.unscaledDeltaTime;
+        float dt = TutorialClock_NEW.DeltaTime;
         Vector3 before = transform.position;
 
-        // Unscaled, so a future slow-motion beat (D2 runs at 0.2x) slows the world
-        // without also stopping the light that the whole piece says cannot stop.
+        // The world clock: unscaled, so D2's slow motion slows the world without also
+        // stopping the light the whole piece says cannot stop — but zero while paused,
+        // the one moment the light is allowed to stand still. See TutorialClock_NEW.
         if (_approaching) TickApproach(dt);
         else transform.position += _direction * (speed * dt);
 

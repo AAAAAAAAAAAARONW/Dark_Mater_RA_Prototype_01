@@ -104,7 +104,7 @@ public class TutorialFadeIn_NEW : MonoBehaviour
     {
         if (!_running) return;
 
-        _elapsed += Time.unscaledDeltaTime;
+        _elapsed += TutorialClock_NEW.DeltaTime;
 
         if (_elapsed < holdSeconds)
         {

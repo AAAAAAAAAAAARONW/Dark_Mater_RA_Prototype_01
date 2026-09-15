@@ -153,7 +153,7 @@ public class GuideMote_NEW : MonoBehaviour
 
     void Update()
     {
-        float dt = Time.unscaledDeltaTime;
+        float dt = TutorialClock_NEW.DeltaTime;
 
         Drift(dt);
         TickRamp(dt);
@@ -166,7 +166,7 @@ public class GuideMote_NEW : MonoBehaviour
 
         if (bobAmplitude > 0f)
         {
-            float bob = Mathf.Sin(Time.unscaledTime * bobFrequency * Mathf.PI * 2f) * bobAmplitude;
+            float bob = Mathf.Sin(TutorialClock_NEW.Time * bobFrequency * Mathf.PI * 2f) * bobAmplitude;
             next += Vector3.up * (bob * dt);
         }
 

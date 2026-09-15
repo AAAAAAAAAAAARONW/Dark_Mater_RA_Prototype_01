@@ -29,9 +29,9 @@ using UnityEngine.Events;
 /// E2's dark matter slider and E3's journey readout both arrive and settle. A component
 /// that only knew about the spectrum would be rewritten twice.
 ///
-/// Unscaled time throughout, like everything else in the tutorial: D2 drops the time
-/// scale, and a HUD element that slowed down with the world would still be sliding
-/// long after the frame that owns it had ended.
+/// On the world clock (TutorialClock_NEW): unaffected by D2's slow motion, so the bar
+/// does not lag the frame that owns it, but held still while the piece is paused so it
+/// stays in step with the atom it arrives alongside.
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(RectTransform))]
@@ -144,7 +144,7 @@ public class TutorialUISlide_NEW : MonoBehaviour
     {
         if (!_running) return;
 
-        _elapsed += Time.unscaledDeltaTime;
+        _elapsed += TutorialClock_NEW.DeltaTime;
 
         if (_elapsed < delaySeconds) return;
 

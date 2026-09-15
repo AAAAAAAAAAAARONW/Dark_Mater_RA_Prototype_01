@@ -121,6 +121,19 @@ public class TutorialSpectrum_NEW : MonoBehaviour
              "having been there, so D2 wants it.")]
     [SerializeField] bool pulseOnCut = true;
 
+    [Tooltip("How dark the FIRST absorption cuts, 0 to 1 — D5's line.\n\n" +
+             "Strong, because D5 is the moment the player has to see it at all, on the bar " +
+             "and on the trail at once, and a faint first line blinks into nothing.")]
+    [Range(0.05f, 1f)]
+    [SerializeField] float firstAbsorbDepth = 0.7f;
+
+    [Tooltip("How much each LATER hydrogen atom adds to a line, 0 to 1. The line saturates " +
+             "at 1 — it cannot remove more than all of the light at that wavelength.\n\n" +
+             "Small, so D6's atoms visibly DEEPEN D5's line over several hits instead of " +
+             "slamming it to black on the first.")]
+    [Range(0.02f, 1f)]
+    [SerializeField] float absorbDepth = 0.1f;
+
     [Header("Debug")]
     [SerializeField] bool debugLog = false;
 
@@ -131,6 +144,51 @@ public class TutorialSpectrum_NEW : MonoBehaviour
 
     /// <summary>Lines cut so far. Read by the debug overlay and by D4's beat.</summary>
     public int LinesCut { get { return _cut; } }
+
+    /// <summary>
+    /// Where hydrogen absorbs, on the 0 (UV) to 1 (IR) axis, before any redshift: the
+    /// first entry of linePositions.
+    ///
+    /// Every atom absorbs here, whenever it is hit — ground-state hydrogen always takes
+    /// the same wavelength, Lyman-alpha. That is the whole mechanism of the forest: with
+    /// no redshift, more atoms only deepen this one line (D6); once the spectrum drifts
+    /// (D7), the earlier lines have moved on and a new atom cuts a fresh line back here
+    /// (D8). A list of different positions would teach the wrong thing.
+    ///
+    /// Where on the axis it sits — the visible band, or inside the UV as the fact check
+    /// recommends — is a design decision, and is only this number.
+    /// </summary>
+    public float RestFramePosition
+    {
+        get { return linePositions != null && linePositions.Length > 0 ? linePositions[0] : 0.412f; }
+    }
+
+    /// <summary>True from the first absorption until the line drifts off the red end.</summary>
+    public bool HasTrackedLine { get { return _tracking; } }
+
+    /// <summary>
+    /// Where the first absorption line is right now, on the 0 (UV) to 1 (IR) axis —
+    /// its rest-frame position plus the redshift drift since. The line indicator reads it.
+    ///
+    /// Tracked here rather than asked of AbsorptionField_NEW, which exposes the drift
+    /// rate but not how far anything has moved. It integrates the same rate on the same
+    /// clock the field drifts on (scaled time), so a pause holds it and slow motion
+    /// slows it, exactly as they do the line itself.
+    /// </summary>
+    public float TrackedLinePosition { get { return _trackedPosition; } }
+
+    bool _tracking;
+    float _trackedPosition;
+
+    void Update()
+    {
+        if (!_tracking || field == null) return;
+
+        _trackedPosition += field.CurrentDriftPerSecond * Time.deltaTime;
+
+        // AbsorptionField_NEW drops lines off the red end; the indicator goes with it.
+        if (_trackedPosition > 1f) _tracking = false;
+    }
 
     /// <summary>How many lines are authored. D4 cannot ask for more than this.</summary>
     public int LineCapacity { get { return linePositions != null ? linePositions.Length : 0; } }
@@ -235,6 +293,7 @@ public class TutorialSpectrum_NEW : MonoBehaviour
     public void Clear()
     {
         _cut = 0;
+        _tracking = false;
 
         if (field != null) field.ClearLines();
 
@@ -248,6 +307,38 @@ public class TutorialSpectrum_NEW : MonoBehaviour
     /// wrapping would deepen a line that is already there and read as the spectrum
     /// glitching rather than as another absorption.
     /// </summary>
+    /// <summary>
+    /// One hydrogen atom absorbs at the rest-frame wavelength. D5's impact, each of D6's
+    /// atoms, and D8's atom during the redshift all call this.
+    ///
+    /// Stamps add depth, so a second hit on an undrifted spectrum deepens the same line.
+    /// After the drift starts the old line has moved, so the same call cuts a new one.
+    /// </summary>
+    public void AbsorbAtRestFrame()
+    {
+        if (field == null) return;
+
+        // A fresh line at the rest frame — the very first, or D8's after the drift has
+        // carried the first away — cuts at full strength. Anything landing on a line that
+        // is still there deepens it.
+        bool freshLine = !_tracking || Mathf.Abs(_trackedPosition - RestFramePosition) > lineWidth;
+        float depth = freshLine ? firstAbsorbDepth : absorbDepth;
+
+        field.StampLine(Mathf.Clamp01(RestFramePosition), depth, lineWidth, pulseOnCut);
+        _cut++;
+
+        // The first line is the one the indicator follows. Later absorptions either
+        // deepen it (no drift yet) or cut new lines at the rest frame, which the
+        // indicator does not chase.
+        if (!_tracking)
+        {
+            _tracking = true;
+            _trackedPosition = RestFramePosition;
+        }
+
+        if (debugLog) Debug.Log("[TutorialSpectrum_NEW] Absorption " + _cut + " at rest frame.", this);
+    }
+
     public void CutLine()
     {
         if (field == null) return;
@@ -342,9 +433,9 @@ public class TutorialSpectrum_NEW : MonoBehaviour
         if (!DebugView_NEW.Overlay) return;
 
         GUI.Label(DebugOverlayRows_NEW.Row(DebugOverlayRows_NEW.Spectrum),
-                  string.Format("SPECTRUM  {0}   lines {1}/{2}   profile {3}",
+                  string.Format("SPECTRUM  {0}   absorptions {1}   rest {2:F3}   profile {3}",
                                 IsVisible ? "visible" : "hidden",
-                                _cut, LineCapacity,
+                                _cut, RestFramePosition,
                                 profile != null ? profile.name : "NONE"));
     }
 }

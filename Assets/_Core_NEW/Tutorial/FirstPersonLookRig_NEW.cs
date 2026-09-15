@@ -1,12 +1,29 @@
 using UnityEngine;
 
 /// <summary>
-/// First person look for the tutorial. Yaw and pitch on one transform, nothing else.
+/// The tutorial's look: yaw and pitch, and where the eye sits relative to the light.
 ///
 /// Why this is not OrbitCameraRig_NEW: that rig orbits a FreeLook around the player and
-/// is third person. GDD §1 fixes the tutorial as first person throughout, with no view
+/// is third person. GDD §1 fixed the tutorial as first person throughout, with no view
 /// swap. Bending the orbit rig into a first person camera would mean a zero-radius
 /// orbit, which is a FreeLook fighting a Composer to stay still.
+///
+/// THE EYE NOW FOLLOWS FROM BEHIND AND ABOVE, which departs from §1 and is recorded in
+/// §12. With the eye on the light, the photon trail streams out behind the camera and is
+/// never on screen — and the trail is the player's own light, the one thing Phase 2 and
+/// Phase 3 spend their time changing. The follow view puts the eye a few metres back and
+/// up, tilted down, so the light sits just below the reticle with its trail running
+/// towards the bottom of the frame: the same picture the journey's FreeLook gives.
+///
+/// It is still this rig and not a FreeLook, because nothing about the FEEL moved: yaw,
+/// pitch, sensitivity, recentre and the A binding are all unchanged, and the eye simply
+/// orbits the light on the same two angles. followDistance, followHeight and followTilt
+/// all at zero is exactly the old first person camera.
+///
+/// This rig owns the camera's whole pose — rotation AND local position — and writes both
+/// in Apply. That is load-bearing: the reticle gates and the guide motes read this
+/// transform to decide what is at the centre of the screen, so it must always hold the
+/// pose the screen is actually showing, never a half-written one.
 ///
 /// FEEL. The numbers are not chosen, they are taken from PlaytestBuild_NEW's Player, so
 /// the tutorial hands over to a journey that behaves the same way. That build drives a
@@ -74,6 +91,30 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
     [Tooltip("Pitch clamp in degrees. Yaw is unlimited — B3 needs a full turn.")]
     [SerializeField] float minPitch = -80f;
     [SerializeField] float maxPitch = 80f;
+
+    [Header("Follow view — tune live in Play mode")]
+    [Tooltip("Metres behind the light, along the direction you are looking.\n\n" +
+             "The eye orbits the light as you look around, so 'behind' always means " +
+             "behind your current view, not behind the direction of travel. 0 puts the " +
+             "eye back on the light.")]
+    [Min(0f)]
+    [SerializeField] float followDistance = 3.5f;
+
+    [Tooltip("Metres above the light, in the same turning frame.\n\n" +
+             "Height is what lets the trail be seen at all: the trail runs back along " +
+             "the path and passes under the eye, and a camera level with it sees it " +
+             "edge on.")]
+    [SerializeField] float followHeight = 1.2f;
+
+    [Tooltip("Degrees the camera is tipped down from the look direction.\n\n" +
+             "More tilt shows more of the trail and puts the light higher in the frame; " +
+             "at about atan(height / distance) — roughly 19 degrees at the defaults — the " +
+             "light sits dead centre, on top of the reticle.\n\n" +
+             "The reticle gates measure from the camera as it actually points, so they " +
+             "follow this automatically: what is under the reticle on screen is what " +
+             "counts as caught.")]
+    [Range(-30f, 60f)]
+    [SerializeField] float followTilt = 12f;
 
     [Header("Recentre — from PlaytestBuild_NEW's Player")]
     [Tooltip("A recentres the view. Off only for a rig where A means something else " +
@@ -238,7 +279,15 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
         _forwardPitch = NormaliseAngle(euler.x);
     }
 
-    /// <summary>True when the target sits within halfAngleDeg of the view centre.</summary>
+    /// <summary>
+    /// True when the target sits within halfAngleDeg of the view centre.
+    ///
+    /// Measured from the camera as it actually is — offset behind the light and tilted
+    /// by the follow view — because the reticle is drawn at the centre of the screen and
+    /// "held inside the reticle" has to mean what the player can see there. Measuring
+    /// from the light along the untilted look direction would put the gate followTilt
+    /// degrees away from the reticle it is named after.
+    /// </summary>
     public bool IsInReticle(Transform target, float halfAngleDeg)
     {
         if (target == null) return false;
@@ -352,9 +401,34 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
         _appliedPitch = Mathf.SmoothDamp(_appliedPitch, _pitch, ref _pitchVelocity, smoothTime, Mathf.Infinity, dt);
     }
 
+    /// <summary>
+    /// Write the camera's pose: the look direction, then the follow view on top of it.
+    ///
+    /// The eye's offset is expressed in the look frame, so looking around orbits the
+    /// eye about the light rather than swinging the light out of shot. It is written as
+    /// a LOCAL position so the camera travels with the light on the same frame the light
+    /// moves, whichever of the two Updates Unity happens to run first — a world position
+    /// computed from the parent would trail it by one frame at tunnel speed, which reads
+    /// as judder.
+    ///
+    /// Written every frame, including when the offset is zero. TutorialCameraShake_NEW
+    /// adds its jitter on top in LateUpdate and relies on this rewriting the position
+    /// each Update, so the jitter never accumulates.
+    /// </summary>
     void Apply()
     {
-        transform.rotation = Quaternion.Euler(_appliedPitch, _appliedYaw, 0f);
+        Quaternion look = Quaternion.Euler(_appliedPitch, _appliedYaw, 0f);
+
+        transform.rotation = look * Quaternion.Euler(followTilt, 0f, 0f);
+
+        Vector3 eyeOffset = look * new Vector3(0f, followHeight, -followDistance);
+
+        // InverseTransformVector rather than an inverse rotation, so a scaled parent does
+        // not quietly shrink or stretch the follow distance.
+        Transform parent = transform.parent;
+        transform.localPosition = parent != null
+            ? parent.InverseTransformVector(eyeOffset)
+            : eyeOffset;
     }
 
     static float NormaliseAngle(float degrees)

@@ -313,7 +313,7 @@ public class TutorialEmission_NEW : MonoBehaviour
     {
         if (_phase == Phase.Idle || _phase == Phase.Settled) return;
 
-        float dt = Time.unscaledDeltaTime;
+        float dt = TutorialClock_NEW.DeltaTime;
         _elapsed += dt;
 
         if (_phase == Phase.SpinUp) TickSpinUp();

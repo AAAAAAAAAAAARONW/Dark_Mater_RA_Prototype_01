@@ -3,13 +3,20 @@ using UnityEngine;
 /// <summary>
 /// Positional jitter on the camera. C2's "high frequency frame jitter".
 ///
-/// Position and not rotation, deliberately. FirstPersonLookRig_NEW writes
-/// transform.rotation every frame, so anything else writing rotation would be fighting
-/// it — and losing, since the rig runs in Update and would simply overwrite the shake.
-/// Position is unclaimed, so this can own it outright in LateUpdate with nothing to
-/// coordinate. It also happens to be the better effect: a shaken position reads as the
-/// frame itself being unstable, which is what the storyboard's "double outline = frame
-/// jitter, not a second UI layer" is describing.
+/// Position and not rotation, deliberately. A shaken position reads as the frame itself
+/// being unstable, which is what the storyboard's "double outline = frame jitter, not a
+/// second UI layer" is describing.
+///
+/// ADDITIVE, NOT OWNED. This used to capture a rest position once and write
+/// rest + jitter into localPosition every LateUpdate, on the grounds that nothing else
+/// claimed position. The follow view changed that: FirstPersonLookRig_NEW now places the
+/// eye behind and above the light by writing localPosition itself, every Update. A shake
+/// that restored a captured rest point would have pulled the camera back onto the light
+/// on every frame — including every frame at zero amplitude.
+///
+/// So the rig owns the pose and this adds on top. The rig rewrites the position each
+/// Update, which discards last frame's jitter before this adds the next one, so nothing
+/// accumulates and there is nothing to restore.
 ///
 /// The amplitude is driven from outside rather than run as a fixed animation, because
 /// C1 rises into C2 over twelve seconds and then C3 cuts it dead. TutorialEmission_NEW
@@ -33,9 +40,6 @@ public class TutorialCameraShake_NEW : MonoBehaviour
     [Range(0f, 1f)]
     [SerializeField] float amplitude = 0f;
 
-    Vector3 _restLocalPosition;
-    bool _captured;
-
     /// <summary>0 = still, 1 = full jitter.</summary>
     public float Amplitude
     {
@@ -43,47 +47,24 @@ public class TutorialCameraShake_NEW : MonoBehaviour
         set { amplitude = Mathf.Clamp01(value); }
     }
 
-    void OnEnable()
-    {
-        Capture();
-    }
-
-    void OnDisable()
-    {
-        if (_captured) transform.localPosition = _restLocalPosition;
-    }
-
-    void Capture()
-    {
-        if (_captured) return;
-
-        _restLocalPosition = transform.localPosition;
-        _captured = true;
-    }
-
     /// <summary>
-    /// LateUpdate, so the rig has already written this frame's rotation and the offset
-    /// lands on top of a settled transform rather than being overwritten by it.
+    /// LateUpdate, so the rig has already written this frame's pose and the jitter lands
+    /// on top of it rather than being overwritten by it.
     /// </summary>
     void LateUpdate()
     {
-        Capture();
-
-        if (amplitude <= 0.0001f)
-        {
-            transform.localPosition = _restLocalPosition;
-            return;
-        }
+        // Nothing to write at rest. The rig has already put the eye where it belongs.
+        if (amplitude <= 0.0001f) return;
 
         // Three uncorrelated Perlin walks. Perlin rather than Random so the motion is
         // continuous — random per frame reads as a broken renderer, not as vibration.
-        float t = Time.unscaledTime * frequency;
+        float t = TutorialClock_NEW.Time * frequency;
 
         Vector3 offset = new Vector3(
             Mathf.PerlinNoise(t, 0.37f) - 0.5f,
             Mathf.PerlinNoise(t, 5.11f) - 0.5f,
             Mathf.PerlinNoise(t, 9.73f) - 0.5f);
 
-        transform.localPosition = _restLocalPosition + offset * (2f * maxOffset * amplitude);
+        transform.localPosition += offset * (2f * maxOffset * amplitude);
     }
 }

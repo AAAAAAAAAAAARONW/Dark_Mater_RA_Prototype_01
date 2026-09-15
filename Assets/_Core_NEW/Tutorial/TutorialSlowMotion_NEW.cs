@@ -47,18 +47,18 @@ public class TutorialSlowMotion_NEW : MonoBehaviour
              "coming back slowly keeps the impact as the sharp edge of the sequence.")]
     [SerializeField] float easeOutSeconds = 0.6f;
 
-    [Tooltip("Time scale for D5's inspect, where the world is held still while the " +
-             "player reads the spectrum.\n\n" +
-             "Nearly zero rather than exactly zero: a timeScale of 0 stops Update on " +
-             "anything that reads scaled time, and the absorption field is one of those " +
-             "— it would stop composing and uploading its texture, so the enlarged bar " +
-             "would be looking at a frozen buffer rather than a still one. At this value " +
-             "nothing visibly moves and everything still runs.\n\n" +
+    [Tooltip("Time scale while TutorialPause_NEW holds the piece. 0 is a true pause.\n\n" +
+             "Update keeps running at a time scale of 0 — only FixedUpdate stops — so the " +
+             "absorption field still composes and uploads its texture and the paused " +
+             "spectrum is live, just not moving. Particles, trail fade and the spectrum " +
+             "drift all stop.\n\n" +
+             "This does NOT stop the light, the atoms or the beats: they run on the world " +
+             "clock, TutorialClock_NEW, which the pause stops separately.\n\n" +
              "The camera is unaffected either way, because the rig reads unscaled time. " +
              "GDD §5's 'the camera is never locked' holds through a frame whose entire " +
              "content is standing still.")]
-    [Range(0.001f, 0.2f)]
-    [SerializeField] float freezeScale = 0.01f;
+    [Range(0f, 0.2f)]
+    [SerializeField] float freezeScale = 0f;
 
     [Header("Physics")]
     [Tooltip("Also scale Time.fixedDeltaTime, so physics keeps its per-second step rate " +
@@ -82,6 +82,12 @@ public class TutorialSlowMotion_NEW : MonoBehaviour
     /// for the slow motion and for the deeper freeze alike.</summary>
     float _span = 1f;
 
+    /// <summary>True while TutorialPause_NEW holds the clock.</summary>
+    bool _held;
+
+    /// <summary>What Release hands back: where the slow motion would be heading now.</summary>
+    float _heldTarget = 1f;
+
     // ── Public API ───────────────────────────────────────────────────────────
 
     /// <summary>True while the world is slowed or on its way there.</summary>
@@ -90,50 +96,93 @@ public class TutorialSlowMotion_NEW : MonoBehaviour
     /// <summary>Where the time scale is heading. Read by the debug overlay.</summary>
     public float TargetScale { get { return _target; } }
 
-    /// <summary>Drop into slow motion. D2's onEnter, or the atom's onImpact.</summary>
+    /// <summary>Drop into slow motion. D2's onEnter.</summary>
     public void Enter()
     {
         Capture();
 
         _span = Mathf.Abs(_baseTimeScale - slowScale);
-        _target = slowScale;
-
-        if (easeInSeconds <= 0f) Write(slowScale);
+        SetTarget(slowScale, easeInSeconds);
 
         if (debugLog) Debug.Log("[TutorialSlowMotion_NEW] Entering " + slowScale + "x.", this);
     }
 
-    /// <summary>Hold the world still. D5's inspect. Undone by Exit, like the slow motion.</summary>
-    public void Freeze()
+    /// <summary>Come back to full speed. D2's onSatisfied.</summary>
+    public void Exit()
     {
         Capture();
 
-        _span = Mathf.Abs(_baseTimeScale - freezeScale);
-        _target = freezeScale;
-
-        if (easeInSeconds <= 0f) Write(freezeScale);
-
-        if (debugLog) Debug.Log("[TutorialSlowMotion_NEW] Freezing at " + freezeScale + "x.", this);
-    }
-
-    /// <summary>Come back to full speed. D2's onSatisfied, and D5's close.</summary>
-    public void Exit()
-    {
-        _target = _baseTimeScale;
-
-        if (easeOutSeconds <= 0f) Write(_baseTimeScale);
+        SetTarget(_baseTimeScale, easeOutSeconds);
 
         if (debugLog) Debug.Log("[TutorialSlowMotion_NEW] Exiting.", this);
     }
 
     /// <summary>
-    /// Back to full speed immediately, no ease. The attract reset and every teardown
-    /// path use this — see the class summary on why restoring is not optional.
+    /// Stop the clock for TutorialPause_NEW, remembering what it was doing.
+    ///
+    /// A LOAN, NOT A SETTING. The pause can land at any moment, including inside D2's
+    /// slow motion. If it simply set the time scale to zero and resuming set it back to
+    /// one, a player who paused during the impact would resume at full speed with D2
+    /// still open — the slow motion silently gone. So the pause holds the clock, and
+    /// Release hands back whatever the slow motion would be doing by now.
+    ///
+    /// Instant both ways. A pause that eased would let the world visibly keep moving
+    /// after the button was pressed.
+    /// </summary>
+    public void Hold()
+    {
+        Capture();
+        if (_held) return;
+
+        _held = true;
+        _heldTarget = _target;
+
+        Write(freezeScale);
+
+        if (debugLog) Debug.Log("[TutorialSlowMotion_NEW] Held for pause.", this);
+    }
+
+    /// <summary>Hand the clock back to whatever the slow motion is doing now.</summary>
+    public void Release()
+    {
+        if (!_held) return;
+
+        _held = false;
+        _target = _heldTarget;
+
+        Write(_target);
+
+        if (debugLog) Debug.Log("[TutorialSlowMotion_NEW] Released to " + _target + "x.", this);
+    }
+
+    /// <summary>
+    /// Back to full speed immediately, no ease, and out of any pause. The attract reset
+    /// and every teardown path use this — see the class summary on why restoring is not
+    /// optional.
     /// </summary>
     public void RestoreNow()
     {
+        _held = false;
         _target = _baseTimeScale;
         Write(_baseTimeScale);
+    }
+
+    /// <summary>
+    /// Where the slow motion is heading. While a pause holds the clock, this only
+    /// updates what Release will hand back — so D2 ending during a pause (F2, a jump)
+    /// does not unfreeze the screen underneath it.
+    /// </summary>
+    void SetTarget(float scale, float easeSeconds)
+    {
+        if (_held)
+        {
+            _heldTarget = scale;
+            return;
+        }
+
+        _target = scale;
+
+        if (easeSeconds <= 0f) Write(scale);
     }
 
     // ── Lifecycle ────────────────────────────────────────────────────────────
@@ -162,6 +211,9 @@ public class TutorialSlowMotion_NEW : MonoBehaviour
 
     void Update()
     {
+        // A held clock stays exactly where the pause put it; no ramp runs under a pause.
+        if (_held) return;
+
         if (Mathf.Approximately(Time.timeScale, _target)) return;
 
         float seconds = _target < Time.timeScale ? easeInSeconds : easeOutSeconds;
@@ -198,9 +250,13 @@ public class TutorialSlowMotion_NEW : MonoBehaviour
     {
         Time.timeScale = scale;
 
-        if (!scaleFixedTimestep || _baseTimeScale <= 0f) return;
+        // At a true pause the physics step is left alone rather than scaled to zero,
+        // which Unity rejects. Nothing steps at a time scale of 0 anyway.
+        if (!scaleFixedTimestep || _baseTimeScale <= 0f || scale <= 0f) return;
 
-        Time.fixedDeltaTime = _baseFixedDelta * (scale / _baseTimeScale);
+        // Floored, because the first frames of a ramp up from a true pause produce a step
+        // smaller than Unity accepts.
+        Time.fixedDeltaTime = Mathf.Max(0.0001f, _baseFixedDelta * (scale / _baseTimeScale));
     }
 
     // ── Debug overlay ────────────────────────────────────────────────────────

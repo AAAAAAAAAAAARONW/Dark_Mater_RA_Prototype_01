@@ -266,6 +266,15 @@ public class TutorialDirector_NEW : MonoBehaviour
 
         if (_state != State.Running) return;
 
+        // NOTHING ADVANCES WHILE PAUSED — not the clock and not the gates. The idle
+        // watchdog above keeps counting on real time, deliberately: a visitor who paused
+        // and walked away still returns the piece to attract for the next person.
+        //
+        // Returning here rather than ticking with a zero delta matters. A zero delta
+        // would freeze duration beats but still run every gate's OnBeatTick, and those
+        // read input: pressing A while paused would fire C2's emission behind the pause.
+        if (TutorialClock_NEW.Paused) return;
+
         if (DebugView_NEW.Overlay && Input.GetKeyDown(skipBeatKey))
         {
             TutorialBeat_NEW skipped = CurrentBeat;
@@ -501,6 +510,8 @@ public class TutorialDirector_NEW : MonoBehaviour
         else
             line = string.Format("TUTORIAL  {0}  [{1}/{2}]  {3}  -  {4}",
                                  beat.BeatId, _index + 1, beats.Count, beat.Mode, beat.GateStatus());
+
+        if (TutorialClock_NEW.Paused) line += "   PAUSED";
 
         GUI.Label(DebugOverlayRows_NEW.Row(DebugOverlayRows_NEW.DirectorState), line);
         GUI.Label(DebugOverlayRows_NEW.Row(DebugOverlayRows_NEW.DirectorKeys),

@@ -20,12 +20,12 @@ using UnityEngine;
 ///            separable if this is reverted.
 ///   A        Confirm / recentre / emit. One button, one meaning, everywhere.
 ///
-///   B        Inspect. D5 only. Read through the Fire2 axis rather than a key code —
-///            see InspectButton for why that distinction matters on a PlayStation pad.
+///   B        Pause. D5 only. P on the keyboard, Triangle on a PlayStation pad — see
+///            PauseButton for why each layout reads a different button.
 ///
 /// GDD §10 item 1 listed the three face buttons as blocked. An audit of the build
 /// settled it: A is Fire1 and taken, X is Fire3 and shows the journey HUD, and B and Y
-/// are free. B is inspect. Confirm it on a running pad before D5's prompt copy is
+/// are free. B is pause. Confirm it on a running pad before D5's prompt copy is
 /// final — the audit covered C# source, and a binding made through a UnityEvent in a
 /// prefab would not appear in it. The director's overlay prints which buttons the pad
 /// is sending, for exactly that check.
@@ -89,29 +89,30 @@ public static class TutorialInput_NEW
     public const KeyCode ConfirmPadButton = KeyCode.JoystickButton0;
 
     /// <summary>
-    /// Inspect — D5. B on the pad, E on the keyboard.
+    /// Pause — D5. B on an Xbox pad, Triangle on a PlayStation pad, P on the keyboard.
     ///
-    /// RESOLVED, and read through an axis name rather than a key code. Joystick button 1
-    /// is B on an Xbox pad and Cross on a PlayStation one, and ConfirmDown already
-    /// accepts Cross so that A keeps working when the layout detection guesses wrong. A
-    /// raw KeyCode.JoystickButton1 here would therefore make one button both confirm and
-    /// inspect on a PlayStation pad. Fire2 is bound to joystick button 1 in
-    /// InputManager.asset and carries no such double meaning.
+    /// Read through the Fire2 axis on Xbox rather than a raw key code. Fire2 is joystick
+    /// button 1, which is B on an Xbox pad and CROSS on a PlayStation one — and
+    /// ConfirmDown accepts Cross so A keeps working when layout detection guesses wrong.
+    /// Reading Fire2 on a PlayStation pad would make Cross both confirm and pause.
     ///
-    /// Xbox is the only supported target; the PlayStation layout is a development
-    /// convenience. See §12 for the audit that freed this button.
+    /// So the PlayStation layout reads Triangle instead, chosen because it is the one
+    /// face button nothing on that layout claims: Square is joystick button 0, which
+    /// ConfirmDown accepts as A; Cross is button 1, the confirm alternative; Circle is
+    /// button 2, free in the tutorial but X's slot on Xbox, which the journey uses to
+    /// show its HUD. Triangle is button 3 — Xbox Y, read by nothing but an input logger.
+    ///
+    /// Each layout reads only its own button, so Xbox Y does not pause and PlayStation
+    /// Cross does not pause. Xbox is the only supported target; the PlayStation mapping
+    /// is a development convenience.
     /// </summary>
-    public const string InspectButton = "Fire2";
+    public const string PauseButton = "Fire2";
+
+    /// <summary>Triangle on a PlayStation pad under DirectInput. See PauseButton.</summary>
+    public const KeyCode PausePlayStationButton = KeyCode.JoystickButton3;
 
     /// <summary>Keyboard stand-in for B, so D5 is playable without a pad.</summary>
-    public const KeyCode InspectKey = KeyCode.E;
-
-    /// <summary>
-    /// False since the face-button audit: inspect is B, and D5's prompt copy can be
-    /// written. Kept as a constant because callers were told to check it before drawing
-    /// a label they could not write.
-    /// </summary>
-    public const bool InspectIsPlaceholder = false;
+    public const KeyCode PauseKey = KeyCode.P;
 
     // ── Pad layout ───────────────────────────────────────────────────────────
 
@@ -349,15 +350,19 @@ public static class TutorialInput_NEW
         catch (System.ArgumentException) { return false; }
     }
 
-    /// <summary>Inspect, pressed this frame. B on the pad, E at a desk.</summary>
-    public static bool InspectDown()
+    /// <summary>Pause, pressed this frame. B on Xbox, Triangle on PlayStation, P at a desk.</summary>
+    public static bool PauseDown()
     {
-        if (Input.GetKeyDown(InspectKey)) return true;
+        if (Input.GetKeyDown(PauseKey)) return true;
+
+        // Each layout reads only its own button. Fire2 on a PlayStation pad is Cross,
+        // which already confirms — see PauseButton.
+        if (Pad == PadLayout.PlayStation) return Input.GetKeyDown(PausePlayStationButton);
 
         // Fire2 is defined in this project, but a scene copied elsewhere should not
         // hard-fail on a tutorial that is otherwise playable from the keyboard. Same
         // reasoning as ConfirmDown.
-        try { return Input.GetButtonDown(InspectButton); }
+        try { return Input.GetButtonDown(PauseButton); }
         catch (System.ArgumentException) { return false; }
     }
 

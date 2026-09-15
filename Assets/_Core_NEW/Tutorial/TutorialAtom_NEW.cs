@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.Serialization;
 
 /// <summary>
 /// A single hydrogen atom, closing on the light. D1 and D2.
@@ -46,7 +47,7 @@ public class TutorialAtom_NEW : MonoBehaviour
              "have to agree and only one of them should be authored twice.")]
     [SerializeField] float approachSeconds = 10f;
 
-    [Tooltip("Metres from the camera at which contact fires. Not a physics collision — " +
+    [Tooltip("Metres from the light at which contact fires. Not a physics collision — " +
              "a trigger would need a collider on the light and a rigidbody somewhere, " +
              "for an event that is a distance test.")]
     [SerializeField] float impactRadius = 1.5f;
@@ -101,12 +102,18 @@ public class TutorialAtom_NEW : MonoBehaviour
     [SerializeField] AnimationCurve approachShape = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
     [Header("Wiring")]
-    [Tooltip("Leave empty to use the main camera. The atom closes on this, and impact " +
-             "is measured from it.")]
-    [SerializeField] Transform target;
+    [Tooltip("Leave empty to use the main camera. Only the glow reads this — it turns the " +
+             "halo to face it.\n\n" +
+             "This used to be what the atom closed on, back when the camera sat on the " +
+             "light and the two were the same point. The follow view moved the camera " +
+             "behind and above, so closing on the camera would fly the atom past the " +
+             "light and strike empty space three metres behind it.")]
+    [FormerlySerializedAs("target")]
+    [SerializeField] Transform viewCamera;
 
-    [Tooltip("Leave empty to find it. Only its heading is read, so the atom starts ahead " +
-             "on the light's actual course rather than wherever the player is looking.")]
+    [Tooltip("Leave empty to find it. The light itself: the atom closes on this " +
+             "transform, measures impact from it, and starts ahead on its heading rather " +
+             "than wherever the player is looking.")]
     [SerializeField] TutorialTravel_NEW travel;
 
     [Header("Events")]
@@ -135,13 +142,26 @@ public class TutorialAtom_NEW : MonoBehaviour
         get { return approachSeconds <= 0f ? 1f : Mathf.Clamp01(_elapsed / approachSeconds); }
     }
 
+    /// <summary>
+    /// What the atom closes on: the light, not the camera.
+    ///
+    /// The travel component sits on the light, so its transform is the light. The camera
+    /// is only a fallback for a scene without one, where the two are also the only
+    /// reasonable guess at "the player".
+    /// </summary>
+    Transform ClosesOn
+    {
+        get { return travel != null ? travel.transform : viewCamera; }
+    }
+
     /// <summary>Metres still to run. Read by the debug overlay.</summary>
     public float Distance
     {
         get
         {
-            if (target == null) return 0f;
-            return Vector3.Distance(transform.position, target.position);
+            Transform light = ClosesOn;
+            if (light == null) return 0f;
+            return Vector3.Distance(transform.position, light.position);
         }
     }
 
@@ -153,10 +173,10 @@ public class TutorialAtom_NEW : MonoBehaviour
     {
         Resolve();
 
-        if (target == null)
+        if (ClosesOn == null)
         {
-            Debug.LogError("[TutorialAtom_NEW] No target and no main camera. The atom " +
-                           "cannot close and D1 can never be satisfied.", this);
+            Debug.LogError("[TutorialAtom_NEW] No TutorialTravel_NEW and no camera to close on. " +
+                           "The atom cannot close and D1 can never be satisfied.", this);
             return;
         }
 
@@ -217,7 +237,7 @@ public class TutorialAtom_NEW : MonoBehaviour
 
     void Resolve()
     {
-        if (target == null && Camera.main != null) target = Camera.main.transform;
+        if (viewCamera == null && Camera.main != null) viewCamera = Camera.main.transform;
         if (travel == null) travel = FindObjectOfType<TutorialTravel_NEW>();
     }
 
@@ -232,16 +252,16 @@ public class TutorialAtom_NEW : MonoBehaviour
         if (travel != null && travel.Direction.sqrMagnitude > 0.0001f)
             return travel.Direction.normalized;
 
-        return target != null ? target.forward : Vector3.forward;
+        return viewCamera != null ? viewCamera.forward : Vector3.forward;
     }
 
     void Update()
     {
-        if (!_armed || _hit || target == null) return;
+        if (!_armed || _hit || ClosesOn == null) return;
 
-        // Unscaled, like everything else in the tutorial. D2 drops the time scale on
-        // impact, and an atom that slowed down with it would still be arriving.
-        _elapsed += Time.unscaledDeltaTime;
+        // The world clock (TutorialClock_NEW): ignores D2's slow motion, which drops the
+        // time scale on impact, but stops while the piece is paused.
+        _elapsed += TutorialClock_NEW.DeltaTime;
 
         float t = Progress;
         float shaped = approachShape != null ? approachShape.Evaluate(t) : t;
@@ -277,12 +297,13 @@ public class TutorialAtom_NEW : MonoBehaviour
     /// </summary>
     void Place(float shaped)
     {
-        if (target == null) return;
+        Transform light = ClosesOn;
+        if (light == null) return;
 
         float remaining = Mathf.Lerp(spawnDistance, 0f, shaped);
         float lateral = spawnDistance > 0.001f ? remaining / spawnDistance : 0f;
 
-        transform.position = target.position
+        transform.position = light.position
                              + _heading * remaining
                              + (_right * spawnSpread.x + _up * spawnSpread.y) * lateral;
     }
@@ -304,7 +325,7 @@ public class TutorialAtom_NEW : MonoBehaviour
         // The flutter is on brightness only, never on position: a point of light that
         // wanders is a point of light the player will try to track with the stick, and
         // §3 item 2 is that they cannot steer.
-        float flutter = 1f + shimmer * Mathf.Sin(Time.unscaledTime * shimmerSpeed);
+        float flutter = 1f + shimmer * Mathf.Sin(TutorialClock_NEW.Time * shimmerSpeed);
 
         transform.localScale = Vector3.one * Mathf.Lerp(scaleAtSpawn, scaleAtImpact, t);
 
@@ -321,16 +342,15 @@ public class TutorialAtom_NEW : MonoBehaviour
     /// <summary>
     /// Turn the halo quad to face the camera.
     ///
-    /// Done here rather than by a separate billboard component because the atom already
-    /// holds the camera it is closing on, and a billboard that used a different camera
-    /// from the one the approach is measured against could face the wrong way in a scene
-    /// with two.
+    /// Faces the camera, not the light. The two used to be the same point; with the
+    /// follow view the camera is behind and above, and a halo turned towards the light
+    /// would be seen nearly edge on for the whole approach.
     /// </summary>
     void FaceCamera()
     {
-        if (halo == null || target == null) return;
+        if (halo == null || viewCamera == null) return;
 
-        Vector3 toCamera = halo.position - target.position;
+        Vector3 toCamera = halo.position - viewCamera.position;
         if (toCamera.sqrMagnitude < 0.0001f) return;
 
         halo.rotation = Quaternion.LookRotation(toCamera);
