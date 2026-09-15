@@ -22,6 +22,14 @@ using UnityEngine;
 /// out of the edges rather than fading in on top. Absorption lines use the same
 /// coordinate, so they stay on the right wavelengths throughout.
 ///
+/// ONE WAVELENGTH, DRAWN TWICE, AT TWO SCALES. A hydrogen atom takes one wavelength out
+/// of the light. On the spectrum bar that is a dip in the curve; on the ribbon it is a
+/// dark stripe across the width, at the same place on the same axis, sliding red with
+/// the same drift. Nothing joins them and nothing needs to — they are one fact shown in
+/// two forms, and the job here is only to make sure they agree: mirrorAcross puts the
+/// ribbon's UV and IR on the same sides as the bar's, and lineSpread makes the stripe
+/// thick enough to see on a ribbon that is a fifth of the bar's width on screen.
+///
 /// THE COLOUR BANDS NEVER MOVE DURING REDSHIFT, deliberately. They are the wavelength
 /// scale — 500 nm is green whatever the light has been through. What redshift moves is
 /// the light's content, and the absorption lines already slide redward through
@@ -77,6 +85,24 @@ public class TutorialTrailBands_NEW : MonoBehaviour
     [Tooltip("Extra brightness at the top of each flash. 1 doubles the band's colour.")]
     [SerializeField] float flashPeak = 1.4f;
 
+    [Header("Absorption line")]
+    [Tooltip("How wide the dark line is painted across the RIBBON, as a fraction of the " +
+             "spectrum. 0 leaves it exactly as wide as it is in the shared buffer.\n\n" +
+             "The line is cut once, at one wavelength, and drawn in two places at very " +
+             "different scales. The spectrum bar is 720 pixels wide, so the authored " +
+             "0.009 of the spectrum comes out about six pixels: a clear notch. The " +
+             "ribbon is around 150 pixels wide on screen at the light, so the same 0.009 " +
+             "is a single pixel — present, correct, and invisible, which is the one thing " +
+             "D5 cannot afford.\n\n" +
+             "This widens it on the ribbon only. It does not move it, does not touch the " +
+             "buffer and does not touch the bar, so the two marks stay at the same " +
+             "wavelength and drift together — one of them is simply drawn thick enough " +
+             "to be seen at the size it is drawn.\n\n" +
+             "Raise it until the stripe reads from standing distance; drop it if the " +
+             "ribbon starts looking banded rather than marked.")]
+    [Range(0f, 0.06f)]
+    [SerializeField] float lineSpread = 0.02f;
+
     [Header("Absorption line blink")]
     [Min(1)]
     [SerializeField] int lineBlinkCount = 3;
@@ -119,6 +145,7 @@ public class TutorialTrailBands_NEW : MonoBehaviour
     static readonly int VisibleEndId = Shader.PropertyToID("_VisibleBandEnd");
     static readonly int VisibleHighlightId = Shader.PropertyToID("_VisibleHighlight");
     static readonly int LineStrengthId = Shader.PropertyToID("_AbsorptionLineStrength");
+    static readonly int LineSpreadId = Shader.PropertyToID("_AbsorptionLineSpread");
 
     // ── Public API ───────────────────────────────────────────────────────────
 
@@ -262,6 +289,12 @@ public class TutorialTrailBands_NEW : MonoBehaviour
         _block.SetFloat(LineStrengthId,
                         _baseLineStrength * Mathf.Lerp(1f, lineBlinkLow,
                                                        Pulse(_blinkElapsed, lineBlinkSeconds, lineBlinkCount)));
+
+        // Scaled by the crop, so the stripe keeps its width on screen. Cropping to the
+        // visible band puts a fifth of the spectrum across the same ribbon, which magnifies
+        // everything on it — a spread left at its full value would fold away five times
+        // too wide at D9.
+        _block.SetFloat(LineSpreadId, lineSpread * scale);
 
         _trail.SetPropertyBlock(_block);
     }

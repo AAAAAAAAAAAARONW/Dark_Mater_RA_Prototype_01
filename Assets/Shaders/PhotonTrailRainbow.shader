@@ -51,6 +51,12 @@ Shader "Custom/PhotonTrail"
         _AbsorptionLineTex ("Absorption Line Texture", 2D) = "black" {}
         _AbsorptionLineStrength ("Absorption Line Strength", Range(0, 1)) = 1.0
         _AbsorptionLineWidth ("Line Softness", Range(0.5, 4.0)) = 1.5
+
+        // Widens the dark line ACROSS THE RIBBON ONLY — added for the tutorial, where
+        // the ribbon is a fifth as wide on screen as the spectrum bar and a line that
+        // reads as six pixels on the bar is one on the light.
+        // Spread 0 (the default) changes nothing, so existing materials look the same.
+        _AbsorptionLineSpread ("Absorption Line Spread", Range(0, 0.06)) = 0
     }
 
     SubShader
@@ -108,6 +114,7 @@ Shader "Custom/PhotonTrail"
             sampler2D _AbsorptionLineTex;
             float  _AbsorptionLineStrength;
             float  _AbsorptionLineWidth;
+            float  _AbsorptionLineSpread;
 
             struct appdata
             {
@@ -246,6 +253,41 @@ Shader "Custom/PhotonTrail"
                 if (_UseAbsorptionLine > 0.5)
                 {
                     float lineStrength = tex2D(_AbsorptionLineTex, float2(specT, 0.5)).r;
+
+                    // SPREAD WIDENS THE LINE WITHOUT MOVING IT. Four extra taps either
+                    // side of this pixel's wavelength, keeping whichever is darkest, so a
+                    // line one texel wide is painted across a band of the ribbon centred
+                    // on the wavelength it actually belongs to.
+                    //
+                    // The absorption buffer is shared with the spectrum bar, and this
+                    // does NOT touch it: the bar keeps the sharp dip it can afford at 720
+                    // pixels wide, and the ribbon — a fifth of that on screen — gets a
+                    // stripe thick enough to be a stripe. Same wavelength, same drift,
+                    // two scales.
+                    //
+                    // Max rather than a blur, because absorption is light that is gone.
+                    // Averaging would make a narrow deep line into a wide shallow one and
+                    // lose exactly what has to be visible.
+                    if (_AbsorptionLineSpread > 0.0001)
+                    {
+                        // Not named `step`: that is an HLSL intrinsic, and shadowing it
+                        // compiles on one platform and argues on the next.
+                        float tapStep = _AbsorptionLineSpread * 0.25;
+
+                        // tex2Dlod, not tex2D: a sample inside flow control has no
+                        // derivatives, and some compilers refuse it outright. The buffer
+                        // is one texel tall with no mip chain, so asking for level 0
+                        // explicitly costs nothing and is what was wanted anyway.
+                        for (int tap = 1; tap <= 4; tap++)
+                        {
+                            float d = tapStep * tap;
+                            lineStrength = max(lineStrength,
+                                               tex2Dlod(_AbsorptionLineTex, float4(specT - d, 0.5, 0, 0)).r);
+                            lineStrength = max(lineStrength,
+                                               tex2Dlod(_AbsorptionLineTex, float4(specT + d, 0.5, 0, 0)).r);
+                        }
+                    }
+
                     absorp = lineStrength * _AbsorptionLineStrength;
                 }
 
