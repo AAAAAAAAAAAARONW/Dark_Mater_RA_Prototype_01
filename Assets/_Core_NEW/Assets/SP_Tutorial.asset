@@ -21,4 +21,4 @@ MonoBehaviour:
   dipDepthMin: 0.2
   dipDepthMax: 0.65
   spawnRangeUV: {x: 0.05, y: 0.4}
-  driftPerSecond: 0.02
+  driftPerSecond: 0.009

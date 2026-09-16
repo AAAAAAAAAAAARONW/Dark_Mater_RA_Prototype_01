@@ -37,8 +37,17 @@ public class TutorialAtomCluster_NEW : MonoBehaviour
     [Tooltip("Seconds between one atom being armed and the next.\n\n" +
              "They each take their own approachSeconds to arrive, so this is also the " +
              "gap between impacts. Long enough to see each line appear on its own, short " +
-             "enough that the four read as one passage through a group.")]
-    [SerializeField] float secondsApart = 1.6f;
+             "enough that the four read as one passage through a group.\n\n" +
+             "IT IS HALF OF HOW FAR APART THE LINES END UP. Every atom absorbs at the same " +
+             "wavelength; what separates their marks is the spectrum drifting between one " +
+             "impact and the next, so the gap on the bar is this number times the drift " +
+             "rate. Change either and check the other — at the tutorial's 0.009 a second, " +
+             "2.4 puts the marks about sixteen pixels apart on a 720 pixel bar, against " +
+             "lines six or seven pixels wide.\n\n" +
+             "It also has to fit: four atoms at this spacing plus one approach have to " +
+             "land inside the beat that armed them, or the last one strikes after its own " +
+             "frame has ended.")]
+    [SerializeField] float secondsApart = 2.4f;
 
     [Header("Debug")]
     [SerializeField] bool debugLog = false;

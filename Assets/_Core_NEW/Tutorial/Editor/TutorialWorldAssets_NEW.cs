@@ -181,16 +181,25 @@ public static class TutorialWorldAssets_NEW
     /// <summary>
     /// How fast the tutorial's spectrum drifts, in fractions of the spectrum per second.
     ///
-    /// FASTER THAN THE JOURNEY'S 0.00778, deliberately, and this is the one number where
-    /// the two are allowed to disagree. The journey drifts for an hour and wants a rate
-    /// nobody notices; D3 has eight seconds to make the player notice, and at the
-    /// journey's rate the bar moves about six pixels a second — below the speed at which
-    /// motion registers as motion at all.
+    /// THIS NUMBER DECIDES HOW LONG AN ABSORPTION LOOKS LIKE IT HAPPENED AT THE PEAK.
+    /// Every atom cuts at the same wavelength, 0.412, which sits on the Ly-alpha peak at
+    /// 0.42 — the tallest thing on the bar and therefore the one place a line can take a
+    /// bite worth two thirds of the bar's height. The drift then carries it off, and the
+    /// peak is narrow: a sigma of 0.0085 blueward and 0.013 red. At 0.02 a fresh line was
+    /// clear of the peak in well under a second and spent the rest of its life as a
+    /// shallow mark on the flat shelf, so the deep notch the frame is about was over
+    /// before anybody had looked up.
     ///
-    /// At this rate it is roughly fifteen pixels a second on a 720 pixel bar: plainly
-    /// moving, and slow enough that the line D2 cut is still on screen at the end of D4.
+    /// At 0.009 it is about six pixels a second on a 720 pixel bar — still plainly moving,
+    /// and a new line stays in the peak's bright neighbourhood for two to three seconds,
+    /// which is long enough to be read as having been cut there.
+    ///
+    /// IT IS ALSO HALF OF THE SPACING BETWEEN LINES. The gap between two marks is this
+    /// rate times the seconds between the atoms that made them, so slowing it down means
+    /// spacing the atoms further apart or the forest merges into one thick line — see
+    /// TutorialAtomCluster_NEW.secondsApart, which moved with it.
     /// </summary>
-    const float TutorialDriftPerSecond = 0.02f;
+    const float TutorialDriftPerSecond = 0.009f;
 
     /// <summary>
     /// The same rate, for the builder to put on the still profile — which is not still

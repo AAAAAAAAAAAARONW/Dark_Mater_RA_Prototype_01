@@ -2064,11 +2064,23 @@ public static class TutorialSceneBuilder_NEW
         // switch on and a scene still pointing at the still profile would hold the curve
         // motionless until D7. Both profiles carry the same rate; this is the one that
         // shipped at zero.
+        // 0 is the rate that shipped before the spectrum drifted at all; 0.02 is the first
+        // rate it drifted at, which carried a fresh line off the Ly-alpha peak in under a
+        // second. See TutorialWorldAssets_NEW.DriftPerSecond for what this number decides.
         RepairSerialized(profile, "driftPerSecond",
-                         p => Mathf.Approximately(p.floatValue, 0f),
+                         p => Mathf.Approximately(p.floatValue, 0f) ||
+                              Mathf.Approximately(p.floatValue, 0.02f),
                          p => p.floatValue = TutorialWorldAssets_NEW.DriftPerSecond,
-                         "the tutorial's spectrum drifts from the moment it is on screen, " +
-                         "not from D7 — so every atom's line is cut into clean spectrum.");
+                         "spectrum drift slowed so a new line stays on the peak long enough to " +
+                         "be seen being cut there.");
+
+        SpectrumProfile_NEW drifting = TutorialWorldAssets_NEW.TutorialSpectrumDriftProfile();
+
+        RepairSerialized(drifting, "driftPerSecond",
+                         p => Mathf.Approximately(p.floatValue, 0.02f),
+                         p => p.floatValue = TutorialWorldAssets_NEW.DriftPerSecond,
+                         "D7's profile follows the same rate — the two must not disagree, or the " +
+                         "spectrum changes speed at the frame that names the redshift.");
 
         // ── Retired: the enlarged spectrum on pause ──────────────────────────
         // D5 used to bring the bar to the middle of the screen, enlarged over a dimmed
@@ -2506,12 +2518,38 @@ public static class TutorialSceneBuilder_NEW
         new Vector2( 17f,   8f)
     };
 
+    // ── D6's timing ──────────────────────────────────────────────────────────
+    //
+    // The gap between two marks on the bar is the drift rate times the seconds between
+    // the atoms that made them. Slowing the drift to keep a fresh line on the peak
+    // therefore closed the forest up, and these two numbers open it again inside the same
+    // ten second beat:
+    //
+    //   0.009 x 2.4s = 0.0216 of the spectrum, about 16 px on a 720 px bar, against a
+    //   line 0.009 wide — six or seven pixels. Four marks, clearly four.
+    //
+    // The approach comes down with it so the last atom still lands inside the beat:
+    // armed at 0, 2.4, 4.8 and 7.2, arriving 2.6 later, so the impacts fall at 2.6, 5.0,
+    // 7.4 and 9.8 of D6's ten seconds. Push either number up without checking the other
+    // and the fourth atom hits after its own frame has ended.
+
+    const float ClusterSecondsApart = 2.4f;
+    const float ClusterApproachSeconds = 2.6f;
+
     static TutorialAtomCluster_NEW BuildAtomCluster(Transform world, Transform camera,
                                                     TutorialTravel_NEW travel,
                                                     TutorialSpectrum_NEW spectrum)
     {
         GameObject root = FindOrCreate("Cluster_D4", world, Vector3.zero);
         TutorialAtomCluster_NEW cluster = AddIfMissing<TutorialAtomCluster_NEW>(root);
+
+        Wire(cluster).Num("secondsApart", ClusterSecondsApart).Apply();
+
+        RepairSerialized(cluster, "secondsApart",
+                         p => Mathf.Approximately(p.floatValue, 1.6f),
+                         p => p.floatValue = ClusterSecondsApart,
+                         "atoms spaced further apart, so the slower drift still leaves four " +
+                         "separate lines instead of one thick one.");
 
         for (int i = 0; i < ClusterSpread.Length; i++)
         {
@@ -2523,8 +2561,16 @@ public static class TutorialSceneBuilder_NEW
                 // is the whole event and it gets ten seconds; here four of them share
                 // the frame and each one only has to be seen coming.
                 .Num("spawnDistance", 140f)
-                .Num("approachSeconds", 4.5f)
+                .Num("approachSeconds", ClusterApproachSeconds)
                 .Apply();
+
+            // The four have to be spaced far enough apart to leave four marks and still
+            // all land inside D6's ten seconds — see ClusterApproachSeconds.
+            RepairSerialized(atom, "approachSeconds",
+                             p => Mathf.Approximately(p.floatValue, 4.5f),
+                             p => p.floatValue = ClusterApproachSeconds,
+                             "cluster atom arrives sooner, to make room for the wider gap between " +
+                             "them inside the same beat.");
 
             // The atom does not know what a spectrum is. Every one absorbs at the rest
             // frame: with no redshift yet, D6's group deepens the one line D5 cut rather
