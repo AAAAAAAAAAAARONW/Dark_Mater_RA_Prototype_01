@@ -77,6 +77,27 @@ public class SpectrumHUD_NEW : MonoBehaviour
     [Range(0f, 1f)]
     [SerializeField] float lyaPosition = 0.42f;
 
+    [Tooltip("Lift the whole curve off the floor, as a fraction of full height. 0 draws " +
+             "the astronomical shape exactly as it is.\n\n" +
+             "WHY ANYTHING WOULD WANT THIS. A quasar spectrum is mostly continuum, and on " +
+             "this template the continuum runs at 0.18 of full height against a Ly-alpha " +
+             "peak at 1.0. Drawn at real proportions on a 96 pixel bar that is a single " +
+             "94 pixel spike standing on a seventeen pixel line — which is what a quasar " +
+             "spectrum looks like, and which does not read as a spectrum at all from the " +
+             "back of a room. It reads as a spike.\n\n" +
+             "It also leaves nothing for an absorption to take. Absorption is drawn by " +
+             "removing height, so a line is only ever as visible as whatever it cuts into: " +
+             "in the forest region, a line that removes 70% of the light removes twelve " +
+             "pixels of a seventeen pixel curve and is a smudge.\n\n" +
+             "Lifting the floor keeps every feature — the Lyman limit still cuts to black, " +
+             "the peak is still the tallest thing on the bar, the metal lines still sit " +
+             "where they sit — and gives the flat parts enough height to be bitten out of.\n\n" +
+             "The journey leaves this at 0 and draws the real proportions. The tutorial " +
+             "does not: it is the one place where the bar has to be READ, by somebody who " +
+             "has never seen one, on a curved display, standing up.")]
+    [Range(0f, 0.8f)]
+    [SerializeField] float continuumFloor = 0f;
+
     [Tooltip("Entries in the baked template table. The narrowest feature has a sigma of " +
              "0.0085, so 4096 gives it about 35 samples — far more than the display needs.")]
     [Range(512, 8192)]
@@ -87,6 +108,7 @@ public class SpectrumHUD_NEW : MonoBehaviour
 
     float[] _lut;
     float _bakedLyaPosition = float.NaN;
+    float _bakedFloor = float.NaN;
     float _redshiftOffset;
     readonly List<float> _display = new List<float>();
 
@@ -117,7 +139,8 @@ public class SpectrumHUD_NEW : MonoBehaviour
         if (profile == null) return;
 
         lyaPosition = profile.continuumPeakPosition;
-        if (!Mathf.Approximately(lyaPosition, _bakedLyaPosition)) BakeTemplate();
+        if (!Mathf.Approximately(lyaPosition, _bakedLyaPosition) ||
+            !Mathf.Approximately(continuumFloor, _bakedFloor)) BakeTemplate();
 
         if (debugLog)
             Debug.Log($"[SpectrumHUD_NEW] Continuum peak -> {lyaPosition:F3}.", this);
@@ -201,6 +224,7 @@ public class SpectrumHUD_NEW : MonoBehaviour
             _lut[i] = QuasarTemplate(i / (float)(lutResolution - 1));
 
         _bakedLyaPosition = lyaPosition;
+        _bakedFloor = continuumFloor;
 
         if (debugLog)
             Debug.Log($"[SpectrumHUD_NEW] Template baked: {lutResolution} entries, peak at {lyaPosition:F3}.", this);
@@ -253,7 +277,13 @@ public class SpectrumHUD_NEW : MonoBehaviour
 
         float lyLimit = Mathf.SmoothStep(0f, 1f, (t - 0.07f) / 0.06f);
 
-        return Mathf.Max(0f, (continuum + em) * lyLimit);
+        // Lifted before the Lyman limit is applied, not after, so the cutoff still goes
+        // to black — a floor that survived it would draw a bar of light blueward of a
+        // break that exists precisely because there is none.
+        float shape = Mathf.Clamp01(continuum + em);
+        shape = continuumFloor + (1f - continuumFloor) * shape;
+
+        return Mathf.Max(0f, shape * lyLimit);
     }
 
     static float GaussBump(float t, float center, float sigma, float height)

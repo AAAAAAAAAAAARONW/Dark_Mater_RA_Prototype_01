@@ -104,6 +104,10 @@ public class TutorialTravel_NEW : MonoBehaviour
     {
         _approaching = false;
 
+        // The next visitor's cruise gets the hold back. Without this, a restart taken
+        // after C1 would leave the light free to fly straight through the quasar.
+        _insideHold = false;
+
         transform.position = _startPosition;
 
         _direction = ResolveDirection();
@@ -257,6 +261,12 @@ public class TutorialTravel_NEW : MonoBehaviour
 
         transform.position = Vector3.LerpUnclamped(_approachFrom, _approachTo, covered);
 
+        // Noted every frame the approach is inside the hold, not just at the end, so a
+        // CancelApproach part way in leaves the cruise free of it too. See
+        // HoldOffTheDestination for what this is protecting against.
+        if (destination != null)
+            _insideHold = Vector3.Distance(transform.position, destination.position) < holdDistance;
+
         if (t < 1f) return;
 
         transform.position = _approachTo;
@@ -274,6 +284,12 @@ public class TutorialTravel_NEW : MonoBehaviour
     /// The approach ignores this, because the approach is what takes the player inside
     /// the hold distance on purpose.
     /// </summary>
+    /// <summary>
+    /// True once an approach has deliberately taken the light inside the hold distance.
+    /// The hold stops applying until it is back outside again.
+    /// </summary>
+    bool _insideHold;
+
     void HoldOffTheDestination()
     {
         if (_approaching || destination == null || holdDistance <= 0f) return;
@@ -281,7 +297,28 @@ public class TutorialTravel_NEW : MonoBehaviour
         Vector3 toDestination = destination.position - transform.position;
         float distance = toDestination.magnitude;
 
-        if (distance >= holdDistance) return;
+        if (distance >= holdDistance)
+        {
+            _insideHold = false;
+            return;
+        }
+
+        // THE HOLD IS A RULE ABOUT THE CRUISE, and C1's approach is the thing that is
+        // supposed to go inside it. Without this it applied to the arrival too, and the
+        // effect was a jump cut at the worst possible moment:
+        //
+        // TickApproach lands the light on the standoff and calls Halt, which clears
+        // _approaching — and then this runs in the SAME Update, sees the light 650 units
+        // from a quasar it is not allowed within 900 of, and teleports it back out. So
+        // the player watched the quasar grow until it filled the frame, and on the frame
+        // it arrived the view snapped back to a smaller quasar with A TO EMIT over it.
+        // The prompt looked like it belonged to an earlier moment because the picture
+        // behind it had been thrown back to one.
+        //
+        // The same jump waited at the other end: C3 reverses the course from inside the
+        // hold, and the first frames of the launch would have been spent being shoved
+        // back out to 900.
+        if (_insideHold) return;
 
         transform.position = destination.position - toDestination.normalized * holdDistance;
     }

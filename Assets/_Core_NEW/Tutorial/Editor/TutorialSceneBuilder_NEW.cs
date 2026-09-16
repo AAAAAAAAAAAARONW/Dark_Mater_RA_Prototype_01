@@ -1984,7 +1984,28 @@ public static class TutorialSceneBuilder_NEW
             .Ref("field", field)
             .Flag("useUnscaledTime", false)
             .Flag("driftContinuum", false)
+            .Num("continuumFloor", TutorialContinuumFloor)
             .Apply();
+
+        // THE CURVE HAS TO HAVE SOMETHING TO TAKE AWAY. Drawn at astronomical
+        // proportions the template is a continuum at 0.18 of full height under a Ly-alpha
+        // peak at 1.0 — on a 96 pixel bar, a 94 pixel spike standing on a seventeen pixel
+        // line. That is what a quasar spectrum is and it does not read as one from the
+        // back of a room; it reads as a spike on a baseline.
+        //
+        // It also decides how visible an absorption can be, because absorption is drawn
+        // by removing height. A line taking 70% out of seventeen pixels is a smudge, and
+        // that is the whole of the forest region — which is where every line in the piece
+        // ends up once it has drifted off the peak.
+        //
+        // The floor keeps every feature and gives the flat parts height to be bitten out
+        // of. The journey draws the real proportions; the tutorial is the one place the
+        // bar has to be read by somebody who has never seen one.
+        RepairSerialized(hud, "continuumFloor",
+                         p => Mathf.Approximately(p.floatValue, 0f),
+                         p => p.floatValue = TutorialContinuumFloor,
+                         "continuum lifted to " + TutorialContinuumFloor + " of full height, so an " +
+                         "absorption anywhere on the bar takes a bite you can see.");
 
         // THE CURVE HOLDS STILL AND THE LINES MOVE THROUGH IT. Turning the drift on for
         // the whole of Phase 3 slid the continuum as well as the marks, and within fifteen
@@ -2188,6 +2209,17 @@ public static class TutorialSceneBuilder_NEW
 
     /// <summary>Top edge of the canvas. See SpectrumBarPosition.</summary>
     static readonly Vector2 SpectrumBarAnchor = new Vector2(0.5f, 1f);
+
+    /// <summary>
+    /// How far off the floor the tutorial lifts the continuum, as a fraction of the bar's
+    /// height.
+    ///
+    /// 0.35 puts the forest region at about 40% of the bar and the peak near the top, so
+    /// an absorption of 0.7 takes roughly a third of the bar's height out wherever it
+    /// lands. Raise it and the curve flattens towards a block; drop it and the forest
+    /// goes back to being a line with nothing to remove.
+    /// </summary>
+    const float TutorialContinuumFloor = 0.35f;
 
     /// <summary>
     /// Move a rect the builder placed badly to where it belongs now — but only if it is
