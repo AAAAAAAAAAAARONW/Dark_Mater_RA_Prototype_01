@@ -32,6 +32,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Floats:
+    - _AbsorptionLineSpread: 0
     - _AbsorptionLineStrength: 1
     - _AbsorptionLineWidth: 1.5
     - _EdgeFadePower: 2
@@ -42,8 +43,8 @@ Material:
     - _EndFadeWidth: 0.12
     - _GlowFalloff: 5.29
     - _GlowIntensity: 1.31
-    - _HeadBrightness: 1.8
-    - _HeadWidth: 0.04
+    - _HeadBrightness: 1
+    - _HeadWidth: 0.0015
     - _IRGlowStrength: 1.2
     - _ShowHead: 1
     - _SpectrumOffset: 0
