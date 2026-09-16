@@ -46,6 +46,33 @@ public class Beat_LookAt_NEW : TutorialBeat_NEW
              "B1, and a mote visible three frames early reads as a stray particle.")]
     [SerializeField] bool activateTargetOnEnter = true;
 
+    [Header("Placement")]
+    [Tooltip("Put the target at a bearing from WHERE THE PLAYER IS LOOKING when this beat " +
+             "opens, instead of leaving it wherever it sits in the scene.\n\n" +
+             "THIS IS WHAT MAKES 'LOOK RIGHT' TRUE. A mote parked at a fixed spot is a " +
+             "fixed direction — the player transform never rotates, so a local offset is " +
+             "a world one — and the prompt that goes with it is only correct for a player " +
+             "who happens to be facing down the travel axis when the beat opens. A1 lets " +
+             "them look anywhere they like for eight seconds first. Someone who finished " +
+             "it looking 60 degrees right was then told LOOK RIGHT about a mote that was " +
+             "now on their left, and the one instruction in the piece they had already " +
+             "obeyed became the wrong one.\n\n" +
+             "Placed from the view, the ask is always the movement the words describe. The " +
+             "gate does not change: it is still the mote in the reticle.\n\n" +
+             "Off for a target that IS a place — C4's quasar is a real object behind the " +
+             "player and 'bring it into frame' means that object, not a bearing.")]
+    [SerializeField] bool placeRelativeToView = false;
+
+    [Tooltip("Where to put it, in degrees from the view: x turns right, y lifts up.\n\n" +
+             "Far enough off centre that it is a real movement and not a nudge; inside a " +
+             "quarter turn so it is findable without the player losing which way they were " +
+             "facing.")]
+    [SerializeField] Vector2 bearingFromView = new Vector2(38f, 4f);
+
+    [Tooltip("Metres out along that bearing. The motes are parented to the light, so this " +
+             "is a distance it keeps as the light travels.")]
+    [SerializeField] float placeDistance = 45f;
+
     float _insideFor;
     bool _forced;
 
@@ -145,8 +172,31 @@ public class Beat_LookAt_NEW : TutorialBeat_NEW
             Debug.LogError("[Beat_LookAt_NEW] " + BeatId + " has no target. " +
                            "This beat can never be satisfied.", this);
 
+        // Before it is switched on, so it is never seen at the old position for a frame.
+        PlaceTarget();
+
         if (activateTargetOnEnter && target != null && !target.gameObject.activeSelf)
             target.gameObject.SetActive(true);
+    }
+
+    /// <summary>
+    /// Move the target onto its bearing from the current view.
+    ///
+    /// Built off the camera as it actually points — including the follow view's downward
+    /// tilt — because that is the frame IsInReticle judges in and the frame
+    /// BearingToTarget reports in. Place it in one frame and measure it in another and
+    /// the mote lands a few degrees off the reticle it is supposed to arrive in.
+    /// </summary>
+    void PlaceTarget()
+    {
+        if (!placeRelativeToView || lookRig == null || target == null) return;
+
+        // Negative X pitches up in Unity, so a positive y in the bearing lifts the mote.
+        Vector3 local = Quaternion.Euler(-bearingFromView.y, bearingFromView.x, 0f) * Vector3.forward;
+
+        Vector3 world = lookRig.transform.TransformDirection(local);
+
+        target.position = lookRig.transform.position + world * Mathf.Max(1f, placeDistance);
     }
 
     protected override void OnBeatTick(float dt)

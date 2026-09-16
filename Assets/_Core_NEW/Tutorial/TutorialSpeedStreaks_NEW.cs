@@ -50,6 +50,7 @@ public class TutorialSpeedStreaks_NEW : MonoBehaviour
     ParticleSystem _particles;
 
     float _appliedSpeed = -1f;
+    Vector3 _appliedDirection = Vector3.zero;
 
     void Awake()
     {
@@ -83,20 +84,47 @@ public class TutorialSpeedStreaks_NEW : MonoBehaviour
         float speed = travel != null ? travel.CurrentSpeed : fallbackSpeed;
         float streakSpeed = speed * speedMultiplier;
 
-        // Particle modules are not free to touch every frame, and the eye cannot see a
-        // fraction of a unit per second either way.
-        if (Mathf.Abs(streakSpeed - _appliedSpeed) < 0.05f) return;
-        _appliedSpeed = streakSpeed;
+        // THE COURSE, NOT +Z. This used to write a fixed velocity of -Z on the reasoning
+        // that "the light's forward is +Z", and the light has no forward: the player
+        // transform never rotates, travel only ever writes position. So local -Z is
+        // world -Z for the whole piece, no matter which way the light is actually going.
+        //
+        // That held until C3. The emission reverses the course, and from that moment the
+        // streaks were running the same way as the light instead of past it — matter
+        // streaming forwards alongside a photon, which reads as the whole medium having
+        // been thrown into reverse at the one moment the player is meant to feel launched.
+        //
+        // Taken from the direction of travel it is right on both sides of the reversal,
+        // and stays right if the course is ever changed again.
+        Vector3 course = travel != null && travel.Direction.sqrMagnitude > 0.0001f
+            ? travel.Direction.normalized
+            : Vector3.forward;
 
-        // Local space, straight back down the travel axis. The emitter is parented to
-        // the light and the light's forward is +Z, so backwards is -Z.
+        // Particle modules are not free to touch every frame, and the eye cannot see a
+        // fraction of a unit per second — or a fraction of a degree of heading — either way.
+        bool speedSame = Mathf.Abs(streakSpeed - _appliedSpeed) < 0.05f;
+        bool courseSame = Vector3.Dot(course, _appliedDirection) > 0.9999f;
+
+        if (speedSame && courseSame) return;
+
+        _appliedSpeed = streakSpeed;
+        _appliedDirection = course;
+
+        // Backwards along the course, in world space. World rather than Local because the
+        // vector is a world heading — and because writing it in the emitter's local axes
+        // would be relying on the parent never rotating all over again.
+        Vector3 v = -course * streakSpeed;
+
         ParticleSystem.VelocityOverLifetimeModule velocity = _particles.velocityOverLifetime;
         velocity.enabled = true;
-        velocity.space = ParticleSystemSimulationSpace.Local;
-        velocity.z = new ParticleSystem.MinMaxCurve(-streakSpeed);
+        velocity.space = ParticleSystemSimulationSpace.World;
+        velocity.x = new ParticleSystem.MinMaxCurve(v.x);
+        velocity.y = new ParticleSystem.MinMaxCurve(v.y);
+        velocity.z = new ParticleSystem.MinMaxCurve(v.z);
 
         if (debugLog)
-            Debug.Log("[TutorialSpeedStreaks_NEW] Streaks at " + streakSpeed + " u/s.", this);
+            Debug.Log("[TutorialSpeedStreaks_NEW] Streaks at " + streakSpeed + " u/s along " +
+                      (-course) + ".", this);
     }
 
     void OnValidate()

@@ -75,9 +75,11 @@ public class TutorialHUD_NEW : MonoBehaviour
     [SerializeField] GameObject reticleRoot;
 
     [Header("Range map")]
-    [Tooltip("Corner map showing how far the quasar still is. Arrives with the legend, " +
-             "because it answers 'am I going anywhere?' — a question the player only has " +
-             "once they have started looking around.")]
+    [Tooltip("RETIRED, and normally empty. The corner map answered 'am I going anywhere?' " +
+             "with a second diagram to learn, in a piece whose whole subject is learning to " +
+             "read one — the spectrum bar. The builder no longer creates it or fills this.\n\n" +
+             "Everything that touches it here is null-guarded, so the field is harmless: " +
+             "drop a map back in and it comes up with the legend again, exactly as before.")]
     [SerializeField] GameObject mapRoot;
 
     [Header("Control hint")]

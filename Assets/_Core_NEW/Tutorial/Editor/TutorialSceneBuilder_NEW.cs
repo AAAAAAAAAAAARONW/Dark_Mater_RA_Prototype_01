@@ -289,7 +289,23 @@ public static class TutorialSceneBuilder_NEW
 
         GameObject reticle = BuildReticle(canvas.transform);
         GameObject legend = BuildLegend(canvas.transform);
-        GameObject map = BuildRangeMap(canvas.transform, player, lookRig);
+
+        // ── Retired: the range map ───────────────────────────────────────────
+        // A corner plate with the quasar, the player, a facing needle and a distance
+        // readout. It answered "am I going anywhere?", which is a real question in a
+        // piece whose nearest object is 40 units away and whose destination is 2600 —
+        // but it answered it with a second diagram to learn, in the corner, in a
+        // tutorial whose whole subject is learning to read one readout. The spectrum bar
+        // is the thing the player has to be able to read by the end, and it now shares
+        // the top strip with nothing.
+        //
+        // TutorialRangeMap_NEW and BuildRangeMap below are both left in place. They work,
+        // nothing calls them, and putting the map back is one line here — which is a
+        // smaller decision than writing the whole thing again.
+        RetireObject(canvas.transform, "RangeMap",
+                     "the corner map is a second readout to learn in a piece about learning to " +
+                     "read one");
+
         GameObject hint = BuildHint(canvas.transform);
         GameObject stickGuide = BuildStickGuide(hint);
         GameObject prompt = BuildConfirmPrompt(canvas.transform);
@@ -297,7 +313,6 @@ public static class TutorialSceneBuilder_NEW
 
         if (IsFresh(reticle)) reticle.SetActive(false);
         if (IsFresh(legend)) legend.SetActive(false);
-        if (IsFresh(map)) map.SetActive(false);
         if (IsFresh(hint)) hint.SetActive(false);
         if (IsFresh(prompt)) prompt.SetActive(false);
 
@@ -368,7 +383,7 @@ public static class TutorialSceneBuilder_NEW
 
         // ── HUD and attract components ───────────────────────────────────────
         TutorialHUD_NEW hud = AddIfMissing<TutorialHUD_NEW>(canvas);
-        WireHud(hud, director, legend, reticle, map, hint, prompt,
+        WireHud(hud, director, legend, reticle, hint, prompt,
                 stickGuide.GetComponent<TutorialStickGuide_NEW>());
 
         TutorialAttract_NEW attract = AddIfMissing<TutorialAttract_NEW>(canvas);
@@ -952,30 +967,33 @@ public static class TutorialSceneBuilder_NEW
 
     static void BuildPhase0(Transform parent, GameObject moteA)
     {
-        Beat_Cinematic_NEW a1 = Beat<Beat_Cinematic_NEW>(parent, "A1");
+        // GATED, NOT TIMED, and Beat<T> retypes a scene that still has the cinematic one.
+        //
+        // A1 used to run for eight seconds and hand on whether the player had touched the
+        // pad or not — the same thing Beat_Zoom_NEW exists to have stopped one frame
+        // later, and worse here, because this is the frame where a walk-up visitor finds
+        // out whether the thing in front of them answers to them at all. It is also why
+        // the opening had no stick diagram: the beat refuses to draw one on anything time
+        // advances, so the frame that most needed the picture was the only one without it.
+        Beat_LookAround_NEW a1 = Beat<Beat_LookAround_NEW>(parent, "A1");
         Wire(a1)
             .Str("beatId", "A1")
-            .Copy("description", "Near black. Dark red matter drifts in slow rotation deep in frame.")
+            .Copy("description", "Near black. Dark red matter drifts in slow rotation deep in " +
+                                "frame. The player is asked to look around, and the piece waits " +
+                                "until they have.")
             .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
             .Copy("hintText", "RIGHT STICK  ·  LOOK AROUND")
-            .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
-            .Num("duration", 8f)
+            .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
+            .Num("degreesToSweep", 120f)
             .Apply();
 
-        // A1 HAD A SWEEPING STICK DIAGRAM AND SHOULD NOT HAVE. It is a Duration beat: it
-        // ends after eight seconds whether the player touches anything or not, so a knob
-        // circling the ring was telling them their thumb was what moved the piece on when
-        // it was not. TutorialBeat_NEW.StickGesture now refuses to draw one on any beat
-        // time advances, which makes the field inert here — cleared as well, so the
-        // Inspector does not show a setting that does nothing.
-        //
-        // The hint line stays. RIGHT STICK · LOOK AROUND is an invitation and reads as
-        // one; a diagram is a demand and reads as one.
+        // The authored diagram is inert on Beat_LookAround_NEW — it works its own out from
+        // how much of the sweep is left — so a value left over from when A1 was cinematic
+        // is cleared rather than left showing a setting nothing reads.
         RepairSerialized(a1, "stickGuide",
-                         p => p.enumValueIndex == (int)TutorialStickGuide_NEW.GuideKind.LookAround,
+                         p => p.enumValueIndex != (int)TutorialStickGuide_NEW.GuideKind.None,
                          p => p.enumValueIndex = (int)TutorialStickGuide_NEW.GuideKind.None,
-                         "A1's stick diagram removed: the beat advances on a timer, so the " +
-                         "diagram was asking for something that changes nothing.");
+                         "A1 works its own stick diagram out from its gate now.");
 
         // A2 and A3 are the zoom lesson, in two halves. The GDD has them as silent
         // cinematic frames; teaching the second stick here is the departure, and the
@@ -1018,6 +1036,43 @@ public static class TutorialSceneBuilder_NEW
         RetireBeat(parent, "A4", "the zoom lesson moved to A2 and A3");
     }
 
+    // ── Where the look gates put their motes ─────────────────────────────────
+    //
+    // Degrees from the view when the beat opens: x right, y up. These replace the fixed
+    // scene positions the motes used to be gated at, and the reason is the prompt. The
+    // player transform never rotates, so a mote at a fixed local offset is a fixed WORLD
+    // direction — and A1 lets the player look wherever they like before B1 opens. Someone
+    // who ended A1 facing 60 degrees right was told LOOK RIGHT about a mote that was by
+    // then on their left.
+    //
+    // The mote positions in the Staging block still decide where the motes sit before
+    // their beat and where B3's sits throughout; these two only move theirs on enter.
+
+    /// <summary>B1: right, and a touch up, so it clears the light's own trail.</summary>
+    static readonly Vector2 B1Bearing = new Vector2(38f, 4f);
+
+    /// <summary>B2: up, and slightly right, so it is not hidden behind the reticle on the way.</summary>
+    static readonly Vector2 B2Bearing = new Vector2(8f, 40f);
+
+    /// <summary>
+    /// Switch an existing look beat over to placing its target from the view.
+    ///
+    /// Wire never writes a flag or a vector to a component that already exists, so the
+    /// corrected behaviour would never reach a saved scene. Narrow as always: only a beat
+    /// still at the shipped default of "off" is changed, and its bearing only if it is
+    /// still at the field's own default.
+    /// </summary>
+    static void PlaceFromView(Beat_LookAt_NEW beat, Vector2 bearing, string why)
+    {
+        RepairSerialized(beat, "placeRelativeToView", p => !p.boolValue, p => p.boolValue = true, why);
+
+        RepairSerialized(beat, "bearingFromView",
+                         p => Approximately(p.vector2Value, new Vector2(38f, 4f)) &&
+                              !Approximately(p.vector2Value, bearing),
+                         p => p.vector2Value = bearing,
+                         "bearing set to " + bearing + ".");
+    }
+
     static void BuildPhase1(Transform parent, FirstPersonLookRig_NEW lookRig,
                             GameObject moteA, GameObject moteB, GameObject moteC)
     {
@@ -1033,7 +1088,12 @@ public static class TutorialSceneBuilder_NEW
             .Ref("lookRig", lookRig)
             .Num("reticleHalfAngle", 12f)
             .Num("holdSeconds", 0f)
+            .Flag("placeRelativeToView", true)
+            .Vec2("bearingFromView", B1Bearing)
             .Apply();
+
+        PlaceFromView(b1, B1Bearing, "B1 asks the player to look RIGHT, so its mote is now put to " +
+                                     "the right of wherever they are looking when the beat opens.");
 
         // Every gated beat states its own ask.
         //
@@ -1055,7 +1115,12 @@ public static class TutorialSceneBuilder_NEW
             .Ref("mote", moteB.GetComponent<GuideMote_NEW>())
             .Ref("lookRig", lookRig)
             .Num("reticleHalfAngle", 14f)
+            .Flag("placeRelativeToView", true)
+            .Vec2("bearingFromView", B2Bearing)
             .Apply();
+
+        PlaceFromView(b2, B2Bearing, "B2 asks the player to look UP, so its mote is now put above " +
+                                     "wherever they are looking when the beat opens.");
 
         // The storyboard's B3 is a third mote, behind. The turn is what the beat is
         // about; the mote is what makes a 150 degree turn something the player chooses
@@ -3502,10 +3567,12 @@ public static class TutorialSceneBuilder_NEW
     // ── Wiring ───────────────────────────────────────────────────────────────
 
     static void WireHud(TutorialHUD_NEW hud, TutorialDirector_NEW director,
-                        GameObject legend, GameObject reticle, GameObject map,
+                        GameObject legend, GameObject reticle,
                         GameObject hint, GameObject prompt,
                         TutorialStickGuide_NEW stickGuide)
     {
+        // mapRoot is deliberately not wired any more — see the retirement above. The
+        // field stays on the HUD, and every use of it there is already null-guarded.
         Wire(hud)
             .Ref("stickGuide", stickGuide)
             .Ref("director", director)
@@ -3513,7 +3580,6 @@ public static class TutorialSceneBuilder_NEW
             .Ref("legendText", legend.GetComponent<TMP_Text>())
             .Ref("legendGroup", legend.GetComponent<CanvasGroup>())
             .Ref("reticleRoot", reticle)
-            .Ref("mapRoot", map)
             .Ref("hintRoot", hint)
             .Ref("hintLabel", LabelIn(hint))
             .Ref("hintGroup", hint.GetComponent<CanvasGroup>())

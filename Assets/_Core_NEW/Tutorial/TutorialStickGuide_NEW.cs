@@ -175,13 +175,20 @@ public class TutorialStickGuide_NEW : MonoBehaviour
             };
         }
 
-        public static Gesture Sweep(StickSide stick, float sign)
+        /// <summary>
+        /// Round the ring. `demand` is how much of the asking is left — 1 orbits at full
+        /// deflection, and a falling value spirals the knob in towards the centre, which
+        /// is how a sweep says "you are nearly there" without a direction to come home
+        /// from.
+        /// </summary>
+        public static Gesture Sweep(StickSide stick, float sign, float demand = 1f)
         {
             return new Gesture
             {
                 stick = stick,
                 motion = StickMotion.Sweep,
-                direction = new Vector2(sign >= 0f ? 1f : -1f, 0f)
+                direction = new Vector2(sign >= 0f ? 1f : -1f, 0f),
+                demand = Mathf.Clamp01(demand)
             };
         }
 
@@ -373,7 +380,11 @@ public class TutorialStickGuide_NEW : MonoBehaviour
             float turns = sweepSeconds > 0f ? _phase / sweepSeconds : 0f;
             float angle = Mathf.PI * 0.5f + turns * Mathf.PI * 2f * Mathf.Sign(_gesture.direction.x);
 
-            return new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * travelRadius;
+            // The orbit tightens as the demand falls, so a sweep with a gate behind it
+            // reads the same way a push does: less to do, less deflection asked for.
+            if (_shownDemand <= arrivedBelow) return Vector2.zero;
+
+            return new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * travelRadius * _shownDemand;
         }
 
         Vector2 dir = _gesture.direction;
