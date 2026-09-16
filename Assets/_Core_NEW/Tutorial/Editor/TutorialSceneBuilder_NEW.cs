@@ -1362,6 +1362,25 @@ public static class TutorialSceneBuilder_NEW
             .Ref("pause", rig.pause)
             .Apply();
 
+        // ── The hold before the ending ───────────────────────────────────────
+        //
+        // D10 is satisfied on the frame the player resumes, and until now the ending
+        // started on that same frame: the pause card was still fading out as the camera
+        // began pulling away. The last thing the player did got no room at all, and the
+        // outro arrived as if it had been waiting impatiently for them to finish.
+        //
+        // Five seconds of the piece simply running. No hint line, nothing to do, nothing
+        // switched on — the light flying, the trail carrying its lines, the spectrum
+        // drifting. Whatever they were looking at when they resumed is what they get to
+        // look at, which is the only moment in the tutorial that is true of.
+        //
+        // A beat rather than a delay inside TutorialOutro_NEW, because it IS a frame of
+        // the storyboard: it has a duration, it shows in the beat list, F2 skips it, and
+        // the debug overlay names it like everything else.
+        Cinematic(parent, "D11", 5f,
+            "Hold. Nothing is asked and nothing is shown — the light flies, the lines drift, " +
+            "and the piece lets the last frame land before the ending takes the camera.");
+
         RepairPhase3Durations(d1, d2, d3);
 
         // ── Wiring ───────────────────────────────────────────────────────────
@@ -1541,11 +1560,21 @@ public static class TutorialSceneBuilder_NEW
         // The cap's shape does not change with this: it is always a semicircle spanning
         // the full width, and headWidth only says how far back along the trail it is
         // stretched. Smaller is a flatter, shorter nose, which is what a leading edge is.
+        // Two passes, because the first was still too long on screen. 4% was the shipped
+        // default and covered most of the ribbon; 0.5% was a big improvement and a bright
+        // wedge; 0.15% is a tip.
+        //
+        // TO TUNE IT: Trail object → PhotonSpectrumTrail → Head Indicator → Head Width.
+        // The Inspector slider runs to 0.15, so at this end type the number into the field
+        // rather than dragging — one pixel of slider is about twenty times the value.
+        // headBrightness is right beside it if the cap is the right size and too hot.
         RepairSerialized(spectrumTrail, "headWidth",
-                         p => Mathf.Approximately(p.floatValue, 0.04f),
-                         p => p.floatValue = 0.005f,
-                         "head cap shortened to 0.5% of the trail length. At 4% it covered the " +
-                         "near end of the ribbon, which is most of what is on screen.");
+                         p => Mathf.Approximately(p.floatValue, 0.04f) ||
+                              Mathf.Approximately(p.floatValue, 0.005f),
+                         p => p.floatValue = 0.0015f,
+                         "head cap shortened again, to 0.15% of the trail length. The number is a " +
+                         "fraction of LENGTH and perspective spends most of the screen on the near " +
+                         "end, so it has to be very small to read as a tip.");
 
         RepairSerialized(spectrumTrail, "headBrightness",
                          p => Mathf.Approximately(p.floatValue, 1.8f),
@@ -3307,10 +3336,26 @@ public static class TutorialSceneBuilder_NEW
     /// <summary>Outside diameter of the ring, in pixels.</summary>
     const float StickRingSize = 104f;
 
-    const float StickKnobSize = 34f;
+    /// <summary>
+    /// The knob. It is the part that moves and therefore the part being read, so it is
+    /// sized to be read — at 34 it was a dot inside a ring rather than a thumb on a stick.
+    /// </summary>
+    const float StickKnobSize = 44f;
 
-    /// <summary>Centre of the ring to centre of the knob at full deflection.</summary>
-    const float StickTravel = (StickRingSize - StickKnobSize) * 0.5f - 6f;
+    /// <summary>The size this builder wrote before the knob was made legible.</summary>
+    const float PastStickKnobSize = 34f;
+
+    /// <summary>
+    /// Centre of the ring to centre of the knob at full deflection.
+    ///
+    /// Derived, not typed: a bigger knob has to travel less or it leaves the ring, and
+    /// the two numbers are not independent. Three pixels of clearance, so hard over reads
+    /// as the knob against its gate rather than through it.
+    /// </summary>
+    const float StickTravel = (StickRingSize - StickKnobSize) * 0.5f - 3f;
+
+    /// <summary>The travel that went with the smaller knob.</summary>
+    const float PastStickTravel = (StickRingSize - PastStickKnobSize) * 0.5f - 6f;
 
     /// <summary>Gap between the left edge of the hint plate and the right edge of the ring.</summary>
     const float StickGap = 26f;
@@ -3386,6 +3431,25 @@ public static class TutorialSceneBuilder_NEW
         TMP_Text sideText = AddText(side, "R", 18, TextAlignmentOptions.Center);
         if (IsFresh(sideText)) sideText.color = new Color(1f, 1f, 1f, 0.55f);
 
+        // The knob grew, and its travel with it. UIObject and Wire both leave an object
+        // that already exists alone, so neither reaches a saved scene — and the pair has
+        // to move together or the knob either rattles around inside the ring or pushes
+        // through it. Narrow as always: only the exact values this builder used to write.
+        RectTransform knobRect = knob.GetComponent<RectTransform>();
+
+        if (knobRect != null && Approximately(knobRect.sizeDelta,
+                                              new Vector2(PastStickKnobSize, PastStickKnobSize)))
+        {
+            Undo.RecordObject(knobRect, "Resize the stick knob");
+            knobRect.sizeDelta = new Vector2(StickKnobSize, StickKnobSize);
+            EditorUtility.SetDirty(knobRect);
+
+            Debug.LogWarning("[TutorialSceneBuilder_NEW] Stick knob " + PastStickKnobSize +
+                             " -> " + StickKnobSize + " px. It is the part that moves, so it is " +
+                             "the part that has to be readable from standing distance.", knobRect);
+            _wired++;
+        }
+
         TutorialStickGuide_NEW guide = AddIfMissing<TutorialStickGuide_NEW>(go);
 
         Wire(guide)
@@ -3394,6 +3458,12 @@ public static class TutorialSceneBuilder_NEW
             .Ref("group", go.GetComponent<CanvasGroup>())
             .Num("travelRadius", StickTravel)
             .Apply();
+
+        RepairSerialized(guide, "travelRadius",
+                         p => Mathf.Approximately(p.floatValue, PastStickTravel),
+                         p => p.floatValue = StickTravel,
+                         "stick travel follows the bigger knob, so hard over still lands inside " +
+                         "the ring.");
 
         return go;
     }
