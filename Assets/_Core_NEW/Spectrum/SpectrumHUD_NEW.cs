@@ -53,6 +53,21 @@ public class SpectrumHUD_NEW : MonoBehaviour
              "the field's drift so the curve and the lines move as one.")]
     [SerializeField] float fallbackDriftPerSecond = 0.005f;
 
+    [Tooltip("Slide the continuum along with the absorption lines.\n\n" +
+             "ON is the journey's behaviour and the default: the whole picture — curve and " +
+             "marks together — drifts redward, which is one long slow statement about " +
+             "expansion.\n\n" +
+             "OFF holds the curve still and lets the lines drift through it, and the " +
+             "tutorial needs that. Its lines are cut at one authored wavelength on the " +
+             "bright flank of the Ly-alpha peak, because absorption is drawn by taking " +
+             "height away and a line can only be as visible as whatever it cuts into. Let " +
+             "the peak slide and that wavelength is somewhere else within seconds — a mark " +
+             "cut into the eleven pixels of flat continuum out in the forest, which is to " +
+             "say no mark at all.\n\n" +
+             "Holding the curve also makes the drift readable as a thing happening TO the " +
+             "marks. Everything moving at once has no reference to move against.")]
+    [SerializeField] bool driftContinuum = true;
+
     [SerializeField] bool wrapSpectrum = true;
     [SerializeField] bool useUnscaledTime = true;
 
@@ -125,12 +140,17 @@ public class SpectrumHUD_NEW : MonoBehaviour
 
     void Update()
     {
-        float dt = useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
+        if (driftContinuum)
+        {
+            float dt = useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
 
-        float drift = field != null ? field.CurrentDriftPerSecond : fallbackDriftPerSecond;
-        _redshiftOffset += dt * drift;
-        if (wrapSpectrum) _redshiftOffset -= Mathf.Floor(_redshiftOffset);
+            float drift = field != null ? field.CurrentDriftPerSecond : fallbackDriftPerSecond;
+            _redshiftOffset += dt * drift;
+            if (wrapSpectrum) _redshiftOffset -= Mathf.Floor(_redshiftOffset);
+        }
 
+        // Redrawn either way: the absorption buffer is still moving under a held curve,
+        // and it is sampled fresh on every pass.
         Redraw();
     }
 

@@ -1336,9 +1336,10 @@ public static class TutorialSceneBuilder_NEW
             "them builds up. This is a forest forming.");
 
         Beat_Cinematic_NEW d7 = Cinematic(parent, "D7", 8f,
-            "Redshift, named. The UV, visible and IR bands stay where they are; the " +
-            "spectrum the player has been watching slide is the light stretching toward " +
-            "red, and it carries every line it has collected with it.");
+            "Redshift, named. The curve and the bands hold still — they are the wavelength " +
+            "scale, and 500 nm is green whatever the light has been through. What the " +
+            "player has been watching slide is the marks: every line the light is carrying, " +
+            "moving toward red together.");
 
         Beat_Cinematic_NEW d8 = Cinematic(parent, "D8", 10f,
             "One more atom, with the row already on screen. It absorbs at the same " +
@@ -1982,7 +1983,23 @@ public static class TutorialSceneBuilder_NEW
             .Ref("graph", graph)
             .Ref("field", field)
             .Flag("useUnscaledTime", false)
+            .Flag("driftContinuum", false)
             .Apply();
+
+        // THE CURVE HOLDS STILL AND THE LINES MOVE THROUGH IT. Turning the drift on for
+        // the whole of Phase 3 slid the continuum as well as the marks, and within fifteen
+        // seconds of the bar appearing the Ly-alpha peak had moved from 0.42 to 0.72 —
+        // while the atoms went on cutting at the authored 0.412, which by then was flat
+        // low forest. The line, the blink and the arrow pointing at it were all still
+        // there and all invisible, for exactly the reason RepairLinePositions was written
+        // down: a line can only be as visible as the curve it cuts into.
+        //
+        // The journey keeps the drifting continuum; this is the tutorial's copy.
+        RepairSerialized(hud, "driftContinuum",
+                         p => p.boolValue,
+                         p => p.boolValue = false,
+                         "the continuum holds still and the absorption lines drift through it — " +
+                         "otherwise the peak slides out from under the wavelength every atom cuts.");
 
         // THE CURVE AND THE LINES MUST DRIFT ON THE SAME CLOCK. AbsorptionField_NEW slides
         // its lines on scaled time; SpectrumHUD_NEW slides the continuum template on
