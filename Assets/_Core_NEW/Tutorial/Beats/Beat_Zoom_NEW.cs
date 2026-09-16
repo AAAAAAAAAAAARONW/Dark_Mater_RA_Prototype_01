@@ -89,7 +89,7 @@ public class Beat_Zoom_NEW : TutorialBeat_NEW
     /// The left stick because that is the only stick this component reads, and the sign
     /// from its invert flag rather than from a constant — see TutorialZoom_NEW.Inverted.
     /// </summary>
-    public override TutorialStickGuide_NEW.Gesture StickGesture
+    protected override TutorialStickGuide_NEW.Gesture GateGesture
     {
         get
         {

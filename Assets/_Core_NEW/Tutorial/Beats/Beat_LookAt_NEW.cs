@@ -71,11 +71,11 @@ public class Beat_LookAt_NEW : TutorialBeat_NEW
     /// at the moment the answer matters most. Yaw of ±180 leans the knob hard sideways,
     /// which is the right instruction — turn first, then look up or down.
     /// </summary>
-    public override TutorialStickGuide_NEW.Gesture StickGesture
+    protected override TutorialStickGuide_NEW.Gesture GateGesture
     {
         get
         {
-            if (lookRig == null || target == null) return base.StickGesture;
+            if (lookRig == null || target == null) return base.GateGesture;
 
             return TutorialStickGuide_NEW.Gesture.Track(LookSide(lookRig), BearingToTarget(),
                                                         Demand());

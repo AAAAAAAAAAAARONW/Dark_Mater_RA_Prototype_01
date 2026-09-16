@@ -172,7 +172,38 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
     /// The default is the authored field, which is None for everything that has not
     /// deliberately set one. A beat that asks the player for nothing shows nothing.
     /// </summary>
-    public virtual TutorialStickGuide_NEW.Gesture StickGesture
+    public TutorialStickGuide_NEW.Gesture StickGesture
+    {
+        get
+        {
+            // A BEAT THAT TIME ADVANCES CANNOT ASK FOR ANYTHING, and this is the rule
+            // rather than a check. The diagram's whole claim is "this is what gets you to
+            // the next frame"; on a Duration beat the answer is "wait", and a knob
+            // leaning somewhere is then telling the player their thumb is what moves the
+            // piece on when it demonstrably is not. They push, nothing they do changes
+            // anything, and the beat ends on its own a few seconds later — which teaches
+            // precisely the thing the May 2026 playtest recorded as the failure, that the
+            // controls are not connected to the world.
+            //
+            // Enforced here and not left to each beat, because the field is on this class
+            // and the next person to fill it in from the Inspector will not have read
+            // this. A1 is the one that had it and is the reason it is written down: it
+            // swept the ring for eight seconds while advancing on a clock.
+            if (advanceMode != AdvanceMode.PlayerAction) return TutorialStickGuide_NEW.Gesture.None;
+
+            return GateGesture;
+        }
+    }
+
+    /// <summary>
+    /// What THIS beat's gate is waiting for, as a stick movement. Override it in a beat
+    /// that has a gate it can measure; the default is the authored field.
+    ///
+    /// Only reached on a PlayerAction beat — StickGesture is the public door and it
+    /// closes on everything else — so an override can assume there is a gate to read and
+    /// does not have to check the mode itself.
+    /// </summary>
+    protected virtual TutorialStickGuide_NEW.Gesture GateGesture
     {
         get { return TutorialStickGuide_NEW.Gesture.From(stickGuide); }
     }

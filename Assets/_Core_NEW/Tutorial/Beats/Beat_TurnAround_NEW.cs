@@ -76,11 +76,11 @@ public class Beat_TurnAround_NEW : TutorialBeat_NEW
     /// answers are equally short and the sign flips about; it settles as soon as the
     /// player has committed either way, and by then they are past needing it.
     /// </summary>
-    public override TutorialStickGuide_NEW.Gesture StickGesture
+    protected override TutorialStickGuide_NEW.Gesture GateGesture
     {
         get
         {
-            if (lookRig == null || disc == null) return base.StickGesture;
+            if (lookRig == null || disc == null) return base.GateGesture;
 
             Vector3 local = lookRig.transform.InverseTransformPoint(disc.position);
             TutorialStickGuide_NEW.StickSide side = Beat_LookAt_NEW.LookSide(lookRig);

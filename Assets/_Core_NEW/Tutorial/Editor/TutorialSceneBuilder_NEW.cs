@@ -403,6 +403,18 @@ public static class TutorialSceneBuilder_NEW
         // Last on the canvas, over everything above — see BuildPauseCard.
         BuildPauseCard(canvas.transform, pause);
 
+        // And then this, which is later still: the ending has to cover the pause card
+        // too. See BuildOutro.
+        TutorialOutro_NEW outro = BuildOutro(canvas.transform, root.transform, director,
+                                             attract, camera, lookRig, zoom,
+                                             player.GetComponent<TutorialTravel_NEW>());
+
+        // The next visitor has to get a camera they can move. The outro takes the rig and
+        // the zoom off while it owns the pull-back, and this is what gives them back —
+        // one place puts things back, and it is the same place everything else in the
+        // piece is put back from.
+        AddCall(attract, "onReset", outro, "ResetForAttract");
+
         TutorialFadeIn_NEW fade = AddIfMissing<TutorialFadeIn_NEW>(blackout);
         Wire(fade)
             .Ref("director", director)
@@ -948,23 +960,22 @@ public static class TutorialSceneBuilder_NEW
             .Copy("hintText", "RIGHT STICK  ·  LOOK AROUND")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.Duration)
             .Num("duration", 8f)
-            // The only beat that has to be told. A1 is cinematic — there is no target to
-            // read a direction off and no gate to fail — and it is also the first eight
-            // seconds a walk-up visitor spends with the pad, so it is the one frame where
-            // the diagram is doing the most work. Sweep, because LOOK AROUND is the
-            // single prompt in the piece with no direction in it.
-            .Enum("stickGuide", (int)TutorialStickGuide_NEW.GuideKind.LookAround)
             .Apply();
 
-        // Build or Update never writes an enum to a beat that already exists, so a scene
-        // built before the diagram existed would keep A1 at None forever and open on a
-        // hint line with nothing beside it. Narrow test: only a beat still at None, which
-        // is what "nobody has chosen" looks like.
+        // A1 HAD A SWEEPING STICK DIAGRAM AND SHOULD NOT HAVE. It is a Duration beat: it
+        // ends after eight seconds whether the player touches anything or not, so a knob
+        // circling the ring was telling them their thumb was what moved the piece on when
+        // it was not. TutorialBeat_NEW.StickGesture now refuses to draw one on any beat
+        // time advances, which makes the field inert here — cleared as well, so the
+        // Inspector does not show a setting that does nothing.
+        //
+        // The hint line stays. RIGHT STICK · LOOK AROUND is an invitation and reads as
+        // one; a diagram is a demand and reads as one.
         RepairSerialized(a1, "stickGuide",
-                         p => p.enumValueIndex == (int)TutorialStickGuide_NEW.GuideKind.None,
-                         p => p.enumValueIndex = (int)TutorialStickGuide_NEW.GuideKind.LookAround,
-                         "A1 now shows the stick diagram sweeping the ring. Every other beat " +
-                         "works its own out from its gate.");
+                         p => p.enumValueIndex == (int)TutorialStickGuide_NEW.GuideKind.LookAround,
+                         p => p.enumValueIndex = (int)TutorialStickGuide_NEW.GuideKind.None,
+                         "A1's stick diagram removed: the beat advances on a timer, so the " +
+                         "diagram was asking for something that changes nothing.");
 
         // A2 and A3 are the zoom lesson, in two halves. The GDD has them as silent
         // cinematic frames; teaching the second stick here is the departure, and the
@@ -1669,6 +1680,68 @@ public static class TutorialSceneBuilder_NEW
             .Apply();
 
         return component;
+    }
+
+    /// <summary>
+    /// The ending: a full-screen black with the handover line on it, and the component
+    /// that pulls the camera up and out before drawing either.
+    ///
+    /// AFTER THE PAUSE CARD in the sibling order, which is the only ordering a
+    /// ScreenSpaceOverlay canvas has. The pause card deliberately covers everything else
+    /// on the HUD; this has to cover that too, because a visitor could be holding the
+    /// piece paused when the last gate is met and the ending would otherwise fade to
+    /// black underneath a dimmer and the word PAUSED.
+    ///
+    /// The component lives on the rig root rather than on the canvas, because what it
+    /// mostly does is drive the camera — the black and the words are the last two
+    /// seconds of it.
+    /// </summary>
+    static TutorialOutro_NEW BuildOutro(Transform canvas, Transform root,
+                                        TutorialDirector_NEW director, TutorialAttract_NEW attract,
+                                        Camera camera,
+                                        FirstPersonLookRig_NEW lookRig, TutorialZoom_NEW zoom,
+                                        TutorialTravel_NEW travel)
+    {
+        GameObject card = FullScreenUIObject("Outro", canvas);
+
+        Image black = AddIfMissing<Image>(card);
+
+        if (IsFresh(black))
+        {
+            // Actually black, unlike the pause card's dim: there is nothing behind this
+            // that anybody needs to see, and the words have to land on nothing.
+            black.color = new Color(0f, 0f, 0f, 0f);
+            black.raycastTarget = false;
+        }
+
+        GameObject titleObject = UIObject("Title", card.transform, new Vector2(0.5f, 0.5f),
+                                          Vector2.zero, new Vector2(1600f, 120f));
+
+        TMP_Text title = AddText(titleObject, "WELCOME  TO  THE  JOURNEY", 64,
+                                 TextAlignmentOptions.Center);
+
+        if (IsFresh(title)) title.color = new Color(1f, 1f, 1f, 0f);
+
+        // Every run, not only when fresh: anything the builder adds to the canvas later
+        // would otherwise land on top of the one thing that has to be the last frame.
+        card.transform.SetAsLastSibling();
+
+        GameObject go = FindOrCreate("Outro", root, Vector3.zero);
+        TutorialOutro_NEW outro = AddIfMissing<TutorialOutro_NEW>(go);
+
+        Wire(outro)
+            .Ref("director", director)
+            .Ref("attract", attract)
+            .Ref("viewCamera", camera)
+            .Ref("lookRig", lookRig)
+            .Ref("zoom", zoom)
+            .Ref("travel", travel)
+            .Ref("blackout", black)
+            .Ref("title", title)
+            .Copy("titleText", "WELCOME  TO  THE  JOURNEY")
+            .Apply();
+
+        return outro;
     }
 
     static void IndicatorArrow(GameObject go, Color color)

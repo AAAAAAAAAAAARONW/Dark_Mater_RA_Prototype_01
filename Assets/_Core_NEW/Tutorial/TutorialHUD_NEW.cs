@@ -156,6 +156,7 @@ public class TutorialHUD_NEW : MonoBehaviour
         director.OnBeatEntered += HandleBeatEntered;
         director.OnBeatSatisfied += HandleBeatSatisfied;
         director.OnIdleTimeout += HandleReset;
+        director.OnTutorialComplete += HandleComplete;
     }
 
     void OnDisable()
@@ -165,6 +166,7 @@ public class TutorialHUD_NEW : MonoBehaviour
         director.OnBeatEntered -= HandleBeatEntered;
         director.OnBeatSatisfied -= HandleBeatSatisfied;
         director.OnIdleTimeout -= HandleReset;
+        director.OnTutorialComplete -= HandleComplete;
     }
 
     void Update()
@@ -275,6 +277,27 @@ public class TutorialHUD_NEW : MonoBehaviour
     void HandleBeatSatisfied(TutorialBeat_NEW beat)
     {
         if (_promptBeat != null && beat == _promptBeat) _promptBeat = null;
+    }
+
+    /// <summary>
+    /// The last beat is done. Everything goes.
+    ///
+    /// THIS IS WHAT MADE THE LAST FRAME LOOK BROKEN. A satisfied beat's hint line is
+    /// only ever replaced by the next beat's, and after the last one there is no next
+    /// beat — so B TO PAUSE stayed on screen, asking for a button that had already been
+    /// pressed and done its job. From in front of the piece that is indistinguishable
+    /// from a gate that did not fire, and the only thing to do about it is press B
+    /// again, which does nothing.
+    ///
+    /// Clearing it here rather than in the outro because it is the HUD's own business:
+    /// the tutorial being over is a fact about the director, and every element in here
+    /// is switched on by a beat that no longer exists.
+    /// </summary>
+    void HandleComplete()
+    {
+        HandleReset();
+
+        if (debugLog) Debug.Log("[TutorialHUD_NEW] Tutorial complete; HUD cleared.", this);
     }
 
     /// <summary>
