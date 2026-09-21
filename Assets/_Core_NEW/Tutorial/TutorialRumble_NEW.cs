@@ -78,11 +78,51 @@ public class TutorialRumble_NEW : MonoBehaviour
 
     string _lastPulse = "none yet";
 
+    static TutorialRumble_NEW _instance;
+
     // ── Public API ───────────────────────────────────────────────────────────
 
     /// <summary>
+    /// The light has been absorbed: rumble, whatever the scene has or has not wired.
+    ///
+    /// CALLED DIRECTLY FROM TutorialSpectrum_NEW.AbsorbAtRestFrame, not hung on an event,
+    /// and that is the fix for the first version not rumbling at all. That version needed
+    /// two things to exist in the saved scene — a Rumble object, and a listener on
+    /// onAbsorbed — and both only arrive when Build or Update is run AND the scene is
+    /// saved. Skip either and every absorption was silent, with nothing on screen to say
+    /// so. The pad itself was fine: the same XInput call made from outside Unity rumbled
+    /// it on the first try.
+    ///
+    /// "Every absorption rumbles" is a rule, so it is enforced in code at the one place
+    /// every absorption passes through. The scene's Rumble object is used when there is
+    /// one, so its Inspector values still tune it; when there is not, one is made.
+    /// </summary>
+    public static void Absorption()
+    {
+        TutorialRumble_NEW rumble = Instance();
+        if (rumble != null) rumble.Pulse();
+    }
+
+    static TutorialRumble_NEW Instance()
+    {
+        if (_instance != null) return _instance;
+
+        _instance = FindObjectOfType<TutorialRumble_NEW>();
+        if (_instance != null) return _instance;
+
+        GameObject go = new GameObject("[Rumble]");
+        _instance = go.AddComponent<TutorialRumble_NEW>();
+
+        Debug.Log("[TutorialRumble_NEW] The scene has no Rumble object, so one was made with " +
+                  "the default settings. Run Build or Update and save the scene to get one you " +
+                  "can tune.", go);
+
+        return _instance;
+    }
+
+    /// <summary>
     /// One impact with the serialized defaults. No arguments, so it can be hung on any
-    /// UnityEvent — an atom's onImpact, a beat's onRumble, the absorption.
+    /// UnityEvent — an atom's onImpact, a beat's onRumble.
     /// </summary>
     public void Pulse()
     {
@@ -154,6 +194,16 @@ public class TutorialRumble_NEW : MonoBehaviour
     }
 
     // ── Lifecycle ────────────────────────────────────────────────────────────
+
+    void Awake()
+    {
+        if (_instance == null) _instance = this;
+    }
+
+    void OnDestroy()
+    {
+        if (_instance == this) _instance = null;
+    }
 
     void Start()
     {

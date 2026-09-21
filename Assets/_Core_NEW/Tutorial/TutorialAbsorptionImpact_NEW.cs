@@ -17,9 +17,10 @@ using UnityEngine;
 ///   The screen    a cold flash, short and not blinding — it repeats, so it must not
 ///                 whiteout. The colour of the atom's own light.
 ///   The camera    a jolt on top of whatever the emission's shake is doing.
-///   The hands     the pad rumbles. See TutorialRumble_NEW.
-///   The light     the new line blinks on the photon trail — the part of the light that
-///                 is literally the player's.
+///   The hands     the pad rumbles — but NOT from here. TutorialSpectrum_NEW pulses it
+///                 directly, so it cannot depend on this component having been built.
+///   The light     the new line blinks on the photon trail. Blinks only: the light's own
+///                 look is not changed by any of this.
 ///   The readout   the bar punches out and back so the eye is pulled to it, and the new
 ///                 line's marker blinks there.
 ///
@@ -47,7 +48,8 @@ public class TutorialAbsorptionImpact_NEW : MonoBehaviour
     [Tooltip("The camera's shake. Leave empty to find it.")]
     [SerializeField] TutorialCameraShake_NEW shake;
 
-    [Tooltip("Controller rumble. Leave empty to find it.")]
+    [Tooltip("Controller rumble. Only stopped from here, on the attract reset — the pulse " +
+             "itself comes from TutorialSpectrum_NEW. Leave empty to find it.")]
     [SerializeField] TutorialRumble_NEW rumble;
 
     [Tooltip("The photon trail's spectrum. The absorbed line blinks on it.")]
@@ -101,7 +103,11 @@ public class TutorialAbsorptionImpact_NEW : MonoBehaviour
     {
         if (flash != null) flash.Flash(flashColor, flashHoldSeconds, flashDecaySeconds);
         if (shake != null) shake.Kick(shakeKick, shakeSeconds);
-        if (rumble != null) rumble.Pulse();
+
+        // No rumble here. The pad is pulsed directly by TutorialSpectrum_NEW, so it does not
+        // depend on this component existing — it did, and the pad was silent. Pulsing here
+        // as well would fire it twice per absorption.
+
         if (trailBands != null) trailBands.BlinkLines();
         if (spectrumBands != null) spectrumBands.BlinkLine();
 

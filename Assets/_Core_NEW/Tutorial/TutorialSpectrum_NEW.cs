@@ -374,15 +374,20 @@ public class TutorialSpectrum_NEW : MonoBehaviour
 
         if (debugLog) Debug.Log("[TutorialSpectrum_NEW] Absorption " + _cut + " at rest frame.", this);
 
-        // Nothing hung here means the scene predates the impact — every absorption will be
-        // silent, and "the pad did not rumble" is the only symptom anybody reports. Once.
+        // The pad rumbles on every absorption, and that is not left to scene wiring. It was,
+        // and it failed silently: the listener only exists once Build or Update has been
+        // run and the scene saved. See TutorialRumble_NEW.Absorption.
+        TutorialRumble_NEW.Absorption();
+
+        // The rest of the impact — flash, jolt, bar punch — still hangs on onAbsorbed, and
+        // nothing hung there means the scene predates it. Said once, so it is not a mystery.
         if (!_warnedNoImpact && onAbsorbed.GetPersistentEventCount() == 0)
         {
             _warnedNoImpact = true;
             Debug.LogWarning("[TutorialSpectrum_NEW] An absorption happened but onAbsorbed has " +
-                             "nothing wired to it, so there is no flash, jolt or rumble. Run " +
-                             "Tools > Journey NEW > Tutorial > Build or Update and SAVE the scene.",
-                             this);
+                             "nothing wired to it, so there is no flash, jolt or bar punch (the " +
+                             "pad still rumbles). Run Tools > Journey NEW > Tutorial > Build or " +
+                             "Update and SAVE the scene.", this);
         }
 
         // Last, so everything hung here runs against a line that is already in the buffer
