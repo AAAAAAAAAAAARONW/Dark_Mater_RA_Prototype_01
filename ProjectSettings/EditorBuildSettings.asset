@@ -14,4 +14,7 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Scenes/PlaytestBuild_NEW_Row3.unity
     guid: 1de26df63c5fe4c438a9c5f49f471940
+  - enabled: 0
+    path: Assets/Scenes/PlaytestBuild_NEW_Row7Blackout.unity
+    guid: 5fd5ff1574326220cbd9b46d3f306bc1
   m_configObjects: {}
