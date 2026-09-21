@@ -570,8 +570,8 @@ public class VizlabRowBlackout_NEW : MonoBehaviour
 
     /// <summary>
     /// The readout, and under it the same actions as the keys and the pad, as buttons for
-    /// the mouse. Top right, because LayerDebugJump_NEW owns the top left and the aspect
-    /// buttons the top centre.
+    /// the mouse. Right-hand side, because LayerDebugJump_NEW owns the top left and the wall
+    /// test panel the centre.
     /// </summary>
     void OnGUI()
     {
@@ -590,8 +590,12 @@ public class VizlabRowBlackout_NEW : MonoBehaviour
         float bh = button.CalcSize(new GUIContent("Row")).y + 4f;
         float w = Mathf.Max(text.x, 360f);
 
-        var panel = new Rect(screen.x - overlayMargin.x - w - Pad * 2f, overlayMargin.y,
-                             w + Pad * 2f, Pad + text.y + Gap + bh + Gap + bh + Pad);
+        // Hangs from the same display row as the wall test panel, so moving that one down to
+        // eye level on the wall brings this one with it.
+        float height = Pad + text.y + Gap + bh + Gap + bh + Pad;
+        var panel = new Rect(screen.x - overlayMargin.x - w - Pad * 2f,
+                             VizlabDebugGUI_NEW.PanelTop(screen.y, height, overlayMargin.y),
+                             w + Pad * 2f, height);
         GUI.Box(panel, GUIContent.none, VizlabDebugGUI_NEW.Panel);
 
         float x = panel.x + Pad;

@@ -20,9 +20,47 @@ public static class VizlabDebugGUI_NEW
     /// <summary>The height the panels are designed at.</summary>
     public const float DesignHeight = 1080f;
 
+    const string PanelRowPref = "Vizlab.DebugPanelRow";
+    static int _panelRow = -1;
+
+    /// <summary>
+    /// The display row the Vizlab panels hang from, 1 to 7, shared so they move together.
+    /// Row 1 suits a desk, where the whole wall is on one monitor. On the wall itself row 1
+    /// is overhead at 78 degrees, so the panels can be brought down to eye level. Remembered
+    /// between launches, so the wall does not need setting up again every run.
+    /// </summary>
+    public static int PanelRow
+    {
+        get
+        {
+            if (_panelRow < 1) _panelRow = Mathf.Clamp(PlayerPrefs.GetInt(PanelRowPref, 1), 1, VizlabDisplay_NEW.RowCount);
+            return _panelRow;
+        }
+        set
+        {
+            _panelRow = Mathf.Clamp(value, 1, VizlabDisplay_NEW.RowCount);
+            PlayerPrefs.SetInt(PanelRowPref, _panelRow);
+        }
+    }
+
+    /// <summary>
+    /// Where a panel of this height should start, in the scaled space: the top of PanelRow,
+    /// pulled up if needed so the panel stays on screen.
+    /// </summary>
+    public static float PanelTop(float scaledScreenHeight, float panelHeight, float margin)
+    {
+        float yMin, yMax;
+        VizlabDisplay_NEW.GetRowAnchorFractions(PanelRow, out yMin, out yMax);
+
+        // Row fractions count up from the bottom; GUI y counts down from the top.
+        float top = (1f - yMax) * scaledScreenHeight + margin;
+        return Mathf.Max(margin, Mathf.Min(top, scaledScreenHeight - panelHeight - margin));
+    }
+
     static Texture2D _panelTex, _buttonTex, _buttonHoverTex, _buttonOnTex;
     static GUIStyle _panel;
     static readonly Dictionary<int, GUIStyle> _labels = new Dictionary<int, GUIStyle>();
+    static readonly Dictionary<int, GUIStyle> _richLabels = new Dictionary<int, GUIStyle>();
     static readonly Dictionary<int, GUIStyle> _buttons = new Dictionary<int, GUIStyle>();
     static readonly Dictionary<int, GUIStyle> _buttonsOn = new Dictionary<int, GUIStyle>();
     static readonly Dictionary<int, Font> _fonts = new Dictionary<int, Font>();
@@ -75,6 +113,26 @@ public static class VizlabDebugGUI_NEW
         };
         _labels[fontSize] = style;
         return style;
+    }
+
+    /// <summary>A label that reads &lt;color&gt; tags, for readings that should turn green or red.</summary>
+    public static GUIStyle RichLabel(int fontSize)
+    {
+        GUIStyle style;
+        if (_richLabels.TryGetValue(fontSize, out style) && style.font != null) return style;
+
+        style = new GUIStyle(Label(fontSize)) { richText = true };
+        _richLabels[fontSize] = style;
+        return style;
+    }
+
+    public const string Good = "#59F28C";
+    public const string Warn = "#FFC056";
+    public const string Bad = "#FF6D84";
+
+    public static string Colour(string text, string hex)
+    {
+        return "<color=" + hex + ">" + text + "</color>";
     }
 
     /// <summary>A flat button. on draws it highlighted, for the mode currently in effect.</summary>

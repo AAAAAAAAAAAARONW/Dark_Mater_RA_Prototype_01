@@ -2,8 +2,10 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// Adds VizlabAspectLock_NEW to the open scene with one menu item, so a build of that scene
-/// renders in the wall's shape and has the Fit / Windowed / Native buttons.
+/// Puts VizlabWallTest_NEW into the open scene by hand. Scenes laid out with the Vizlab row
+/// system get it automatically in play mode and in builds, so this is only for a scene that
+/// does not use VizlabRowAnchor_NEW but should still get the wall panel, or for one where
+/// the panel's settings should live in the scene.
 ///
 /// It works on the scene as loaded in the editor, not on the file, so it is safe to run
 /// with unsaved changes open: they stay, and the addition is one more undoable change.
@@ -14,16 +16,16 @@ using UnityEngine;
 ///
 /// Nothing here renders or ships.
 /// </summary>
-static class VizlabAspectMenu_NEW
+static class VizlabWallTestMenu_NEW
 {
-    [MenuItem("GameObject/Vizlab/Add Aspect Lock to This Scene", false, 15)]
-    static void AddAspectLock()
+    [MenuItem("GameObject/Vizlab/Add Wall Test Panel to This Scene", false, 15)]
+    static void AddWallTest()
     {
-        VizlabAspectLock_NEW existing = Object.FindObjectOfType<VizlabAspectLock_NEW>();
+        VizlabWallTest_NEW existing = Object.FindObjectOfType<VizlabWallTest_NEW>();
         if (existing != null)
         {
             Selection.activeObject = existing.gameObject;
-            Debug.Log("Vizlab: this scene already has an aspect lock on '" + existing.name +
+            Debug.Log("Vizlab: this scene already has a wall test panel on '" + existing.name +
                       "'. Selected it rather than adding another.", existing);
             return;
         }
@@ -34,15 +36,14 @@ static class VizlabAspectMenu_NEW
         Transform systems = state != null ? state.transform.parent : null;
         if (systems != null) go.transform.SetParent(systems, false);
 
-        go.AddComponent<VizlabAspectLock_NEW>();
+        go.AddComponent<VizlabWallTest_NEW>();
 
         // Registered once complete, so one undo removes the object and its component together.
-        Undo.RegisterCreatedObjectUndo(go, "Add Vizlab Aspect Lock");
+        Undo.RegisterCreatedObjectUndo(go, "Add Vizlab Wall Test Panel");
         Selection.activeObject = go;
 
-        Debug.Log("Vizlab: aspect lock added" + (systems != null ? " under '" + systems.name + "'" : " at the scene root") +
-                  ". Save the scene to keep it. In play mode the Fit / Windowed / Native buttons sit at the top " +
-                  "centre; in the editor Fit switches the Game View to 'Vizlab Surface 1:5'. A build renders in " +
-                  "the wall's shape by itself.", go);
+        Debug.Log("Vizlab: wall test panel added" + (systems != null ? " under '" + systems.name + "'" : " at the scene root") +
+                  ". Save the scene to keep it. In play mode and in a build it shows frame rate, resolution, " +
+                  "aspect and displays at the top centre, with the Fit / Windowed / Native buttons.", go);
     }
 }
