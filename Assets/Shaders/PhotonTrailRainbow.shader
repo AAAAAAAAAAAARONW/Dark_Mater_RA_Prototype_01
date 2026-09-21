@@ -61,6 +61,13 @@ Shader "Custom/PhotonTrail"
         // 0 keeps the buffer's soft falloff; 1 cuts each line as a solid band with a clean
         // edge. 0 (the default) changes nothing, so existing materials look the same.
         _AbsorptionLineHardness ("Absorption Line Hardness", Range(0, 1)) = 0
+
+        // How BLACK an absorbed line is, 0 to 1. The ribbon is additive, so on its own an
+        // absorbed wavelength only stops adding light — the line shows whatever is behind
+        // the trail, which reads as a hole, not as black. Above 0, the first pass paints the
+        // line black over the background before the ribbon is added. 0 (the default) draws
+        // nothing, so existing materials look the same.
+        _AbsorptionBlack ("Absorption Line Black", Range(0, 1)) = 0
     }
 
     SubShader
@@ -70,6 +77,133 @@ Shader "Custom/PhotonTrail"
         ZWrite Off
         Cull Off
 
+        // ── Pass 1: the absorbed wavelengths, painted black ──────────────────────────
+        //
+        // WHY A SECOND PASS. The ribbon below is additive — Blend SrcAlpha One — which can
+        // only ever ADD light to the frame. An absorbed wavelength there contributes
+        // nothing, so the "black" line was really a gap showing whatever was behind the
+        // trail: the quasar, the nebula, the stars. It read as transparent, not as black.
+        //
+        // Additive blending cannot darken, so this pass does it: ordinary alpha blending,
+        // black, only where there is absorption, and nothing at all anywhere else. It runs
+        // first, so the ribbon is then added on top — and at an absorbed wavelength the
+        // ribbon adds nothing, so the black stays black.
+        //
+        // The math is the ribbon's own, line for line: the same wavelength coordinate, the
+        // same spread and hardness, the same edge, tail and head fades, the same vertex
+        // alpha. The black stripe therefore lands exactly in the gap the ribbon leaves and
+        // fades out where the ribbon fades out, instead of drawing a black line across
+        // empty space past the end of the trail.
+        //
+        // _AbsorptionBlack 0 (the default) returns alpha 0 everywhere: the pass draws
+        // nothing and every existing material looks exactly as it did.
+        Pass
+        {
+            Blend SrcAlpha OneMinusSrcAlpha
+
+            CGPROGRAM
+            #pragma vertex   vertBlack
+            #pragma fragment fragBlack
+            #pragma target   3.0
+
+            #include "UnityCG.cginc"
+
+            float4    _MainTex_ST;
+            float     _SpectrumOffset;
+            float     _SpectrumScale;
+
+            float     _EdgeFadeWidth;
+            float     _EdgeFadePower;
+            float     _EdgeSoftness;
+            float     _EndFadeWidth;
+
+            float     _ShowHead;
+            float     _HeadWidth;
+
+            float     _UseAbsorptionLine;
+            sampler2D _AbsorptionLineTex;
+            float     _AbsorptionLineStrength;
+            float     _AbsorptionLineSpread;
+            float     _AbsorptionLineHardness;
+            float     _AbsorptionBlack;
+
+            struct appdataBlack
+            {
+                float4 vertex : POSITION;
+                float2 uv     : TEXCOORD0;
+                float4 color  : COLOR;
+            };
+
+            struct v2fBlack
+            {
+                float4 pos   : SV_POSITION;
+                float2 uv    : TEXCOORD0;
+                float4 color : COLOR;
+            };
+
+            v2fBlack vertBlack(appdataBlack v)
+            {
+                v2fBlack o;
+                o.pos   = UnityObjectToClipPos(v.vertex);
+                o.uv    = TRANSFORM_TEX(v.uv, _MainTex);
+                o.color = v.color;
+                return o;
+            }
+
+            fixed4 fragBlack(v2fBlack i) : SV_Target
+            {
+                if (_AbsorptionBlack <= 0.0001 || _UseAbsorptionLine < 0.5) return fixed4(0, 0, 0, 0);
+
+                float2 uv = i.uv;
+                float specT = frac(((1.0 - uv.y) + _SpectrumOffset) * _SpectrumScale);
+
+                // Absorption — identical to the ribbon pass.
+                float lineStrength = tex2Dlod(_AbsorptionLineTex, float4(specT, 0.5, 0, 0)).r;
+
+                if (_AbsorptionLineSpread > 0.0001)
+                {
+                    float tapStep = _AbsorptionLineSpread * 0.125;
+
+                    for (int tap = 1; tap <= 8; tap++)
+                    {
+                        float d = tapStep * tap;
+                        lineStrength = max(lineStrength,
+                                           tex2Dlod(_AbsorptionLineTex, float4(specT - d, 0.5, 0, 0)).r);
+                        lineStrength = max(lineStrength,
+                                           tex2Dlod(_AbsorptionLineTex, float4(specT + d, 0.5, 0, 0)).r);
+                    }
+                }
+
+                float solid = smoothstep(0.06, 0.22, lineStrength);
+                lineStrength = lerp(lineStrength, solid, _AbsorptionLineHardness);
+
+                float absorp = saturate(lineStrength * _AbsorptionLineStrength);
+
+                // The ribbon's footprint — identical fades, so the black ends where it ends.
+                float edgeY    = min(uv.y, 1.0 - uv.y);
+                float edgeFade = saturate(edgeY / max(_EdgeFadeWidth, 0.0001));
+                edgeFade = pow(edgeFade, _EdgeFadePower);
+                edgeFade = smoothstep(0, _EdgeSoftness * 0.2, edgeFade);
+
+                float endFade = saturate((1.0 - uv.x) / max(_EndFadeWidth, 0.0001));
+
+                float headClip = 1.0;
+                if (_ShowHead > 0.5)
+                {
+                    float headLocal = saturate(1.0 - uv.x / max(_HeadWidth, 0.0001));
+                    float centreY   = abs(uv.y - 0.5) * 2.0;
+                    float dist      = sqrt(headLocal * headLocal + centreY * centreY);
+                    headClip = saturate((1.0 - dist) * 40.0);
+                }
+
+                float alpha = absorp * edgeFade * endFade * headClip * i.color.a * _AbsorptionBlack;
+
+                return fixed4(0, 0, 0, saturate(alpha));
+            }
+            ENDCG
+        }
+
+        // ── Pass 2: the ribbon itself, additive — unchanged ──────────────────────────
         Pass
         {
             CGPROGRAM

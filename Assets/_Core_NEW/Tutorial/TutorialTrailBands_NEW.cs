@@ -111,6 +111,15 @@ public class TutorialTrailBands_NEW : MonoBehaviour
     [Range(0f, 1f)]
     [SerializeField] float lineHardness = 1f;
 
+    [Tooltip("How BLACK the absorbed line is, 0 to 1.\n\n" +
+             "The ribbon is additive, so on its own an absorbed wavelength just stops " +
+             "adding light and the line shows whatever is behind the trail — the quasar, " +
+             "the stars — reading as a hole rather than as black. At 1 the shader paints " +
+             "the line black over the background first, so the colour that was taken out " +
+             "of the light reads as a black line.")]
+    [Range(0f, 1f)]
+    [SerializeField] float lineBlack = 1f;
+
     [Header("Absorption line blink")]
     [Min(1)]
     [SerializeField] int lineBlinkCount = 3;
@@ -155,6 +164,7 @@ public class TutorialTrailBands_NEW : MonoBehaviour
     static readonly int LineStrengthId = Shader.PropertyToID("_AbsorptionLineStrength");
     static readonly int LineSpreadId = Shader.PropertyToID("_AbsorptionLineSpread");
     static readonly int LineHardnessId = Shader.PropertyToID("_AbsorptionLineHardness");
+    static readonly int LineBlackId = Shader.PropertyToID("_AbsorptionBlack");
 
     // ── Public API ───────────────────────────────────────────────────────────
 
@@ -305,6 +315,7 @@ public class TutorialTrailBands_NEW : MonoBehaviour
         // too wide at D9.
         _block.SetFloat(LineSpreadId, lineSpread * scale);
         _block.SetFloat(LineHardnessId, lineHardness);
+        _block.SetFloat(LineBlackId, lineBlack);
 
         _trail.SetPropertyBlock(_block);
     }
