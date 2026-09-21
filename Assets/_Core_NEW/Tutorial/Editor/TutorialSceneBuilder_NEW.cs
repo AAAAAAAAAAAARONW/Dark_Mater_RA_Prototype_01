@@ -1993,26 +1993,25 @@ public static class TutorialSceneBuilder_NEW
             .Flag("linkToPlayerSpeed", false)
             .Apply();
 
-        // A NEW LINE ARRIVES AS A GASH AND SETTLES INTO A LINE. The field already stamps
-        // every line with a spawn pulse — deeper and wider for a moment, then easing to
-        // its real size — and the journey's values keep it subtle, because the journey
-        // spawns four lines a second and a loud pulse there would be noise. The tutorial
-        // cuts one at a time and each one is the event, so it takes the loud version:
-        // fully black, three times as wide, for over a second.
+        // THE LINE'S ARRIVAL PULSE STAYS AT THE JOURNEY'S VALUES. One build turned it up
+        // — fully black, three times as wide, 1.2s — to make each absorption louder. The
+        // buffer is shared with the photon trail, so what that actually did was cut a
+        // wide black gash across the player's own light on every hit: it changed how the
+        // light looks, which nobody asked for, and it looked bad. The drama belongs to the
+        // impact (TutorialAbsorptionImpact_NEW), not to the light.
         //
-        // Because the buffer is shared this lands on the bar AND on the photon trail at
-        // once, which is the pairing the frame is about. Only the builder's own shipped
-        // values are replaced; anything tuned is left alone.
-        RepairSerialized(field, "pulseExtraDepth", p => Mathf.Approximately(p.floatValue, 0.5f),
-                         p => p.floatValue = 1f,
-                         "a new line now arrives fully black before settling.");
-        RepairSerialized(field, "pulseWidthMultiplier", p => Mathf.Approximately(p.floatValue, 1.6f),
-                         p => p.floatValue = 3f,
-                         "a new line now arrives three times its width before narrowing.");
-        RepairSerialized(field, "pulseDuration", p => Mathf.Approximately(p.floatValue, 0.5f),
-                         p => p.floatValue = 1.2f,
-                         "the arrival pulse lasts long enough to be seen from the atom and " +
-                         "still be there when the eye reaches the bar.");
+        // These put back a scene that took that build and was saved. Narrow: only the
+        // exact values it wrote are touched.
+        RepairSerialized(field, "pulseExtraDepth", p => Mathf.Approximately(p.floatValue, 1f),
+                         p => p.floatValue = 0.5f,
+                         "line arrival pulse depth back to 0.5 — the loud version cut a black " +
+                         "gash across the photon trail.");
+        RepairSerialized(field, "pulseWidthMultiplier", p => Mathf.Approximately(p.floatValue, 3f),
+                         p => p.floatValue = 1.6f,
+                         "line arrival pulse width back to 1.6x.");
+        RepairSerialized(field, "pulseDuration", p => Mathf.Approximately(p.floatValue, 1.2f),
+                         p => p.floatValue = 0.5f,
+                         "line arrival pulse back to 0.5s.");
 
         // ── The bar ──────────────────────────────────────────────────────────
         // Centre screen, which is where D2 puts it. D3 will move it to its docked

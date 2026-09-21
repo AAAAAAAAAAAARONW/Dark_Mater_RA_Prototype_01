@@ -68,6 +68,9 @@ public static class DebugOverlayRows_NEW
     /// <summary>TutorialDirector_NEW — which pad buttons are down right now.</summary>
     public const int Buttons = 8;
 
+    /// <summary>TutorialRumble_NEW — which XInput pads are connected, and the last pulse.</summary>
+    public const int Rumble = 9;
+
     /// <summary>The rectangle for one row. Use this rather than writing a Rect inline.</summary>
     public static Rect Row(int index)
     {

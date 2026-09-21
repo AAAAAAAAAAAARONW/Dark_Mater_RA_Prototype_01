@@ -6,29 +6,29 @@ using UnityEngine;
 /// Controller rumble, for a project that has no rumble API.
 ///
 /// Unity 2019.4 on the legacy Input Manager cannot vibrate a pad at all — TutorialBeat_NEW
-/// has carried an onRumble seam since Phase 0 for exactly this reason, waiting "for the day
-/// a haptics path exists". This is that path. It talks to XInput directly, which is the
-/// API an Xbox controller on Windows actually speaks, so it needs no package and changes
-/// nothing about how input is read.
+/// has carried an onRumble seam since Phase 0 for exactly this reason. This talks to XInput
+/// directly, which is the API an Xbox controller on Windows actually speaks, so it needs no
+/// package and changes nothing about how input is read.
 ///
-/// WHAT IT IS FOR. The absorption is the moment the whole tutorial is built around: a
-/// single atom takes a colour out of the player's light. The screen can show that, but
-/// the player is holding the light in their hands — the pad is the one part of the piece
-/// that is physically theirs — and a jolt through it says "that happened to you" in a way
-/// no amount of HUD can. So every absorption rumbles, the same way every time.
+/// WHAT IT CANNOT DO. XInput is Xbox-family only. A DualSense or DualShock is not an XInput
+/// device, and nothing sent through here reaches it — which matters on this project,
+/// because the pad on the development desk is usually a DualSense (see
+/// TutorialInput_NEW.PadLayout). The exhibition pad is the Xbox one.
 ///
-/// WHAT IT CANNOT DO. XInput is Xbox-family only. A DualSense on a desk will not rumble
-/// through this, and there is nothing to fix: it simply is not an XInput device. The
-/// exhibition pad is the Xbox one, which is the only one that has to.
+/// SO IT SAYS WHY WHEN IT DOES NOTHING. A haptic that silently fails is indistinguishable
+/// from one that was never wired, and the first time this was tried the only report was
+/// "the pad did not rumble". Now:
 ///
-/// Windows only, and quiet about it: on any other platform, or if the XInput DLL is
-/// missing, Pulse does nothing and says so once. A haptic that fails must not take the
-/// piece down with it.
+///   F4 (with the debug overlay on) fires a test pulse, as does right-clicking this
+///       component in the Inspector during Play → Test pulse. No need to play to D5.
+///   The overlay's RUMBLE row names which XInput slots have a pad in them, and what the
+///       last pulse did.
+///   A pulse with no XInput pad connected logs a warning ONCE, naming every joystick Unity
+///       can see — so a DualSense on the desk reads as "that is a PlayStation pad" and not
+///       as a mystery.
 ///
-/// ALWAYS STOPS. A motor left running is the worst failure a haptic can have — a pad
-/// buzzing on a plinth with nobody holding it — so the motors are cut when the envelope
-/// ends, on pause, on disable, on focus loss and on quit. Every exit path, not just the
-/// one that was drawn.
+/// ALWAYS STOPS. A motor left running is the worst failure a haptic can have, so the motors
+/// are cut when the envelope ends, on pause, on disable, on focus loss and on quit.
 /// </summary>
 [DisallowMultipleComponent]
 [HierarchyBadge_NEW("RUMBLE", "#C0607A")]
@@ -39,8 +39,8 @@ public class TutorialRumble_NEW : MonoBehaviour
     [Range(0f, 1f)]
     [SerializeField] float lowFrequency = 0.85f;
 
-    [Tooltip("Right motor, 0 to 1. The light, high-frequency one — this is the crack on " +
-             "top of the thud. Together they read as an impact rather than a buzz.")]
+    [Tooltip("Right motor, 0 to 1. The light, high-frequency one — the crack on top of the " +
+             "thud. Together they read as an impact rather than a buzz.")]
     [Range(0f, 1f)]
     [SerializeField] float highFrequency = 0.55f;
 
@@ -58,6 +58,10 @@ public class TutorialRumble_NEW : MonoBehaviour
     [SerializeField] bool rumbleEnabled = true;
 
     [Header("Debug")]
+    [Tooltip("Fires a test pulse while the debug overlay is on. Not in the exhibition build: " +
+             "it sits behind DebugView_NEW.Overlay like the director's keys.")]
+    [SerializeField] KeyCode testKey = KeyCode.F4;
+
     [SerializeField] bool debugLog = false;
 
     float _low;
@@ -67,6 +71,12 @@ public class TutorialRumble_NEW : MonoBehaviour
 
     bool _unavailable;
     bool _motorsOn;
+    bool _warnedNoPad;
+
+    /// <summary>Bit per XInput slot with a pad in it, as of the last check.</summary>
+    int _connected;
+
+    string _lastPulse = "none yet";
 
     // ── Public API ───────────────────────────────────────────────────────────
 
@@ -82,18 +92,38 @@ public class TutorialRumble_NEW : MonoBehaviour
     /// <summary>
     /// One impact with explicit strengths and length. A stronger pulse arriving while a
     /// weaker one is still running replaces it; a weaker one is ignored until the strong
-    /// one has died down, so a burst of absorptions reads as a series of hits and not as
-    /// one continuous grind.
+    /// one has died down, so a burst of absorptions reads as a series of hits.
     /// </summary>
     public void Pulse(float low, float high, float durationSeconds)
     {
-        if (!rumbleEnabled || _unavailable) return;
+        if (!rumbleEnabled)
+        {
+            _lastPulse = "ignored — rumbleEnabled is off";
+            return;
+        }
+
+        if (_unavailable)
+        {
+            _lastPulse = "ignored — no XInput on this machine";
+            return;
+        }
 
         low = Mathf.Clamp01(low);
         high = Mathf.Clamp01(high);
 
         if (_elapsed >= 0f && CurrentScale() * Mathf.Max(_low, _high) > Mathf.Max(low, high))
             return;
+
+        // Re-checked on every pulse, not cached from start-up: a pad plugged in, switched
+        // on or re-paired after the scene loaded has to be found.
+        _connected = ConnectedSlots();
+
+        if (_connected == 0)
+        {
+            _lastPulse = "no XInput pad connected at " + Time.unscaledTime.ToString("F1") + "s";
+            WarnNoPad();
+            return;
+        }
 
         _low = low;
         _high = high;
@@ -102,9 +132,9 @@ public class TutorialRumble_NEW : MonoBehaviour
 
         Drive(1f);
 
-        if (debugLog)
-            Debug.Log("[TutorialRumble_NEW] Pulse " + low.ToString("F2") + " / " +
-                      high.ToString("F2") + " for " + _duration.ToString("F2") + "s.", this);
+        _lastPulse = "pulsed " + SlotList(_connected) + " at " + Time.unscaledTime.ToString("F1") + "s";
+
+        if (debugLog) Debug.Log("[TutorialRumble_NEW] " + _lastPulse + ".", this);
     }
 
     /// <summary>Motors off, now. The attract reset and every teardown path call this.</summary>
@@ -114,23 +144,38 @@ public class TutorialRumble_NEW : MonoBehaviour
         Send(0f, 0f);
     }
 
+    /// <summary>Right-click the component during Play. Rumbles once, or says why it cannot.</summary>
+    [ContextMenu("Test pulse")]
+    void TestPulse()
+    {
+        _warnedNoPad = false;
+        Pulse();
+        Debug.Log("[TutorialRumble_NEW] Test pulse: " + _lastPulse + ".", this);
+    }
+
     // ── Lifecycle ────────────────────────────────────────────────────────────
+
+    void Start()
+    {
+        _connected = ConnectedSlots();
+    }
 
     void Update()
     {
+        if (DebugView_NEW.Overlay && Input.GetKeyDown(testKey)) TestPulse();
+
         if (_elapsed < 0f) return;
 
-        // A paused piece does not buzz. The pulse is dropped rather than held: resuming
-        // into the tail of a jolt that belonged to a moment the player has since stepped
-        // out of would be a vibration with no cause.
+        // A paused piece does not buzz. Dropped rather than held: resuming into the tail
+        // of a jolt that belonged to a moment the player has stepped out of would be a
+        // vibration with no cause.
         if (TutorialClock_NEW.Paused)
         {
             Stop();
             return;
         }
 
-        // Real time. The jolt is what the player's hands feel, and inside D5's slow
-        // motion it has to land at full speed — stretched five times it stops being an
+        // Real time. Inside D5's slow motion a jolt stretched five times stops being an
         // impact and becomes a hum.
         _elapsed += Time.unscaledDeltaTime;
 
@@ -169,8 +214,6 @@ public class TutorialRumble_NEW : MonoBehaviour
 
     void Send(float low, float high)
     {
-        // Skip the call entirely when there is nothing to change — XInputSetState is a
-        // driver round trip, and at rest this would otherwise be four of them a frame.
         bool on = low > 0.0001f || high > 0.0001f;
         if (!on && !_motorsOn) return;
         _motorsOn = on;
@@ -182,20 +225,103 @@ public class TutorialRumble_NEW : MonoBehaviour
             rightMotor = (ushort)(Mathf.Clamp01(high) * ushort.MaxValue)
         };
 
-        // All four slots. The pad is not guaranteed to be player one — a second pad
-        // plugged in for testing, or the exhibition pad re-paired, moves it — and a slot
-        // with nothing in it answers ERROR_DEVICE_NOT_CONNECTED straight away.
+        // Only the slots that have a pad in them. Stopping is sent to all four, so a pad
+        // that disconnected mid-pulse and comes back is not left running.
+        int slots = on ? _connected : 0xF;
+
         for (uint slot = 0; slot < 4; slot++)
         {
+            if ((slots & (1 << (int)slot)) == 0) continue;
             if (!SetState(slot, ref v)) return;
         }
+#endif
+    }
+
+    // ── Diagnostics ──────────────────────────────────────────────────────────
+
+    void WarnNoPad()
+    {
+        if (_warnedNoPad) return;
+        _warnedNoPad = true;
+
+        string[] names = Input.GetJoystickNames();
+        string seen = "";
+
+        for (int i = 0; i < names.Length; i++)
+        {
+            if (string.IsNullOrEmpty(names[i])) continue;
+            if (seen.Length > 0) seen += ", ";
+            seen += "\"" + names[i] + "\"";
+        }
+
+        if (seen.Length == 0) seen = "none";
+
+        Debug.LogWarning("[TutorialRumble_NEW] Asked to rumble, but no XInput controller is " +
+                         "connected, so nothing was sent. Joysticks Unity can see: " + seen + ". " +
+                         "An Xbox pad rumbles through XInput; a PlayStation pad (DualSense, " +
+                         "DualShock — Windows calls it \"Wireless Controller\") is not an XInput " +
+                         "device and cannot be rumbled from here. The exhibition pad is the Xbox " +
+                         "one. Press F4 with the overlay on to test again.", this);
+    }
+
+    static string SlotList(int mask)
+    {
+        string s = "";
+
+        for (int i = 0; i < 4; i++)
+        {
+            if ((mask & (1 << i)) == 0) continue;
+            if (s.Length > 0) s += "+";
+            s += "slot " + i;
+        }
+
+        return s.Length > 0 ? s : "none";
+    }
+
+    void OnGUI()
+    {
+        if (!DebugView_NEW.Overlay) return;
+
+        string state = _unavailable ? "NO XINPUT"
+                     : !rumbleEnabled ? "OFF"
+                     : _elapsed >= 0f ? "RUMBLING"
+                     : "idle";
+
+        GUI.Label(DebugOverlayRows_NEW.Row(DebugOverlayRows_NEW.Rumble),
+                  "RUMBLE  " + state + "   xinput pads: " + SlotList(_connected) +
+                  "   last: " + _lastPulse + "   (" + testKey + " to test)");
+    }
+
+    // ── XInput ───────────────────────────────────────────────────────────────
+
+    int ConnectedSlots()
+    {
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
+        if (_unavailable) return 0;
+
+        int mask = 0;
+
+        for (uint slot = 0; slot < 4; slot++)
+        {
+            XInputState state;
+            uint result;
+
+            if (!GetState(slot, out state, out result)) return 0;
+
+            // 0 is ERROR_SUCCESS; anything else — ERROR_DEVICE_NOT_CONNECTED, 1167, being
+            // the usual — means there is no pad in this slot.
+            if (result == 0) mask |= 1 << (int)slot;
+        }
+
+        return mask;
 #else
         if (!_unavailable)
         {
             _unavailable = true;
-            Debug.Log("[TutorialRumble_NEW] Rumble is Windows-only (XInput). Pulses will " +
-                      "be ignored on this platform.", this);
+            Debug.Log("[TutorialRumble_NEW] Rumble is Windows-only (XInput). Pulses will be " +
+                      "ignored on this platform.", this);
         }
+        return 0;
 #endif
     }
 
@@ -207,48 +333,82 @@ public class TutorialRumble_NEW : MonoBehaviour
         public ushort rightMotor;
     }
 
-    // Two DLLs for one function. xinput1_4 ships with Windows 8 and later; xinput9_1_0 is
-    // the one Windows 7 has. The first that loads is used from then on.
+    [StructLayout(LayoutKind.Sequential)]
+    struct XInputState
+    {
+        public uint packetNumber;
+        public ushort buttons;
+        public byte leftTrigger;
+        public byte rightTrigger;
+        public short thumbLX;
+        public short thumbLY;
+        public short thumbRX;
+        public short thumbRY;
+    }
+
+    // Two DLLs for one API. xinput1_4 ships with Windows 8 and later; xinput9_1_0 is the one
+    // Windows 7 has. The first that loads is used from then on.
     [DllImport("xinput1_4", EntryPoint = "XInputSetState")]
     static extern uint XInputSetState14(uint userIndex, ref XInputVibration vibration);
 
     [DllImport("xinput9_1_0", EntryPoint = "XInputSetState")]
     static extern uint XInputSetState910(uint userIndex, ref XInputVibration vibration);
 
-    static int _dll;   // 0 untried, 1 = 1_4, 2 = 9_1_0
+    [DllImport("xinput1_4", EntryPoint = "XInputGetState")]
+    static extern uint XInputGetState14(uint userIndex, out XInputState state);
 
-    /// <summary>
-    /// One call to the driver. Returns false, and switches rumble off for the session,
-    /// if neither DLL can be loaded — the piece carries on without haptics.
-    /// </summary>
+    [DllImport("xinput9_1_0", EntryPoint = "XInputGetState")]
+    static extern uint XInputGetState910(uint userIndex, out XInputState state);
+
+    static int _dll;   // 0 untried, 1 = xinput1_4, 2 = xinput9_1_0
+
     bool SetState(uint slot, ref XInputVibration v)
     {
         if (_dll != 2)
         {
-            try
-            {
-                XInputSetState14(slot, ref v);
-                _dll = 1;
-                return true;
-            }
+            try { XInputSetState14(slot, ref v); _dll = 1; return true; }
             catch (DllNotFoundException) { }
             catch (EntryPointNotFoundException) { }
         }
 
-        try
-        {
-            XInputSetState910(slot, ref v);
-            _dll = 2;
-            return true;
-        }
+        try { XInputSetState910(slot, ref v); _dll = 2; return true; }
         catch (DllNotFoundException) { }
         catch (EntryPointNotFoundException) { }
 
+        MarkUnavailable();
+        return false;
+    }
+
+    bool GetState(uint slot, out XInputState state, out uint result)
+    {
+        state = default(XInputState);
+        result = 1167;
+
+        if (_dll != 2)
+        {
+            try { result = XInputGetState14(slot, out state); _dll = 1; return true; }
+            catch (DllNotFoundException) { }
+            catch (EntryPointNotFoundException) { }
+        }
+
+        try { result = XInputGetState910(slot, out state); _dll = 2; return true; }
+        catch (DllNotFoundException) { }
+        catch (EntryPointNotFoundException) { }
+
+        MarkUnavailable();
+        return false;
+    }
+
+    void MarkUnavailable()
+    {
+        if (_unavailable) return;
+
         _unavailable = true;
         _motorsOn = false;
+        _lastPulse = "no XInput DLL";
+
         Debug.LogWarning("[TutorialRumble_NEW] No XInput DLL on this machine, so the pad " +
                          "will not rumble. Everything else is unaffected.", this);
-        return false;
     }
 #endif
 }

@@ -153,6 +153,8 @@ public class TutorialSpectrum_NEW : MonoBehaviour
     [Header("Debug")]
     [SerializeField] bool debugLog = false;
 
+    bool _warnedNoImpact;
+
     /// <summary>How many of linePositions have been used since the last Clear.</summary>
     int _cut;
 
@@ -371,6 +373,17 @@ public class TutorialSpectrum_NEW : MonoBehaviour
         _trackedPosition = RestFramePosition;
 
         if (debugLog) Debug.Log("[TutorialSpectrum_NEW] Absorption " + _cut + " at rest frame.", this);
+
+        // Nothing hung here means the scene predates the impact — every absorption will be
+        // silent, and "the pad did not rumble" is the only symptom anybody reports. Once.
+        if (!_warnedNoImpact && onAbsorbed.GetPersistentEventCount() == 0)
+        {
+            _warnedNoImpact = true;
+            Debug.LogWarning("[TutorialSpectrum_NEW] An absorption happened but onAbsorbed has " +
+                             "nothing wired to it, so there is no flash, jolt or rumble. Run " +
+                             "Tools > Journey NEW > Tutorial > Build or Update and SAVE the scene.",
+                             this);
+        }
 
         // Last, so everything hung here runs against a line that is already in the buffer
         // — the trail's blink has something to blink.
