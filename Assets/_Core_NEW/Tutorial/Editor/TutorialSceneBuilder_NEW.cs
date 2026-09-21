@@ -415,12 +415,13 @@ public static class TutorialSceneBuilder_NEW
         // ── The absorption, felt ─────────────────────────────────────────────
         // Every absorption goes through TutorialSpectrum_NEW.AbsorbAtRestFrame — D5's
         // beat, each of D6's atoms, D8's atom — so its onAbsorbed is the one hook that
-        // cannot miss one. Hung there, the flash, the jolt, the rumble and both blinks
-        // happen on every absorption without any beat or atom having to remember them.
+        // cannot miss one. Hung there, the flash and both blinks happen on every
+        // absorption. The rumble is not here: each atom fires it itself, just ahead of
+        // contact. Nothing here moves the camera or the HUD.
         TutorialRumble_NEW rumble = BuildRumble(root.transform);
         TutorialAbsorptionImpact_NEW impact = BuildAbsorptionImpact(
-            root.transform, canvas.transform, flashObject.GetComponent<TutorialFlash_NEW>(),
-            shake, rumble, trailBands, spectrumBands);
+            root.transform, flashObject.GetComponent<TutorialFlash_NEW>(),
+            rumble, trailBands, spectrumBands);
 
         AddCall(spectrum, "onAbsorbed", impact, "Play");
 
@@ -1427,6 +1428,16 @@ public static class TutorialSceneBuilder_NEW
         AddCall(d3, "onEnter", rig.spectrumBands, "UnfoldUVIR");
 
         AddCall(d4, "onEnter", rig.atom, "Arm");
+
+        // D4 ENDS ON CONTACT, NOT ON ITS CLOCK. D4 runs ten seconds and the atom's approach
+        // is ten seconds, so they looked matched — but contact fires once the atom is
+        // within its impact radius, and on an eased approach that is about 9.5 seconds in.
+        // So the atom touched the light, and the line, the slow motion and the flash all
+        // arrived half a second later when D5 opened on D4's clock. It read as lag.
+        //
+        // Contact now satisfies D4, so D5 opens on the next frame. The ten seconds stay as
+        // the fallback: if the atom never arrives, the piece still moves on.
+        AddCall(rig.atom, "onImpact", d4, "ForceSatisfy");
         AddCall(d4, "onEnter", rig.slide, "Play");
 
         // The slow motion is D5's, not the atom's: hung on the impact it would start a
@@ -1613,6 +1624,12 @@ public static class TutorialSceneBuilder_NEW
         // absorption that reads as the line flashing; dimming it only part way did not.
         RepairSerialized(bands, "lineBlinkLow", p => Mathf.Approximately(p.floatValue, 0.15f),
                          p => p.floatValue = 0f, "line blink now goes fully off and back.");
+
+        // One thick black line, not several thin ones. The width goes up with it; the
+        // solid cut is lineHardness, a new field that arrives at 1 on its own.
+        RepairSerialized(bands, "lineSpread", p => Mathf.Approximately(p.floatValue, 0.02f),
+                         p => p.floatValue = 0.03f,
+                         "absorption line on the photon trail thickened, and now drawn solid.");
 
         return bands;
     }
@@ -1866,12 +1883,11 @@ public static class TutorialSceneBuilder_NEW
     }
 
     /// <summary>
-    /// The impact every absorption plays. On the rig root beside the rumble, pointing at
-    /// the flash, the camera's shake, the rumble, both spectrum displays and the bar.
+    /// The impact every absorption plays: a flash and the two blinks. On the rig root beside
+    /// the rumble. Nothing it drives moves the camera or the HUD.
     /// </summary>
-    static TutorialAbsorptionImpact_NEW BuildAbsorptionImpact(Transform root, Transform canvas,
+    static TutorialAbsorptionImpact_NEW BuildAbsorptionImpact(Transform root,
                                                             TutorialFlash_NEW flash,
-                                                            TutorialCameraShake_NEW shake,
                                                             TutorialRumble_NEW rumble,
                                                             TutorialTrailBands_NEW trailBands,
                                                             TutorialSpectrumBands_NEW spectrumBands)
@@ -1879,15 +1895,11 @@ public static class TutorialSceneBuilder_NEW
         GameObject go = FindOrCreate("AbsorptionImpact", root, Vector3.zero);
         TutorialAbsorptionImpact_NEW impact = AddIfMissing<TutorialAbsorptionImpact_NEW>(go);
 
-        GameObject bar = FindChild(canvas, "SpectrumBar");
-
         Wire(impact)
             .Ref("flash", flash)
-            .Ref("shake", shake)
             .Ref("rumble", rumble)
             .Ref("trailBands", trailBands)
             .Ref("spectrumBands", spectrumBands)
-            .Ref("bar", bar != null ? bar.GetComponent<RectTransform>() : null)
             .Apply();
 
         return impact;

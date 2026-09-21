@@ -57,6 +57,10 @@ Shader "Custom/PhotonTrail"
         // reads as six pixels on the bar is one on the light.
         // Spread 0 (the default) changes nothing, so existing materials look the same.
         _AbsorptionLineSpread ("Absorption Line Spread", Range(0, 0.06)) = 0
+
+        // 0 keeps the buffer's soft falloff; 1 cuts each line as a solid band with a clean
+        // edge. 0 (the default) changes nothing, so existing materials look the same.
+        _AbsorptionLineHardness ("Absorption Line Hardness", Range(0, 1)) = 0
     }
 
     SubShader
@@ -115,6 +119,7 @@ Shader "Custom/PhotonTrail"
             float  _AbsorptionLineStrength;
             float  _AbsorptionLineWidth;
             float  _AbsorptionLineSpread;
+            float  _AbsorptionLineHardness;
 
             struct appdata
             {
@@ -272,13 +277,20 @@ Shader "Custom/PhotonTrail"
                     {
                         // Not named `step`: that is an HLSL intrinsic, and shadowing it
                         // compiles on one platform and argues on the next.
-                        float tapStep = _AbsorptionLineSpread * 0.25;
+                        //
+                        // EIGHT TAPS A SIDE, NOT FOUR. With four, the taps sat further apart
+                        // than a line is wide, so the max picked up the line's peak at each
+                        // tap and its dim edges in between — one absorption was drawn as a
+                        // row of thin dark ridges, which reads as several lines. Eight puts
+                        // the taps closer together than the line is wide and the band
+                        // comes out continuous.
+                        float tapStep = _AbsorptionLineSpread * 0.125;
 
                         // tex2Dlod, not tex2D: a sample inside flow control has no
                         // derivatives, and some compilers refuse it outright. The buffer
                         // is one texel tall with no mip chain, so asking for level 0
                         // explicitly costs nothing and is what was wanted anyway.
-                        for (int tap = 1; tap <= 4; tap++)
+                        for (int tap = 1; tap <= 8; tap++)
                         {
                             float d = tapStep * tap;
                             lineStrength = max(lineStrength,
@@ -287,6 +299,15 @@ Shader "Custom/PhotonTrail"
                                                tex2Dlod(_AbsorptionLineTex, float4(specT + d, 0.5, 0, 0)).r);
                         }
                     }
+
+                    // HARDNESS TURNS A SOFT DIP INTO A SOLID BAND. The buffer stores each
+                    // line with a soft falloff, which the bar needs — it is a curve. On the
+                    // ribbon that falloff reads as a faint smudge that fades into the
+                    // colours either side. Above a small threshold this snaps to fully
+                    // absorbed, so the line is one solid black stripe with a clean edge.
+                    // 0 (the default) leaves every existing material as it was.
+                    float solid = smoothstep(0.06, 0.22, lineStrength);
+                    lineStrength = lerp(lineStrength, solid, _AbsorptionLineHardness);
 
                     absorp = lineStrength * _AbsorptionLineStrength;
                 }

@@ -374,20 +374,21 @@ public class TutorialSpectrum_NEW : MonoBehaviour
 
         if (debugLog) Debug.Log("[TutorialSpectrum_NEW] Absorption " + _cut + " at rest frame.", this);
 
-        // The pad rumbles on every absorption, and that is not left to scene wiring. It was,
-        // and it failed silently: the listener only exists once Build or Update has been
-        // run and the scene saved. See TutorialRumble_NEW.Absorption.
-        TutorialRumble_NEW.Absorption();
+        // No rumble here. Every absorption is caused by an atom touching the light, and the
+        // atom rumbles the pad itself — a fraction BEFORE contact, to cover the motor's
+        // spin-up. Firing it from here instead put it on whatever frame the absorption was
+        // called on, which for D5 was the beat opening half a second after the atom had
+        // already hit. See TutorialAtom_NEW.rumbleLeadSeconds.
 
-        // The rest of the impact — flash, jolt, bar punch — still hangs on onAbsorbed, and
+        // The rest of the impact — the flash and the blinks — hangs on onAbsorbed, and
         // nothing hung there means the scene predates it. Said once, so it is not a mystery.
         if (!_warnedNoImpact && onAbsorbed.GetPersistentEventCount() == 0)
         {
             _warnedNoImpact = true;
             Debug.LogWarning("[TutorialSpectrum_NEW] An absorption happened but onAbsorbed has " +
-                             "nothing wired to it, so there is no flash, jolt or bar punch (the " +
-                             "pad still rumbles). Run Tools > Journey NEW > Tutorial > Build or " +
-                             "Update and SAVE the scene.", this);
+                             "nothing wired to it, so there is no flash (the pad still " +
+                             "rumbles). Run Tools > Journey NEW > Tutorial > Build or Update and " +
+                             "SAVE the scene.", this);
         }
 
         // Last, so everything hung here runs against a line that is already in the buffer

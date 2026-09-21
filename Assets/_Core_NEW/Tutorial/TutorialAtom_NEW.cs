@@ -101,31 +101,6 @@ public class TutorialAtom_NEW : MonoBehaviour
              "last second feel like arrival.")]
     [SerializeField] AnimationCurve approachShape = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
-    [Header("Burst on impact")]
-    [Tooltip("Seconds the atom takes to flare and die after it strikes. 0 leaves it where " +
-             "it hit, which is what it used to do.\n\n" +
-             "WHY IT MUST NOT JUST STOP. The atom is the one thing the player has been " +
-             "watching for ten seconds, and it is where their eyes are at the moment of " +
-             "contact. Frozen full-size at the impact point while the light flies on past " +
-             "it, it read as the collision having been cancelled — the cause of the whole " +
-             "frame sat there unaffected while its effect happened somewhere else, on a " +
-             "bar at the top of the screen.\n\n" +
-             "A flare that swells and collapses to nothing says the atom took something " +
-             "and was spent doing it, right where the player is looking, on the frame the " +
-             "line appears.\n\n" +
-             "On SCALED time, unlike the approach — so inside D5's slow motion the burst " +
-             "plays five times slower and gets the room the slow motion was made for.")]
-    [SerializeField] float burstSeconds = 0.7f;
-
-    [Tooltip("How far the halo swells at the peak of the burst, as a multiple of its size " +
-             "at impact.")]
-    [SerializeField] float burstHaloGrow = 3.5f;
-
-    [Tooltip("How bright the point light spikes at the peak, as a multiple of its value at " +
-             "impact. This is what throws light across the photon trail at the moment of " +
-             "contact.")]
-    [SerializeField] float burstGlowPeak = 4f;
-
     [Header("Wiring")]
     [Tooltip("Leave empty to use the main camera. Only the glow reads this — it turns the " +
              "halo to face it.\n\n" +
@@ -141,6 +116,19 @@ public class TutorialAtom_NEW : MonoBehaviour
              "than wherever the player is looking.")]
     [SerializeField] TutorialTravel_NEW travel;
 
+    [Header("Rumble")]
+    [Tooltip("Seconds BEFORE contact that the pad starts to rumble.\n\n" +
+             "A motor is not a pixel. The command crosses Bluetooth, and then a weighted " +
+             "motor has to spin up before a hand can feel it — together a few tens of " +
+             "milliseconds, which is exactly the gap people notice between a hit they see " +
+             "and a hit they feel. Starting the motor this far ahead lands the felt impact " +
+             "on the frame of the seen one.\n\n" +
+             "Predicted from how fast the atom is closing, so it holds for any approach " +
+             "curve and any speed. If contact comes before the prediction fires, contact " +
+             "fires it — every atom rumbles exactly once.")]
+    [Range(0f, 0.2f)]
+    [SerializeField] float rumbleLeadSeconds = 0.06f;
+
     [Header("Events")]
     [Tooltip("Fires once, on contact. D2's spectrum line, flash and impact sound hang " +
              "here — the atom does not know what any of them are.")]
@@ -152,9 +140,8 @@ public class TutorialAtom_NEW : MonoBehaviour
     bool _armed;
     bool _hit;
     float _elapsed;
-
-    /// <summary>Seconds into the burst; negative when there is none running.</summary>
-    float _burstElapsed = -1f;
+    bool _rumbled;
+    float _lastDistance;
     Vector3 _heading;
     Vector3 _right;
     Vector3 _up;
@@ -211,7 +198,8 @@ public class TutorialAtom_NEW : MonoBehaviour
         _armed = true;
         _hit = false;
         _elapsed = 0f;
-        _burstElapsed = -1f;
+        _rumbled = false;
+        _lastDistance = spawnDistance;
 
         // Across the course, not in world axes, so a spread stays a spread after C3
         // reverses the heading. Cached, so it cannot rotate under the atom mid-flight.
@@ -241,7 +229,7 @@ public class TutorialAtom_NEW : MonoBehaviour
         _armed = false;
         _hit = false;
         _elapsed = 0f;
-        _burstElapsed = -1f;
+        _rumbled = false;
 
         gameObject.SetActive(false);
     }
@@ -287,12 +275,6 @@ public class TutorialAtom_NEW : MonoBehaviour
 
     void Update()
     {
-        if (_burstElapsed >= 0f)
-        {
-            TickBurst();
-            return;
-        }
-
         if (!_armed || _hit || ClosesOn == null) return;
 
         // The world clock (TutorialClock_NEW): ignores D2's slow motion, which drops the
@@ -305,9 +287,43 @@ public class TutorialAtom_NEW : MonoBehaviour
         Place(shaped);
         Draw(shaped);
 
+        TickRumbleLead();
+
         if (t < 1f && Distance > impactRadius) return;
 
         Hit();
+    }
+
+    /// <summary>
+    /// Start the pad rumbling rumbleLeadSeconds before contact.
+    ///
+    /// Time to contact is the gap still to close over how fast it closed this frame. The
+    /// approach eases in, so the closing speed only falls from here and the estimate errs
+    /// early — which is the side to err on: a jolt a moment before the hit reads as the
+    /// hit, a jolt after it reads as lag.
+    /// </summary>
+    void TickRumbleLead()
+    {
+        float dt = TutorialClock_NEW.DeltaTime;
+        float distance = Distance;
+
+        if (!_rumbled && dt > 0f)
+        {
+            float closing = (_lastDistance - distance) / dt;
+            float gap = distance - impactRadius;
+
+            if (closing > 0.0001f && gap / closing <= rumbleLeadSeconds) Rumble();
+        }
+
+        _lastDistance = distance;
+    }
+
+    void Rumble()
+    {
+        if (_rumbled) return;
+        _rumbled = true;
+
+        TutorialRumble_NEW.Absorption();
     }
 
     /// <summary>
@@ -351,50 +367,13 @@ public class TutorialAtom_NEW : MonoBehaviour
 
         Draw(1f);
 
+        // If the lead never fired — a frame long enough to jump straight into contact —
+        // contact fires it. Every atom rumbles exactly once.
+        Rumble();
+
         if (debugLog) Debug.Log("[TutorialAtom_NEW] Impact.", this);
 
-        // Before the event, so anything hung on onImpact that reads this atom sees it
-        // already bursting rather than the frame before.
-        if (burstSeconds > 0f) _burstElapsed = 0f;
-
         onImpact.Invoke();
-    }
-
-    /// <summary>
-    /// Swell and collapse. The halo grows to burstHaloGrow and back down to nothing, the
-    /// core shrinks away under it, and the light spikes and dies — one envelope for all
-    /// three, so they read as one event. Ends switched off.
-    /// </summary>
-    void TickBurst()
-    {
-        // Scaled time — see burstSeconds. Also stops dead while paused, since the pause
-        // drops the time scale to zero.
-        _burstElapsed += Time.deltaTime;
-
-        float t = burstSeconds > 0f ? Mathf.Clamp01(_burstElapsed / burstSeconds) : 1f;
-
-        // Rises and falls once, and whatever it is multiplied by has reached zero by the
-        // end, so nothing pops out of existence at full size.
-        float swell = Mathf.Sin(t * Mathf.PI);
-        float fade = 1f - t;
-
-        transform.localScale = Vector3.one * scaleAtImpact * fade * fade;
-
-        if (glow != null) glow.intensity = glowAtImpact * (1f + burstGlowPeak * swell) * fade;
-
-        if (halo != null)
-        {
-            // Local, so this is on top of the shrinking core — which is why it has to be
-            // divided back out, or the halo would shrink with it.
-            float coreScale = Mathf.Max(0.0001f, fade * fade);
-            halo.localScale = Vector3.one * haloAtImpact * (1f + burstHaloGrow * swell) * fade / coreScale;
-            FaceCamera();
-        }
-
-        if (t < 1f) return;
-
-        _burstElapsed = -1f;
-        gameObject.SetActive(false);
     }
 
     void Draw(float t)

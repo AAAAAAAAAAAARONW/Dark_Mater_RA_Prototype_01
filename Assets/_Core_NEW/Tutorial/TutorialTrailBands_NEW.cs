@@ -101,7 +101,15 @@ public class TutorialTrailBands_NEW : MonoBehaviour
              "Raise it until the stripe reads from standing distance; drop it if the " +
              "ribbon starts looking banded rather than marked.")]
     [Range(0f, 0.06f)]
-    [SerializeField] float lineSpread = 0.02f;
+    [SerializeField] float lineSpread = 0.03f;
+
+    [Tooltip("0 draws the line with the buffer's soft falloff; 1 cuts it as one solid black " +
+             "band with a clean edge.\n\n" +
+             "1, because an absorption on the light has to read as ONE thick black line. The " +
+             "soft falloff that makes the bar's dip a curve made the ribbon's line a smudge " +
+             "that faded into the colours either side of it.")]
+    [Range(0f, 1f)]
+    [SerializeField] float lineHardness = 1f;
 
     [Header("Absorption line blink")]
     [Min(1)]
@@ -146,6 +154,7 @@ public class TutorialTrailBands_NEW : MonoBehaviour
     static readonly int VisibleHighlightId = Shader.PropertyToID("_VisibleHighlight");
     static readonly int LineStrengthId = Shader.PropertyToID("_AbsorptionLineStrength");
     static readonly int LineSpreadId = Shader.PropertyToID("_AbsorptionLineSpread");
+    static readonly int LineHardnessId = Shader.PropertyToID("_AbsorptionLineHardness");
 
     // ── Public API ───────────────────────────────────────────────────────────
 
@@ -295,6 +304,7 @@ public class TutorialTrailBands_NEW : MonoBehaviour
         // everything on it — a spread left at its full value would fold away five times
         // too wide at D9.
         _block.SetFloat(LineSpreadId, lineSpread * scale);
+        _block.SetFloat(LineHardnessId, lineHardness);
 
         _trail.SetPropertyBlock(_block);
     }

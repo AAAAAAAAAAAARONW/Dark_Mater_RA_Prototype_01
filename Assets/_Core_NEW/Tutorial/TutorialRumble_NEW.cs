@@ -83,18 +83,18 @@ public class TutorialRumble_NEW : MonoBehaviour
     // ── Public API ───────────────────────────────────────────────────────────
 
     /// <summary>
-    /// The light has been absorbed: rumble, whatever the scene has or has not wired.
+    /// The light is being absorbed: rumble, whatever the scene has or has not wired.
     ///
-    /// CALLED DIRECTLY FROM TutorialSpectrum_NEW.AbsorbAtRestFrame, not hung on an event,
-    /// and that is the fix for the first version not rumbling at all. That version needed
-    /// two things to exist in the saved scene — a Rumble object, and a listener on
-    /// onAbsorbed — and both only arrive when Build or Update is run AND the scene is
-    /// saved. Skip either and every absorption was silent, with nothing on screen to say
-    /// so. The pad itself was fine: the same XInput call made from outside Unity rumbled
+    /// CALLED FROM CODE, not hung on an event, and that is the fix for the first version
+    /// not rumbling at all. That version needed a Rumble object and a listener to exist in
+    /// the saved scene, and both only arrive when Build or Update is run AND the scene is
+    /// saved. The pad itself was fine: the same XInput call made from outside Unity rumbled
     /// it on the first try.
     ///
-    /// "Every absorption rumbles" is a rule, so it is enforced in code at the one place
-    /// every absorption passes through. The scene's Rumble object is used when there is
+    /// The caller is TutorialAtom_NEW, a moment before contact — every absorption in the
+    /// piece is an atom touching the light, and the atom is the only thing that knows
+    /// when that is about to happen, which is what lets the motor start early enough to
+    /// be felt on the frame of the hit. The scene's Rumble object is used when there is
     /// one, so its Inspector values still tune it; when there is not, one is made.
     /// </summary>
     public static void Absorption()
@@ -154,9 +154,13 @@ public class TutorialRumble_NEW : MonoBehaviour
         if (_elapsed >= 0f && CurrentScale() * Mathf.Max(_low, _high) > Mathf.Max(low, high))
             return;
 
-        // Re-checked on every pulse, not cached from start-up: a pad plugged in, switched
-        // on or re-paired after the scene loaded has to be found.
-        _connected = ConnectedSlots();
+        // From the cache, not probed here. Asking XInput about an EMPTY slot is slow — it
+        // goes looking for a device that is not there — and three of the four slots are
+        // empty, so probing on the pulse frame put that search between the hit and the
+        // motor. The cache is refreshed in the background (see Update); it is only probed
+        // here when it says nothing is connected, which is the case where a pad has just
+        // been switched on and there is no motor to delay anyway.
+        if (_connected == 0) _connected = ConnectedSlots();
 
         if (_connected == 0)
         {
@@ -210,9 +214,28 @@ public class TutorialRumble_NEW : MonoBehaviour
         _connected = ConnectedSlots();
     }
 
+    /// <summary>Seconds between background checks for which slots have a pad.</summary>
+    const float ProbeInterval = 2f;
+
+    float _sinceProbe;
+
     void Update()
     {
         if (DebugView_NEW.Overlay && Input.GetKeyDown(testKey)) TestPulse();
+
+        // Background refresh of which slots have a pad, so a pulse never has to ask.
+        // Never while rumbling — the whole point is to keep the slow query off the
+        // frames where timing is felt.
+        if (_elapsed < 0f)
+        {
+            _sinceProbe += Time.unscaledDeltaTime;
+
+            if (_sinceProbe >= ProbeInterval)
+            {
+                _sinceProbe = 0f;
+                _connected = ConnectedSlots();
+            }
+        }
 
         if (_elapsed < 0f) return;
 
