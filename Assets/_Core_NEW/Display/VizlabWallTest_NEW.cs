@@ -4,6 +4,7 @@ using System.Text;
 using UnityEngine;
 using UnityEngine.Profiling;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 #if UNITY_EDITOR
 using System.Reflection;
 using UnityEditor;
@@ -15,11 +16,12 @@ using UnityEditor;
 /// resolution and aspect ratio actually in use, the monitor and every display Windows
 /// reports, the GPU, and whether a pad is connected.
 ///
-/// NO SETUP: it installs itself when a scene uses the Vizlab row system (any
-/// VizlabRowAnchor_NEW). Today that is PlaytestBuild_NEW_Row3 and
-/// PlaytestBuild_NEW_Row7Blackout, and no other scene in the project. So building one of
-/// those scenes is all it takes; nothing has to be added in the editor. To opt a scene out,
-/// put this component in it and untick it. To opt a scene in, use GameObject > Vizlab >
+/// NO SETUP: it installs itself when a scene is laid out for the wall, meaning it uses the
+/// Vizlab row system (any VizlabRowAnchor_NEW) or has a Canvas Scaler set to the full 9600 x
+/// 7560 surface. Today that is PlaytestBuild_NEW, PlaytestBuild_NEW_Row3 (where it is also
+/// placed in the scene) and PlaytestBuild_NEW_Row7Blackout, out of 33 scenes. So building one
+/// of those scenes is all it takes; nothing has to be added in the editor. To opt a scene
+/// out, put this component in it and untick it. To opt a scene in, use GameObject > Vizlab >
 /// Add Wall Test Panel to This Scene.
 ///
 /// WHY THE SHAPE MATTERS: every overlay canvas lays out against the screen, and the row
@@ -122,6 +124,9 @@ public class VizlabWallTest_NEW : MonoBehaviour
     float _noteTime = -999f;
     bool _collapsed;
 
+    /// <summary>Whether the scene has a blackout band, so the key hint only offers F4 where it does something.</summary>
+    bool _hasBlackout;
+
     /// <summary>
     /// A button press waits for the next Update. In the editor the switch resizes the Game
     /// View, and doing that from inside the Game View's own OnGUI is asking for trouble.
@@ -165,15 +170,34 @@ public class VizlabWallTest_NEW : MonoBehaviour
     }
 
     /// <summary>
-    /// A scene laid out with VizlabRowAnchor_NEW is being designed for the wall, so it gets
-    /// the panel. A scene that already has one, ticked or not, is left to decide for itself.
+    /// A scene laid out for the wall gets the panel. A scene that already has one, ticked or
+    /// not, is left to decide for itself.
     /// </summary>
     static void InstallIfWallScene()
     {
         if (FindObjectOfType<VizlabWallTest_NEW>() != null) return;
-        if (FindObjectOfType<VizlabRowAnchor_NEW>() == null) return;
+        if (!IsLaidOutForTheWall()) return;
 
         new GameObject("Vizlab Wall Test (auto)").AddComponent<VizlabWallTest_NEW>();
+    }
+
+    /// <summary>
+    /// Either sign that a scene is designed for the wall: it places UI with the Vizlab row
+    /// system, or a Canvas Scaler is set to the full surface, which is what GameObject >
+    /// Vizlab > Set Canvas to Full Surface does.
+    /// </summary>
+    static bool IsLaidOutForTheWall()
+    {
+        if (FindObjectOfType<VizlabRowAnchor_NEW>() != null) return true;
+
+        var surface = new Vector2(VizlabDisplay_NEW.CanvasWidthPx, VizlabDisplay_NEW.CanvasHeightPx);
+        foreach (CanvasScaler scaler in FindObjectsOfType<CanvasScaler>())
+        {
+            if (scaler.uiScaleMode == CanvasScaler.ScaleMode.ScaleWithScreenSize && scaler.referenceResolution == surface)
+                return true;
+        }
+
+        return false;
     }
 
     // ── Lifecycle ────────────────────────────────────────────────────────────
@@ -181,6 +205,7 @@ public class VizlabWallTest_NEW : MonoBehaviour
     void Start()
     {
         _collapsed = startCollapsed;
+        _hasBlackout = FindObjectOfType<VizlabRowBlackout_NEW>() != null;
         _nextStatsLog = Time.unscaledTime + statsLogSeconds;
 
         if (logSystemAtStart) LogSystem();
@@ -571,7 +596,8 @@ public class VizlabWallTest_NEW : MonoBehaviour
            .Append(':').Append(up.Seconds.ToString("00")).Append('\n');
 
         _sb.Append("log       ").Append(Shorten(LogPath(), 56)).Append('\n');
-        _sb.Append("keys      ").Append(cycleKey).Append(" aspect   F4 blackout panel   F1 debug panels on/off");
+        _sb.Append("keys      ").Append(cycleKey).Append(" aspect   ")
+           .Append(_hasBlackout ? "F4 blackout panel   " : "").Append("F1 debug panels on/off");
 
         return _sb.ToString();
     }

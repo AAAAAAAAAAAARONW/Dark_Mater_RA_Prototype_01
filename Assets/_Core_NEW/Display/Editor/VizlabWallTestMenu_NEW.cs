@@ -2,10 +2,10 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// Puts VizlabWallTest_NEW into the open scene by hand. Scenes laid out with the Vizlab row
-/// system get it automatically in play mode and in builds, so this is only for a scene that
-/// does not use VizlabRowAnchor_NEW but should still get the wall panel, or for one where
-/// the panel's settings should live in the scene.
+/// Puts VizlabWallTest_NEW into the open scene by hand. Scenes laid out for the wall (the
+/// Vizlab row system, or a Canvas Scaler set to the full surface) get it automatically in
+/// play mode and in builds, so this is for a scene that is neither but should still get the
+/// wall panel, or for one where the panel's settings should live in the scene.
 ///
 /// It works on the scene as loaded in the editor, not on the file, so it is safe to run
 /// with unsaved changes open: they stay, and the addition is one more undoable change.
