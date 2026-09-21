@@ -32,6 +32,8 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Floats:
+    - _AbsorptionBlack: 0
+    - _AbsorptionLineHardness: 0
     - _AbsorptionLineSpread: 0
     - _AbsorptionLineStrength: 1
     - _AbsorptionLineWidth: 1.5
