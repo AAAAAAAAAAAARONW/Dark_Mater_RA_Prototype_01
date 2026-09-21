@@ -412,6 +412,23 @@ public static class TutorialSceneBuilder_NEW
         AddCall(attract, "onReset", forestAtom, "ResetForAttract");
         AddCall(attract, "onReset", lineIndicator, "ResetForAttract");
 
+        // ── The absorption, felt ─────────────────────────────────────────────
+        // Every absorption goes through TutorialSpectrum_NEW.AbsorbAtRestFrame — D5's
+        // beat, each of D6's atoms, D8's atom — so its onAbsorbed is the one hook that
+        // cannot miss one. Hung there, the flash, the jolt, the rumble and both blinks
+        // happen on every absorption without any beat or atom having to remember them.
+        TutorialRumble_NEW rumble = BuildRumble(root.transform);
+        TutorialAbsorptionImpact_NEW impact = BuildAbsorptionImpact(
+            root.transform, canvas.transform, flashObject.GetComponent<TutorialFlash_NEW>(),
+            shake, rumble, trailBands, spectrumBands);
+
+        AddCall(spectrum, "onAbsorbed", impact, "Play");
+
+        // A motor still running when the piece resets is a pad buzzing on a plinth with
+        // nobody holding it.
+        AddCall(attract, "onReset", impact, "ResetForAttract");
+        AddCall(attract, "onReset", rumble, "Stop");
+
         // Needs the director, so it is built after the director exists.
         BuildZoomGauge(canvas.transform, zoom, director);
 
@@ -1839,6 +1856,43 @@ public static class TutorialSceneBuilder_NEW
         return outro;
     }
 
+    /// <summary>
+    /// Controller rumble, on the rig root. Nothing to wire: it talks to the pad directly.
+    /// </summary>
+    static TutorialRumble_NEW BuildRumble(Transform root)
+    {
+        GameObject go = FindOrCreate("Rumble", root, Vector3.zero);
+        return AddIfMissing<TutorialRumble_NEW>(go);
+    }
+
+    /// <summary>
+    /// The impact every absorption plays. On the rig root beside the rumble, pointing at
+    /// the flash, the camera's shake, the rumble, both spectrum displays and the bar.
+    /// </summary>
+    static TutorialAbsorptionImpact_NEW BuildAbsorptionImpact(Transform root, Transform canvas,
+                                                            TutorialFlash_NEW flash,
+                                                            TutorialCameraShake_NEW shake,
+                                                            TutorialRumble_NEW rumble,
+                                                            TutorialTrailBands_NEW trailBands,
+                                                            TutorialSpectrumBands_NEW spectrumBands)
+    {
+        GameObject go = FindOrCreate("AbsorptionImpact", root, Vector3.zero);
+        TutorialAbsorptionImpact_NEW impact = AddIfMissing<TutorialAbsorptionImpact_NEW>(go);
+
+        GameObject bar = FindChild(canvas, "SpectrumBar");
+
+        Wire(impact)
+            .Ref("flash", flash)
+            .Ref("shake", shake)
+            .Ref("rumble", rumble)
+            .Ref("trailBands", trailBands)
+            .Ref("spectrumBands", spectrumBands)
+            .Ref("bar", bar != null ? bar.GetComponent<RectTransform>() : null)
+            .Apply();
+
+        return impact;
+    }
+
     static void IndicatorArrow(GameObject go, Color color)
     {
         Image image = AddIfMissing<Image>(go);
@@ -1938,6 +1992,27 @@ public static class TutorialSceneBuilder_NEW
             // says what is happening.
             .Flag("linkToPlayerSpeed", false)
             .Apply();
+
+        // A NEW LINE ARRIVES AS A GASH AND SETTLES INTO A LINE. The field already stamps
+        // every line with a spawn pulse — deeper and wider for a moment, then easing to
+        // its real size — and the journey's values keep it subtle, because the journey
+        // spawns four lines a second and a loud pulse there would be noise. The tutorial
+        // cuts one at a time and each one is the event, so it takes the loud version:
+        // fully black, three times as wide, for over a second.
+        //
+        // Because the buffer is shared this lands on the bar AND on the photon trail at
+        // once, which is the pairing the frame is about. Only the builder's own shipped
+        // values are replaced; anything tuned is left alone.
+        RepairSerialized(field, "pulseExtraDepth", p => Mathf.Approximately(p.floatValue, 0.5f),
+                         p => p.floatValue = 1f,
+                         "a new line now arrives fully black before settling.");
+        RepairSerialized(field, "pulseWidthMultiplier", p => Mathf.Approximately(p.floatValue, 1.6f),
+                         p => p.floatValue = 3f,
+                         "a new line now arrives three times its width before narrowing.");
+        RepairSerialized(field, "pulseDuration", p => Mathf.Approximately(p.floatValue, 0.5f),
+                         p => p.floatValue = 1.2f,
+                         "the arrival pulse lasts long enough to be seen from the atom and " +
+                         "still be there when the eye reaches the bar.");
 
         // ── The bar ──────────────────────────────────────────────────────────
         // Centre screen, which is where D2 puts it. D3 will move it to its docked

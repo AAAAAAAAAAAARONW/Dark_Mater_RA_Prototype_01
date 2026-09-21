@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.Serialization;
 
 /// <summary>
@@ -138,6 +139,16 @@ public class TutorialSpectrum_NEW : MonoBehaviour
     [Range(0.05f, 1f)]
     [FormerlySerializedAs("firstAbsorbDepth")]
     [SerializeField] float atomAbsorbDepth = 0.7f;
+
+    [Header("Events")]
+    [Tooltip("Fires once for every absorption, whatever caused it — D5's beat, each of " +
+             "D6's atoms, D8's atom. The impact hangs here: flash, jolt, rumble, the line " +
+             "blinking on the light and the bar.\n\n" +
+             "Here and not on the atoms, because this is the one place every absorption " +
+             "already passes through. Hung on the atoms instead, D5's line — which is cut by " +
+             "its beat, not by its atom — would have been the one absorption that did not " +
+             "rumble.")]
+    [SerializeField] UnityEvent onAbsorbed = new UnityEvent();
 
     [Header("Debug")]
     [SerializeField] bool debugLog = false;
@@ -360,6 +371,10 @@ public class TutorialSpectrum_NEW : MonoBehaviour
         _trackedPosition = RestFramePosition;
 
         if (debugLog) Debug.Log("[TutorialSpectrum_NEW] Absorption " + _cut + " at rest frame.", this);
+
+        // Last, so everything hung here runs against a line that is already in the buffer
+        // — the trail's blink has something to blink.
+        onAbsorbed.Invoke();
     }
 
     public void CutLine()

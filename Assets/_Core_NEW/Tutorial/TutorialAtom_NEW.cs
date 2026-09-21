@@ -101,6 +101,31 @@ public class TutorialAtom_NEW : MonoBehaviour
              "last second feel like arrival.")]
     [SerializeField] AnimationCurve approachShape = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
+    [Header("Burst on impact")]
+    [Tooltip("Seconds the atom takes to flare and die after it strikes. 0 leaves it where " +
+             "it hit, which is what it used to do.\n\n" +
+             "WHY IT MUST NOT JUST STOP. The atom is the one thing the player has been " +
+             "watching for ten seconds, and it is where their eyes are at the moment of " +
+             "contact. Frozen full-size at the impact point while the light flies on past " +
+             "it, it read as the collision having been cancelled — the cause of the whole " +
+             "frame sat there unaffected while its effect happened somewhere else, on a " +
+             "bar at the top of the screen.\n\n" +
+             "A flare that swells and collapses to nothing says the atom took something " +
+             "and was spent doing it, right where the player is looking, on the frame the " +
+             "line appears.\n\n" +
+             "On SCALED time, unlike the approach — so inside D5's slow motion the burst " +
+             "plays five times slower and gets the room the slow motion was made for.")]
+    [SerializeField] float burstSeconds = 0.7f;
+
+    [Tooltip("How far the halo swells at the peak of the burst, as a multiple of its size " +
+             "at impact.")]
+    [SerializeField] float burstHaloGrow = 3.5f;
+
+    [Tooltip("How bright the point light spikes at the peak, as a multiple of its value at " +
+             "impact. This is what throws light across the photon trail at the moment of " +
+             "contact.")]
+    [SerializeField] float burstGlowPeak = 4f;
+
     [Header("Wiring")]
     [Tooltip("Leave empty to use the main camera. Only the glow reads this — it turns the " +
              "halo to face it.\n\n" +
@@ -127,6 +152,9 @@ public class TutorialAtom_NEW : MonoBehaviour
     bool _armed;
     bool _hit;
     float _elapsed;
+
+    /// <summary>Seconds into the burst; negative when there is none running.</summary>
+    float _burstElapsed = -1f;
     Vector3 _heading;
     Vector3 _right;
     Vector3 _up;
@@ -183,6 +211,7 @@ public class TutorialAtom_NEW : MonoBehaviour
         _armed = true;
         _hit = false;
         _elapsed = 0f;
+        _burstElapsed = -1f;
 
         // Across the course, not in world axes, so a spread stays a spread after C3
         // reverses the heading. Cached, so it cannot rotate under the atom mid-flight.
@@ -212,6 +241,7 @@ public class TutorialAtom_NEW : MonoBehaviour
         _armed = false;
         _hit = false;
         _elapsed = 0f;
+        _burstElapsed = -1f;
 
         gameObject.SetActive(false);
     }
@@ -257,6 +287,12 @@ public class TutorialAtom_NEW : MonoBehaviour
 
     void Update()
     {
+        if (_burstElapsed >= 0f)
+        {
+            TickBurst();
+            return;
+        }
+
         if (!_armed || _hit || ClosesOn == null) return;
 
         // The world clock (TutorialClock_NEW): ignores D2's slow motion, which drops the
@@ -317,7 +353,48 @@ public class TutorialAtom_NEW : MonoBehaviour
 
         if (debugLog) Debug.Log("[TutorialAtom_NEW] Impact.", this);
 
+        // Before the event, so anything hung on onImpact that reads this atom sees it
+        // already bursting rather than the frame before.
+        if (burstSeconds > 0f) _burstElapsed = 0f;
+
         onImpact.Invoke();
+    }
+
+    /// <summary>
+    /// Swell and collapse. The halo grows to burstHaloGrow and back down to nothing, the
+    /// core shrinks away under it, and the light spikes and dies — one envelope for all
+    /// three, so they read as one event. Ends switched off.
+    /// </summary>
+    void TickBurst()
+    {
+        // Scaled time — see burstSeconds. Also stops dead while paused, since the pause
+        // drops the time scale to zero.
+        _burstElapsed += Time.deltaTime;
+
+        float t = burstSeconds > 0f ? Mathf.Clamp01(_burstElapsed / burstSeconds) : 1f;
+
+        // Rises and falls once, and whatever it is multiplied by has reached zero by the
+        // end, so nothing pops out of existence at full size.
+        float swell = Mathf.Sin(t * Mathf.PI);
+        float fade = 1f - t;
+
+        transform.localScale = Vector3.one * scaleAtImpact * fade * fade;
+
+        if (glow != null) glow.intensity = glowAtImpact * (1f + burstGlowPeak * swell) * fade;
+
+        if (halo != null)
+        {
+            // Local, so this is on top of the shrinking core — which is why it has to be
+            // divided back out, or the halo would shrink with it.
+            float coreScale = Mathf.Max(0.0001f, fade * fade);
+            halo.localScale = Vector3.one * haloAtImpact * (1f + burstHaloGrow * swell) * fade / coreScale;
+            FaceCamera();
+        }
+
+        if (t < 1f) return;
+
+        _burstElapsed = -1f;
+        gameObject.SetActive(false);
     }
 
     void Draw(float t)

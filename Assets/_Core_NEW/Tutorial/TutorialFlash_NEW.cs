@@ -101,8 +101,13 @@ public class TutorialFlash_NEW : MonoBehaviour
     {
         if (screen == null) return;
 
+        // The colour's own alpha is the PEAK. It used to be discarded — every flash went
+        // to full opacity whatever it was asked for — which was fine while the only
+        // callers were the emission's two whiteouts, and is not fine for an impact that
+        // repeats four times in ten seconds during D6. Every existing caller passes an
+        // alpha of 1, so this changes nothing for them.
         Color c = _color;
-        c.a = Mathf.Clamp01(alpha);
+        c.a = Mathf.Clamp01(alpha) * Mathf.Clamp01(_color.a);
         screen.color = c;
 
         // A transparent full-screen image is still a screen of overdraw on the curved
