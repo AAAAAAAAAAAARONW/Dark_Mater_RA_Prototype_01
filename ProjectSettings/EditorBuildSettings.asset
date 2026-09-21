@@ -5,7 +5,13 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Pre-Vertival Slice.unity
     guid: a86c6f709485fca4786b08ac9272b0b1
+  - enabled: 1
+    path: Assets/Scenes/PlaytestBuild_NEW.unity
+    guid: 86d2057aaafa660c5261a25d72133dfb
+  - enabled: 0
+    path: Assets/Scenes/PlaytestBuild_NEW_Row3.unity
+    guid: 1de26df63c5fe4c438a9c5f49f471940
   m_configObjects: {}
