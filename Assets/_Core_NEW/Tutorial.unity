@@ -19995,3 +19995,58 @@ MonoBehaviour:
   recentreOnPress: 0
   waitForRecentre: 0
   lookRig: {fileID: 714473260}
+--- !u!1 &930000021
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 930000022}
+  - component: {fileID: 930000023}
+  m_Layer: 0
+  m_Name: Vizlab Wall Test
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &930000022
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 930000021}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 2
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &930000023
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 930000021}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cf8da929a77b523bda54798498d7e678, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  modeOnStart: 0
+  wallTolerance: 0.02
+  windowedScale: 0.85
+  cycleKey: 286
+  showPanel: 1
+  startCollapsed: 0
+  autoScale: 1
+  fontSize: 13
+  noteFontSize: 18
+  logChanges: 1
+  logSystemAtStart: 1
+  statsLogSeconds: 10
