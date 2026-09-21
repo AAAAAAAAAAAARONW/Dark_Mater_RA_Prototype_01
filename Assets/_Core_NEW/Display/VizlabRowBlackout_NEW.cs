@@ -38,6 +38,8 @@ using UnityEditor;
 ///   B  / pad View (button 6)   toggle the blackout
 ///   N  / pad Menu (button 7)   cycle the extent
 ///   F4                         show or hide the readout (F1 hides every debug readout)
+///   Mouse                      buttons under the readout: Row up, Row down, Reset row,
+///                              Blackout on / off, Extent
 /// Every change is logged with the row's tilt, its angle from a standing eye, and the band
 /// in canvas pixels and in millimetres off the floor. Those are the numbers the playtest is
 /// meant to settle. The same actions are in the component's context menu, and they are
@@ -112,13 +114,17 @@ public class VizlabRowBlackout_NEW : MonoBehaviour
     [Tooltip("Log every row change, toggle and extent change to the console.")]
     [SerializeField] bool logChanges = true;
 
-    [Tooltip("The on-screen readout in the top-right corner. It also respects " +
-             "DebugView_NEW.Overlay, so F1 hides it along with every other debug readout.")]
+    [Tooltip("The on-screen readout and its mouse buttons, in the top-right corner. It also " +
+             "respects DebugView_NEW.Overlay, so F1 hides it along with every other debug readout.")]
     [SerializeField] bool showOverlay = true;
 
     [SerializeField] Vector2 overlayMargin = new Vector2(12f, 12f);
 
-    [Tooltip("Raise this on the wall itself. At 9600 x 7560 the default is tiny.")]
+    [Tooltip("Scale the readout and its buttons with the rendered height, so they are the " +
+             "same share of the screen at a desk as on the wall.")]
+    [SerializeField] bool autoScale = true;
+
+    [Tooltip("In 1080p units; Auto Scale takes it from there.")]
     [SerializeField] int fontSize = 13;
 
     const string LogPrefix = "[VizlabRowBlackout_NEW] ";
@@ -139,8 +145,6 @@ public class VizlabRowBlackout_NEW : MonoBehaviour
     string _lastAction = "";
     float _lastActionTime = -999f;
 
-    GUIStyle _panel, _label;
-    Texture2D _panelTex;
     readonly StringBuilder _sb = new StringBuilder(512);
 
     // ── Public surface ───────────────────────────────────────────────────────
@@ -311,13 +315,6 @@ public class VizlabRowBlackout_NEW : MonoBehaviour
         // The band is part of the scene, so switching the component off should not strand
         // a black bar on screen with nothing managing it.
         if (_band != null) _band.enabled = false;
-    }
-
-    void OnDestroy()
-    {
-        if (_panelTex == null) return;
-        if (Application.isPlaying) Destroy(_panelTex);
-        else DestroyImmediate(_panelTex);
     }
 
     void Update()
@@ -571,22 +568,52 @@ public class VizlabRowBlackout_NEW : MonoBehaviour
 
     // ── Readout ──────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// The readout, and under it the same actions as the keys and the pad, as buttons for
+    /// the mouse. Top right, because LayerDebugJump_NEW owns the top left and the aspect
+    /// buttons the top centre.
+    /// </summary>
     void OnGUI()
     {
         if (!Application.isPlaying || !DebugControlsActive) return;
         if (!showOverlay || !DebugView_NEW.Overlay) return;
 
-        EnsureStyles();
+        float scale = VizlabDebugGUI_NEW.BeginScaled(autoScale);
+        Vector2 screen = VizlabDebugGUI_NEW.ScaledScreen(scale);
+        GUIStyle label = VizlabDebugGUI_NEW.Label(fontSize);
+        GUIStyle button = VizlabDebugGUI_NEW.Button(fontSize, false);
 
         string body = BuildBody();
-        Vector2 size = _label.CalcSize(new GUIContent(body));
+        Vector2 text = label.CalcSize(new GUIContent(body));
 
-        // Top right, because LayerDebugJump_NEW owns the top left.
-        var rect = new Rect(Screen.width - overlayMargin.x - size.x - 20f, overlayMargin.y,
-                            size.x + 20f, size.y + 16f);
+        const float Gap = 6f, Pad = 10f;
+        float bh = button.CalcSize(new GUIContent("Row")).y + 4f;
+        float w = Mathf.Max(text.x, 360f);
 
-        GUI.Box(rect, GUIContent.none, _panel);
-        GUI.Label(new Rect(rect.x + 10f, rect.y + 8f, size.x, size.y), body, _label);
+        var panel = new Rect(screen.x - overlayMargin.x - w - Pad * 2f, overlayMargin.y,
+                             w + Pad * 2f, Pad + text.y + Gap + bh + Gap + bh + Pad);
+        GUI.Box(panel, GUIContent.none, VizlabDebugGUI_NEW.Panel);
+
+        float x = panel.x + Pad;
+        float y = panel.y + Pad;
+        GUI.Label(new Rect(x, y, text.x, text.y), body, label);
+        y += text.y + Gap;
+
+        // Row 1 of buttons: the shifter's moves. Up means toward row 1, as on the pad.
+        float third = (w - Gap * 2f) / 3f;
+        if (GUI.Button(new Rect(x, y, third, bh), "Row up", button)) StepUp();
+        if (GUI.Button(new Rect(x + third + Gap, y, third, bh), "Row down", button)) StepDown();
+        if (GUI.Button(new Rect(x + (third + Gap) * 2f, y, third, bh), "Reset row", button)) ResetRow();
+        y += bh + Gap;
+
+        // Row 2: the band itself. The toggle is lit while the band is up.
+        float half = (w - Gap) / 2f;
+        if (GUI.Button(new Rect(x, y, half, bh), _on ? "Blackout ON" : "Blackout OFF",
+                       VizlabDebugGUI_NEW.Button(fontSize, _on)))
+            ToggleBlackout();
+
+        if (GUI.Button(new Rect(x + half + Gap, y, half, bh), "Extent: " + extent, button))
+            CycleExtent();
     }
 
     string BuildBody()
@@ -618,8 +645,10 @@ public class VizlabRowBlackout_NEW : MonoBehaviour
         float age = Time.unscaledTime - _lastActionTime;
         if (age < ActionFadeSeconds && !string.IsNullOrEmpty(_lastAction))
         {
-            // The full log line is long; the readout only needs its head.
+            // The full log line is long; the readout only needs its head, and a width that
+            // does not push the panel into the aspect buttons.
             string head = _lastAction.Split('|')[0].Trim();
+            if (head.Length > 46) head = head.Substring(0, 45) + "…";
             _sb.Append('\n').Append("· ").Append(head);
         }
 
@@ -637,31 +666,6 @@ public class VizlabRowBlackout_NEW : MonoBehaviour
             case KeyCode.JoystickButton9: return "RS click";
             case KeyCode.None: return "-";
             default: return button.ToString();
-        }
-    }
-
-    void EnsureStyles()
-    {
-        if (_panelTex == null)
-        {
-            _panelTex = new Texture2D(1, 1) { hideFlags = HideFlags.HideAndDontSave };
-            _panelTex.SetPixel(0, 0, new Color(0.05f, 0.03f, 0.11f, 0.82f));
-            _panelTex.Apply();
-        }
-
-        if (_panel == null)
-            _panel = new GUIStyle(GUIStyle.none) { normal = { background = _panelTex } };
-
-        if (_label == null)
-        {
-            _label = new GUIStyle(GUI.skin.label)
-            {
-                font = Font.CreateDynamicFontFromOSFont("Consolas", fontSize),
-                fontSize = fontSize,
-                richText = false,
-                wordWrap = false,
-                normal = { textColor = new Color(0.88f, 0.85f, 0.96f, 1f) }
-            };
         }
     }
 

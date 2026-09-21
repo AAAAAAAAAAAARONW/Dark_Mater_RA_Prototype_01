@@ -1,0 +1,132 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+/// <summary>
+/// The look and the scale of the Vizlab debug panels, in one place, so the aspect buttons
+/// and the blackout buttons read as one tool and click the same way.
+///
+/// SCALE: the panels are laid out in 1080p units and scaled by GUI.matrix to the rendered
+/// height. That way they are the same share of the screen at a desk (1512 or 2160 tall)
+/// as on the wall (7560 tall). IMGUI transforms mouse input through the same matrix, so
+/// buttons stay clickable at any scale. Callers draw in the scaled space, whose size is
+/// ScaledScreen.
+///
+/// Immediate-mode GUI rather than a uGUI canvas: it needs no scene objects and no
+/// EventSystem, it draws on top of every canvas, and it matches LayerDebugJump_NEW's
+/// readout, which the playtest already uses.
+/// </summary>
+public static class VizlabDebugGUI_NEW
+{
+    /// <summary>The height the panels are designed at.</summary>
+    public const float DesignHeight = 1080f;
+
+    static Texture2D _panelTex, _buttonTex, _buttonHoverTex, _buttonOnTex;
+    static GUIStyle _panel;
+    static readonly Dictionary<int, GUIStyle> _labels = new Dictionary<int, GUIStyle>();
+    static readonly Dictionary<int, GUIStyle> _buttons = new Dictionary<int, GUIStyle>();
+    static readonly Dictionary<int, GUIStyle> _buttonsOn = new Dictionary<int, GUIStyle>();
+    static readonly Dictionary<int, Font> _fonts = new Dictionary<int, Font>();
+
+    static readonly Color Text = new Color(0.88f, 0.85f, 0.96f, 1f);
+    static readonly Color TextOn = new Color(0.02f, 0.13f, 0.17f, 1f);
+
+    /// <summary>
+    /// Scales everything drawn after it to the rendered height. Returns the scale. Call at
+    /// the top of OnGUI; the matrix only lasts for that OnGUI call.
+    /// </summary>
+    public static float BeginScaled(bool autoScale)
+    {
+        float scale = autoScale ? Mathf.Max(1f, Screen.height / DesignHeight) : 1f;
+        GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
+        return scale;
+    }
+
+    /// <summary>The screen size in the scaled space BeginScaled set up.</summary>
+    public static Vector2 ScaledScreen(float scale)
+    {
+        return new Vector2(Screen.width / scale, Screen.height / scale);
+    }
+
+    public static GUIStyle Panel
+    {
+        get
+        {
+            if (_panel == null || _panelTex == null)
+            {
+                _panelTex = Solid(new Color(0.05f, 0.03f, 0.11f, 0.82f));
+                _panel = new GUIStyle(GUIStyle.none) { normal = { background = _panelTex } };
+            }
+            return _panel;
+        }
+    }
+
+    public static GUIStyle Label(int fontSize)
+    {
+        GUIStyle style;
+        if (_labels.TryGetValue(fontSize, out style) && style.font != null) return style;
+
+        style = new GUIStyle(GUI.skin.label)
+        {
+            font = FontOf(fontSize),
+            fontSize = fontSize,
+            richText = false,
+            wordWrap = false,
+            normal = { textColor = Text }
+        };
+        _labels[fontSize] = style;
+        return style;
+    }
+
+    /// <summary>A flat button. on draws it highlighted, for the mode currently in effect.</summary>
+    public static GUIStyle Button(int fontSize, bool on)
+    {
+        Dictionary<int, GUIStyle> cache = on ? _buttonsOn : _buttons;
+
+        GUIStyle style;
+        if (cache.TryGetValue(fontSize, out style) && style.normal.background != null) return style;
+
+        if (_buttonTex == null) _buttonTex = Solid(new Color(0.16f, 0.13f, 0.30f, 0.95f));
+        if (_buttonHoverTex == null) _buttonHoverTex = Solid(new Color(0.26f, 0.22f, 0.46f, 1f));
+        if (_buttonOnTex == null) _buttonOnTex = Solid(new Color(0.31f, 0.88f, 1f, 1f));
+
+        Texture2D idle = on ? _buttonOnTex : _buttonTex;
+        Color text = on ? TextOn : Text;
+
+        style = new GUIStyle(GUI.skin.button)
+        {
+            font = FontOf(fontSize),
+            fontSize = fontSize,
+            alignment = TextAnchor.MiddleCenter,
+            padding = new RectOffset(10, 10, 4, 4),
+            margin = new RectOffset(3, 3, 3, 3),
+            normal = { background = idle, textColor = text },
+            hover = { background = on ? idle : _buttonHoverTex, textColor = text },
+            active = { background = _buttonOnTex, textColor = TextOn },
+            focused = { background = idle, textColor = text },
+        };
+        style.onNormal = style.normal;
+        style.onHover = style.hover;
+        style.onActive = style.active;
+
+        cache[fontSize] = style;
+        return style;
+    }
+
+    static Font FontOf(int size)
+    {
+        Font font;
+        if (_fonts.TryGetValue(size, out font) && font != null) return font;
+
+        font = Font.CreateDynamicFontFromOSFont("Consolas", size);
+        _fonts[size] = font;
+        return font;
+    }
+
+    static Texture2D Solid(Color c)
+    {
+        var tex = new Texture2D(1, 1) { hideFlags = HideFlags.HideAndDontSave };
+        tex.SetPixel(0, 0, c);
+        tex.Apply();
+        return tex;
+    }
+}
