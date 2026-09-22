@@ -1625,11 +1625,23 @@ public static class TutorialSceneBuilder_NEW
         RepairSerialized(bands, "lineBlinkLow", p => Mathf.Approximately(p.floatValue, 0.15f),
                          p => p.floatValue = 0f, "line blink now goes fully off and back.");
 
-        // One thick black line, not several thin ones. The width goes up with it; the
-        // solid cut is lineHardness, a new field that arrives at 1 on its own.
-        RepairSerialized(bands, "lineSpread", p => Mathf.Approximately(p.floatValue, 0.02f),
-                         p => p.floatValue = 0.03f,
-                         "absorption line on the photon trail thickened, and now drawn solid.");
+        // ── How wide the absorbed line is drawn on the ribbon ────────────────
+        //
+        // The line is one wavelength, 0.009 of the spectrum wide in the buffer. The spread
+        // widens it on the RIBBON ONLY, by that much again on each side, because at the
+        // size the ribbon is drawn the buffer's own width is a single pixel.
+        //
+        // 0.03 was the answer to "several thin lines": it cut one solid band, and with
+        // lineHardness it stopped reading as a smudge. But 0.009 + 2 x 0.03 is about a
+        // fourteenth of the whole spectrum for one atom, which is a stripe across the
+        // light rather than a line in it — and it swallows the gap between D8's second
+        // line and the first.
+        //
+        // 0.02 keeps the solid cut and takes about a third off the width.
+        RepairSerialized(bands, "lineSpread", p => Mathf.Approximately(p.floatValue, 0.03f),
+                         p => p.floatValue = 0.02f,
+                         "absorption line on the photon trail thinned, 0.03 -> 0.02 spread. " +
+                         "Still one solid black line; about a third narrower.");
 
         return bands;
     }

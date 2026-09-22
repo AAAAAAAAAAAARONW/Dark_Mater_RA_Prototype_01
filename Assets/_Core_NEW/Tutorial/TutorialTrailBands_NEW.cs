@@ -98,10 +98,13 @@ public class TutorialTrailBands_NEW : MonoBehaviour
              "buffer and does not touch the bar, so the two marks stay at the same " +
              "wavelength and drift together — one of them is simply drawn thick enough " +
              "to be seen at the size it is drawn.\n\n" +
+             "The line is drawn about 0.009 plus twice this wide, so 0.02 is a fifteenth " +
+             "of the ribbon's width for one atom.\n\n" +
              "Raise it until the stripe reads from standing distance; drop it if the " +
-             "ribbon starts looking banded rather than marked.")]
+             "ribbon starts looking banded rather than marked, or if D8's second line " +
+             "runs into the first.")]
     [Range(0f, 0.06f)]
-    [SerializeField] float lineSpread = 0.03f;
+    [SerializeField] float lineSpread = 0.02f;
 
     [Tooltip("0 draws the line with the buffer's soft falloff; 1 cuts it as one solid black " +
              "band with a clean edge.\n\n" +
