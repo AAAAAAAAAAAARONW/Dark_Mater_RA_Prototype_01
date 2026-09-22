@@ -1643,11 +1643,20 @@ public static class TutorialSceneBuilder_NEW
         // light rather than a line in it — and it swallows the gap between D8's second
         // line and the first.
         //
-        // 0.02 keeps the solid cut and takes about a third off the width.
-        RepairSerialized(bands, "lineSpread", p => Mathf.Approximately(p.floatValue, 0.03f),
-                         p => p.floatValue = 0.02f,
-                         "absorption line on the photon trail thinned, 0.03 -> 0.02 spread. " +
-                         "Still one solid black line; about a third narrower.");
+        // HALF THAT WIDTH, WHICH IS NOT HALF THAT SPREAD. The line is drawn 0.009 + 2s
+        // wide, so the buffer's own width has to come out of the arithmetic before the
+        // halving: 0.069 -> 0.035 means s = 0.013, not 0.015. The solid cut stays.
+        //
+        // Both earlier values are caught, because 0.02 shipped and 0.03 is what a scene
+        // built before it still holds — and a scene that never picked up the 0.02 pass
+        // should still land on the width that was actually asked for.
+        RepairSerialized(bands, "lineSpread",
+                         p => Mathf.Approximately(p.floatValue, 0.03f) ||
+                              Mathf.Approximately(p.floatValue, 0.02f),
+                         p => p.floatValue = 0.013f,
+                         "absorption line on the photon trail halved: 0.013 spread, so the line " +
+                         "is drawn about 0.035 of the spectrum wide instead of 0.069. Still one " +
+                         "solid black line.");
 
         return bands;
     }
