@@ -1237,7 +1237,13 @@ public static class TutorialSceneBuilder_NEW
             .Copy("description", "Look back. Speed settles. Turning around, the quasar is already " +
                                 "a single bright point. Reuses the B1 lesson with no new control.")
             .Enum("hintMode", (int)TutorialBeat_NEW.HintMode.Show)
-            .Copy("hintText", "RIGHT STICK  ·  LOOK BACK")
+            // TURN AROUND, not LOOK BACK, and the words follow the picture here rather
+            // than the other way round. This beat asks for exactly what B3 asked for —
+            // the same stick, the same movement, only the thing behind the player has
+            // changed — so it can wear B3's plate, and a second plate saying the same
+            // movement in different words would be teaching a distinction that does not
+            // exist. It also means the last ask with no art of its own is D10's pause.
+            .Copy("hintText", "RIGHT STICK  ·  TURN AROUND")
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
             .Ref("target", quasar.transform)
             .Ref("lookRig", lookRig)
@@ -3503,8 +3509,8 @@ public static class TutorialSceneBuilder_NEW
     ///
     /// Both live here at once, and TutorialHUD_NEW picks between them per ask. The words
     /// were the whole of this element and are now the fallback, which is what lets the
-    /// art land one plate at a time: LOOK BACK and B TO PAUSE have no picture yet, and
-    /// those two beats are the piece exactly as it was rather than two blank frames.
+    /// art land one plate at a time: B TO PAUSE has no picture yet, and D10 is the piece
+    /// exactly as it was rather than a blank frame.
     ///
     /// The dark plate is why the words survive at all. White text alone disappears into a
     /// bright quasar and a starfield; the same text on a plate holds at the back of a
@@ -3917,10 +3923,14 @@ public static class TutorialSceneBuilder_NEW
     // (TutorialHUD_NEW.ArtKey), so the two-space separator in the copy is not load
     // bearing.
     //
-    // TWO ASKS HAVE NO PICTURE YET: C4's RIGHT STICK · LOOK BACK, and D10's B TO PAUSE.
-    // They are deliberately absent rather than pointed at a near-enough plate — the HUD
-    // falls back to words for anything it cannot find, and a beat wearing another beat's
-    // instruction is worse than a beat wearing plain text.
+    // ONE ASK HAS NO PICTURE YET: D10's B TO PAUSE, which needs a B button nothing in the
+    // set draws. It is deliberately absent rather than pointed at a near-enough plate —
+    // the HUD falls back to words for anything it cannot find, and a beat wearing another
+    // beat's instruction is worse than a beat wearing plain text.
+    //
+    // C4 is the other side of that rule: it used to say LOOK BACK, and it now says TURN
+    // AROUND because that is the movement it is actually asking for. Sharing B3's plate
+    // is not making do — two plates for one movement would be inventing a distinction.
 
     sealed class HintArtRow
     {

@@ -308,7 +308,7 @@ GDD §2 记录了旧版 C3 锁相机被多名玩家读成 bug，§5 把「相机
 | B3 | `RIGHT STICK  ·  TURN AROUND` |
 | B4 | `A  TO  RECENTRE` |
 | C3 | `A  TO  EMIT` |
-| C4 | `RIGHT STICK  ·  LOOK BACK` |
+| C4 | `RIGHT STICK  ·  TURN AROUND` |
 | C5 | `A  TO  RECENTRE` |
 
 分镜在 B2 B3 上写的是 “No new prompt”，意思是**控制**已经教过、不用再教一遍 —— 这一点保留了，B 段里 `RIGHT STICK` 那半截自始至终不变（A2 A3 是另一课，教的是另一根摇杆）。但提示行不只在教控制，它还在说下一步做什么，而一条写着 LOOK RIGHT 却在等玩家抬头的提示，比没有提示更糟。所以**控制那半截固定，动作那半截跟着拍子走**。
