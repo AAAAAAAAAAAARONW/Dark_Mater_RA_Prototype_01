@@ -145,6 +145,9 @@ public class VizlabRowBlackout_NEW : MonoBehaviour
     string _lastAction = "";
     float _lastActionTime = -999f;
 
+    string _opacityLog;
+    float _opacityLogTime;
+
     readonly StringBuilder _sb = new StringBuilder(512);
 
     // ── Public surface ───────────────────────────────────────────────────────
@@ -211,6 +214,26 @@ public class VizlabRowBlackout_NEW : MonoBehaviour
         extent = value;
         Place(CurrentRow);
         Report("extent -> " + value + ": " + Describe(CurrentRow, extent));
+    }
+
+    /// <summary>How solid the band is when it is up, 0 to 1. The panel's slider drives it.</summary>
+    public float Opacity { get { return colour.a; } }
+
+    /// <summary>
+    /// Continuous, not a toggle: how much of the imagery a band has to kill for the HUD to
+    /// read is a judgement made by dragging on the wall, and it is not all or nothing.
+    /// </summary>
+    public void SetOpacity(float value)
+    {
+        value = Mathf.Clamp01(value);
+        if (Mathf.Approximately(value, colour.a)) return;
+
+        colour.a = value;
+        ApplyColour();
+
+        // Dragged, so the line waits for the value to settle instead of one per frame.
+        _opacityLog = "band darkness " + (value * 100f).ToString("0") + "%";
+        _opacityLogTime = Time.unscaledTime;
     }
 
     /// <summary>Up the display, toward row 1. Goes through the shifter when there is one.</summary>
@@ -333,6 +356,12 @@ public class VizlabRowBlackout_NEW : MonoBehaviour
 
     void LateUpdate()
     {
+        if (_opacityLog != null && Time.unscaledTime - _opacityLogTime > 0.4f)
+        {
+            Report(_opacityLog);
+            _opacityLog = null;
+        }
+
         if (follow == null || _band == null) ResolveReferences();
 
         int row = CurrentRow;
@@ -440,9 +469,10 @@ public class VizlabRowBlackout_NEW : MonoBehaviour
         c.a *= _alpha;
         _band.color = c;
 
-        // Fully faded out means nothing to draw. Disabling saves a full-width fill at the
-        // wall's resolution rather than blending a transparent quad every frame.
-        _band.enabled = _alpha > 0f;
+        // Fully faded out, or dragged to nothing, means there is nothing to draw. Disabling
+        // saves a full-width fill at the wall's resolution rather than blending an invisible
+        // quad every frame.
+        _band.enabled = _alpha > 0f && colour.a > 0.002f;
     }
 
     // ── References ───────────────────────────────────────────────────────────
@@ -592,7 +622,7 @@ public class VizlabRowBlackout_NEW : MonoBehaviour
 
         // Hangs from the same display row as the wall test panel, so moving that one down to
         // eye level on the wall brings this one with it.
-        float height = Pad + text.y + Gap + bh + Gap + bh + Pad;
+        float height = Pad + text.y + Gap + bh + Gap + bh + Gap + bh + Pad;
         var panel = new Rect(screen.x - overlayMargin.x - w - Pad * 2f,
                              VizlabDebugGUI_NEW.PanelTop(screen.y, height, overlayMargin.y),
                              w + Pad * 2f, height);
@@ -618,6 +648,21 @@ public class VizlabRowBlackout_NEW : MonoBehaviour
 
         if (GUI.Button(new Rect(x + half + Gap, y, half, bh), "Extent: " + extent, button))
             CycleExtent();
+        y += bh + Gap;
+
+        // Row 3: how black the black is, dragged rather than toggled.
+        GUIStyle small = VizlabDebugGUI_NEW.Label(fontSize);
+        Vector2 nameSize = small.CalcSize(new GUIContent("darkness"));
+        GUI.Label(new Rect(x, y + (bh - nameSize.y) * 0.5f, nameSize.x, nameSize.y), "darkness", small);
+
+        float readoutX = x + w - 44f;
+        float sliderX = x + nameSize.x + Gap;
+        SetOpacity(VizlabDebugGUI_NEW.Slider(new Rect(sliderX, y, readoutX - sliderX - Gap, bh),
+                                             Opacity, 0f, 1f, fontSize));
+
+        string reading = (Opacity * 100f).ToString("0") + "%";
+        Vector2 readingSize = small.CalcSize(new GUIContent(reading));
+        GUI.Label(new Rect(readoutX, y + (bh - readingSize.y) * 0.5f, 44f, readingSize.y), reading, small);
     }
 
     string BuildBody()

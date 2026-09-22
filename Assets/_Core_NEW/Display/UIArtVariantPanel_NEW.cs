@@ -1,15 +1,19 @@
 using UnityEngine;
 
 /// <summary>
-/// One panel, listing every UIArtVariant_NEW in the scene, so the art versions can be
-/// compared with a mouse while the piece runs.
+/// One panel, listing every UIArtVariant_NEW in the scene, so the art can be compared and
+/// tuned with a mouse while the piece runs.
 ///
-/// One row per element: its name, a button for each version the artist delivered, a show
-/// and hide button, buttons to walk it up and down the display's rows when it is placed
-/// with VizlabRowAnchor_NEW, and - and +, which resize it and report the height it comes
-/// to on the wall in millimetres. The version in effect is lit. A last row does the same
-/// resizing to everything at once, for the question of whether the whole HUD is too big
-/// or too small before the question of any one element.
+/// Two lines per element. The first is what is discrete and so is buttons: a button for
+/// each version the artist delivered, with the one in effect lit, show and hide, and the
+/// display row, which is a physical panel and therefore a whole number. The second is what
+/// is continuous and so is sliders: size, opacity and height up or down the wall. Dragging
+/// a slider changes what is on the wall as it moves, which is the only way the question
+/// "how big, how solid, how high" gets answered at 2 m from a curved display.
+///
+/// Size reads out in millimetres on the wall as well as a percentage, because a percentage
+/// of a layout nobody has seen at scale means nothing. Height reads out in millimetres for
+/// the same reason. A last line does size and opacity to everything at once.
 ///
 /// It finds the elements through UIArtVariant_NEW's static list rather than through
 /// references, so adding a second piece of art to the scene needs no wiring here.
@@ -32,6 +36,11 @@ public class UIArtVariantPanel_NEW : MonoBehaviour
 
     [Tooltip("In 1080p units; Auto Scale takes it from there.")]
     [SerializeField] int fontSize = 13;
+
+    [Tooltip("How wide each slider is, in the same units. Wider is easier to land on from " +
+             "a distance, and resolves finer.")]
+    [Range(80f, 400f)]
+    [SerializeField] float sliderWidth = 170f;
 
     [SerializeField] Vector2 margin = new Vector2(12f, 12f);
 
@@ -56,7 +65,6 @@ public class UIArtVariantPanel_NEW : MonoBehaviour
         GUIStyle button = VizlabDebugGUI_NEW.Button(fontSize, false);
 
         float bh = button.CalcSize(new GUIContent("Hide")).y + 4f;
-        float rowH = bh + Gap;
 
         if (_collapsed)
         {
@@ -67,16 +75,14 @@ public class UIArtVariantPanel_NEW : MonoBehaviour
             return;
         }
 
-        // Widest name, so the version buttons line up down the panel.
-        float nameWidth = 0f;
-        foreach (UIArtVariant_NEW art in UIArtVariant_NEW.Active)
-            nameWidth = Mathf.Max(nameWidth, label.CalcSize(new GUIContent(art.Title)).x);
-
-        // Widest version label, so every version button is the same size.
+        // Column widths, measured once so every element's controls line up down the panel.
+        float nameWidth = label.CalcSize(new GUIContent("all of it")).x;
         float versionWidth = button.CalcSize(new GUIContent("Hide")).x;
         int maxVersions = 0;
+
         foreach (UIArtVariant_NEW art in UIArtVariant_NEW.Active)
         {
+            nameWidth = Mathf.Max(nameWidth, label.CalcSize(new GUIContent(art.Title)).x);
             maxVersions = Mathf.Max(maxVersions, art.Count);
             for (int i = 0; i < art.Count; i++)
                 versionWidth = Mathf.Max(versionWidth, button.CalcSize(new GUIContent(art.LabelOf(i))).x);
@@ -85,15 +91,20 @@ public class UIArtVariantPanel_NEW : MonoBehaviour
 
         float showWidth = button.CalcSize(new GUIContent("Hide")).x + 10f;
         float rowBtn = button.CalcSize(new GUIContent("Row -")).x + 8f;
-        float stepBtn = button.CalcSize(new GUIContent("+")).x + 12f;
-        float sizeRead = label.CalcSize(new GUIContent("100%  1234 mm")).x + 8f;
+        float knobLabel = label.CalcSize(new GUIContent("opacity")).x + 6f;
+        float readout = label.CalcSize(new GUIContent("300%  1234 mm")).x + 8f;
+        float resetWidth = button.CalcSize(new GUIContent("Reset")).x + 10f;
+
+        float buttonsWidth = nameWidth + Gap + maxVersions * (versionWidth + Gap) + showWidth + Gap + rowBtn * 2f + 2f;
+        float slidersWidth = nameWidth + Gap
+                           + (knobLabel + sliderWidth + Gap + readout + Gap) * 2f
+                           + knobLabel + sliderWidth + Gap + readout + Gap + resetWidth;
 
         Vector2 titleSize = label.CalcSize(new GUIContent("ART VARIANTS"));
-        float width = Pad + Mathf.Max(titleSize.x + 40f,
-                                      nameWidth + Gap + maxVersions * (versionWidth + Gap) + showWidth + Gap
-                                      + rowBtn * 2f + Gap + stepBtn * 2f + 2f + Gap + sizeRead) + Pad;
-        // One row per element, then the row that sizes them all together.
-        float height = Pad + bh + Gap + (UIArtVariant_NEW.Active.Count + 1) * rowH + Pad * 0.4f;
+        float width = Pad + Mathf.Max(titleSize.x + 40f, Mathf.Max(buttonsWidth, slidersWidth)) + Pad;
+        float lineH = bh + Gap;
+        // Two lines per element, plus the title and the line that drives all of them.
+        float height = Pad + lineH + UIArtVariant_NEW.Active.Count * lineH * 2f + lineH + Pad * 0.4f;
 
         var panel = new Rect(margin.x, screen.y - margin.y - height, width, height);
         GUI.Box(panel, GUIContent.none, VizlabDebugGUI_NEW.Panel);
@@ -101,13 +112,13 @@ public class UIArtVariantPanel_NEW : MonoBehaviour
         float y = panel.y + Pad;
         GUI.Label(new Rect(panel.x + Pad, y + (bh - titleSize.y) * 0.5f, titleSize.x, titleSize.y), "ART VARIANTS", label);
         if (GUI.Button(new Rect(panel.xMax - Pad - 30f, y, 30f, bh), "-", button)) _collapsed = true;
-        y += bh + Gap;
+        y += lineH;
 
         foreach (UIArtVariant_NEW art in UIArtVariant_NEW.Active)
         {
+            // ── Line 1: the discrete choices ──────────────────────────────────
             float x = panel.x + Pad;
-            Vector2 nameSize = label.CalcSize(new GUIContent(art.Title));
-            GUI.Label(new Rect(x, y + (bh - nameSize.y) * 0.5f, nameWidth, nameSize.y), art.Title, label);
+            Label(x, y, bh, nameWidth, art.Title, label);
             x += nameWidth + Gap;
 
             for (int i = 0; i < art.Count; i++)
@@ -131,45 +142,90 @@ public class UIArtVariantPanel_NEW : MonoBehaviour
             if (GUI.Button(new Rect(x, y, rowBtn, bh), "Row -", button)) art.StepRow(-1);
             if (GUI.Button(new Rect(x + rowBtn + 2f, y, rowBtn, bh), "Row +", button)) art.StepRow(1);
             GUI.enabled = true;
-            x += rowBtn * 2f + 2f + Gap;
+            y += lineH;
 
-            // Size, and what that size comes to on the wall.
-            if (GUI.Button(new Rect(x, y, stepBtn, bh), "-", button)) art.StepScale(-1);
-            if (GUI.Button(new Rect(x + stepBtn + 2f, y, stepBtn, bh), "+", button)) art.StepScale(1);
-            x += stepBtn * 2f + 2f + Gap;
+            // ── Line 2: the continuous ones ───────────────────────────────────
+            x = panel.x + Pad + nameWidth + Gap;
 
-            string size = string.Format("{0:0}%  {1:0} mm", art.Scale * 100f, art.WallHeightMm);
-            Vector2 sizeSize = label.CalcSize(new GUIContent(size));
-            GUI.Label(new Rect(x, y + (bh - sizeSize.y) * 0.5f, sizeRead, sizeSize.y), size, label);
+            art.SetScale(Knob(ref x, y, bh, "size", art.Scale, UIArtVariant_NEW.MinScale, UIArtVariant_NEW.MaxScale,
+                              string.Format("{0:0}%  {1:0} mm", art.Scale * 100f, art.WallHeightMm),
+                              knobLabel, readout, label, fontSize));
 
-            y += rowH;
+            art.SetOpacity(Knob(ref x, y, bh, "opacity", art.Opacity, 0f, 1f,
+                                string.Format("{0:0}%", art.Opacity * 100f),
+                                knobLabel, readout, label, fontSize));
+
+            art.SetShiftMm(Knob(ref x, y, bh, "height", art.ShiftMm,
+                                -UIArtVariant_NEW.ShiftRangeMm, UIArtVariant_NEW.ShiftRangeMm,
+                                string.Format("{0:+0;-0;0} mm", art.ShiftMm),
+                                knobLabel, readout, label, fontSize));
+
+            if (GUI.Button(new Rect(x, y, resetWidth, bh), "Reset", button)) art.ResetAdjustments();
+            y += lineH;
         }
 
-        DrawAllRow(panel, y, bh, label, button, nameWidth, stepBtn);
+        DrawAllLine(panel, y, bh, label, button, nameWidth, knobLabel, readout, resetWidth);
+    }
+
+    /// <summary>A labelled slider with its reading, laid out left to right from x.</summary>
+    float Knob(ref float x, float y, float bh, string name, float value, float min, float max,
+               string reading, float knobLabel, float readout, GUIStyle label, int fontSize)
+    {
+        Label(x, y, bh, knobLabel, name, label);
+        x += knobLabel;
+
+        float result = VizlabDebugGUI_NEW.Slider(new Rect(x, y, sliderWidth, bh), value, min, max, fontSize);
+        x += sliderWidth + Gap;
+
+        Label(x, y, bh, readout, reading, label);
+        x += readout + Gap;
+
+        return result;
+    }
+
+    static void Label(float x, float y, float bh, float width, string text, GUIStyle style)
+    {
+        Vector2 size = style.CalcSize(new GUIContent(text));
+        GUI.Label(new Rect(x, y + (bh - size.y) * 0.5f, width, size.y), text, style);
     }
 
     /// <summary>
-    /// The same size controls applied to every element at once, for the question that comes
-    /// before "how big is this one": is the whole HUD too big or too small on the wall.
+    /// Size and opacity applied to every element at once, for the question that comes before
+    /// any single element: is the whole HUD too big, or too faint, on the wall.
     /// </summary>
-    void DrawAllRow(Rect panel, float y, float bh, GUIStyle label, GUIStyle button, float nameWidth, float stepBtn)
+    void DrawAllLine(Rect panel, float y, float bh, GUIStyle label, GUIStyle button,
+                     float nameWidth, float knobLabel, float readout, float resetWidth)
     {
         float x = panel.x + Pad;
-        Vector2 nameSize = label.CalcSize(new GUIContent("all of it"));
-        GUI.Label(new Rect(x, y + (bh - nameSize.y) * 0.5f, nameWidth, nameSize.y), "all of it", label);
+        Label(x, y, bh, nameWidth, "all of it", label);
         x += nameWidth + Gap;
 
-        float wide = stepBtn * 2f;
-        if (GUI.Button(new Rect(x, y, wide, bh), "Smaller", button)) StepAll(-1);
-        if (GUI.Button(new Rect(x + wide + Gap, y, wide, bh), "Bigger", button)) StepAll(1);
-        if (GUI.Button(new Rect(x + (wide + Gap) * 2f, y, wide, bh), "100%", button))
+        float averageScale = 0f, averageOpacity = 0f;
+        foreach (UIArtVariant_NEW art in UIArtVariant_NEW.Active)
         {
-            foreach (UIArtVariant_NEW art in UIArtVariant_NEW.Active) art.ResetScale();
+            averageScale += art.Scale;
+            averageOpacity += art.Opacity;
         }
-    }
+        averageScale /= UIArtVariant_NEW.Active.Count;
+        averageOpacity /= UIArtVariant_NEW.Active.Count;
 
-    static void StepAll(int direction)
-    {
-        foreach (UIArtVariant_NEW art in UIArtVariant_NEW.Active) art.StepScale(direction);
+        // The sliders start where the elements average, and a drag takes them all to the
+        // value dragged to, which is what "all of it" has to mean once they have drifted apart.
+        float newScale = Knob(ref x, y, bh, "size", averageScale, UIArtVariant_NEW.MinScale, UIArtVariant_NEW.MaxScale,
+                              string.Format("{0:0}%", averageScale * 100f), knobLabel, readout, label, fontSize);
+        if (!Mathf.Approximately(newScale, averageScale))
+            foreach (UIArtVariant_NEW art in UIArtVariant_NEW.Active) art.SetScale(newScale);
+
+        float newOpacity = Knob(ref x, y, bh, "opacity", averageOpacity, 0f, 1f,
+                                string.Format("{0:0}%", averageOpacity * 100f), knobLabel, readout, label, fontSize);
+        if (!Mathf.Approximately(newOpacity, averageOpacity))
+            foreach (UIArtVariant_NEW art in UIArtVariant_NEW.Active) art.SetOpacity(newOpacity);
+
+        // The height slot is skipped: shifting everything by the same amount is not a
+        // question anybody asks, and a stray drag there would undo per-element placement.
+        x += knobLabel + sliderWidth + Gap + readout + Gap;
+
+        if (GUI.Button(new Rect(x, y, resetWidth, bh), "Reset", button))
+            foreach (UIArtVariant_NEW art in UIArtVariant_NEW.Active) art.ResetAdjustments();
     }
 }

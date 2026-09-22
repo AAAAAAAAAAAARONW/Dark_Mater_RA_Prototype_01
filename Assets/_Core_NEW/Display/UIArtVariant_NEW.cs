@@ -19,11 +19,16 @@ using UnityEngine.UI;
 /// The art is a still, so a tracker swapped in this way does not move with the journey -
 /// this is for judging the look, not for wiring the HUD up.
 ///
-/// SIZE: the panel scales the element while the build runs, and reports the height it
-/// comes to on the wall in millimetres, because "how big should this be" is answered at
-/// 2 m from a curved wall and not in a layout view. The size found is remembered for the
-/// next launch. As nothing here needs an Image or any versions, dropping this on any UI
-/// element with an empty version list makes it a size handle for that element.
+/// TUNING, all of it continuous, from sliders on the panel while the build runs: size,
+/// which reports the height it comes to on the wall in millimetres; opacity, which goes
+/// between and past the fixed 60% and 80% the art was exported at; and height, in
+/// millimetres up or down the wall, for the position between two rows that a row number
+/// cannot express. None of those questions has a natural step size - they are answered at
+/// 2 m from a curved wall by dragging until it looks right - so none of them is stepped.
+/// What is found is remembered for the next launch.
+///
+/// As nothing here needs an Image or any versions, dropping this on any UI element with an
+/// empty version list makes it a tuning handle for that element.
 ///
 /// It registers itself in a static list so UIArtVariantPanel_NEW can draw one panel for
 /// every piece in the scene without being wired to any of them.
@@ -63,19 +68,26 @@ public class UIArtVariant_NEW : MonoBehaviour
              "layout of the same element, so the panel can bring it in for a comparison.")]
     [SerializeField] bool startVisible = true;
 
-    [Header("Size")]
-    [Tooltip("A multiplier on this element's size, changed from the panel while the piece " +
-             "runs. 1 is the size the layout gives it.")]
-    [Range(0.2f, 3f)]
+    [Header("Live adjustment")]
+    [Tooltip("A multiplier on this element's size. The panel's slider drives it while the " +
+             "piece runs; 1 is the size the layout gives it.")]
+    [Range(MinScale, MaxScale)]
     [SerializeField] float scale = 1f;
 
-    [Tooltip("How much one press of - or + moves it.")]
-    [Range(0.01f, 0.25f)]
-    [SerializeField] float scaleStep = 0.05f;
+    [Tooltip("How solid the element is, 1 being as the artist drew it. The delivered art " +
+             "comes at fixed 60% and 80% panel opacities; this dials the whole element " +
+             "instead, so a value between them can be found before asking for another export.")]
+    [Range(0f, 1f)]
+    [SerializeField] float opacity = 1f;
 
-    [Tooltip("Keep the size found on the wall for the next launch, so a session of sizing " +
-             "does not have to be repeated. Reset clears it.")]
-    [SerializeField] bool rememberScale = true;
+    [Tooltip("Moves the element up and down in millimetres on the wall, for the height " +
+             "between two display rows that a row number cannot express.")]
+    [Range(-ShiftRangeMm, ShiftRangeMm)]
+    [SerializeField] float shiftMm = 0f;
+
+    [Tooltip("Keep the size, opacity and height found on the wall for the next launch, so a " +
+             "session of tuning does not have to be repeated. Reset clears them.")]
+    [SerializeField] bool remember = true;
 
     [Header("Look")]
     [Tooltip("Fit the sprite inside its rectangle without distorting it. Keep this on: " +
@@ -89,11 +101,26 @@ public class UIArtVariant_NEW : MonoBehaviour
 
     const string LogPrefix = "[UIArtVariant_NEW] ";
 
+    public const float MinScale = 0.2f, MaxScale = 3f;
+
+    /// <summary>How far up or down the shift slider reaches: one display row either way.</summary>
+    public const float ShiftRangeMm = VizlabDisplay_NEW.RowHeightMm;
+
     /// <summary>Every enabled piece of variant art, in the order they woke up. The panel reads this.</summary>
     static readonly List<UIArtVariant_NEW> _active = new List<UIArtVariant_NEW>();
     public static IList<UIArtVariant_NEW> Active { get { return _active; } }
 
     int _current;
+
+    /// <summary>Where the layout put this element, before the shift slider moved it.</summary>
+    Vector2 _basePosition;
+
+    const float LogSettleSeconds = 0.4f;
+    string _pendingLog;
+    float _pendingLogTime;
+
+    /// <summary>The row the base position belongs to, so a row change re-reads it.</summary>
+    int _baseRow = -2;
 
     public string Title { get { return string.IsNullOrEmpty(title) ? name : title; } }
     public int Count { get { return variants != null ? variants.Length : 0; } }
@@ -105,7 +132,32 @@ public class UIArtVariant_NEW : MonoBehaviour
     /// <summary>The size multiplier in effect, 1 being the size the layout gives it.</summary>
     public float Scale { get { return scale; } }
 
+    /// <summary>How solid the element is, 0 to 1.</summary>
+    public float Opacity { get { return opacity; } }
+
+    /// <summary>How far the element is moved up or down the wall, in millimetres.</summary>
+    public float ShiftMm { get { return shiftMm; } }
+
     RectTransform Rt { get { return (RectTransform)transform; } }
+
+    /// <summary>Canvas units per millimetre of wall, for turning the shift into a position.</summary>
+    float UnitsPerMm
+    {
+        get
+        {
+            var canvas = GetComponentInParent<Canvas>();
+            if (canvas == null) return 0f;
+
+            var canvasRt = canvas.rootCanvas.transform as RectTransform;
+            if (canvasRt == null || canvasRt.rect.height <= 0f) return 0f;
+
+            // The canvas's height is the wall's height, so one is the other's scale.
+            float parentScale = Rt.parent != null ? Rt.parent.lossyScale.y / canvasRt.lossyScale.y : 1f;
+            if (parentScale <= 0f) parentScale = 1f;
+
+            return canvasRt.rect.height / (VizlabDisplay_NEW.RowHeightMm * VizlabDisplay_NEW.RowCount) / parentScale;
+        }
+    }
 
     /// <summary>
     /// How tall this element is on the wall, in millimetres. The screen's height is the
@@ -144,13 +196,40 @@ public class UIArtVariant_NEW : MonoBehaviour
 
         _current = Mathf.Clamp(startVariant, 0, Mathf.Max(0, Count - 1));
 
-        // A size found on the wall last time beats the one saved in the scene.
-        if (rememberScale && Application.isPlaying)
-            scale = Mathf.Clamp(PlayerPrefs.GetFloat(ScalePref, scale), 0.2f, 3f);
+        // What was found on the wall last time beats what the scene was saved with.
+        if (remember && Application.isPlaying)
+        {
+            scale = Mathf.Clamp(PlayerPrefs.GetFloat(Pref("Scale"), scale), MinScale, MaxScale);
+            opacity = Mathf.Clamp01(PlayerPrefs.GetFloat(Pref("Opacity"), opacity));
+            shiftMm = Mathf.Clamp(PlayerPrefs.GetFloat(Pref("Shift"), shiftMm), -ShiftRangeMm, ShiftRangeMm);
+        }
+
+        // Taken before the shift is re-applied, and with any shift already in the saved
+        // position taken back out, so it cannot accumulate across a save and a reload.
+        VizlabRowAnchor_NEW row = Row;
+        _baseRow = row != null ? row.Row : -1;
+        _basePosition = Rt.anchoredPosition - new Vector2(0f, shiftMm * UnitsPerMm);
 
         Apply();
         ApplyScale();
+        ApplyOpacity();
+        ApplyShift();
         SetVisible(startVisible, false);
+    }
+
+    void LateUpdate()
+    {
+        FlushPendingLog();
+
+        // A row change re-places the element, which wipes the shift; take the new base and
+        // put the shift back on top of it.
+        VizlabRowAnchor_NEW row = Row;
+        int current = row != null ? row.Row : -1;
+        if (current == _baseRow) return;
+
+        _baseRow = current;
+        _basePosition = Rt.anchoredPosition;
+        ApplyShift();
     }
 
     void OnDisable()
@@ -204,33 +283,97 @@ public class UIArtVariant_NEW : MonoBehaviour
         if (log && logChanges) Debug.Log(LogPrefix + Title + (visible ? " shown" : " hidden"), this);
     }
 
-    // ── Size ─────────────────────────────────────────────────────────────────
+    // ── Live adjustment ──────────────────────────────────────────────────────
+    //
+    // Size, opacity and height are all continuous: the panel drives them from sliders, and
+    // these setters take any value in range rather than a step, because the question they
+    // answer ("how big does this have to be to read at 2 m") has no natural step size.
+    // Each is written as it is dragged, so what is on the wall is what the value says.
 
-    string ScalePref { get { return "Vizlab.UIScale." + Title; } }
-
-    /// <summary>One press of the panel's - or +. Negative shrinks.</summary>
-    public void StepScale(int direction)
-    {
-        SetScale(scale + direction * scaleStep);
-    }
+    string Pref(string what) { return "Vizlab.UI." + what + "." + Title; }
 
     public void SetScale(float value)
     {
-        scale = Mathf.Clamp(value, 0.2f, 3f);
+        value = Mathf.Clamp(value, MinScale, MaxScale);
+        if (Mathf.Approximately(value, scale)) return;
+
+        scale = value;
         ApplyScale();
-
-        if (rememberScale && Application.isPlaying) PlayerPrefs.SetFloat(ScalePref, scale);
-
-        if (logChanges)
-            Debug.Log(string.Format("{0}{1} size {2:0}% ({3:0} mm tall on the wall)",
-                                    LogPrefix, Title, scale * 100f, WallHeightMm), this);
+        Remember("Scale", scale);
+        Report(string.Format("size {0:0.#}% ({1:0} mm tall on the wall)", scale * 100f, WallHeightMm));
     }
 
-    [ContextMenu("Size: back to 100%")]
-    public void ResetScale()
+    public void SetOpacity(float value)
     {
-        if (rememberScale && Application.isPlaying) PlayerPrefs.DeleteKey(ScalePref);
-        SetScale(1f);
+        value = Mathf.Clamp01(value);
+        if (Mathf.Approximately(value, opacity)) return;
+
+        opacity = value;
+        ApplyOpacity();
+        Remember("Opacity", opacity);
+        Report(string.Format("opacity {0:0}%", opacity * 100f));
+    }
+
+    public void SetShiftMm(float value)
+    {
+        value = Mathf.Clamp(value, -ShiftRangeMm, ShiftRangeMm);
+        if (Mathf.Approximately(value, shiftMm)) return;
+
+        shiftMm = value;
+        ApplyShift();
+        Remember("Shift", shiftMm);
+        Report(string.Format("shifted {0:+0;-0;0} mm", shiftMm));
+    }
+
+    /// <summary>A step, for a key binding or another script. The panel uses the sliders.</summary>
+    public void StepScale(int direction)
+    {
+        SetScale(scale + direction * 0.05f);
+    }
+
+    [ContextMenu("Back to as laid out")]
+    public void ResetAdjustments()
+    {
+        if (remember && Application.isPlaying)
+        {
+            PlayerPrefs.DeleteKey(Pref("Scale"));
+            PlayerPrefs.DeleteKey(Pref("Opacity"));
+            PlayerPrefs.DeleteKey(Pref("Shift"));
+        }
+
+        scale = 1f;
+        opacity = 1f;
+        shiftMm = 0f;
+        ApplyScale();
+        ApplyOpacity();
+        ApplyShift();
+        Report("back to as laid out");
+    }
+
+    void Remember(string what, float value)
+    {
+        if (remember && Application.isPlaying) PlayerPrefs.SetFloat(Pref(what), value);
+    }
+
+    /// <summary>
+    /// Sliders change every frame they are dragged, and a line per frame would bury the
+    /// console and the player log in a hundred entries for one decision. So the message
+    /// waits until the dragging stops and only the value settled on is written.
+    /// </summary>
+    void Report(string message)
+    {
+        if (!logChanges) return;
+
+        _pendingLog = message;
+        _pendingLogTime = Time.unscaledTime;
+    }
+
+    void FlushPendingLog()
+    {
+        if (_pendingLog == null || Time.unscaledTime - _pendingLogTime < LogSettleSeconds) return;
+
+        Debug.Log(LogPrefix + Title + " " + _pendingLog, this);
+        _pendingLog = null;
     }
 
     void ApplyScale()
@@ -239,6 +382,36 @@ public class UIArtVariant_NEW : MonoBehaviour
         // sized by a row anchor, by its sprite or by hand, and so nothing it contains has
         // to be laid out again.
         Rt.localScale = new Vector3(scale, scale, 1f);
+    }
+
+    void ApplyOpacity()
+    {
+        if (target != null)
+        {
+            Color c = target.color;
+            c.a = opacity;
+            target.color = c;
+            return;
+        }
+
+        // No Image of its own - this is a handle on somebody else's UI - so the whole
+        // subtree is faded through a CanvasGroup, which is what that component is for.
+        var group = GetComponent<CanvasGroup>();
+        if (group == null) group = gameObject.AddComponent<CanvasGroup>();
+        group.alpha = opacity;
+    }
+
+    /// <summary>
+    /// The shift rides on top of whatever placed the element. VizlabRowAnchor_NEW writes
+    /// anchoredPosition when the row changes, so the base is re-read whenever that happens
+    /// rather than being captured once and drifting.
+    /// </summary>
+    void ApplyShift()
+    {
+        float units = UnitsPerMm;
+        if (units <= 0f) return;
+
+        Rt.anchoredPosition = _basePosition + new Vector2(0f, shiftMm * units);
     }
 
     /// <summary>Puts the current sprite on the Image. Safe to call repeatedly.</summary>
@@ -252,8 +425,8 @@ public class UIArtVariant_NEW : MonoBehaviour
         target.sprite = variants[_current].sprite;
         target.preserveAspect = preserveAspect;
 
-        // White, so the sprite's own colours are what shows.
-        target.color = new Color(1f, 1f, 1f, target.color.a <= 0f ? 1f : target.color.a);
+        // White, so the sprite's own colours are what shows; the opacity slider owns alpha.
+        target.color = new Color(1f, 1f, 1f, opacity);
     }
 
     /// <summary>Moves this element a display row, for the panel's row buttons. Negative is up.</summary>
@@ -277,6 +450,8 @@ public class UIArtVariant_NEW : MonoBehaviour
             _current = Mathf.Clamp(startVariant, 0, Mathf.Max(0, Count - 1));
             Apply();
             ApplyScale();
+            ApplyOpacity();
+            ApplyShift();
         };
     }
 #endif

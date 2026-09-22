@@ -57,7 +57,8 @@ public static class VizlabDebugGUI_NEW
         return Mathf.Max(margin, Mathf.Min(top, scaledScreenHeight - panelHeight - margin));
     }
 
-    static Texture2D _panelTex, _buttonTex, _buttonHoverTex, _buttonOnTex;
+    static Texture2D _panelTex, _buttonTex, _buttonHoverTex, _buttonOnTex, _sliderBarTex, _sliderThumbTex;
+    static GUIStyle _sliderBar, _sliderThumb;
     static GUIStyle _panel;
     static readonly Dictionary<int, GUIStyle> _labels = new Dictionary<int, GUIStyle>();
     static readonly Dictionary<int, GUIStyle> _richLabels = new Dictionary<int, GUIStyle>();
@@ -168,6 +169,51 @@ public static class VizlabDebugGUI_NEW
 
         cache[fontSize] = style;
         return style;
+    }
+
+    /// <summary>
+    /// A slider sized for a wall: a thick bar and a thumb wide enough to be grabbed with a
+    /// mouse from across a room. Returns the new value, so it reads like GUI.HorizontalSlider.
+    /// </summary>
+    public static float Slider(Rect rect, float value, float min, float max, int fontSize)
+    {
+        if (_sliderBarTex == null) _sliderBarTex = Solid(new Color(0.16f, 0.13f, 0.30f, 1f));
+        if (_sliderThumbTex == null) _sliderThumbTex = Solid(new Color(0.31f, 0.88f, 1f, 1f));
+
+        if (_sliderBar == null || _sliderBar.normal.background == null)
+        {
+            _sliderBar = new GUIStyle(GUI.skin.horizontalSlider)
+            {
+                normal = { background = _sliderBarTex },
+                fixedHeight = 0f,
+                border = new RectOffset(0, 0, 0, 0),
+                margin = new RectOffset(0, 0, 0, 0),
+                padding = new RectOffset(0, 0, 0, 0),
+            };
+        }
+
+        if (_sliderThumb == null || _sliderThumb.normal.background == null)
+        {
+            _sliderThumb = new GUIStyle(GUI.skin.horizontalSliderThumb)
+            {
+                normal = { background = _sliderThumbTex },
+                active = { background = _sliderThumbTex },
+                hover = { background = _sliderThumbTex },
+                focused = { background = _sliderThumbTex },
+                border = new RectOffset(0, 0, 0, 0),
+                overflow = new RectOffset(0, 0, 0, 0),
+                fixedWidth = 10f,
+                fixedHeight = 0f,
+            };
+        }
+
+        // The bar is drawn as a thin line through the middle of the rect; the thumb fills it.
+        float barHeight = Mathf.Max(4f, fontSize * 0.45f);
+        _sliderBar.fixedHeight = barHeight;
+        _sliderThumb.fixedHeight = fontSize + 8f;
+        _sliderThumb.fixedWidth = Mathf.Max(10f, fontSize * 0.8f);
+
+        return GUI.HorizontalSlider(rect, value, min, max, _sliderBar, _sliderThumb);
     }
 
     static Font FontOf(int size)
