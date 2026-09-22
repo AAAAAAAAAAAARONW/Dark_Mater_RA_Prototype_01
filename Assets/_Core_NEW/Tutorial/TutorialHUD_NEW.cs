@@ -20,6 +20,13 @@ using UnityEngine.UI;
 ///                        diagram hangs off its left end — TutorialStickGuide_NEW — as
 ///                        a child of the plate, so the picture and the words arrive,
 ///                        fade and leave as one thing.
+///
+///                        MOSTLY DRAWN, NOT TYPED. Where hintArt holds a picture for what
+///                        the beat is asking, the plate and the line of text give way to
+///                        it; where it does not, the words are still there and still
+///                        correct. So art arrives one plate at a time rather than in one
+///                        commit, and a beat whose words somebody rewrites tomorrow
+///                        degrades to a legible line instead of the wrong picture.
 ///   2. Control legend    First seen at B1 and never dismissed. It persists past the
 ///                        end of the tutorial into Phase −1, so there is deliberately
 ///                        no code path that hides it again.
@@ -90,6 +97,23 @@ public class TutorialHUD_NEW : MonoBehaviour
     [SerializeField] TMP_Text hintLabel;
     [SerializeField] CanvasGroup hintGroup;
 
+    [Tooltip("Where a drawn hint plate is shown. Empty means every hint is words on a " +
+             "plate, exactly as before.")]
+    [SerializeField] Image hintArtImage;
+
+    [Tooltip("The dark plate behind the words. Hidden while a drawn hint is up, because " +
+             "the art brings its own background and a plate behind it would box it in.")]
+    [SerializeField] GameObject hintPlate;
+
+    [Tooltip("Height of a drawn hint, in canvas pixels. The width follows from the " +
+             "picture's own proportions, so plates of different widths all sit on one " +
+             "line rather than each being its own size.")]
+    [SerializeField] float hintArtHeight = 170f;
+
+    [Tooltip("A picture for a beat's hint line. Anything with no picture here stays as " +
+             "words on a plate — see the class summary.")]
+    [SerializeField] HintArt[] hintArt = new HintArt[0];
+
     [Tooltip("The stick diagram beside the hint line. Optional — with none in the scene " +
              "the piece is exactly what it was, a line of text.\n\n" +
              "Driven from the CURRENT beat rather than from whichever beat last wrote the " +
@@ -115,12 +139,49 @@ public class TutorialHUD_NEW : MonoBehaviour
     [Header("Debug")]
     [SerializeField] bool debugLog = false;
 
+    /// <summary>
+    /// One drawn hint plate, and the words it stands in for.
+    ///
+    /// Keyed on the beat's own hint line rather than on its beat id, because two beats
+    /// ask for the same thing in the same words — B4 and C5 both say A TO RECENTRE — and
+    /// a picture is a picture of the ask, not of the frame.
+    /// </summary>
+    [System.Serializable]
+    public class HintArt
+    {
+        [Tooltip("The hint line this picture replaces, e.g. \"RIGHT STICK  ·  LOOK UP\".\n\n" +
+                 "Matched loosely: case, spaces and punctuation are ignored, so somebody " +
+                 "changing the separator in a beat's copy does not silently drop the picture.")]
+        public string hintText;
+
+        public Sprite sprite;
+
+        [Tooltip("Tick where the picture already draws the A button. The separate A prompt " +
+                 "at the lower edge then stays down for as long as this picture is up, so " +
+                 "one screen never asks for the same button twice.")]
+        public bool carriesTheButton;
+    }
+
     /// <summary>Whether Build or Update may rewrite the legend wording.</summary>
     public bool BuilderOwnsCopy { get { return builderOwnsCopy; } }
 
     bool _legendShown;
     bool _hintShown;
     string _shownHintText;
+
+    /// <summary>The picture on the hint line, or null while it is carrying words.</summary>
+    HintArt _shownArt;
+
+    RectTransform _hintRect;
+
+    /// <summary>
+    /// The hint's authored size, which is the size of the plate the words sit on.
+    ///
+    /// Read once, before anything has resized it: a drawn hint is a different width for
+    /// every plate, and the stick diagram is anchored to the hint's left edge, so the
+    /// hint has to become the size of whatever is actually on it and go back afterwards.
+    /// </summary>
+    Vector2 _plateSize;
 
     /// <summary>The beat whose words are on the hint line, polled for LiveHintText.</summary>
     TutorialBeat_NEW _hintBeat;
@@ -147,6 +208,9 @@ public class TutorialHUD_NEW : MonoBehaviour
             Debug.LogError("[TutorialHUD_NEW] No TutorialDirector_NEW. The HUD will stay dark.", this);
 
         if (legendText != null) legendText.text = legendContent;
+
+        if (hintRoot != null) _hintRect = hintRoot.GetComponent<RectTransform>();
+        if (_hintRect != null) _plateSize = _hintRect.sizeDelta;
 
         HideAll();
     }
@@ -311,6 +375,7 @@ public class TutorialHUD_NEW : MonoBehaviour
         _legendShown = false;
         _hintShown = false;
         _shownHintText = null;
+        _shownArt = null;
         _promptBeat = null;
         _hintBeat = null;
         _currentBeat = null;
@@ -382,18 +447,118 @@ public class TutorialHUD_NEW : MonoBehaviour
         }
 
         _hintShown = true;
-
         _shownHintText = text;
-        if (hintLabel != null) hintLabel.text = text;
+
+        HintArt art = FindArt(text);
+        _shownArt = art != null && art.sprite != null && hintArtImage != null ? art : null;
+
+        if (_shownArt != null) ShowArt(_shownArt);
+        else ShowWords(text);
+
         if (hintRoot != null) hintRoot.SetActive(true);
 
-        if (debugLog) Debug.Log("[TutorialHUD_NEW] Hint: '" + text + "'.", this);
+        if (debugLog)
+            Debug.Log("[TutorialHUD_NEW] Hint: '" + text + "'" +
+                      (_shownArt != null ? " (drawn)." : " (words)."), this);
+    }
+
+    /// <summary>The drawn plate for this ask, in place of the words and their background.</summary>
+    void ShowArt(HintArt art)
+    {
+        hintArtImage.sprite = art.sprite;
+        hintArtImage.preserveAspect = true;
+
+        Vector2 size = ArtSize(art.sprite);
+
+        hintArtImage.rectTransform.sizeDelta = size;
+
+        // The hint becomes the size of the picture, because the stick diagram hangs off
+        // its left edge — see _plateSize. Leaving it at the plate's width would leave the
+        // diagram floating a couple of hundred pixels away from the thing it illustrates.
+        if (_hintRect != null) _hintRect.sizeDelta = size;
+
+        hintArtImage.gameObject.SetActive(true);
+
+        if (hintLabel != null) hintLabel.gameObject.SetActive(false);
+        if (hintPlate != null) hintPlate.SetActive(false);
+    }
+
+    /// <summary>The words on their plate: what every hint was, and what any hint with no
+    /// picture still is.</summary>
+    void ShowWords(string text)
+    {
+        if (hintLabel != null)
+        {
+            hintLabel.text = text;
+            hintLabel.gameObject.SetActive(true);
+        }
+
+        if (hintPlate != null) hintPlate.SetActive(true);
+        if (hintArtImage != null) hintArtImage.gameObject.SetActive(false);
+
+        if (_hintRect != null && _plateSize.sqrMagnitude > 0f) _hintRect.sizeDelta = _plateSize;
+    }
+
+    /// <summary>Canvas size of a drawn plate: the authored height, and the width its own
+    /// proportions ask for.</summary>
+    Vector2 ArtSize(Sprite sprite)
+    {
+        Rect rect = sprite.rect;
+
+        float aspect = rect.height > 0.001f ? rect.width / rect.height : 1f;
+
+        return new Vector2(hintArtHeight * aspect, hintArtHeight);
+    }
+
+    HintArt FindArt(string text)
+    {
+        if (hintArt == null) return null;
+
+        string wanted = ArtKey(text);
+        if (wanted.Length == 0) return null;
+
+        for (int i = 0; i < hintArt.Length; i++)
+        {
+            HintArt art = hintArt[i];
+            if (art == null) continue;
+
+            if (ArtKey(art.hintText) == wanted) return art;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Letters and digits only, upper case.
+    ///
+    /// So "RIGHT STICK  ·  LOOK UP", "Right Stick - Look Up" and "RIGHTSTICK LOOKUP" are
+    /// one key. The separator between the control and the action is a typographic choice
+    /// somebody is entitled to change, and it should not decide whether the picture for
+    /// that ask can still be found.
+    ///
+    /// Public because the builder matches its own table against this one — one rule for
+    /// what counts as the same ask, rather than two that can disagree.
+    /// </summary>
+    public static string ArtKey(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return string.Empty;
+
+        System.Text.StringBuilder key = new System.Text.StringBuilder(text.Length);
+
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = text[i];
+            if (char.IsLetterOrDigit(c)) key.Append(char.ToUpperInvariant(c));
+        }
+
+        return key.ToString();
     }
 
     void ClearHint()
     {
         _hintShown = false;
         _shownHintText = null;
+        _shownArt = null;
 
         if (debugLog) Debug.Log("[TutorialHUD_NEW] Hint cleared.", this);
     }
@@ -416,9 +581,22 @@ public class TutorialHUD_NEW : MonoBehaviour
         legendGroup.alpha = Step(legendGroup.alpha, target, dt);
     }
 
+    /// <summary>
+    /// Whether the picture on the hint line is already showing the A button.
+    ///
+    /// B4, C2 and C5 each put A TO RECENTRE or A TO EMIT on the hint line AND raise the
+    /// prompt at the lower edge, which was two ways of saying one thing and read as two
+    /// things while the words were only words. A drawn plate carries the button itself,
+    /// so the second one goes.
+    /// </summary>
+    bool ArtCarriesTheButton
+    {
+        get { return _hintShown && _shownArt != null && _shownArt.carriesTheButton; }
+    }
+
     void TickPrompt(float dt)
     {
-        bool wanted = _promptBeat != null && _promptBeat.PromptVisible;
+        bool wanted = _promptBeat != null && _promptBeat.PromptVisible && !ArtCarriesTheButton;
 
         if (confirmPromptRoot != null && confirmPromptRoot.activeSelf != wanted)
         {

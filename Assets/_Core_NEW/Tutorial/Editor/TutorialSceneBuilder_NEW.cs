@@ -3486,12 +3486,19 @@ public static class TutorialSceneBuilder_NEW
     }
 
     /// <summary>
-    /// The control hint: a plate with a line of text on it.
+    /// The control hint: a drawn plate where there is one, and a line of text on a dark
+    /// plate where there is not.
     ///
-    /// The plate is the difference between a HUD and a debug readout. White text alone
-    /// disappears into a bright quasar and a starfield; the same text on a dark plate
-    /// holds at the back of a room, which is the only viewing distance that matters at
-    /// the Observatories.
+    /// Both live here at once, and TutorialHUD_NEW picks between them per ask. The words
+    /// were the whole of this element and are now the fallback, which is what lets the
+    /// art land one plate at a time: LOOK BACK and B TO PAUSE have no picture yet, and
+    /// those two beats are the piece exactly as it was rather than two blank frames.
+    ///
+    /// The dark plate is why the words survive at all. White text alone disappears into a
+    /// bright quasar and a starfield; the same text on a plate holds at the back of a
+    /// room, which is the only viewing distance that matters at the Observatories. The
+    /// drawn plates bring their own contrast, so the HUD takes the dark plate away under
+    /// them rather than boxing the art in.
     /// </summary>
     static GameObject BuildHint(Transform canvas)
     {
@@ -3505,6 +3512,25 @@ public static class TutorialSceneBuilder_NEW
         // before the line is ever shown. It is here so the object reads correctly in the
         // Scene view rather than as an empty rect.
         AddText(label, "RIGHT STICK  ·  LOOK AROUND", 34, TextAlignmentOptions.Center);
+
+        // The drawn plate. Sized by the HUD from whichever picture is up — every plate is
+        // a different width — so the size written here only decides what the Scene view
+        // shows while the piece is not running.
+        GameObject art = UIObject("Art", go.transform, new Vector2(0.5f, 0.5f),
+                                  Vector2.zero, new Vector2(500f, HintArtHeight));
+
+        Image artImage = AddIfMissing<Image>(art);
+
+        if (IsFresh(artImage))
+        {
+            artImage.preserveAspect = true;
+            artImage.raycastTarget = false;
+            artImage.sprite = TutorialWorldAssets_NEW.HintSprite(HintArtRows[0].File);
+
+            // Off until the HUD has a picture to put on it. On is the state that has to be
+            // earned here, exactly as for every other element on this canvas.
+            art.SetActive(false);
+        }
 
         return go;
     }
@@ -3742,6 +3768,22 @@ public static class TutorialSceneBuilder_NEW
         go.transform.SetAsFirstSibling();
     }
 
+    /// <summary>Height of the drawn title on the attract card, in canvas pixels.</summary>
+    const float TitleArtHeight = 150f;
+
+    /// <summary>Height of the drawn PRESS A · START plate under it.</summary>
+    const float StartArtHeight = 120f;
+
+    /// <summary>
+    /// The attract card: the title, and the one instruction that is written rather than
+    /// shown.
+    ///
+    /// Both exist twice — as drawn art and as the text they replace — and
+    /// TutorialAttract_NEW switches the words off wherever it finds a picture. Same
+    /// arrangement as the hint line, for the same reason: a card with art missing should
+    /// be the card it has always been rather than an empty rectangle in front of the
+    /// first visitor of the day.
+    /// </summary>
     static GameObject BuildAttractCard(Transform canvas)
     {
         GameObject go = UIObject("AttractCard", canvas, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1400f, 400f));
@@ -3752,6 +3794,42 @@ public static class TutorialSceneBuilder_NEW
 
         GameObject ctaObject = UIObject("CallToAction", go.transform, new Vector2(0.5f, 0.5f), new Vector2(0f, -70f), new Vector2(1400f, 60f));
         AddText(ctaObject, "PRESS A TO BEGIN", 34, TextAlignmentOptions.Center);
+
+        AddArt(go, "TitleArt", new Vector2(0f, 40f),
+               TutorialWorldAssets_NEW.HintSprite(TutorialWorldAssets_NEW.TitleArtName),
+               TitleArtHeight);
+
+        AddArt(go, "StartArt", new Vector2(0f, -70f),
+               TutorialWorldAssets_NEW.HintSprite("TutorialHint_Start"),
+               StartArtHeight);
+
+        return go;
+    }
+
+    /// <summary>
+    /// A drawn plate on the card, sized from its own proportions.
+    ///
+    /// The height is the decision and the width follows from the picture, so replacing
+    /// the PNG with a wider one keeps it on the same line instead of stretching it.
+    /// </summary>
+    static GameObject AddArt(GameObject parent, string name, Vector2 offset, Sprite sprite, float height)
+    {
+        float width = height * 3f;
+
+        if (sprite != null && sprite.rect.height > 0.001f)
+            width = height * (sprite.rect.width / sprite.rect.height);
+
+        GameObject go = UIObject(name, parent.transform, new Vector2(0.5f, 0.5f), offset,
+                                 new Vector2(width, height));
+
+        Image image = AddIfMissing<Image>(go);
+
+        if (IsFresh(image))
+        {
+            image.sprite = sprite;
+            image.preserveAspect = true;
+            image.raycastTarget = false;
+        }
 
         return go;
     }
@@ -3815,6 +3893,131 @@ public static class TutorialSceneBuilder_NEW
         return text;
     }
 
+    // ── The drawn prompt plates ──────────────────────────────────────────────
+    //
+    // ONE ROW PER ASK, NOT PER BEAT. B4 and C5 both ask for A TO RECENTRE, and a picture
+    // is a picture of what is being asked rather than of the frame asking it — so the
+    // table is keyed on the hint line, and a beat that changes its words gets whichever
+    // picture matches the new ones.
+    //
+    // The keys here are the hint lines the builder itself writes in BuildPhase0 to
+    // BuildPhase3. Matching ignores case, spacing and punctuation
+    // (TutorialHUD_NEW.ArtKey), so the two-space separator in the copy is not load
+    // bearing.
+    //
+    // TWO ASKS HAVE NO PICTURE YET: C4's RIGHT STICK · LOOK BACK, and D10's B TO PAUSE.
+    // They are deliberately absent rather than pointed at a near-enough plate — the HUD
+    // falls back to words for anything it cannot find, and a beat wearing another beat's
+    // instruction is worse than a beat wearing plain text.
+
+    sealed class HintArtRow
+    {
+        public readonly string Hint;
+        public readonly string File;
+
+        /// <summary>The picture already draws the A button, so the lower prompt stays down.</summary>
+        public readonly bool Button;
+
+        public HintArtRow(string hint, string file, bool button)
+        {
+            Hint = hint;
+            File = file;
+            Button = button;
+        }
+    }
+
+    static readonly HintArtRow[] HintArtRows =
+    {
+        new HintArtRow("RIGHT STICK  ·  LOOK AROUND", "TutorialHint_LookAround", false),
+        new HintArtRow("LEFT STICK  ·  ZOOM IN",      "TutorialHint_ZoomIn",     false),
+        new HintArtRow("LEFT STICK  ·  ZOOM OUT",     "TutorialHint_ZoomOut",    false),
+        new HintArtRow("RIGHT STICK  ·  LOOK RIGHT",  "TutorialHint_LookRight",  false),
+        new HintArtRow("RIGHT STICK  ·  LOOK UP",     "TutorialHint_LookUp",     false),
+        new HintArtRow("RIGHT STICK  ·  TURN AROUND", "TutorialHint_TurnAround", false),
+        new HintArtRow("A  TO  RECENTRE",             "TutorialHint_Recentre",   true),
+        new HintArtRow("A  TO  EMIT",                 "TutorialHint_Emit",       true)
+    };
+
+    /// <summary>
+    /// Height of a drawn plate on a 1920 x 1080 canvas.
+    ///
+    /// The art carries a controller glyph and a word under it at maybe a fifth of the
+    /// plate's height, so it is sized by the smallest thing on it rather than by the
+    /// biggest: at the 84 pixels the text plate used, ROTATE is four pixels tall and the
+    /// plate reads as a smudge from the back of the room.
+    /// </summary>
+    const float HintArtHeight = 170f;
+
+    /// <summary>
+    /// Fill the HUD's picture table: a row per ask, and the sprite for any row that has
+    /// none yet.
+    ///
+    /// Gaps only, like every other reference this builder fills. A row somebody has
+    /// pointed at their own sprite is left alone, and so is a row they have added; the
+    /// builder only ever adds the rows it knows about and fills empty sprite slots.
+    /// </summary>
+    static void WireHintArt(TutorialHUD_NEW hud)
+    {
+        if (hud == null) return;
+
+        SerializedObject so = new SerializedObject(hud);
+        SerializedProperty list = so.FindProperty("hintArt");
+
+        if (list == null || !list.isArray) return;
+
+        bool changed = false;
+
+        for (int i = 0; i < HintArtRows.Length; i++)
+        {
+            HintArtRow row = HintArtRows[i];
+            SerializedProperty entry = FindHintArtEntry(list, row.Hint);
+
+            if (entry == null)
+            {
+                list.arraySize++;
+                entry = list.GetArrayElementAtIndex(list.arraySize - 1);
+
+                // Every field explicitly: growing a serialized array copies the last
+                // element, so an unwritten field here would inherit the previous row's.
+                entry.FindPropertyRelative("hintText").stringValue = row.Hint;
+                entry.FindPropertyRelative("sprite").objectReferenceValue = null;
+                entry.FindPropertyRelative("carriesTheButton").boolValue = row.Button;
+
+                changed = true;
+            }
+
+            SerializedProperty sprite = entry.FindPropertyRelative("sprite");
+            if (sprite.objectReferenceValue != null) continue;
+
+            Sprite art = TutorialWorldAssets_NEW.HintSprite(row.File);
+            if (art == null) continue;
+
+            sprite.objectReferenceValue = art;
+            changed = true;
+
+            Debug.Log("[TutorialSceneBuilder_NEW] Prompt art: '" + row.Hint + "' is now the " +
+                      "drawn plate " + row.File + " instead of a line of text.", hud);
+            _wired++;
+        }
+
+        if (changed) so.ApplyModifiedProperties();
+    }
+
+    static SerializedProperty FindHintArtEntry(SerializedProperty list, string hint)
+    {
+        string wanted = TutorialHUD_NEW.ArtKey(hint);
+
+        for (int i = 0; i < list.arraySize; i++)
+        {
+            SerializedProperty entry = list.GetArrayElementAtIndex(i);
+            SerializedProperty text = entry.FindPropertyRelative("hintText");
+
+            if (text != null && TutorialHUD_NEW.ArtKey(text.stringValue) == wanted) return entry;
+        }
+
+        return null;
+    }
+
     // ── Wiring ───────────────────────────────────────────────────────────────
 
     static void WireHud(TutorialHUD_NEW hud, TutorialDirector_NEW director,
@@ -3834,12 +4037,32 @@ public static class TutorialSceneBuilder_NEW
             .Ref("hintRoot", hint)
             .Ref("hintLabel", LabelIn(hint))
             .Ref("hintGroup", hint.GetComponent<CanvasGroup>())
+            .Ref("hintArtImage", ImageIn(hint, "Art"))
+            .Ref("hintPlate", FindChild(hint.transform, "Plate"))
             .Ref("confirmPromptRoot", prompt)
             .Ref("confirmPromptText", LabelIn(prompt))
             .Ref("promptGroup", prompt.GetComponent<CanvasGroup>())
             .Copy("legendContent", "RIGHT STICK = LOOK    LEFT STICK = ZOOM    A = CONFIRM / RECENTRE")
             .Str("legendFirstBeatId", "B1")
+            .Num("hintArtHeight", HintArtHeight)
             .Apply();
+
+        WireHintArt(hud);
+    }
+
+    /// <summary>The Image on a named child, or null with a line in the Console.</summary>
+    static Image ImageIn(GameObject parent, string childName)
+    {
+        GameObject child = FindChild(parent.transform, childName);
+
+        if (child == null)
+        {
+            Debug.LogWarning("[TutorialSceneBuilder_NEW] " + parent.name + " has no child named '" +
+                             childName + "'. Whatever it was carrying stays unwired.", parent);
+            return null;
+        }
+
+        return child.GetComponent<Image>();
     }
 
     static void WireAttract(TutorialAttract_NEW attract, TutorialDirector_NEW director,
@@ -3854,6 +4077,8 @@ public static class TutorialSceneBuilder_NEW
             .Ref("cardGroup", card.GetComponent<CanvasGroup>())
             .Ref("titleText", title != null ? title.GetComponent<TMP_Text>() : null)
             .Ref("callToActionText", cta != null ? cta.GetComponent<TMP_Text>() : null)
+            .Ref("titleImage", ImageIn(card, "TitleArt"))
+            .Ref("callToActionImage", ImageIn(card, "StartArt"))
             .Ref("lookRig", lookRig)
             .Ref("travel", travel)
             .Apply();

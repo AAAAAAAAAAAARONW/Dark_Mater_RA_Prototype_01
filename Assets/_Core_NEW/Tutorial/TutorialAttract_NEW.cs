@@ -44,6 +44,15 @@ public class TutorialAttract_NEW : MonoBehaviour
     [Tooltip("The only instruction in the piece that is written rather than shown.")]
     [SerializeField] string callToAction = "PRESS A TO BEGIN";
 
+    [Header("Art")]
+    [Tooltip("Drawn title, in place of the words above. Assigning one switches the text " +
+             "object off; leaving it empty is the card exactly as it was.")]
+    [SerializeField] Image titleImage;
+
+    [Tooltip("Drawn call to action, in place of the words above. It pulses in its own " +
+             "place, the same as the text did.")]
+    [SerializeField] Image callToActionImage;
+
     [Header("Feel")]
     [SerializeField] float fadeDuration = 0.5f;
 
@@ -86,6 +95,9 @@ public class TutorialAttract_NEW : MonoBehaviour
     bool _showing;
     float _shownFor;
 
+    /// <summary>Whatever is carrying "press A to begin" — the drawn plate, or the words.</summary>
+    Graphic _pulseTarget;
+
     void Awake()
     {
         if (director == null) director = FindObjectOfType<TutorialDirector_NEW>();
@@ -98,6 +110,19 @@ public class TutorialAttract_NEW : MonoBehaviour
 
         if (titleText != null) titleText.text = title;
         if (callToActionText != null) callToActionText.text = callToAction;
+
+        // Art wins where there is art, and the words stay in the scene as the fallback:
+        // an empty art slot is a card that still says what it has always said, rather
+        // than an empty screen in front of the first visitor of the day.
+        if (titleImage != null && titleImage.sprite != null && titleText != null)
+            titleText.gameObject.SetActive(false);
+
+        if (callToActionImage != null && callToActionImage.sprite != null && callToActionText != null)
+            callToActionText.gameObject.SetActive(false);
+
+        _pulseTarget = callToActionImage != null && callToActionImage.sprite != null
+            ? (Graphic)callToActionImage
+            : callToActionText;
     }
 
     void OnEnable()
@@ -146,13 +171,13 @@ public class TutorialAttract_NEW : MonoBehaviour
 
     void Pulse()
     {
-        if (callToActionText == null || pulsePeriod <= 0f) return;
+        if (_pulseTarget == null || pulsePeriod <= 0f) return;
 
         float t = Mathf.Sin(Time.unscaledTime / pulsePeriod * Mathf.PI * 2f) * 0.5f + 0.5f;
 
-        Color c = callToActionText.color;
+        Color c = _pulseTarget.color;
         c.a = Mathf.Lerp(0.45f, 1f, t);
-        callToActionText.color = c;
+        _pulseTarget.color = c;
     }
 
     /// <summary>Show the card and put the piece back to its starting state.</summary>

@@ -110,6 +110,12 @@ public static class TutorialWorldAssets_NEW
     const string GlowPath = GeneratedFolder + "/TutorialGlow.png";
     const string ArrowPath = GeneratedFolder + "/TutorialArrow.png";
 
+    /// <summary>Drawn prompt art, delivered as PNGs rather than generated here.</summary>
+    public const string HintFolder = GeneratedFolder + "/Hints";
+
+    /// <summary>The title on the attract card.</summary>
+    public const string TitleArtName = "TutorialTitle_JourneyOfLight";
+
     // ── Lookup ───────────────────────────────────────────────────────────────
 
     public static Material NebulaSkybox { get { return Load<Material>(NebulaSkyboxPath, "nebula skybox"); } }
@@ -541,6 +547,28 @@ public static class TutorialWorldAssets_NEW
     public static Sprite ArrowSprite()
     {
         return GenerateSprite(ArrowPath, 64, PaintArrow, 0f);
+    }
+
+    /// <summary>
+    /// One of the drawn prompt plates, by file name and without the extension.
+    ///
+    /// These are the only images here that are DRAWN rather than generated, so this is a
+    /// load and nothing else: there is no geometry to fall back to, and a missing file
+    /// has to say so rather than quietly produce a blank plate. The HUD keeps the words
+    /// for anything it cannot find a picture for, so the piece stays playable either way.
+    /// </summary>
+    public static Sprite HintSprite(string fileName)
+    {
+        string path = HintFolder + "/" + fileName + ".png";
+
+        Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+
+        if (sprite == null)
+            Debug.LogWarning("[TutorialWorldAssets_NEW] No prompt art at " + path + ". That " +
+                             "prompt stays as words on a plate. Import the PNG as a Sprite " +
+                             "(2D and UI) and run Build or Update again.");
+
+        return sprite;
     }
 
     delegate float Painter(float x, float y, int size);
