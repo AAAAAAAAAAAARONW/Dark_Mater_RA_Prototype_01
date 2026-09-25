@@ -70,6 +70,14 @@ public class AbsorptionField_NEW : MonoBehaviour
     [Tooltip("Used before any layer configures this field.")]
     [SerializeField] SpectrumProfile_NEW defaultProfile;
 
+    [Header("Drift budget")]
+    [Tooltip("Multiplier on the active profile's driftPerSecond. See DriftScale.\n\n" +
+             "1 is the rate the profiles ship, which scrolls the whole spectrum past in " +
+             "about two minutes. Leave this alone and let RedshiftBudget_NEW set it from " +
+             "a journey length.")]
+    [Range(0f, 2f)]
+    [SerializeField] float _driftScale = 1f;
+
     [Header("Debug")]
     [SerializeField] bool debugLog = false;
 
@@ -107,7 +115,27 @@ public class AbsorptionField_NEW : MonoBehaviour
     /// Current drift in normalised units per second. The HUD reads this so the emission
     /// template and the absorption lines scroll as one.
     /// </summary>
-    public float CurrentDriftPerSecond => Drift * IdleScale;
+    public float CurrentDriftPerSecond => Drift * IdleScale * _driftScale;
+
+    /// <summary>
+    /// A multiplier on every profile's drift, so the whole journey's redshift can be
+    /// budgeted in one place without editing seven SpectrumProfile assets.
+    ///
+    /// WHY IT WAS NEEDED. The profiles ship 0.00778 normalised units per second, and the
+    /// spectrum is one unit wide — so the whole thing scrolls past in 128 seconds, and a
+    /// journey several times that length wraps round more than once. Nothing about the
+    /// picture is wrong at that rate; it is simply far too fast to read as "space
+    /// stretching over thirteen billion years", and it makes the anchor-and-gap reading
+    /// in RedshiftMarks_NEW impossible, because the gap resets to zero every wrap.
+    ///
+    /// Set by RedshiftBudget_NEW from a journey length rather than by hand, so the
+    /// number stays tied to a statement somebody can check.
+    /// </summary>
+    public float DriftScale
+    {
+        get { return _driftScale; }
+        set { _driftScale = Mathf.Max(0f, value); }
+    }
 
     float Drift => _profile != null ? _profile.driftPerSecond : 0.005f;
     float IdleScale => idleRate + (1f - idleRate) * SpeedFactor;

@@ -14,6 +14,16 @@ using UnityEngine;
 ///   * The dead save/restore of m_InputAxisName is gone. Cinemachine input is already
 ///     short-circuited globally below, so blanking the axis names did nothing.
 ///
+/// LATER: INPUT MOVED TO InputScheme_NEW. This file used to name its own axes —
+/// "Vertical" for speed, "Submit" plus space for recentre — and OrbitCameraRig_NEW named
+/// its own for look. The tutorial named a third set. Three files, one control scheme,
+/// agreeing by coincidence; the Carnegie Observatories pad is a Logitech that broke the
+/// coincidence, and it broke it by scrambling the mapping rather than killing it, which
+/// reads to a visitor as "I am holding this wrong". Every read here now goes through the
+/// scheme, which asks a pad profile. See PadProfile_NEW.
+///
+/// The speed input also became a decision instead of a default — see SpeedInput.
+///
 /// One known issue is preserved rather than silently fixed: the recentre action is not
 /// gated by the camera lock, so pressing it during a transition can pull the rig away.
 /// Fixing that changes how the game responds to a button, which is a feel change and
@@ -24,6 +34,19 @@ using UnityEngine;
 [HierarchyBadge_NEW("PLAYER", "#40B884")]
 public class PlayerRig_NEW : MonoBehaviour
 {
+    /// <summary>Who may change the journey speed. See the speedInput field.</summary>
+    public enum SpeedInput
+    {
+        /// <summary>Nobody. The design default — light does not take instructions.</summary>
+        Off = 0,
+
+        /// <summary>The D-pad. Reachable by whoever is running the room, named in no prompt.</summary>
+        Attendant = 1,
+
+        /// <summary>The left stick, as the build did before. Playtest convenience.</summary>
+        Visitor = 2
+    }
+
     [Header("Movement")]
     [SerializeField] float speed = 2.5f;
     [SerializeField] float minSpeed = 0.1f;
@@ -43,10 +66,18 @@ public class PlayerRig_NEW : MonoBehaviour
              "where the recentre can interrupt a cutscene camera.")]
     [SerializeField] bool blockResetWhileLocked = false;
 
-    [Header("Input axes")]
-    [SerializeField] string speedAxis = "Vertical";
-    [SerializeField] string resetButton = "Submit";
-    [SerializeField] KeyCode resetKey = KeyCode.Space;
+    [Header("Speed input")]
+    [Tooltip("Who, if anyone, may change the journey speed.\n\n" +
+             "OFF is the design and the default. The tutorial spends its whole first act " +
+             "teaching that you cannot steer light — it deletes the move stick rather " +
+             "than writing a line of text about it — and a journey where a visitor can " +
+             "slow the light to a stop makes that lesson a lie. It also leaves the next " +
+             "visitor standing in front of a picture that is not moving.\n\n" +
+             "ATTENDANT puts it on the D-pad, which no prompt mentions and no visitor " +
+             "reaches for, and which the pad profile maps correctly per controller.\n\n" +
+             "VISITOR is the old behaviour, on the left stick. Kept for playtests where " +
+             "somebody needs to scrub through the journey by hand.")]
+    [SerializeField] SpeedInput speedInput = SpeedInput.Off;
 
     [Header("Dark matter")]
     [SerializeField] DarkMatterBend_NEW bend = new DarkMatterBend_NEW();
@@ -112,7 +143,7 @@ public class PlayerRig_NEW : MonoBehaviour
         float dt = Time.deltaTime;
 
         // 1 · Speed input
-        speed += Input.GetAxis(speedAxis) * speedChangePerSecond * dt;
+        speed += SpeedAxis() * speedChangePerSecond * dt;
         speed = Mathf.Clamp(speed, minSpeed, maxSpeed);
 
         // 2 · Dark matter bending
@@ -127,12 +158,43 @@ public class PlayerRig_NEW : MonoBehaviour
             orbit.DriveInput(dt);
 
         // 5 · Recentre request
-        bool resetPressed = Input.GetButtonDown(resetButton) || Input.GetKeyDown(resetKey);
+        //
+        // A, everywhere, on whatever pad is plugged in. This used to read the Submit
+        // axis and the space bar directly, which is the same answer as the tutorial's
+        // only by coincidence; both now come from InputScheme_NEW, so "one button, one
+        // meaning, tutorial and journey alike" is enforced by there being one reader
+        // rather than by two files agreeing.
+        bool resetPressed = InputScheme_NEW.ConfirmDown();
         if (resetPressed && !(blockResetWhileLocked && _cameraInputLocked))
             orbit.BeginReset();
 
         // 6 · Recentre step
         if (orbit.IsResetting)
             orbit.TickReset(dt);
+    }
+
+    /// <summary>
+    /// The speed input for this frame, per <see cref="speedInput"/>.
+    ///
+    /// Attendant reads the D-pad THROUGH THE PROFILE rather than through the name
+    /// "Vertical". On the Vizlab Logitech those happen to be the same axis, but on Xbox
+    /// "Vertical" is the left stick — so a build that hard-coded the name would move the
+    /// control from the D-pad to a stick a visitor will grab, depending on which pad was
+    /// plugged in that morning.
+    /// </summary>
+    float SpeedAxis()
+    {
+        switch (speedInput)
+        {
+            case SpeedInput.Attendant:
+                return InputScheme_NEW.DPadY();
+
+            case SpeedInput.Visitor:
+                return InputScheme_NEW.StickY(InputScheme_NEW.Stick.Left,
+                                              InputScheme_NEW.Deadband());
+
+            default:
+                return 0f;
+        }
     }
 }

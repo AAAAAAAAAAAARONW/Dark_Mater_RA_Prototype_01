@@ -31,8 +31,16 @@ public class OrbitCameraRig_NEW
     [Tooltip("Vertical sensitivity. The FreeLook Y axis is 0-1, so keep this small.")]
     [SerializeField] float ySensitivity = 2f;
 
-    [Tooltip("Stick magnitude below this is ignored, to stop an idle pad drifting the view.")]
+    [Tooltip("Stick magnitude below this is ignored, to stop an idle pad drifting the view.\n\n" +
+             "Only read when useProfileDeadband is off.")]
     [SerializeField] float stickDeadband = 0.1f;
+
+    [Tooltip("Take the deadband from the active pad profile instead of the field above.\n\n" +
+             "On by default, because a deadband is a property of the hardware rather than " +
+             "of the design: the worn Logitech in the Vizlab rests further from centre " +
+             "than the Xbox pad this was tuned on, and a stick that rests above the " +
+             "threshold drifts the view on its own all afternoon.")]
+    [SerializeField] bool useProfileDeadband = true;
 
     [Header("Recentre")]
     [SerializeField] float resetXSpeed = 180f;
@@ -42,11 +50,16 @@ public class OrbitCameraRig_NEW
     [SerializeField] float normalDeadZoneWidth = 0.3f;
     [SerializeField] float normalDeadZoneHeight = 0.3f;
 
-    [Header("Input axes")]
-    [SerializeField] string stickXAxis = "RightStickX";
-    [SerializeField] string stickYAxis = "RightStickY";
-    [SerializeField] string mouseXAxis = "Mouse X";
-    [SerializeField] string mouseYAxis = "Mouse Y";
+    // WHERE THE AXIS NAMES WENT. This used to carry four serialized strings —
+    // stickXAxis, stickYAxis, mouseXAxis, mouseYAxis — naming the Xbox axes directly.
+    // They are gone, not hidden: the pad profile answers that question now, because the
+    // right answer differs per controller and a per-scene string cannot know which
+    // controller is plugged in. On the Vizlab Logitech, "RightStickX" is the right
+    // stick's Y and "RightStickY" is the LEFT stick's X, so those defaults were not
+    // merely unhelpful there, they were scrambled. See PadProfile_NEW.
+    //
+    // Deliberately deleted rather than left in place and ignored: a field that can be
+    // edited, reports no error and changes nothing is the most expensive kind of trap.
 
     bool _resetting;
 
@@ -59,22 +72,19 @@ public class OrbitCameraRig_NEW
     /// <summary>
     /// Apply one frame of look input. Controller input uses a deadband; mouse input does
     /// not. Whichever source is larger in magnitude wins, so only one device drives at a
-    /// time — identical to the original combination rule.
+    /// time — identical to the original combination rule, which now lives in
+    /// InputScheme_NEW so the tutorial and the journey cannot drift apart.
+    ///
+    /// The maths is unchanged. What changed is who decides which axis the right stick is
+    /// on: this used to answer it with a serialized string per scene, and now asks the
+    /// active pad profile, which is the only thing that knows what is plugged in.
     /// </summary>
     public void DriveInput(float dt)
     {
-        float rawStickX = Input.GetAxis(stickXAxis);
-        float rawStickY = Input.GetAxis(stickYAxis);
+        float deadband = useProfileDeadband ? InputScheme_NEW.Deadband() : stickDeadband;
 
-        float stickX = Mathf.Abs(rawStickX) > stickDeadband ? rawStickX * xSensitivity * dt : 0f;
-        float stickY = Mathf.Abs(rawStickY) > stickDeadband ? rawStickY * ySensitivity * dt : 0f;
-
-        // GetAxisRaw sidesteps Unity's own smoothing, which fought the per-frame apply.
-        float mouseX = Input.GetAxisRaw(mouseXAxis) * xSensitivity * dt;
-        float mouseY = Input.GetAxisRaw(mouseYAxis) * ySensitivity * dt;
-
-        float x = Mathf.Abs(stickX) > Mathf.Abs(mouseX) ? stickX : mouseX;
-        float y = Mathf.Abs(stickY) > Mathf.Abs(mouseY) ? stickY : mouseY;
+        float x = InputScheme_NEW.LookX(InputScheme_NEW.Stick.Right, xSensitivity, deadband, dt);
+        float y = InputScheme_NEW.LookY(InputScheme_NEW.Stick.Right, ySensitivity, deadband, dt);
 
         for (int i = 0; i < orbitCameras.Length; i++)
         {

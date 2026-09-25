@@ -115,6 +115,69 @@ public class SpectrumHUD_NEW : MonoBehaviour
     // ── Public API ───────────────────────────────────────────────────────────
 
     /// <summary>
+    /// How far the spectrum has slid redward since emission, in bar widths.
+    ///
+    /// Exposed for RedshiftMarks_NEW, which draws a mark where a line was CUT and a
+    /// second mark where that line is NOW. The distance between them is the redshift,
+    /// and it is the only way the drift is visible at all: this HUD slides the curve and
+    /// the lines together, and a picture where everything moves at once has no reference
+    /// to move against. The marks supply the reference, so they have to read the same
+    /// number this class is drawing with, not integrate their own copy of it.
+    ///
+    /// Bar widths, not nanometres and not z. It is a display coordinate, because that is
+    /// what this class has. Converting it to anything physical needs the journey's
+    /// distance model, which is a separate problem recorded in KNOWN_ISSUES_FOREST.md.
+    /// </summary>
+    public float RedshiftOffset { get { return _redshiftOffset; } }
+
+    /// <summary>True if the offset wraps back to zero at 1. The marks have to know.</summary>
+    public bool WrapsSpectrum { get { return wrapSpectrum; } }
+
+    /// <summary>
+    /// Turn the wrap off, or back on.
+    ///
+    /// WRAPPING AND THE ANCHORS CANNOT BOTH BE RIGHT. RedshiftMarks_NEW draws the gap
+    /// between where a line was cut and where it is now, and that gap only accumulates
+    /// if the offset does. With the wrap on, the offset returns to zero every time the
+    /// spectrum has scrolled one full width — so the gap collapses to nothing, in front
+    /// of the audience, for no reason they can see.
+    ///
+    /// The wrap exists because the journey's drift was fast enough to run off the end of
+    /// the bar. Budget the drift instead (RedshiftBudget_NEW) and there is nothing left
+    /// for it to protect against.
+    /// </summary>
+    public void SetWrapSpectrum(bool wrap)
+    {
+        if (wrapSpectrum == wrap) return;
+
+        wrapSpectrum = wrap;
+
+        // The offset may be mid-wrap; leave it where it is rather than snapping, which
+        // would jump the whole picture on the frame this is called.
+        Redraw();
+    }
+
+    /// <summary>
+    /// Wind the redshift forward (or back) by hand, in bar widths.
+    ///
+    /// FOR TESTING, AND IT IS NOT OPTIONAL. Once the drift is budgeted across a whole run
+    /// — RedshiftBudget_NEW's default is 0.45 bar widths over ten minutes — the offset
+    /// after ten seconds of play is 0.0075, which on a two hundred pixel bar is one and a
+    /// half pixels. That is correct and it is invisible: anything reading the offset,
+    /// RedshiftMarks_NEW above all, looks like it is not working when in fact the journey
+    /// has barely started.
+    ///
+    /// So there has to be a way to see the arrival picture without sitting through a run.
+    /// This is it.
+    /// </summary>
+    public void AddRedshiftOffset(float barWidths)
+    {
+        _redshiftOffset += barWidths;
+        if (wrapSpectrum) _redshiftOffset -= Mathf.Floor(_redshiftOffset);
+        Redraw();
+    }
+
+    /// <summary>
     /// Put the continuum back where it started, as if no time had passed.
     ///
     /// The redshift offset only ever accumulates, which is right for a journey that runs
