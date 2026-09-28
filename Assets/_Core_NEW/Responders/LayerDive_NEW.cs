@@ -56,8 +56,9 @@ using UnityEngine.UI;
 /// — taken as the centre of its cluster:
 ///
 ///   approach   The cluster's galaxies come into view all round as the photon nears the
-///              gate, and its yellow glow — the light the dive in went into — gathers
-///              round the photon: we are inside a cluster.
+///              gate, one at a time and soft — seen from inside a cluster they are smudges,
+///              not points of light — and its yellow glow, the light the dive in went into,
+///              thickens round the photon: we are inside a cluster.
 ///   breakout   The whole cluster shrinks into its centre behind and below at a constant
 ///              rate, the world left with it and the glow too, whose edge sweeps past the
 ///              camera: the yellow sinks away below and behind, and the photon walks out
@@ -162,7 +163,8 @@ public class LayerDive_NEW : MonoBehaviour
                 lookBackUntil = 7.2f,
                 lookBackSwing = 1.4f,
                 lookBackDolly = 2f,
-                approachCrowd = 1f,
+                approachCrowd = 0.6f,
+                diveCrowd = 0.8f,
                 coolShare = 0.35f,
                 dollyZoom = 1f,
                 photonShrink = 1f,
@@ -425,6 +427,8 @@ public class LayerDive_NEW : MonoBehaviour
     static readonly int SizeScaleId = Shader.PropertyToID("_SizeScale");
     static readonly int ResolveId = Shader.PropertyToID("_Resolve");
     static readonly int NearFadeId = Shader.PropertyToID("_NearFade");
+    static readonly int RevealId = Shader.PropertyToID("_Reveal");
+    static readonly int CoreId = Shader.PropertyToID("_Core");
     static readonly int SigmaId = Shader.PropertyToID("_Sigma");
 
     readonly Dictionary<string, LayerGate_NEW> _gatesByLayer = new Dictionary<string, LayerGate_NEW>();
@@ -477,6 +481,12 @@ public class LayerDive_NEW : MonoBehaviour
     // round the knot as the camera looks back.
     const float WebBeforePeak = 0.3f;
 
+    // Coming out, how much of the cluster has come into view on the approach (0 to 1), and
+    // how much had by the gate. It builds up, never faster than over OutApproachFadeSeconds.
+    float _approachShown;
+    float _shownAtBegin = 1f;
+    const float OutApproachFadeSeconds = 3f;
+
     TrailRenderer[] _trails = Array.Empty<TrailRenderer>();
     float[] _trailWidths = Array.Empty<float>();
 
@@ -526,21 +536,30 @@ public class LayerDive_NEW : MonoBehaviour
 
         if (TryApproach(out Dive dive, out Vector3 focus, out Quaternion aim, out float closeness))
         {
-            float appear = Smooth(0f, 0.4f, closeness);
             if (dive.direction == Direction.In)
             {
+                float appear = Smooth(0f, 0.4f, closeness);
                 SetLight(dive, focus, Mathf.Lerp(dive.pointSize, dive.gateSize, closeness), appear);
+                SetCrowd(dive, focus, aim, 1f, dive.approachCrowd * appear, 0f);
                 HideHalo();
             }
             else
             {
+                // Coming out, the cluster builds up round the photon instead of popping in:
+                // its glow thickens and its galaxies come into view one by one, never
+                // faster than over three seconds, however the photon got here — a debug jump
+                // lands it inside the approach, or at the gate.
+                float target = Smooth(0f, 0.6f, closeness);
+                _approachShown = Mathf.MoveTowards(_approachShown, target, Time.deltaTime / OutApproachFadeSeconds);
+
                 HideLight();
-                SetHalo(dive, focus, dive.haloRadius, dive.haloIntensity * appear);
+                SetHalo(dive, focus, dive.haloRadius, dive.haloIntensity * _approachShown);
+                SetCrowd(dive, focus, aim, 1f, dive.approachCrowd * Smooth(0f, 0.3f, _approachShown), 0f, _approachShown);
             }
-            SetCrowd(dive, focus, aim, 1f, dive.approachCrowd * appear, 0f);
         }
         else
         {
+            _approachShown = 0f;
             HideLight();
             HideCrowd();
             HideHalo();
@@ -620,6 +639,10 @@ public class LayerDive_NEW : MonoBehaviour
         _camera = brain != null ? brain.OutputCamera : Camera.main;
         _clock = 0f;
         _lookBack = 0f;
+        // Coming out, whatever of the cluster had not come into view by the gate comes in
+        // over the start of the breakout.
+        _shownAtBegin = dive.direction == Direction.Out ? _approachShown : 1f;
+        _approachShown = 0f;
         IsActive = true;
 
         if (worlds != null) worlds.Hold(this);
@@ -788,18 +811,21 @@ public class LayerDive_NEW : MonoBehaviour
             : Mathf.Lerp(WebBeforePeak, 1f, Smooth(dive, dive + 0.6f * rest, t));
         if (worlds != null) worlds.SetGroupLook(_toId, web);
 
-        // The cluster — its galaxies and its glow — shrinks into its centre. Its galaxies
-        // fade as the knot gets small, and the glow last of all.
+        // The cluster — its galaxies and its glow — shrinks into its centre. Whatever of it
+        // had not come into view by the gate comes in over the first second or so, then its
+        // galaxies fade as the knot gets small, and the glow last of all.
         float shrink = ClusterShrink(t);
-        float crowd = Mathf.Lerp(_dive.approachCrowd, _dive.diveCrowd, Smooth(0f, 0.2f * dive, t))
+        float arrive = Smooth(0f, 0.3f * dive, t);
+        float crowd = Mathf.Lerp(_dive.approachCrowd * Smooth(0f, 0.3f, _shownAtBegin), _dive.diveCrowd, arrive)
                     * (1f - Smooth(dive + 0.2f * rest, dive + 0.8f * rest, t));
         float streak = _dive.streak * Smooth(0f, 0.25f * dive, t) * (1f - Smooth(dive, dive + 0.5f * rest, t));
-        SetCrowd(_dive, _focus, _crowdAim, shrink, crowd, streak);
+        SetCrowd(_dive, _focus, _crowdAim, shrink, crowd, streak, Mathf.Lerp(_shownAtBegin, 1f, arrive));
 
         // Its light gathers into less space as it shrinks: brighter, up to three times.
         float sigma = _dive.haloRadius * shrink;
         float gather = Mathf.Clamp(Mathf.Sqrt(_dive.haloRadius / Mathf.Max(4f * sigma, 1e-3f)), 1f, 3f);
-        SetHalo(_dive, _focus, sigma, _dive.haloIntensity * gather * (1f - Smooth(dive + 0.5f * rest, dive + rest, t)));
+        SetHalo(_dive, _focus, sigma, _dive.haloIntensity * Mathf.Lerp(_shownAtBegin, 1f, arrive) * gather
+                                      * (1f - Smooth(dive + 0.5f * rest, dive + rest, t)));
 
         // The camera swings round to look back, holds, and swings forward again; while it
         // faces back, the dolly zoom runs the other way and the bloom comes up with it.
@@ -1230,7 +1256,9 @@ public class LayerDive_NEW : MonoBehaviour
     /// <param name="aim">Coming out, which way the cluster's cone points (CrowdAim).</param>
     /// <param name="zoom">How far the crowd has opened around the point — or shrunk into it,
     /// coming out. 1 = as built.</param>
-    void SetCrowd(Dive d, Vector3 at, Quaternion aim, float zoom, float alpha, float streak)
+    /// <param name="reveal">How many of the members have come into view, each at its own
+    /// moment (BuildCrowdMesh): 1 all of them.</param>
+    void SetCrowd(Dive d, Vector3 at, Quaternion aim, float zoom, float alpha, float streak, float reveal = 1f)
     {
         if (!d.resolve || d.memberCount <= 0 || alpha <= 0.001f)
         {
@@ -1252,11 +1280,14 @@ public class LayerDive_NEW : MonoBehaviour
         // The shader scales members with the crowd; this takes back all but memberGrowth of it.
         _crowdMaterial.SetFloat(SizeScaleId, Mathf.Pow(zoom, d.memberGrowth - 1f));
         // Going in, members come out of the point's glow; coming out there is no point to see.
-        // And coming out they are whole galaxies passing close, so they fade from further off
-        // than the specks going in, before one fills the screen.
+        // And coming out they are whole galaxies, seen from inside their cluster: soft
+        // smudges rather than points of light — dim enough to stay under the bloom — that
+        // fade from well off as they come close, before one fills the screen.
         bool inward = d.direction == Direction.In;
         _crowdMaterial.SetFloat(ResolveId, inward ? 1f : 0f);
-        _crowdMaterial.SetVector(NearFadeId, inward ? new Vector4(0.5f, 3f, 0f, 0f) : new Vector4(1f, 5f, 0f, 0f));
+        _crowdMaterial.SetFloat(RevealId, reveal);
+        _crowdMaterial.SetFloat(CoreId, inward ? 1f : 0.35f);
+        _crowdMaterial.SetVector(NearFadeId, inward ? new Vector4(0.5f, 3f, 0f, 0f) : new Vector4(2.5f, 10f, 0f, 0f));
     }
 
     void HideCrowd()
@@ -1379,12 +1410,16 @@ public class LayerDive_NEW : MonoBehaviour
             Color c = rng.NextDouble() < d.coolShare ? d.memberCool : d.memberWarm;
             c.a = Mathf.Lerp(0.25f, 1f, (float)rng.NextDouble());   // brightness
 
+            // Coming out, the moment of the reveal at which it comes into view, so the
+            // cluster builds up one galaxy at a time. Going in, all at once, as always.
+            float appearAt = outward ? 0.75f * (float)rng.NextDouble() : 0f;
+
             int v = i * 4;
             for (int k = 0; k < 4; k++)
             {
                 vertices[v + k] = p;
                 colors[v + k] = c;
-                sizes[v + k] = new Vector2(radius, 0f);
+                sizes[v + k] = new Vector2(radius, appearAt);
             }
             corners[v + 0] = new Vector2(-1f, -1f);
             corners[v + 1] = new Vector2(1f, -1f);
