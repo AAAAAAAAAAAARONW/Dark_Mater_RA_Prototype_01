@@ -56,13 +56,15 @@ using UnityEngine.UI;
 /// — taken as the centre of its cluster:
 ///
 ///   approach   The cluster's galaxies come into view all round as the photon nears the
-///              gate: we are inside a cluster.
+///              gate, and its yellow glow — the light the dive in went into — gathers
+///              round the photon: we are inside a cluster.
 ///   dive       The whole cluster shrinks into its centre behind and below at a constant
-///              rate, the world left with it. Its galaxies come at the camera from ahead,
-///              fall away behind and below — rising out of it — and each is smaller than
-///              the last as it goes by, until the way ahead is empty. The photon, the
-///              one thing that keeps its size, is the ruler: everything it passes is
-///              getting small against it.
+///              rate, the world left with it and the glow too, whose edge sweeps past the
+///              camera: the yellow sinks away below and behind, and the photon walks out
+///              of it. Its galaxies come at the camera from ahead, fall away behind and
+///              below — rising out of it — and each is smaller than the last as it goes
+///              by, until the way ahead is empty. The photon, the one thing that keeps its
+///              size, is the ruler: everything it passes is getting small against it.
 ///   peak       Empty space. Nothing is left to hide, so there is no whiteout; the swap and
 ///              the sky change happen in the dark.
 ///   emerge     The web fades in all round — the scale where a cluster is a knot.
@@ -120,10 +122,12 @@ public class LayerDive_NEW : MonoBehaviour
         /// <summary>
         /// Starting values for a gate that goes up a scale, tuned for the galaxy back out to
         /// the cosmic web (see COMING OUT on the class). Measured against the scene: from the
-        /// gate about two hundred of the cluster's galaxies are in view, each one passing the
-        /// camera smaller than the one before — a tenth of the size by the end — and the way
-        /// ahead is empty about 2.4 seconds in. No light, no whiteout, nothing done to the
-        /// lens or the photon: nothing is dived into, and the photon is the ruler.
+        /// gate about 260 of the cluster's galaxies are in view, each one passing the camera
+        /// smaller than the one before — 1 down to 0.06 units — and the way ahead is empty
+        /// 2.7 seconds in. The yellow halo is about half as bright from inside as through
+        /// its middle; the view clears of it from the top down and is out of it 1.8 seconds
+        /// in. No light, no whiteout, nothing done to the lens or the photon: nothing is
+        /// dived into, and the photon is the ruler.
         /// </summary>
         public static Dive ComingOut(string toLayerId)
         {
@@ -146,6 +150,8 @@ public class LayerDive_NEW : MonoBehaviour
                 memberGrowth = 1f,
                 streak = 3f,
                 spread = 40f,
+                haloRadius = 60f,
+                haloIntensity = 1f,
                 approachCrowd = 1f,
                 coolShare = 0.35f,
                 dollyZoom = 1f,
@@ -259,6 +265,19 @@ public class LayerDive_NEW : MonoBehaviour
                  "180 = all round.")]
         [Range(10f, 180f)] public float spread = 40f;
 
+        [Header("Halo (coming out: the glow of the cluster being left)")]
+        [Tooltip("The cluster's own light, a soft ball of it around its centre that the photon " +
+                 "starts inside: the yellow the dive in went into. It shrinks with the cluster, " +
+                 "so its edge sweeps past and the yellow sinks away below and behind — walking " +
+                 "out of it. How far out it fades to a third, in world units, before it " +
+                 "shrinks. 0 = none.")]
+        [Min(0f)] public float haloRadius = 0f;
+
+        public Color haloColor = new Color(1f, 0.85f, 0.45f, 1f);
+
+        [Tooltip("Brightness looking through its middle from outside. From inside, about half.")]
+        [Range(0f, 4f)] public float haloIntensity = 1f;
+
         [Tooltip("Brightness of the crowd on the approach, while it is still one glow.")]
         [Range(0f, 2f)] public float approachCrowd = 0.35f;
 
@@ -366,6 +385,7 @@ public class LayerDive_NEW : MonoBehaviour
     static readonly int SizeScaleId = Shader.PropertyToID("_SizeScale");
     static readonly int ResolveId = Shader.PropertyToID("_Resolve");
     static readonly int NearFadeId = Shader.PropertyToID("_NearFade");
+    static readonly int SigmaId = Shader.PropertyToID("_Sigma");
 
     readonly Dictionary<string, LayerGate_NEW> _gatesByLayer = new Dictionary<string, LayerGate_NEW>();
     readonly Dictionary<string, Vector3> _worldCentres = new Dictionary<string, Vector3>();
@@ -392,6 +412,11 @@ public class LayerDive_NEW : MonoBehaviour
     Mesh _crowdMesh;
     int _crowdSignature;
     bool _warnedNoCrowdShader;
+
+    GameObject _halo;
+    Material _haloMaterial;
+    Mesh _haloMesh;
+    bool _warnedNoHaloShader;
 
     GameObject _overlay;
     Image _veil;
@@ -432,17 +457,19 @@ public class LayerDive_NEW : MonoBehaviour
         Abort();
         HideLight();
         HideCrowd();
+        HideHalo();
     }
 
     void OnDestroy()
     {
         DestroyLight();
         DestroyCrowd();
+        DestroyHalo();
     }
 
     /// <summary>
     /// The approach: the light in the cluster ahead, before the gate is reached — or, coming
-    /// out, the cluster's galaxies all round.
+    /// out, the cluster's galaxies all round and its glow gathering round the photon.
     /// </summary>
     void Update()
     {
@@ -452,15 +479,22 @@ public class LayerDive_NEW : MonoBehaviour
         {
             float appear = Smooth(0f, 0.4f, closeness);
             if (dive.direction == Direction.In)
+            {
                 SetLight(dive, focus, Mathf.Lerp(dive.pointSize, dive.gateSize, closeness), appear);
+                HideHalo();
+            }
             else
+            {
                 HideLight();
+                SetHalo(dive, focus, dive.haloRadius, dive.haloIntensity * appear);
+            }
             SetCrowd(dive, focus, aim, 1f, dive.approachCrowd * appear, 0f);
         }
         else
         {
             HideLight();
             HideCrowd();
+            HideHalo();
         }
     }
 
@@ -581,8 +615,12 @@ public class LayerDive_NEW : MonoBehaviour
 
         if (outward)
         {
-            // Nothing ahead to dive into.
+            // Nothing ahead to dive into. The cluster's glow shrinks with the cluster, into
+            // its centre behind and below: its edge sweeps past the camera, the yellow sinks
+            // away, and the photon walks out of it. Gone by the peak, well behind.
             HideLight();
+            SetHalo(_dive, _focus, _dive.haloRadius * Mathf.Pow(1f / _dive.resolveZoom, p),
+                    _dive.haloIntensity * (1f - Smooth(0.85f, 1f, u)));
         }
         else
         {
@@ -634,6 +672,7 @@ public class LayerDive_NEW : MonoBehaviour
         if (_dive.direction == Direction.In) SetLight(_dive, _emergeFocus, _dive.peakSize * 0.5f, 1f);
         else HideLight();
         HideCrowd();
+        HideHalo();
         _dolly = 1f;
         SetTrailWidth(1f);
     }
@@ -699,6 +738,7 @@ public class LayerDive_NEW : MonoBehaviour
         DestroyEffects();
         HideLight();
         HideCrowd();
+        HideHalo();
 
         IsActive = false;
 
@@ -1259,6 +1299,95 @@ public class LayerDive_NEW : MonoBehaviour
         _crowd = null;
         _crowdMaterial = null;
         _crowdMesh = null;
+    }
+
+    // ── The halo of the cluster being left ───────────────────────────────────
+
+    /// <param name="sigma">How far out it fades to a third, in world units.</param>
+    /// <param name="brightness">Looking through its middle from outside; about half that from inside.</param>
+    void SetHalo(Dive d, Vector3 at, float sigma, float brightness)
+    {
+        if (d.haloRadius <= 0f || sigma <= 1e-3f || brightness <= 0.001f)
+        {
+            HideHalo();
+            return;
+        }
+
+        EnsureHalo();
+        if (_halo == null) return;
+        if (!_halo.activeSelf) _halo.SetActive(true);
+
+        // The cube only has to cover what the glow reaches: three falloff radii out it is
+        // down to a ten-thousandth.
+        Transform t = _halo.transform;
+        t.position = at;
+        t.rotation = Quaternion.identity;
+        t.localScale = Vector3.one * (6f * sigma);
+
+        _haloMaterial.SetFloat(SigmaId, sigma);
+        _haloMaterial.SetColor(ColorId, new Color(d.haloColor.r, d.haloColor.g, d.haloColor.b, brightness));
+    }
+
+    void HideHalo()
+    {
+        if (_halo != null && _halo.activeSelf) _halo.SetActive(false);
+    }
+
+    void EnsureHalo()
+    {
+        if (_halo != null) return;
+
+        Shader shader = Resources.Load<Shader>("DiveHalo_NEW");
+        if (shader == null)
+        {
+            if (!_warnedNoHaloShader)
+                Debug.LogWarning("[LayerDive_NEW] Resources/DiveHalo_NEW.shader is missing; the " +
+                                 "cluster is left without its glow.", this);
+            _warnedNoHaloShader = true;
+            return;
+        }
+
+        _haloMaterial = new Material(shader) { name = "DiveHalo (runtime)" };
+
+        // A unit cube; the shader draws its inside faces, so it covers the view from inside
+        // and the ball's outline from out.
+        _haloMesh = new Mesh { name = "DiveHalo cube" };
+        _haloMesh.vertices = new[]
+        {
+            new Vector3(-0.5f, -0.5f, -0.5f), new Vector3(0.5f, -0.5f, -0.5f),
+            new Vector3(0.5f, 0.5f, -0.5f), new Vector3(-0.5f, 0.5f, -0.5f),
+            new Vector3(-0.5f, -0.5f, 0.5f), new Vector3(0.5f, -0.5f, 0.5f),
+            new Vector3(0.5f, 0.5f, 0.5f), new Vector3(-0.5f, 0.5f, 0.5f)
+        };
+        _haloMesh.triangles = new[]
+        {
+            0, 2, 1, 0, 3, 2,   4, 5, 6, 4, 6, 7,   0, 1, 5, 0, 5, 4,
+            3, 6, 2, 3, 7, 6,   0, 4, 7, 0, 7, 3,   1, 2, 6, 1, 6, 5
+        };
+        _haloMesh.RecalculateBounds();
+
+        _halo = new GameObject("DiveHalo (temporary)");
+        if (player != null) _halo.layer = player.gameObject.layer;
+
+        _halo.AddComponent<MeshFilter>().sharedMesh = _haloMesh;
+        MeshRenderer mr = _halo.AddComponent<MeshRenderer>();
+        mr.sharedMaterial = _haloMaterial;
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        mr.receiveShadows = false;
+        mr.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+        mr.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+
+        _halo.SetActive(false);
+    }
+
+    void DestroyHalo()
+    {
+        if (_halo != null) Destroy(_halo);
+        if (_haloMaterial != null) Destroy(_haloMaterial);
+        if (_haloMesh != null) Destroy(_haloMesh);
+        _halo = null;
+        _haloMaterial = null;
+        _haloMesh = null;
     }
 
     // ── Whiteout ─────────────────────────────────────────────────────────────
