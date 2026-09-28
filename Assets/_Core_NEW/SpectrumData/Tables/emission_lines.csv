@@ -1,0 +1,18 @@
+# Broad emission lines of a typical quasar, rest frame.
+# rest_ew_A = rest-frame equivalent width in Å; fwhm_kms = full width at half maximum.
+#
+# CONFIDENCE: the equivalent widths are APPROXIMATE values recalled from the SDSS
+# composite and have NOT been checked against the published table. Before this is shown
+# as data, compare each row with Table 2 of Vanden Berk et al. (2001), or replace the
+# whole template with the Selsing et al. (2016) composite. Widths are round numbers.
+name,rest_A,rest_ew_A,fwhm_kms,confidence,source
+Ly-beta + O VI,1033.8,9.0,5000,approx,Vanden Berk et al. 2001 Table 2 — verify
+Ly-alpha,1215.67,70.0,4000,approx,Vanden Berk et al. 2001 Table 2 — verify (their Ly-alpha EW includes the N V blend)
+N V,1240.1,15.0,3500,approx,Vanden Berk et al. 2001 Table 2 — verify
+Si IV + O IV],1399.8,8.0,4500,approx,Vanden Berk et al. 2001 Table 2 — verify
+C IV,1549.1,24.0,4500,approx,Vanden Berk et al. 2001 Table 2 — verify
+C III],1908.7,21.0,5000,approx,Vanden Berk et al. 2001 Table 2 — verify
+Mg II,2798.8,32.0,4000,approx,Vanden Berk et al. 2001 Table 2 — verify
+H-beta,4861.3,46.0,4500,approx,Vanden Berk et al. 2001 Table 2 — verify
+[O III] 5007,5006.8,13.0,1000,approx,Vanden Berk et al. 2001 Table 2 — verify (narrow line)
+H-alpha,6562.8,195.0,3500,approx,Vanden Berk et al. 2001 Table 2 — verify

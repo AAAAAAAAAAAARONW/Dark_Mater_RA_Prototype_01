@@ -205,6 +205,7 @@ public class TutorialOutro_NEW : MonoBehaviour
         _running = false;
         _finished = false;
         _elapsed = 0f;
+        _returnToAttractCancelled = false;
 
         if (lookRig != null) lookRig.enabled = true;
         if (zoom != null) zoom.enabled = true;
@@ -317,6 +318,7 @@ public class TutorialOutro_NEW : MonoBehaviour
             if (debugLog) Debug.Log("[TutorialOutro_NEW] Finished.", this);
         }
 
+        if (_returnToAttractCancelled) return;
         if (holdBeforeAttractSeconds <= 0f || attract == null) return;
 
         float held = sinceBlack - titleDelaySeconds - titleFadeSeconds;
@@ -327,6 +329,30 @@ public class TutorialOutro_NEW : MonoBehaviour
         // camera comes back as part of the same teardown everything else uses, and there
         // is no path that restarts the piece without it.
         attract.Show();
+    }
+
+    /// <summary>
+    /// The same event as the onFinished field, for code to subscribe to. SceneHandoff_NEW
+    /// listens here so the tutorial-to-journey handoff needs no Inspector wiring — and so
+    /// forgetting to wire it cannot silently leave the piece looping on the tutorial.
+    /// </summary>
+    public UnityEvent OnFinishedEvent { get { return onFinished; } }
+
+    bool _returnToAttractCancelled;
+
+    /// <summary>
+    /// Do not go back to the title card after the hold — something else is taking over.
+    ///
+    /// For SceneHandoff_NEW, which loads the journey from this black frame. Without it
+    /// the outro would call attract.Show() partway through the load and reset the
+    /// tutorial underneath a scene that is about to replace it.
+    ///
+    /// Only suppresses the automatic return; it is cleared by ResetForAttract, so the
+    /// next visitor's tutorial ends the normal way unless the handoff asks again.
+    /// </summary>
+    public void CancelReturnToAttract()
+    {
+        _returnToAttractCancelled = true;
     }
 
     Transform LightTransform()

@@ -52,6 +52,12 @@ public class LineGraphRenderer_NEW : BaseMeshEffect
     float _min;
     float _max = 1f;
 
+    /// <summary>Fraction of the rect's height the curve uses. Read by overlays that must line up with it.</summary>
+    public float GraphHeightPercent { get { return graphHeightPercent; } }
+
+    /// <summary>True if the curve's band hangs from the top of the rect rather than sitting on the bottom.</summary>
+    public bool AnchorTop { get { return anchorTop; } }
+
     /// <summary>Replace the plotted series and queue a mesh rebuild.</summary>
     public void SetValues(IReadOnlyList<float> values, float min, float max)
     {

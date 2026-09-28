@@ -1,0 +1,30 @@
+# Bake settings for the journey spectrum. Read by SpectrumModel_NEW.LoadInputs.
+# Edit a value, then run Tools > Journey NEW > Spectrum Data > Bake Journey Spectrum.
+# Nothing here is read at runtime.
+key,value,note
+lambda_min_A,0,Left edge of the journey bar (Å). 0 = auto = 1216 Å: the birth tick is the left edge (no Ly-alpha line ever lives left of it).
+lambda_max_A,0,Right edge of the journey bar (Å). 0 = auto = final_emitted_max_A × (1 + z_quasar): the reference window's right edge. The Ly-alpha peak ends at ~94% with its red side showing.
+columns,1024,Samples across the bar. The HUD draws 512; 1024 keeps narrow features from aliasing.
+rows,384,Steps along the journey. Uniform in ln(1+z) — every step is the same amount of stretch.
+cells_per_row,32,Internal cells per step (~40 km/s). Fine enough for the arrival frame to resolve forest lines like the reference figure. Bake time only; no runtime cost.
+subsamples_per_cell,8,Density samples averaged into each cell.
+lookback_start_gyr,12.07,Light-travel time of the journey in Gyr → quasar at z = 3.62 (like Q1422+2309; decided so the arrival looks like the classic forest figure). MUST MATCH UniverseJourneyTracker's first phase remainingDistanceAtStart (12070000000 ly).
+random_seed,20260927,Same seed = same forest every bake.
+density_sigma,1.0,Lognormal density contrast of the intergalactic gas. Approximate — shapes texture only.
+density_correlation_kms,100,Correlation length of the density field in km/s. Approximate — shapes texture only.
+tau_density_slope,1.6,tau ∝ rho^alpha with alpha = 2 − 0.7(gamma − 1) and gamma ≈ 1.6.
+continuum_alpha_lambda,-1.70,Quasar continuum slope F_lambda ∝ lambda^alpha (Selsing et al. 2016).
+continuum_pivot_A,1450,Where the continuum is normalised. Arbitrary; the display normalises to the Ly-alpha peak.
+euv_alpha_lambda,-0.3,Continuum slope below 912 Å: F_lambda ∝ lambda^-0.3 (alpha_nu = -1.7; Lusso et al. 2015). Joined continuously at 912 Å.
+heii_reionization_z,3.0,Helium is fully ionised below this z; above it everything shorter than 228 Å locally is absorbed.
+proximity_zone_pmpc,1.5,Measured proximity-zone size at z ≈ 7 (transmission falls to 10%). Known z > 7 quasars: 1.3–1.9 pMpc.
+lyman_beta_tau_ratio,0.1603,tau(Ly-beta) / tau(Ly-alpha) = (f lambda)_beta / (f lambda)_alpha. Atomic constants.
+lyman_continuum_slope,1.5,Wavelength dependence of ionising opacity below 912 Å: (lambda / 912)^1.5.
+notable_absorbers,12,How many absorbers to list for RedshiftMarks_NEW. [0] is always the first line.
+notable_min_z,0.9,Lowest absorber z listed for the marks. Just above the second cosmic web (z ≈ 0.8) so every mark exists when the demo points at them.
+display_lya_only,1,DESIGN DECISION: 1 = the piece shows Ly-alpha absorption only (lines born at 1216 Å and carried redward). 0 = all absorption. The flux grid always has the full physics.
+calibration_draws,50000,Samples used to solve the absorption normalisation. More = steadier and slower.
+z_table_size,256,Entries in the z(lookback) table the runtime uses.
+final_emitted_min_A,1000,Arrival frame (the zoom at Earth): left edge in EMITTED Å. 1000 = the classic forest figure (Q1422+2309).
+final_emitted_max_A,1350,Arrival frame: right edge in emitted Å. 1350 = the classic figure; shows the Ly-alpha peak and red continuum.
+final_columns,16384,Samples in the arrival frame (log axis over journey bar + reference window). ~100 km/s. 64 KB in the file.

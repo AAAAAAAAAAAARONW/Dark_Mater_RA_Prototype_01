@@ -62,6 +62,16 @@ public class RedshiftMarks_NEW : MaskableGraphic
                  "tutorial. Drawn brighter, and the only one that gets a connector back " +
                  "to its anchor until the rest are revealed.")]
         public bool isPrimary = false;
+
+        [Tooltip("The redshift of the hydrogen cloud that cut this line. Only read when a " +
+                 "baked journey spectrum is driving the marks (SpectrumData); 0 means " +
+                 "\"not set\" and the mark falls back to restT and travelFraction.\n\n" +
+                 "With real data every line is born at the same place — 1216 Å, where " +
+                 "all hydrogen absorbs — so restT stops mattering and this is the only " +
+                 "number that says where the line is now. Use the source's context menu " +
+                 "'Fill marks from baked absorbers' rather than typing these.")]
+        [Min(0f)]
+        public float zAbs = 0f;
     }
 
     [Header("Source")]
@@ -76,6 +86,50 @@ public class RedshiftMarks_NEW : MaskableGraphic
              "the forest is hundreds of lines and a tick under each one is a grey band, " +
              "not a reading. Three to five is what a row of gaps stays legible at.")]
     [SerializeField] Mark[] marks = new Mark[0];
+
+    [Header("Alignment")]
+    [Tooltip("Draw on the SPECTRUM CURVE'S rectangle, not this object's own.\n\n" +
+             "The marks and the curve live on different UI objects, and there is no reason " +
+             "their rectangles agree — in Gameplay_Scene_Ana the marks sat on an 800×90 box " +
+             "wider than the curve's, so the birth tick landed left of where the forest " +
+             "starts. Aligning to the curve's rect (and to its drawing band, see " +
+             "LineGraphRenderer_NEW.GraphHeightPercent) makes a mark sit exactly on the " +
+             "wavelength it names, whatever the layout.")]
+    [SerializeField] bool alignToCurve = true;
+
+    [Tooltip("The curve's RectTransform. Empty = the object the SpectrumHUD_NEW is on.")]
+    [SerializeField] RectTransform alignTo;
+
+    public enum AnchorStyle
+    {
+        /// <summary>A small triangle under the bar, pointing up at the birth wavelength.</summary>
+        Triangle = 0,
+
+        /// <summary>A short vertical tick inside the bar. The original look.</summary>
+        Line = 1
+    }
+
+    [Header("Anchor")]
+    [Tooltip("How the birth point (1216 Å) is marked. TRIANGLE sits under the bar, pointing up " +
+             "at it — it marks a place on the axis without adding one more line to a bar " +
+             "whose whole content is lines.")]
+    [SerializeField] AnchorStyle anchorStyle = AnchorStyle.Triangle;
+
+    [Tooltip("Triangle width, pixels.")]
+    [Range(4f, 40f)]
+    [SerializeField] float anchorTriangleWidth = 12f;
+
+    [Tooltip("Triangle height, pixels.")]
+    [Range(3f, 40f)]
+    [SerializeField] float anchorTriangleHeight = 9f;
+
+    [Tooltip("Gap between the bottom of the curve band and the triangle's tip, pixels.")]
+    [Range(0f, 30f)]
+    [SerializeField] float anchorTriangleGap = 3f;
+
+    [Tooltip("Triangle colour. Separate from Anchor Color (the line style's), which is kept " +
+             "faint on purpose; a small solid shape needs more opacity to read.")]
+    [SerializeField] Color anchorTriangleColor = new Color(0.78f, 0.84f, 1f, 0.9f);
 
     [Header("Geometry")]
     [Tooltip("Tick width in pixels.")]
@@ -166,7 +220,99 @@ public class RedshiftMarks_NEW : MaskableGraphic
 
     float _lastOffset = float.NaN;
 
+    // Physical mode: set from outside by the baked-spectrum source. See SetPhysicalMapping.
+    Func<float, float> _physicalLiveT;
+    float _physicalBirthT = -1f;
+    Mark[] _physicalMarks;
+    Action<float> _physicalReplay;
+
+    /// <summary>
+    /// The marks being drawn: the supplier's (from real data) while physical mode is on and it
+    /// has provided some, otherwise the serialized list (the procedural fallback and the
+    /// editor preview).
+    /// </summary>
+    Mark[] ActiveMarks
+    {
+        get { return _physicalLiveT != null && _physicalMarks != null ? _physicalMarks : marks; }
+    }
+
     readonly List<Mark> _sorted = new List<Mark>();
+
+    // -- Physical mode --------------------------------------------------------
+
+    /// <summary>
+    /// Position marks from real absorber redshifts instead of the fake offset.
+    ///
+    /// A HOOK, NOT A DEPENDENCY: the supplier (SpectrumData's baked source) calls this;
+    /// this class never names it.
+    ///
+    /// birthT is where every line is born — 1216 Å on the bar — and becomes the single
+    /// anchor for every mark, because physically all hydrogen absorbs at the same local
+    /// wavelength. The "row of anchors, one per line" in the fake version was wrong on
+    /// exactly this point and is kept only as the fallback.
+    ///
+    /// zAbsToLiveT maps a cloud's redshift to where its line sits on the bar now. It is
+    /// called only for marks with zAbs > 0; the others keep the fake behaviour.
+    /// </summary>
+    public void SetPhysicalMapping(float birthT, Func<float, float> zAbsToLiveT)
+    {
+        _physicalBirthT = birthT;
+        _physicalLiveT = zAbsToLiveT;
+        SetVerticesDirty();
+    }
+
+    /// <summary>
+    /// Which lines to mark, from real data: one cloud redshift per mark, [0] the primary (the
+    /// first line the light acquired). Replaces the serialized list while physical mode is on,
+    /// so the marks can never disagree with the data behind them — the serialized list stays
+    /// untouched for the fallback and the editor preview.
+    /// </summary>
+    public void SetPhysicalMarks(float[] zAbs)
+    {
+        if (zAbs == null || zAbs.Length == 0)
+        {
+            _physicalMarks = null;
+        }
+        else
+        {
+            _physicalMarks = new Mark[zAbs.Length];
+            for (int i = 0; i < zAbs.Length; i++)
+                _physicalMarks[i] = new Mark { zAbs = zAbs[i], isPrimary = i == 0, restT = 0f, travelFraction = 1f };
+        }
+
+        SetVerticesDirty();
+    }
+
+    /// <summary>
+    /// What Spread() does in physical mode. The fake version multiplied every line's distance
+    /// from its anchor — an invented gesture. With real data the honest gesture is a replay:
+    /// fast-forward from the quasar to now, so every line is seen being born at the anchor
+    /// and stretched to where it really is. The supplier implements it; this class only
+    /// forwards to it, with spreadSeconds as the duration.
+    /// </summary>
+    public void SetPhysicalReplay(Action<float> replay)
+    {
+        _physicalReplay = replay;
+    }
+
+    /// <summary>Back to the fake offset. The switch in SpectrumData calls this when turned off.</summary>
+    public void ClearPhysicalMapping()
+    {
+        _physicalLiveT = null;
+        _physicalBirthT = -1f;
+        _physicalMarks = null;
+        _physicalReplay = null;
+        SetVerticesDirty();
+    }
+
+    /// <summary>The supplier's "now" moved; rebuild from the mapping.</summary>
+    public void MarkPhysicalDirty()
+    {
+        if (_physicalLiveT != null) SetVerticesDirty();
+    }
+
+    /// <summary>The marks, for the supplier to fill zAbs from its catalogue. Editor use.</summary>
+    public Mark[] Marks { get { return marks; } set { marks = value; } }
 
     // -- Public API, called by JourneySequence_NEW steps -----------------------
 
@@ -224,9 +370,19 @@ public class RedshiftMarks_NEW : MaskableGraphic
     ///
     /// Drive the cosmic web's own expansion from the same step, with the same duration.
     /// Two things opening together is the claim being made; either one alone is decoration.
+    ///
+    /// WITH REAL DATA (physical mode) this does not multiply anything: it asks the supplier
+    /// to replay the light's history over spreadSeconds — see SetPhysicalReplay. The
+    /// multiplier is ignored. The existing JourneySequence wiring needs no change.
     /// </summary>
     public void Spread(float multiplier)
     {
+        if (_physicalLiveT != null && _physicalReplay != null)
+        {
+            _physicalReplay(spreadSeconds);
+            return;
+        }
+
         _spreadFrom = _spread;
         _spreadTo = Mathf.Max(0f, multiplier);
         _spreadElapsed = 0f;
@@ -254,10 +410,13 @@ public class RedshiftMarks_NEW : MaskableGraphic
     /// </summary>
     public float PrimaryGap()
     {
-        for (int i = 0; i < marks.Length; i++)
+        Mark[] list = ActiveMarks;
+        if (list == null) return 0f;
+
+        for (int i = 0; i < list.Length; i++)
         {
-            if (marks[i] != null && marks[i].isPrimary)
-                return LiveT(marks[i]) - marks[i].restT;
+            if (list[i] != null && list[i].isPrimary)
+                return LiveT(list[i]) - RestT(list[i]);
         }
 
         return 0f;
@@ -316,7 +475,57 @@ public class RedshiftMarks_NEW : MaskableGraphic
             dirty = true;
         }
 
+        // The curve's rect can move or resize (the Vizlab row shifter, a layout change);
+        // follow it. Comparing one Rect per frame is cheap.
+        Rect aligned = DrawRect();
+        if (aligned != _lastDrawRect)
+        {
+            _lastDrawRect = aligned;
+            dirty = true;
+        }
+
         if (dirty) SetVerticesDirty();
+    }
+
+    Rect _lastDrawRect;
+    readonly Vector3[] _corners = new Vector3[4];
+
+    /// <summary>
+    /// The rectangle to draw in, in this object's local space: the curve's drawing band when
+    /// aligned (see alignToCurve), otherwise this object's own rect.
+    /// </summary>
+    Rect DrawRect()
+    {
+        Rect own = rectTransform.rect;
+        if (!alignToCurve) return own;
+
+        RectTransform target = alignTo;
+        if (target == null)
+        {
+            if (spectrum == null) spectrum = FindObjectOfType<SpectrumHUD_NEW>();
+            if (spectrum != null) target = spectrum.transform as RectTransform;
+        }
+        if (target == null || target == rectTransform) return own;
+
+        // The curve's rect, carried into this object's local space through world space, so
+        // any nesting, anchoring, pivot or scale between the two objects cancels out.
+        target.GetWorldCorners(_corners);
+        Vector3 a = rectTransform.InverseTransformPoint(_corners[0]);
+        Vector3 b = rectTransform.InverseTransformPoint(_corners[2]);
+        Rect r = Rect.MinMaxRect(Mathf.Min(a.x, b.x), Mathf.Min(a.y, b.y), Mathf.Max(a.x, b.x), Mathf.Max(a.y, b.y));
+
+        // The curve only uses part of its rect's height (graphHeightPercent, hanging from the
+        // top or sitting on the bottom). Use the same band, so a mark's foot is on the curve's
+        // zero line.
+        LineGraphRenderer_NEW graph = target.GetComponent<LineGraphRenderer_NEW>();
+        if (graph != null)
+        {
+            float h = r.height * graph.GraphHeightPercent;
+            float y0 = graph.AnchorTop ? r.yMax - h : r.yMin;
+            r = new Rect(r.xMin, y0, r.width, h);
+        }
+
+        return r;
     }
 
     bool Approach(ref float value, float target, float dt)
@@ -346,8 +555,27 @@ public class RedshiftMarks_NEW : MaskableGraphic
         return runtimeAlpha;
     }
 
+    bool IsPhysical(Mark mark)
+    {
+        return _physicalLiveT != null && mark.zAbs > 0f;
+    }
+
+    float RestT(Mark mark)
+    {
+        return IsPhysical(mark) ? _physicalBirthT : mark.restT;
+    }
+
     float LiveT(Mark mark)
     {
+        if (IsPhysical(mark))
+        {
+            // _spread still applies, as the demonstration gesture it always was: it
+            // exaggerates the line's distance from its birth point, and it is 1 except
+            // during the F4 step.
+            float birth = _physicalBirthT;
+            return birth + (_physicalLiveT(mark.zAbs) - birth) * _spread;
+        }
+
         return mark.restT + CurrentOffset() * mark.travelFraction * _spread;
     }
 
@@ -357,7 +585,8 @@ public class RedshiftMarks_NEW : MaskableGraphic
     {
         vh.Clear();
 
-        if (marks == null || marks.Length == 0) return;
+        Mark[] active = ActiveMarks;
+        if (active == null || active.Length == 0) return;
 
         float anchorsAlpha = Alpha(_anchorsAlpha);
         float primaryAlpha = Alpha(_primaryAlpha);
@@ -365,12 +594,15 @@ public class RedshiftMarks_NEW : MaskableGraphic
 
         if (anchorsAlpha <= 0.001f && primaryAlpha <= 0.001f && othersAlpha <= 0.001f) return;
 
-        Rect r = rectTransform.rect;
+        Rect r = DrawRect();
+        float anchorHalf = anchorStyle == AnchorStyle.Triangle ? anchorTriangleWidth * 0.5f : tickWidth * 0.5f;
 
         // Drawn back to front: anchors, then connectors, then live ticks. A live tick
         // sitting on top of its own connector reads as one object with a tail; the other
         // order reads as two objects that overlap.
         SortMarks();
+
+        bool drewPhysicalAnchor = false;
 
         for (int pass = 0; pass < 3; pass++)
         {
@@ -386,22 +618,49 @@ public class RedshiftMarks_NEW : MaskableGraphic
 
                 if (alpha <= 0.001f) continue;
 
-                float restX = Mathf.Lerp(r.xMin, r.xMax, Mathf.Clamp01(mark.restT));
+                float restX = Inset(Mathf.Lerp(r.xMin, r.xMax, Mathf.Clamp01(RestT(mark))), r, anchorHalf);
                 float liveTValue = LiveT(mark);
 
                 // A mark pushed off the red end of the bar is not drawn rather than being
                 // clamped to the edge, because a clamped mark parks against the frame and
                 // reads as a line that has stopped moving — the opposite of the point.
                 bool liveOnBar = liveTValue >= 0f && liveTValue <= 1f;
-                float liveX = Mathf.Lerp(r.xMin, r.xMax, Mathf.Clamp01(liveTValue));
+                float liveX = Inset(Mathf.Lerp(r.xMin, r.xMax, Mathf.Clamp01(liveTValue)), r, tickWidth * 0.5f);
 
                 Color tint = mark.isPrimary ? primaryColor : liveColor;
 
                 if (pass == 0)
                 {
-                    AddQuad(vh, restX - tickWidth * 0.5f, r.yMin,
-                                restX + tickWidth * 0.5f, r.yMin + r.height * anchorHeight,
-                                Fade(anchorColor, alpha));
+                    // An anchor pushed off the bar (the arrival zoom narrows past it) is not
+                    // drawn — clamped, it would sit on the frame claiming to be a birth point.
+                    float restT = RestT(mark);
+                    if (restT < -0.001f || restT > 1.001f) continue;
+
+                    // In physical mode every line shares one birth point, so draw that
+                    // anchor once. Stacking N translucent copies would make it N times
+                    // brighter than the design says the reference should be.
+                    if (IsPhysical(mark))
+                    {
+                        if (drewPhysicalAnchor) continue;
+                        drewPhysicalAnchor = true;
+                    }
+
+                    if (anchorStyle == AnchorStyle.Triangle)
+                    {
+                        // Under the bar, tip up, pointing at the birth wavelength.
+                        float tipY = r.yMin - anchorTriangleGap;
+                        AddTriangle(vh,
+                                    new Vector2(restX, tipY),
+                                    new Vector2(restX - anchorTriangleWidth * 0.5f, tipY - anchorTriangleHeight),
+                                    new Vector2(restX + anchorTriangleWidth * 0.5f, tipY - anchorTriangleHeight),
+                                    Fade(anchorTriangleColor, alpha));
+                    }
+                    else
+                    {
+                        AddQuad(vh, restX - tickWidth * 0.5f, r.yMin,
+                                    restX + tickWidth * 0.5f, r.yMin + r.height * anchorHeight,
+                                    Fade(anchorColor, alpha));
+                    }
                 }
                 else if (pass == 1)
                 {
@@ -435,11 +694,43 @@ public class RedshiftMarks_NEW : MaskableGraphic
     {
         _sorted.Clear();
 
-        for (int i = 0; i < marks.Length; i++)
-            if (marks[i] != null && !marks[i].isPrimary) _sorted.Add(marks[i]);
+        Mark[] list = ActiveMarks;
+        if (list == null) return;
 
-        for (int i = 0; i < marks.Length; i++)
-            if (marks[i] != null && marks[i].isPrimary) _sorted.Add(marks[i]);
+        for (int i = 0; i < list.Length; i++)
+            if (list[i] != null && !list[i].isPrimary) _sorted.Add(list[i]);
+
+        for (int i = 0; i < list.Length; i++)
+            if (list[i] != null && list[i].isPrimary) _sorted.Add(list[i]);
+    }
+
+    /// <summary>
+    /// Keep a tick fully inside the bar. With baked data the birth tick IS the bar's left
+    /// edge; drawn centred on it, half the tick fell outside and the rest sat under the
+    /// graph's own white axis line — so the anchor looked like it had vanished. Nudged in by
+    /// half its width plus a pixel, it stays visible next to the axis.
+    /// </summary>
+    float Inset(float x, Rect r, float halfWidth)
+    {
+        float pad = halfWidth + 1f;
+        if (r.width <= 2f * pad) return x;
+        return Mathf.Clamp(x, r.xMin + pad, r.xMax - pad);
+    }
+
+    static void AddTriangle(VertexHelper vh, Vector2 a, Vector2 b, Vector2 c, Color32 color)
+    {
+        int i = vh.currentVertCount;
+
+        UIVertex v = UIVertex.simpleVert;
+        v.color = color;
+
+        v.position = a; vh.AddVert(v);
+        v.position = b; vh.AddVert(v);
+        v.position = c; vh.AddVert(v);
+
+        // Both windings, so the shape shows regardless of which way the canvas culls.
+        vh.AddTriangle(i, i + 1, i + 2);
+        vh.AddTriangle(i, i + 2, i + 1);
     }
 
     Color Fade(Color c, float alpha)

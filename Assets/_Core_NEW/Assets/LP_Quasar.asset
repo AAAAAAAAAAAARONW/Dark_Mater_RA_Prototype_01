@@ -19,7 +19,7 @@ MonoBehaviour:
   lockLookInput: 1
   lookDownHoldDuration: 3
   lookUpStartDelay: 0.12
-  useLookBackSequence: 1
+  useLookBackSequence: 0
   lookBackOrbitCountdown: 2
   lookBackOrbitDuration: 5
   nebula: {fileID: 11400000, guid: deeb167ce8acacec659ce37567e1ff86, type: 2}

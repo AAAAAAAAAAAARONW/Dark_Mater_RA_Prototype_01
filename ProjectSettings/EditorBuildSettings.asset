@@ -20,7 +20,10 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/_Core_NEW/Tutorial.unity
     guid: 6604eafdc8c2845499b13dcc68113379
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/PlaytestBuild_NEW_ArtPreview.unity
     guid: a87581e15a461db22fbe763abdcad299
+  - enabled: 0
+    path: Assets/_Core_NEW/Gameplay_Scene_Ana.unity
+    guid: 1216323fb630fa14da0952cf0c91cf46
   m_configObjects: {}

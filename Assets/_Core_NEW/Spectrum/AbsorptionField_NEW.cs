@@ -98,6 +98,12 @@ public class AbsorptionField_NEW : MonoBehaviour
     Texture2D _tex;
     readonly List<Pulse> _pulses = new List<Pulse>();
 
+    // An externally supplied absorption row, used instead of spawning and drifting.
+    // Owned by the caller; see SetExternalAbsorption.
+    float[] _external;
+    int _externalCount;
+    bool _externalDirty;
+
     float _driftAccum;
     float _spawnAccum;
     System.Random _rng;
@@ -194,6 +200,42 @@ public class AbsorptionField_NEW : MonoBehaviour
         });
     }
 
+    /// <summary>
+    /// Use this absorption (0 = clear, 1 = fully absorbed) instead of spawning and
+    /// drifting lines. Evenly spaced across the spectrum; resampled to the resolution.
+    ///
+    /// A HOOK, NOT A DEPENDENCY — the supplier calls in, this class never names it, and
+    /// with nothing calling it the field behaves exactly as before.
+    ///
+    /// It is also the cheap path, on purpose. While external absorption is set, this
+    /// component stops spawning, stops drifting, and uploads its texture ONLY when the
+    /// supplier says the row changed (MarkExternalAbsorptionDirty) — instead of a
+    /// 2048-texel SetPixels and Apply every frame, which is what the procedural path
+    /// does.
+    /// </summary>
+    public void SetExternalAbsorption(float[] values, int count)
+    {
+        _external = values;
+        _externalCount = values != null ? Mathf.Clamp(count, 0, values.Length) : 0;
+        _externalDirty = true;
+    }
+
+    /// <summary>Go back to spawning and drifting procedurally.</summary>
+    public void ClearExternalAbsorption()
+    {
+        _external = null;
+        _externalCount = 0;
+    }
+
+    /// <summary>The external row was refilled in place; resample and upload it next Update.</summary>
+    public void MarkExternalAbsorptionDirty()
+    {
+        _externalDirty = true;
+    }
+
+    /// <summary>True while external absorption is in use.</summary>
+    public bool HasExternalAbsorption { get { return _external != null; } }
+
     /// <summary>Wipe all absorption. Background spawning continues.</summary>
     public void ClearLines()
     {
@@ -261,6 +303,20 @@ public class AbsorptionField_NEW : MonoBehaviour
 
     void Update()
     {
+        if (_external != null)
+        {
+            // Nothing spawns and nothing drifts: the supplier owns where every line is.
+            // Upload only on change — see SetExternalAbsorption.
+            if (_externalDirty)
+            {
+                ComposeExternal();
+                Upload();
+                _externalDirty = false;
+            }
+
+            return;
+        }
+
         if (_profile == null) return;
 
         float dt = Time.deltaTime;
@@ -277,8 +333,13 @@ public class AbsorptionField_NEW : MonoBehaviour
             }
         }
 
-        // 2 · drift, on the same idle-scaled rate as spawning so lines never pile up
-        DriftMain(_profile.driftPerSecond * idleScale * dt);
+        // 2 · drift, on the same idle-scaled rate as spawning so lines never pile up.
+        //
+        // CurrentDriftPerSecond, not the profile's raw rate: that property is what the
+        // HUD slides the curve by (and so what RedshiftMarks_NEW measures against), and
+        // it includes the budget's DriftScale. Reading the raw rate here moved the lines
+        // about ten times faster than the curve they are cut into.
+        DriftMain(CurrentDriftPerSecond * dt);
 
         // 3 · compose and upload
         ComposeFinal();
@@ -337,6 +398,26 @@ public class AbsorptionField_NEW : MonoBehaviour
             Pulse p = _pulses[i];
             p.center += shift;
             _pulses[i] = p;
+        }
+    }
+
+    void ComposeExternal()
+    {
+        if (_final == null) return;
+
+        int n = _externalCount;
+        if (n < 2)
+        {
+            System.Array.Clear(_final, 0, resolution);
+            return;
+        }
+
+        for (int i = 0; i < resolution; i++)
+        {
+            float fp = i / (float)(resolution - 1) * (n - 1);
+            int lo = Mathf.FloorToInt(fp);
+            int hi = Mathf.Min(lo + 1, n - 1);
+            _final[i] = Mathf.Clamp01(Mathf.Lerp(_external[lo], _external[hi], fp - lo));
         }
     }
 

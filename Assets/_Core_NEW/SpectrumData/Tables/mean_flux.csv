@@ -1,0 +1,30 @@
+# Mean transmitted flux of the Lyman-alpha forest, <F> = exp(-tau_eff), against redshift.
+# The bake solves its absorption normalisation so the model reproduces these values.
+#
+# 2.0 <= z <= 4.5 : computed from the Becker et al. (2013) fit
+#                   tau_eff = 0.751 ((1+z)/4.5)^2.90 - 0.132   (valid ~2 < z < 5)
+# z >= 5          : APPROXIMATE, recalled from Bosman et al. (2022) / Eilers et al. (2018).
+#                   Verify against the published tables before this is shown as data.
+# z >= 6.2        : EXTRAPOLATED toward a complete Gunn-Peterson trough. The exact values
+#                   do not change the picture: everything there is effectively black.
+# z <= 1          : APPROXIMATE, low-redshift forest from HST (e.g. Danforth et al. 2016).
+#                   Irrelevant to the display — see OPEN_QUESTIONS.md, section 1.
+z,mean_flux,source
+0.0,0.985,approx — HST low-z forest; verify
+1.0,0.95,approx — interpolated between HST and Becker et al. 2013; verify
+2.0,0.9051,Becker et al. 2013 fit
+2.5,0.7942,Becker et al. 2013 fit
+3.0,0.6692,Becker et al. 2013 fit
+3.5,0.5385,Becker et al. 2013 fit
+4.0,0.4118,Becker et al. 2013 fit
+4.5,0.2976,Becker et al. 2013 fit
+5.0,0.15,approx — Bosman et al. 2022; verify
+5.2,0.11,approx — Bosman et al. 2022; verify
+5.4,0.08,approx — Bosman et al. 2022; verify
+5.6,0.055,approx — Bosman et al. 2022; verify
+5.8,0.03,approx — Bosman et al. 2022; verify
+6.0,0.012,approx — Bosman et al. 2022 / Eilers et al. 2018; verify
+6.2,0.005,extrapolated
+6.5,0.001,extrapolated
+7.0,0.0001,extrapolated — effectively fully absorbed
+8.0,0.00001,extrapolated

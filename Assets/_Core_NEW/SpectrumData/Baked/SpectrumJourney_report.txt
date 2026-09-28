@@ -1,0 +1,82 @@
+COSMOLOGY
+  H0 = 67.66 km/s/Mpc, Omega_m = 0.30966, flat
+  Age of the universe today           13.810 Gyr
+  Journey starts                       12.070 Gyr ago  ->  z_quasar = 3.616
+  Universe age at emission             1.740 Gyr
+  Total stretch at Earth               x4.616
+
+WHEN THE FOREST FREEZES
+  z_freeze = 2.462  (light at 1216 A here left the quasar at 912 A)
+  reached 11.145 Gyr ago, 0.925 Gyr after emission
+  = the first 7.7% of the journey's light-travel time
+  light-travel distance quasar -> freeze: 283.7 proper Mpc
+
+CALIBRATION  (mean transmission of the model vs the measured table)
+      z    target    model
+   0.00   0.98500   0.98500
+   1.00   0.95000   0.95000
+   2.00   0.90510   0.90510
+   2.50   0.79420   0.79420
+   3.00   0.66920   0.66920
+   3.50   0.53850   0.53850
+   4.00   0.41180   0.41180
+   4.50   0.29760   0.29760
+   5.00   0.15000   0.15000
+   5.20   0.11000   0.11000
+   5.40   0.08000   0.08000
+   5.60   0.05500   0.05500
+   5.80   0.03000   0.03000
+   6.00   0.01200   0.01200
+   6.20   0.00500   0.00500
+   6.50   0.00100   0.00100
+   7.00   0.00010   0.00010
+   8.00   0.00001   0.00001
+
+PROXIMITY ZONE
+  measured size (transmission -> 10%): 1.50 proper Mpc
+  derived ionisation scale R_ion:      0.00 proper Mpc
+
+GRID
+  25357 cells of 37 km/s, 32 per journey step; output 1024 columns of 479 km/s x 384 rows
+  axis 1216 - 6231 A, log. 1216 A at 0.000 of the bar
+
+ARRIVAL FRAME  (what the HUD zooms into at Earth)
+  reference window: emitted 1000-1350 A = observed 4616-6231 A
+  sampled 16384 columns over 1216-6231 A observed (30 km/s each)
+  forest level (emitted 1050-1180 A) / red continuum (1270-1350 A) = 0.773
+  (for comparison: Q1422+2309 at z = 3.62, the reference, reads ~0.7 on this measure)
+
+NOTABLE ABSORBERS  (for RedshiftMarks_NEW; [0] is the first line)
+  [ 0]  z = 3.6152   transmission 0.016   <- first
+  [ 1]  z = 3.3123   transmission 0.000
+  [ 2]  z = 3.0870   transmission 0.000
+  [ 3]  z = 2.8633   transmission 0.002
+  [ 4]  z = 2.4439   transmission 0.000
+  [ 5]  z = 2.2461   transmission 0.105
+  [ 6]  z = 1.8803   transmission 0.149
+  [ 7]  z = 1.8076   transmission 0.034
+  [ 8]  z = 1.6034   transmission 0.192
+  [ 9]  z = 1.2871   transmission 0.140
+  [10]  z = 1.0729   transmission 0.438
+  [11]  z = 0.9735   transmission 0.276
+
+PATH CHECK  (mean transmission actually imprinted, outside the proximity zone)
+      z    target    baked    segments
+   0.00   0.98500   0.98213   764
+   1.00   0.95000   0.95136   803
+   2.00   0.90510   0.90880   534
+   2.50   0.79420   0.79074   458
+   3.00   0.66920   0.62654   401
+   3.50   0.53850   0.45811   323
+  (few segments = noisy. The journey spends few steps at low z, where it does not matter:
+   that light was already absorbed below 912 A. See OPEN_QUESTIONS.md.)
+
+ARRIVAL AT EARTH  (last row)
+  quasar Ly-alpha peak observed at 5611 A (VISIBLE); Lyman limit at 4208 A
+  DISPLAYED (Ly-alpha absorption only):
+    mean transmission 4208 - 5611 A (older lines, z_abs > 2.46):  0.6602
+    mean transmission 1216 - 4208 A (younger lines):             0.9447
+    mean transmission below 1216 A (no line reaches here):      NaN
+  NOT DISPLAYED: photoionisation below 912 A, Ly-beta and helium. They are in the
+  flux grid (HudCurve.Flux) but the piece does not draw them. See OPEN_QUESTIONS.md.
+

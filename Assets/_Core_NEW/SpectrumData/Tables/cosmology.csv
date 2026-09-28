@@ -1,0 +1,6 @@
+# Cosmological parameters. Planck 2018 (TT,TE,EE+lowE+lensing+BAO),
+# the values astropy ships as astropy.cosmology.Planck18.
+# Flat universe: Omega_Lambda = 1 - Om0. Radiation is ignored (< 0.3% of H(z) at z = 8).
+key,value,note
+H0,67.66,Hubble constant today in km/s/Mpc
+Om0,0.30966,Matter density parameter today

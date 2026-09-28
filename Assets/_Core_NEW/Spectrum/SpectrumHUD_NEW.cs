@@ -107,6 +107,12 @@ public class SpectrumHUD_NEW : MonoBehaviour
     [SerializeField] bool debugLog = false;
 
     float[] _lut;
+
+    // An externally supplied curve, drawn instead of template × absorption. Owned by the
+    // caller; this class only reads it. See SetExternalCurve.
+    float[] _external;
+    int _externalCount;
+
     float _bakedLyaPosition = float.NaN;
     float _bakedFloor = float.NaN;
     float _redshiftOffset;
@@ -156,6 +162,44 @@ public class SpectrumHUD_NEW : MonoBehaviour
         // would jump the whole picture on the frame this is called.
         Redraw();
     }
+
+    /// <summary>
+    /// Draw this curve instead of the built-in template and absorption field.
+    ///
+    /// A HOOK, NOT A DEPENDENCY. Whatever supplies the curve (today, the baked journey
+    /// spectrum in _Core_NEW/SpectrumData) calls in here; this class never names it.
+    /// Delete the supplier and this class still compiles, and with nothing calling this
+    /// it behaves exactly as it always did.
+    ///
+    /// The array is read, never copied or modified, and may be refilled in place by the
+    /// caller between frames — call MarkExternalCurveDirty() after refilling. Values are
+    /// 0..1, evenly spaced across the bar; any length works, it is resampled to
+    /// sampleCount. While a curve is set the continuum does not drift: the supplier owns
+    /// where everything is.
+    /// </summary>
+    public void SetExternalCurve(float[] values, int count)
+    {
+        _external = values;
+        _externalCount = values != null ? Mathf.Clamp(count, 0, values.Length) : 0;
+        Redraw();
+    }
+
+    /// <summary>Go back to the built-in template and absorption field.</summary>
+    public void ClearExternalCurve()
+    {
+        _external = null;
+        _externalCount = 0;
+        Redraw();
+    }
+
+    /// <summary>The external curve was refilled in place; redraw from it.</summary>
+    public void MarkExternalCurveDirty()
+    {
+        if (_external != null) Redraw();
+    }
+
+    /// <summary>True while an external curve is being drawn.</summary>
+    public bool HasExternalCurve { get { return _external != null; } }
 
     /// <summary>
     /// Wind the redshift forward (or back) by hand, in bar widths.
@@ -226,6 +270,10 @@ public class SpectrumHUD_NEW : MonoBehaviour
 
     void Update()
     {
+        // An external supplier redraws on its own schedule (MarkExternalCurveDirty), so
+        // there is nothing to drift and nothing to redraw here.
+        if (_external != null) return;
+
         if (driftContinuum)
         {
             float dt = useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
@@ -244,7 +292,15 @@ public class SpectrumHUD_NEW : MonoBehaviour
 
     void Redraw()
     {
-        if (graph == null || _lut == null) return;
+        if (graph == null) return;
+
+        if (_external != null)
+        {
+            RedrawExternal();
+            return;
+        }
+
+        if (_lut == null) return;
 
         bool absorb = useAbsorption && field != null;
 
@@ -264,6 +320,27 @@ public class SpectrumHUD_NEW : MonoBehaviour
         }
 
         if (_display.Count < 2) return;
+        graph.SetValues(_display, 0f, 1f);
+    }
+
+    /// <summary>Resample the external curve to sampleCount. No allocation: _display is reused.</summary>
+    void RedrawExternal()
+    {
+        _display.Clear();
+
+        int n = _externalCount;
+        if (n < 2) return;
+
+        for (int i = 0; i < sampleCount; i++)
+        {
+            float t = sampleCount <= 1 ? 0f : i / (float)(sampleCount - 1);
+            float fp = t * (n - 1);
+            int lo = Mathf.FloorToInt(fp);
+            int hi = Mathf.Min(lo + 1, n - 1);
+
+            _display.Add(Mathf.Clamp01(Mathf.Lerp(_external[lo], _external[hi], fp - lo)));
+        }
+
         graph.SetValues(_display, 0f, 1f);
     }
 

@@ -1,0 +1,17 @@
+# Mean free path of hydrogen-ionising photons (912 Å) through the intergalactic medium,
+# in PROPER Mpc. Sets how fast light below 912 Å (locally) is absorbed.
+#
+# z <= 5.0 : Worseck et al. (2014) fit, 37 ((1+z)/5)^-5.4 h70^-1 pMpc, with h70 = 67.66/70.
+#            Measured over 2.3 < z < 5.5; the z = 2 row is a mild extrapolation.
+# z >= 5.1 : Becker et al. (2021) direct measurements (9.09 pMpc at 5.1, 0.75 pMpc at 6.0).
+# Beyond the last row the bake holds the last value, which UNDER-states the opacity at
+# z > 6 — i.e. the real universe is even more opaque than the bake, not less.
+#
+# APPROXIMATE: values recalled from the papers; verify before showing as data.
+z,mfp_pmpc,source
+2.0,604,Worseck et al. 2014 fit (extrapolated below z = 2.3)
+3.0,128,Worseck et al. 2014 fit
+4.0,38.3,Worseck et al. 2014 fit
+5.0,14.3,Worseck et al. 2014 fit
+5.1,9.09,Becker et al. 2021
+6.0,0.75,Becker et al. 2021
