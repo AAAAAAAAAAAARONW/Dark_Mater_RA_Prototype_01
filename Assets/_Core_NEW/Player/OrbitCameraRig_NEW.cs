@@ -46,9 +46,20 @@ public class OrbitCameraRig_NEW
     [SerializeField] float resetXSpeed = 180f;
     [SerializeField] float resetYSpeed = 1.5f;
 
-    [Tooltip("Dead zone restored on both axes once the recentre finishes.")]
-    [SerializeField] float normalDeadZoneWidth = 0.3f;
-    [SerializeField] float normalDeadZoneHeight = 0.3f;
+    [Header("Aim")]
+    [Tooltip("Composer dead zone on every rig, both axes, as a fraction of the screen. " +
+             "Applied at start and after every recentre.\n\n" +
+             "0 keeps the light where the composer puts it, so the same push on the stick " +
+             "turns the view the same amount every time. The rigs are authored at 0.3 with " +
+             "no damping: the view then ignored the stick until the light had slid 15% off " +
+             "centre, caught up all at once, and stopped with the light off centre.")]
+    [Range(0f, 0.5f)]
+    [SerializeField] float aimDeadZone = 0f;
+
+    // WHERE normalDeadZoneWidth / Height WENT. They were only restored after a recentre, so
+    // the rigs kept their authored 0.3 until the first press of A and changed feel after
+    // it. aimDeadZone replaces them and is applied from the start. Deleted rather than
+    // left in place, for the reason below.
 
     // WHERE THE AXIS NAMES WENT. This used to carry four serialized strings —
     // stickXAxis, stickYAxis, mouseXAxis, mouseYAxis — naming the Xbox axes directly.
@@ -67,7 +78,44 @@ public class OrbitCameraRig_NEW
     public bool IsResetting => _resetting;
 
     public void BeginReset() => _resetting = true;
-    public void CancelReset() => _resetting = false;
+
+    /// <summary>Stop a recentre part-way, putting back the dead zone it had zeroed.</summary>
+    public void CancelReset()
+    {
+        if (!_resetting) return;
+        _resetting = false;
+        ApplyAim();
+    }
+
+    /// <summary>Put aimDeadZone on every rig. Called at start and whenever a recentre ends.</summary>
+    public void ApplyAim()
+    {
+        for (int i = 0; i < orbitCameras.Length; i++)
+            if (orbitCameras[i] != null)
+                SetDeadZones(orbitCameras[i], aimDeadZone, aimDeadZone);
+    }
+
+    /// <summary>
+    /// True when one of these rigs is on screen, alone or in a blend. When none is — the
+    /// top-down cover, the intro shot, the look-back rig — turning them would move a camera
+    /// nobody can see, and the view would swing to that angle when it came back. With no
+    /// rigs listed there is nothing to ask, so this says yes.
+    /// </summary>
+    public bool AnyLive()
+    {
+        bool listed = false;
+
+        for (int i = 0; i < orbitCameras.Length; i++)
+        {
+            CinemachineFreeLook vcam = orbitCameras[i];
+            if (vcam == null) continue;
+
+            listed = true;
+            if (CinemachineCore.Instance.IsLive(vcam)) return true;
+        }
+
+        return !listed;
+    }
 
     /// <summary>
     /// Apply one frame of look input. Controller input uses a deadband; mouse input does
@@ -125,11 +173,8 @@ public class OrbitCameraRig_NEW
 
         if (!xDone || !yDone) return false;
 
-        for (int i = 0; i < orbitCameras.Length; i++)
-            if (orbitCameras[i] != null)
-                SetDeadZones(orbitCameras[i], normalDeadZoneWidth, normalDeadZoneHeight);
-
         _resetting = false;
+        ApplyAim();
         return true;
     }
 

@@ -24,6 +24,13 @@ using UnityEngine;
 ///
 /// Drawn with OnGUI on purpose: no canvas, no font asset, no prefab, nothing that can be
 /// missing from a scene it gets dropped into at the last minute.
+///
+/// THE BANNER. Independently of the F4 page, a line at the bottom of the screen whenever
+/// the view controls are being ignored, saying why — a transition's lock, a camera on
+/// screen that is not the player's orbit, a recentre — and brighter while a stick is
+/// actually being pushed against it. Also when the left stick is pushed in a scene where
+/// nothing zooms. A control that silently does nothing reads as broken, and the reasons
+/// are all timing rules nobody can see. Editor and development builds only.
 /// </summary>
 [DisallowMultipleComponent]
 [HierarchyBadge_NEW("INPUT DIAG", "#E09E38")]
@@ -56,13 +63,34 @@ public class InputDiagnostics_NEW : MonoBehaviour
     [Range(0f, 0.5f)]
     [SerializeField] float restThreshold = 0.05f;
 
+    [Header("Blocked-input banner")]
+    [Tooltip("A line at the bottom of the screen whenever the view controls are being " +
+             "ignored, saying why. Editor and development builds only: a release build " +
+             "never draws it, whatever this is set to.")]
+    [SerializeField] bool showBlockedBanner = true;
+
     bool _visible;
     GUIStyle _style;
+    GUIStyle _bannerStyle;
+    Texture2D _bannerBackground;
+    PlayerRig_NEW _player;
+    JourneyZoom_NEW _zoom;
     readonly StringBuilder _sb = new StringBuilder(1024);
 
     void Awake()
     {
         _visible = startVisible;
+    }
+
+    void Start()
+    {
+        _player = FindObjectOfType<PlayerRig_NEW>();
+        _zoom = FindObjectOfType<JourneyZoom_NEW>();
+    }
+
+    void OnDestroy()
+    {
+        if (_bannerBackground != null) Destroy(_bannerBackground);
     }
 
     void Update()
@@ -76,6 +104,8 @@ public class InputDiagnostics_NEW : MonoBehaviour
 
     void OnGUI()
     {
+        if (showBlockedBanner && Debug.isDebugBuild) DrawBlockedBanner();
+
         if (!_visible) return;
 
         if (_style == null)
@@ -173,9 +203,71 @@ public class InputDiagnostics_NEW : MonoBehaviour
         _sb.Append("\n  press the button PRINTED A: CONFIRM should say DOWN.\n");
         _sb.Append("  press the button PRINTED B: PAUSE should say DOWN.\n");
 
+        // -- View controls ---------------------------------------------------
+
+        string blocked = _player != null ? _player.ViewBlockedReason : null;
+        _sb.Append("\nVIEW      ").Append(_player == null ? "(no PlayerRig_NEW in scene)"
+                                           : blocked == null ? "live" : "IGNORED: " + blocked).Append('\n');
+        _sb.Append("ZOOM      ").Append(!ZoomPresent() ? "(no JourneyZoom_NEW in scene)"
+                                       : (_zoom.Amount * 100f).ToString("0") + "%   fov x" + _zoom.FovMultiplier.ToString("0.00"))
+           .Append('\n');
+
         // Drawn as one label rather than a scroll view, because the panel has to survive
         // being opened in a build where nothing else about the UI is guaranteed.
         GUI.Label(new Rect(16f, 16f, 760f, Screen.height - 32f), _sb.ToString(), _style);
+    }
+
+    bool ZoomPresent() => _zoom != null && _zoom.isActiveAndEnabled;
+
+    /// <summary>See the class summary. One line, bottom centre, only when something is ignored.</summary>
+    void DrawBlockedBanner()
+    {
+        float deadband = InputScheme_NEW.Deadband();
+        bool pushingLook = InputScheme_NEW.StickDeflection(InputScheme_NEW.Stick.Right, deadband) > 0f
+                           || InputScheme_NEW.MouseDeflection() > 1f;
+        bool pushingZoom = InputScheme_NEW.StickDeflection(InputScheme_NEW.Stick.Left, deadband) > 0f;
+
+        string blocked = _player != null ? _player.ViewBlockedReason : null;
+        string line;
+        bool pushing;
+
+        if (blocked != null)
+        {
+            line = "VIEW CONTROLS IGNORED  —  " + blocked;
+            pushing = pushingLook || pushingZoom;
+        }
+        else if (pushingZoom && !ZoomPresent())
+        {
+            line = "LEFT STICK: nothing in this scene zooms  —  Tools > Journey NEW > Add Zoom and Dive to Open Scene, then save the scene";
+            pushing = true;
+        }
+        else
+        {
+            return;
+        }
+
+        if (_bannerStyle == null)
+        {
+            _bannerBackground = new Texture2D(1, 1) { hideFlags = HideFlags.HideAndDontSave };
+            _bannerBackground.SetPixel(0, 0, new Color(0f, 0f, 0f, 0.6f));
+            _bannerBackground.Apply();
+
+            _bannerStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 15,
+                alignment = TextAnchor.MiddleCenter,
+                wordWrap = true,
+                padding = new RectOffset(12, 12, 6, 6)
+            };
+            _bannerStyle.normal.background = _bannerBackground;
+        }
+
+        // Quiet while nobody is trying; loud the moment a stick is pushed against it.
+        _bannerStyle.normal.textColor = pushing ? new Color(1f, 0.55f, 0.2f) : new Color(1f, 0.9f, 0.45f, 0.75f);
+
+        float width = Mathf.Min(Screen.width - 32f, 1000f);
+        Rect rect = new Rect((Screen.width - width) * 0.5f, Screen.height - 64f, width, 44f);
+        GUI.Label(rect, line, _bannerStyle);
     }
 
     void Resolved(string label, float value, string axisName, bool inverted)

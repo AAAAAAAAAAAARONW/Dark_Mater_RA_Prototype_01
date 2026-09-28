@@ -221,7 +221,8 @@ public class CameraDirector_NEW : MonoBehaviour
         if (current.lockLookInput && player != null)
         {
             _inputLockedBySequence = true;
-            player.SetCameraInputLocked(true);
+            player.SetCameraInputLocked(true,
+                "transition into " + current.layerId + " (LP_" + current.layerId + ".lockLookInput)");
         }
 
         Fire(TransitionAnchor_NEW.SequenceStart, current, -1f);
@@ -420,7 +421,7 @@ public class CameraDirector_NEW : MonoBehaviour
     {
         if (lookBackVcam == null) { _orbit = null; yield break; }
 
-        if (player != null) player.SetCameraInputLocked(true);
+        if (player != null) player.SetCameraInputLocked(true, "look-back orbit to forward");
 
         float elapsed = 0f;
         float start = lookBackVcam.m_XAxis.Value;

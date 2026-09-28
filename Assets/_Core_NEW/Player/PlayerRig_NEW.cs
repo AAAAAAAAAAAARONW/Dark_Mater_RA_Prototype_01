@@ -66,6 +66,12 @@ public class PlayerRig_NEW : MonoBehaviour
              "where the recentre can interrupt a cutscene camera.")]
     [SerializeField] bool blockResetWhileLocked = false;
 
+    [Tooltip("Looking during a recentre cancels it and hands the view straight back.\n\n" +
+             "Off = the recentre runs to the end and look input is ignored until it does: " +
+             "up to 3.6 s at this scene's resetXSpeed of 50, with nothing on screen to say why. " +
+             "Same rule as the tutorial's look rig, with the same thresholds.")]
+    [SerializeField] bool lookCancelsRecentre = true;
+
     [Header("Speed input")]
     [Tooltip("Who, if anyone, may change the journey speed.\n\n" +
              "OFF is the design and the default. The tutorial spends its whole first act " +
@@ -82,10 +88,16 @@ public class PlayerRig_NEW : MonoBehaviour
     [Header("Dark matter")]
     [SerializeField] DarkMatterBend_NEW bend = new DarkMatterBend_NEW();
 
+    // FirstPersonLookRig_NEW's recentreCancelStick / recentreCancelMouse: a deliberate
+    // push, not a stick resting off centre or mouse sensor noise.
+    const float RecentreCancelStick = 0.6f;
+    const float RecentreCancelMouse = 2f;
+
     CharacterController _controller;
     Vector3 _defaultDirection;
     float _externalSpeedMultiplier = 1f;
     bool _cameraInputLocked;
+    string _lockReason;
     float _lookSensitivityScale = 1f;
 
     // ── Public API ───────────────────────────────────────────────────────────
@@ -95,6 +107,28 @@ public class PlayerRig_NEW : MonoBehaviour
     public float ExternalSpeedMultiplier => _externalSpeedMultiplier;
     public bool CameraInputLocked => _cameraInputLocked;
     public SpeedInput SpeedInputMode => speedInput;
+
+    /// <summary>
+    /// Why the view controls (look and zoom) are doing nothing right now, or null when
+    /// they work. Read by InputDiagnostics_NEW's banner and by JourneyZoom_NEW, so the
+    /// stick being ignored is never silent.
+    /// </summary>
+    public string ViewBlockedReason
+    {
+        get
+        {
+            if (_cameraInputLocked)
+                return string.IsNullOrEmpty(_lockReason) ? "locked by a camera sequence" : _lockReason;
+
+            if (!orbit.AnyLive())
+                return "the camera on screen is '" + LiveCameraName() + "', not the player's orbit";
+
+            if (orbit.IsResetting && !lookCancelsRecentre)
+                return "recentring (A) — look returns when it finishes";
+
+            return null;
+        }
+    }
 
     /// <summary>
     /// Scales look sensitivity. JourneyZoom_NEW sets it to the zoom ratio so that a
@@ -116,10 +150,14 @@ public class PlayerRig_NEW : MonoBehaviour
         _externalSpeedMultiplier = Mathf.Max(0f, multiplier);
     }
 
-    /// <summary>Called by CameraDirector_NEW around a transition.</summary>
-    public void SetCameraInputLocked(bool locked)
+    /// <summary>
+    /// Called by CameraDirector_NEW around a transition. <paramref name="reason"/> is what
+    /// the debug banner shows while the lock holds.
+    /// </summary>
+    public void SetCameraInputLocked(bool locked, string reason = null)
     {
         _cameraInputLocked = locked;
+        _lockReason = locked ? reason : null;
         if (locked) orbit.CancelReset();
     }
 
@@ -133,6 +171,12 @@ public class PlayerRig_NEW : MonoBehaviour
         _defaultDirection = movementDirection;
 
         DarkMatterRegistry_NEW.Rebuild();
+    }
+
+    void Start()
+    {
+        // In Start rather than Awake, so the FreeLooks have built their rigs first.
+        orbit.ApplyAim();
     }
 
     void OnEnable()
@@ -165,8 +209,18 @@ public class PlayerRig_NEW : MonoBehaviour
         _controller.Move(movementDirection * (finalSpeed * dt));
 
         // 4 · Look input
-        if (!_cameraInputLocked && !orbit.IsResetting)
-            orbit.DriveInput(dt, _lookSensitivityScale);
+        //
+        // Only while one of the player's rigs is on screen. Turning them under the cover
+        // or the intro shot moved a camera nobody could see, and the view swung to that
+        // angle the moment it came back — Macro does not lock look, so its gate did this.
+        if (!_cameraInputLocked)
+        {
+            if (orbit.IsResetting && lookCancelsRecentre && LookAttempted())
+                orbit.CancelReset();
+
+            if (!orbit.IsResetting && orbit.AnyLive())
+                orbit.DriveInput(dt, _lookSensitivityScale);
+        }
 
         // 5 · Recentre request
         //
@@ -182,6 +236,22 @@ public class PlayerRig_NEW : MonoBehaviour
         // 6 · Recentre step
         if (orbit.IsResetting)
             orbit.TickReset(dt);
+    }
+
+    /// <summary>A deliberate look — the stick pushed well past centre, or the mouse moved.</summary>
+    static bool LookAttempted()
+    {
+        return InputScheme_NEW.StickDeflection(InputScheme_NEW.Stick.Right, RecentreCancelStick) > 0f
+            || InputScheme_NEW.MouseDeflection() > RecentreCancelMouse;
+    }
+
+    static string LiveCameraName()
+    {
+        CinemachineBrain brain = CinemachineCore.Instance.BrainCount > 0
+            ? CinemachineCore.Instance.GetActiveBrain(0)
+            : null;
+        ICinemachineCamera live = brain != null ? brain.ActiveVirtualCamera : null;
+        return live != null ? live.Name : "none";
     }
 
     /// <summary>

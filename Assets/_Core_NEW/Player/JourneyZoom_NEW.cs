@@ -23,7 +23,8 @@ using UnityEngine;
 ///
 /// TRANSITIONS EASE IT BACK OUT. A visitor who does not know they are zoomed in would
 /// otherwise meet the next world through a 12° keyhole, and a dive looks like nothing
-/// through one. While a transition has look input locked, the stick is ignored too.
+/// through one. Whenever look is being ignored, the stick is ignored too, and
+/// InputDiagnostics_NEW's banner says why.
 /// </summary>
 [DisallowMultipleComponent]
 [HierarchyBadge_NEW("ZOOM", "#6FA8DC")]
@@ -76,6 +77,14 @@ public class JourneyZoom_NEW : MonoBehaviour
 
     /// <summary>0 at the full view, 1 at full zoom.</summary>
     public float Amount => _applied;
+
+    /// <summary>
+    /// Why the left stick is being ignored right now, or null when it zooms. The same
+    /// answer as for look (PlayerRig_NEW.ViewBlockedReason): the two are one set of view
+    /// controls, and a zoom that worked while look was locked would change a camera the
+    /// visitor is not steering.
+    /// </summary>
+    public string BlockedReason => player != null ? player.ViewBlockedReason : null;
 
     /// <summary>What the field of view is multiplied by right now. 1 when not zoomed.</summary>
     public float FovMultiplier =>
@@ -141,10 +150,8 @@ public class JourneyZoom_NEW : MonoBehaviour
     {
         float dt = Time.unscaledDeltaTime;
 
-        // A transition that has taken the look stick has taken this one too.
-        bool locked = player != null && player.CameraInputLocked;
-
-        if (!locked)
+        // Whatever has taken the look stick has taken this one too.
+        if (BlockedReason == null)
         {
             float deadband = useProfileDeadband ? InputScheme_NEW.Deadband() : stickDeadband;
             float push = InputScheme_NEW.StickY(InputScheme_NEW.Stick.Left, deadband);
