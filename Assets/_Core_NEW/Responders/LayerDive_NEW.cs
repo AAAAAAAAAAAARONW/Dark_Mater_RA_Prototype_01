@@ -27,11 +27,16 @@ using UnityEngine.UI;
 ///
 ///   approach   Before the gate, by distance: a light appears in the cluster
 ///              approachDistance before the trigger and grows as the photon closes in, so
-///              the dive has a destination before it starts.
+///              the dive has a destination before it starts. Around it, faint, the crowd
+///              the point is made of — the cluster's galaxies — still one glow.
 ///   dive       From the gate: the old world grows around the point at a CONSTANT rate —
 ///              every second magnifies by the same factor, so it holds its speed instead
-///              of rushing — brightens and dissolves, while the light swells. The photon
-///              keeps flying into the point and arrives about as the dive ends.
+///              of rushing — brightens and dissolves, while the light swells. The crowd
+///              opens at the same steady rate but fifteen times further, so its members
+///              stream past the camera as streaks while the web behind them hardly grows:
+///              the small scale racing by against a large one that barely moves is what
+///              makes the difference in size felt. The photon keeps flying into the point
+///              and arrives about as the dive ends.
 ///   peak       Under full light, CoverReached fires: sky, speed and spectrum change, and
 ///              the next zone camera goes live — the frame the cover camera used to give.
 ///   emerge     The light settles into the middle of the next world and fades as that
@@ -126,6 +131,49 @@ public class LayerDive_NEW : MonoBehaviour
         [Tooltip("Opacity of the full-screen light at the peak. 1 hides the swap completely.")]
         [Range(0f, 1f)] public float whiteout = 1f;
 
+        [Header("Resolve (what the point turns out to be made of)")]
+        [Tooltip("The point turns out to be a crowd — here, the galaxies of the cluster. Before " +
+                 "the gate they are one glow; in the dive they open up and stream past the camera " +
+                 "while the web around them hardly grows. The small scale racing by and the large " +
+                 "one barely moving is what makes the difference in size felt. On a later gate: " +
+                 "the stars of a galaxy.")]
+        public bool resolve = true;
+
+        [Tooltip("How many members the point resolves into.")]
+        [Range(0, 3000)] public int memberCount = 700;
+
+        [Tooltip("Outer radius of the crowd around the point before the dive, in world units. " +
+                 "Members fill it from the edge down to the point itself, denser inward.")]
+        [Min(0.1f)] public float crowdRadius = 6f;
+
+        [Tooltip("Radius of a member at the crowd's edge, in world units. Inner members are " +
+                 "smaller, so each one leaves the point looking the same.")]
+        [Min(0.001f)] public float memberSize = 0.22f;
+
+        [Tooltip("How far the crowd opens up by the peak, at the same constant rate as the dive. " +
+                 "Far more than diveZoom on purpose: the small scale races past while the " +
+                 "large one hardly moves.")]
+        [Min(1f)] public float resolveZoom = 60f;
+
+        [Tooltip("How much a member grows as the crowd opens: 0 keeps it a point, 1 grows it " +
+                 "with the crowd.")]
+        [Range(0f, 1f)] public float memberGrowth = 0.45f;
+
+        [Tooltip("How far the members stretch into streaks as they stream past.")]
+        [Range(0f, 20f)] public float streak = 5f;
+
+        [Tooltip("Brightness of the crowd on the approach, while it is still one glow.")]
+        [Range(0f, 2f)] public float approachCrowd = 0.35f;
+
+        [Tooltip("Brightness of the crowd during the dive.")]
+        [Range(0f, 4f)] public float diveCrowd = 1f;
+
+        public Color memberWarm = new Color(1f, 0.82f, 0.55f, 1f);
+        public Color memberCool = new Color(0.62f, 0.75f, 1f, 1f);
+
+        [Tooltip("Share of the members in the cool colour.")]
+        [Range(0f, 1f)] public float coolShare = 0.3f;
+
         [Header("Lens (blended over the scene's own post-processing)")]
         [Tooltip("Field of view multiplier at the peak. 1 = unchanged. Above 1 widens, which " +
                  "reads as speeding up.")]
@@ -178,6 +226,9 @@ public class LayerDive_NEW : MonoBehaviour
     }
 
     static readonly int ColorId = Shader.PropertyToID("_Color");
+    static readonly int AlphaId = Shader.PropertyToID("_Alpha");
+    static readonly int StreakId = Shader.PropertyToID("_Streak");
+    static readonly int SizeScaleId = Shader.PropertyToID("_SizeScale");
 
     readonly Dictionary<string, LayerGate_NEW> _gatesByLayer = new Dictionary<string, LayerGate_NEW>();
 
@@ -196,6 +247,12 @@ public class LayerDive_NEW : MonoBehaviour
     Vector3 _lightPosition;
     float _lightSize;
     bool _warnedNoLightShader;
+
+    GameObject _crowd;
+    Material _crowdMaterial;
+    Mesh _crowdMesh;
+    int _crowdSignature;
+    bool _warnedNoCrowdShader;
 
     GameObject _overlay;
     Image _veil;
@@ -230,9 +287,14 @@ public class LayerDive_NEW : MonoBehaviour
     {
         Abort();
         HideLight();
+        HideCrowd();
     }
 
-    void OnDestroy() => DestroyLight();
+    void OnDestroy()
+    {
+        DestroyLight();
+        DestroyCrowd();
+    }
 
     /// <summary>The approach: the light in the cluster ahead, before the gate is reached.</summary>
     void Update()
@@ -240,9 +302,16 @@ public class LayerDive_NEW : MonoBehaviour
         if (IsActive) return;   // the dive draws the light itself
 
         if (TryApproach(out Dive dive, out Vector3 focus, out float closeness))
-            SetLight(dive, focus, Mathf.Lerp(dive.pointSize, dive.gateSize, closeness), Smooth(0f, 0.4f, closeness));
+        {
+            float appear = Smooth(0f, 0.4f, closeness);
+            SetLight(dive, focus, Mathf.Lerp(dive.pointSize, dive.gateSize, closeness), appear);
+            SetCrowd(dive, focus, 1f, dive.approachCrowd * appear, 0f);
+        }
         else
+        {
             HideLight();
+            HideCrowd();
+        }
     }
 
     void LateUpdate()
@@ -320,6 +389,12 @@ public class LayerDive_NEW : MonoBehaviour
         SetLight(_dive, _focus, size, arriving);
         SetVeil(_dive.whiteout * Smooth(0.7f, 1f, u));
 
+        // The crowd opens up at the dive's own constant rate, only much further, and hands
+        // over to the whiteout at the end.
+        float crowd = Mathf.Lerp(_dive.approachCrowd, _dive.diveCrowd, Smooth(0f, 0.2f, u)) * (1f - Smooth(0.8f, 1f, u));
+        float streak = _dive.streak * Smooth(0f, 0.25f, u) * (1f - Smooth(0.85f, 1f, u));
+        SetCrowd(_dive, _focus, Mathf.Pow(_dive.resolveZoom, SteadyRamp(u)), crowd, streak);
+
         _fovMultiplier = Mathf.Lerp(1f, _dive.fieldOfViewScale, Smooth(0f, 1f, u));
         SetEffects(Smooth(0.2f, 1f, u));
     }
@@ -338,6 +413,7 @@ public class LayerDive_NEW : MonoBehaviour
         // Under the whiteout, the light moves to where the next world appears.
         SetVeil(_dive.whiteout);
         SetLight(_dive, _emergeFocus, _dive.peakSize * 0.5f, 1f);
+        HideCrowd();
     }
 
     /// <summary>The next world appearing around the light. <paramref name="v"/> runs 0 to 1.</summary>
@@ -392,6 +468,7 @@ public class LayerDive_NEW : MonoBehaviour
         DestroyOverlay();
         DestroyEffects();
         HideLight();
+        HideCrowd();
 
         IsActive = false;
 
@@ -628,6 +705,181 @@ public class LayerDive_NEW : MonoBehaviour
         _light = null;
         _lightMaterial = null;
         _lightQuad = null;
+    }
+
+    // ── The crowd the point resolves into ────────────────────────────────────
+
+    /// <param name="zoom">How far the crowd has opened around the point. 1 = as built.</param>
+    void SetCrowd(Dive d, Vector3 at, float zoom, float alpha, float streak)
+    {
+        if (!d.resolve || d.memberCount <= 0 || alpha <= 0.001f)
+        {
+            HideCrowd();
+            return;
+        }
+
+        EnsureCrowd(d);
+        if (_crowd == null) return;
+        if (!_crowd.activeSelf) _crowd.SetActive(true);
+
+        Transform t = _crowd.transform;
+        t.position = at;
+        t.rotation = Quaternion.identity;
+        t.localScale = new Vector3(zoom, zoom, zoom);
+
+        _crowdMaterial.SetFloat(AlphaId, alpha);
+        _crowdMaterial.SetFloat(StreakId, streak);
+        // The shader scales members with the crowd; this takes back all but memberGrowth of it.
+        _crowdMaterial.SetFloat(SizeScaleId, Mathf.Pow(zoom, d.memberGrowth - 1f));
+    }
+
+    void HideCrowd()
+    {
+        if (_crowd != null && _crowd.activeSelf) _crowd.SetActive(false);
+    }
+
+    /// <summary>Builds the crowd for this row, and again if its shape settings change in play.</summary>
+    void EnsureCrowd(Dive d)
+    {
+        int signature = CrowdSignature(d);
+        if (_crowd != null && _crowdSignature == signature) return;
+
+        if (_crowd == null)
+        {
+            Shader shader = Resources.Load<Shader>("DiveSwarm_NEW");
+            if (shader == null)
+            {
+                if (!_warnedNoCrowdShader)
+                    Debug.LogWarning("[LayerDive_NEW] Resources/DiveSwarm_NEW.shader is missing; the " +
+                                     "point dives without resolving into a crowd.", this);
+                _warnedNoCrowdShader = true;
+                return;
+            }
+
+            _crowdMaterial = new Material(shader) { name = "DiveSwarm (runtime)" };
+
+            _crowd = new GameObject("DiveCrowd (temporary)");
+            if (player != null) _crowd.layer = player.gameObject.layer;
+            _crowd.AddComponent<MeshFilter>();
+
+            MeshRenderer mr = _crowd.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = _crowdMaterial;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            mr.receiveShadows = false;
+            mr.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+            mr.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+
+            _crowd.SetActive(false);
+        }
+
+        if (_crowdMesh != null) Destroy(_crowdMesh);
+        _crowdMesh = BuildCrowdMesh(d);
+        _crowd.GetComponent<MeshFilter>().sharedMesh = _crowdMesh;
+        _crowdSignature = signature;
+    }
+
+    static int CrowdSignature(Dive d)
+    {
+        unchecked
+        {
+            int h = d.memberCount;
+            h = h * 31 + d.crowdRadius.GetHashCode();
+            h = h * 31 + d.memberSize.GetHashCode();
+            h = h * 31 + d.memberGrowth.GetHashCode();
+            h = h * 31 + d.resolveZoom.GetHashCode();
+            h = h * 31 + d.memberWarm.GetHashCode();
+            h = h * 31 + d.memberCool.GetHashCode();
+            h = h * 31 + d.coolShare.GetHashCode();
+            return h;
+        }
+    }
+
+    /// <summary>
+    /// One quad per member, all four corners at its centre; DiveSwarm_NEW spreads them on
+    /// screen.
+    ///
+    /// SCALE-FREE, NOT ONE CLUSTER. Members sit at radii spread evenly in log space, from
+    /// crowdRadius down past what the dive's zoom will ever open up. A single cluster
+    /// empties in the first second of a steady zoom — everything is outside the view by
+    /// the time the dive is half done — while this keeps new members emerging from the
+    /// point at the same rate all the way to the peak: a steady stream, no rush. It also
+    /// reads as a cluster on the approach: a dense core thinning into a halo. Sizes follow
+    /// the radius, so every member leaves the point looking the same. Fixed seed: the same
+    /// crowd every run.
+    /// </summary>
+    static Mesh BuildCrowdMesh(Dive d)
+    {
+        int n = Mathf.Max(0, d.memberCount);
+        var vertices = new Vector3[n * 4];
+        var colors = new Color[n * 4];
+        var corners = new Vector2[n * 4];
+        var sizes = new Vector2[n * 4];
+        var triangles = new int[n * 6];
+
+        var rng = new System.Random(7919);
+        // Enough decades that members are still leaving the point when the dive peaks.
+        float decades = Mathf.Log10(Mathf.Max(1f, d.resolveZoom)) + 1.4f;
+        float reach = 0f;
+
+        for (int i = 0; i < n; i++)
+        {
+            float fraction = Mathf.Pow(10f, -decades * (float)rng.NextDouble());
+            Vector3 p = RandomUnit(rng) * (d.crowdRadius * fraction);
+            float radius = d.memberSize * Mathf.Pow(fraction, d.memberGrowth)
+                         * Mathf.Lerp(0.6f, 1.4f, (float)rng.NextDouble());
+
+            Color c = rng.NextDouble() < d.coolShare ? d.memberCool : d.memberWarm;
+            c.a = Mathf.Lerp(0.25f, 1f, (float)rng.NextDouble());   // brightness
+
+            int v = i * 4;
+            for (int k = 0; k < 4; k++)
+            {
+                vertices[v + k] = p;
+                colors[v + k] = c;
+                sizes[v + k] = new Vector2(radius, 0f);
+            }
+            corners[v + 0] = new Vector2(-1f, -1f);
+            corners[v + 1] = new Vector2(1f, -1f);
+            corners[v + 2] = new Vector2(1f, 1f);
+            corners[v + 3] = new Vector2(-1f, 1f);
+
+            int t = i * 6;
+            triangles[t + 0] = v;     triangles[t + 1] = v + 2; triangles[t + 2] = v + 1;
+            triangles[t + 3] = v;     triangles[t + 4] = v + 3; triangles[t + 5] = v + 2;
+
+            reach = Mathf.Max(reach, p.magnitude);
+        }
+
+        var mesh = new Mesh { name = "DiveCrowd" };
+        mesh.vertices = vertices;
+        mesh.colors = colors;
+        mesh.uv = corners;
+        mesh.uv2 = sizes;
+        mesh.triangles = triangles;
+
+        // Every vertex sits at a member's centre, so the computed bounds would miss the
+        // glow and the streak the shader adds around it. Pad for both.
+        float pad = d.memberSize * 1.5f * 21f;
+        mesh.bounds = new Bounds(Vector3.zero, Vector3.one * (2f * (reach + pad)));
+        return mesh;
+    }
+
+    static Vector3 RandomUnit(System.Random rng)
+    {
+        double z = rng.NextDouble() * 2.0 - 1.0;
+        double a = rng.NextDouble() * Math.PI * 2.0;
+        double s = Math.Sqrt(1.0 - z * z);
+        return new Vector3((float)(s * Math.Cos(a)), (float)(s * Math.Sin(a)), (float)z);
+    }
+
+    void DestroyCrowd()
+    {
+        if (_crowd != null) Destroy(_crowd);
+        if (_crowdMaterial != null) Destroy(_crowdMaterial);
+        if (_crowdMesh != null) Destroy(_crowdMesh);
+        _crowd = null;
+        _crowdMaterial = null;
+        _crowdMesh = null;
     }
 
     // ── Whiteout ─────────────────────────────────────────────────────────────
