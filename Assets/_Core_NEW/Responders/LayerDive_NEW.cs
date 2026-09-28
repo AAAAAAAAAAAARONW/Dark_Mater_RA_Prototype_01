@@ -55,10 +55,12 @@ using UnityEngine.UI;
 /// left — at the CosmicWeb gate, the Micro galaxy, just behind the camera and twelve below
 /// — taken as the centre of its cluster:
 ///
-///   approach   The cluster's galaxies come into view all round as the photon nears the
-///              gate, one at a time and soft — seen from inside a cluster they are smudges,
-///              not points of light — and its yellow glow, the light the dive in went into,
-///              thickens round the photon: we are inside a cluster.
+///   cluster    The cluster's galaxies are there all along: dim, soft smudges spread evenly
+///              round the world being left, the whole time the photon crosses it. They come
+///              in with that world as the dive into it ends, never on their own.
+///   approach   Only over the last few seconds before the gate do they brighten, while the
+///              cluster's yellow glow — the light the dive in went into — gathers round the
+///              photon.
 ///   breakout   The whole cluster shrinks into its centre behind and below at a constant
 ///              rate, the world left with it and the glow too, whose edge sweeps past the
 ///              camera: the yellow sinks away below and behind, and the photon walks out
@@ -126,12 +128,14 @@ public class LayerDive_NEW : MonoBehaviour
 
         /// <summary>
         /// Starting values for a gate that goes up a scale, tuned for the galaxy back out to
-        /// the cosmic web (see COMING OUT on the class). Measured against the scene: from the
-        /// gate about 260 of the cluster's galaxies are in view, and the yellow halo is about
-        /// half as bright from inside as through its middle. The camera starts round 0.8
-        /// seconds in and has the cluster in frame by 1.75, the photon to the left in front
-        /// of it; the halo is 17 degrees across then, 5 at the peak and a 1-degree knot by
-        /// 5 seconds, while the lens widens from 40 to 72. Facing forward again by 7.2.
+        /// the cosmic web (see COMING OUT on the class). Measured against the scene: 2000
+        /// galaxies spread evenly 20 to 160 out round the Micro galaxy put 100 to 350 in view
+        /// while the photon crosses it, dim; over the last 5 units (four seconds at Micro's
+        /// speed) they brighten and the yellow halo gathers, about half as bright from inside
+        /// as through its middle; about 100 are in view at the gate. The camera starts round
+        /// 0.8 seconds in and has the cluster in frame by 1.75, the photon to the left in
+        /// front of it; the halo is 17 degrees across then, 5 at the peak and a 1-degree knot
+        /// by 5 seconds, while the lens widens from 40 to 72. Facing forward again by 7.2.
         /// </summary>
         public static Dive ComingOut(string toLayerId)
         {
@@ -140,20 +144,20 @@ public class LayerDive_NEW : MonoBehaviour
                 toLayerId = toLayerId,
                 direction = Direction.Out,
                 focusPastGate = 30f,
-                approachDistance = 20f,
+                approachDistance = 5f,
                 emergeSeconds = 4.5f,
                 diveZoom = 30f,
                 leaveGlow = 1f,
                 dissolveFrom = 0.4f,
                 lightIntensity = 0f,
                 whiteout = 0f,
-                memberCount = 900,
-                crowdRadius = 400f,
+                memberCount = 2000,
+                crowdRadius = 160f,
                 memberSize = 1.2f,
                 resolveZoom = 30f,
                 memberGrowth = 1f,
                 streak = 3f,
-                spread = 40f,
+                spread = 180f,
                 haloRadius = 60f,
                 haloIntensity = 1f,
                 lookBackYaw = 150f,
@@ -163,7 +167,8 @@ public class LayerDive_NEW : MonoBehaviour
                 lookBackUntil = 7.2f,
                 lookBackSwing = 1.4f,
                 lookBackDolly = 2f,
-                approachCrowd = 0.6f,
+                ambientCrowd = 0.3f,
+                approachCrowd = 0.8f,
                 diveCrowd = 0.8f,
                 coolShare = 0.35f,
                 dollyZoom = 1f,
@@ -189,7 +194,8 @@ public class LayerDive_NEW : MonoBehaviour
         [Header("Approach (before the gate)")]
         [Tooltip("The light appears at the point this far before the gate, in world units, " +
                  "and grows as the photon closes in. 0 = it appears at the gate. Coming out, " +
-                 "the cluster's galaxies come into view around the photon instead.")]
+                 "where the cluster's galaxies start to brighten and its glow to gather — " +
+                 "keep it to a few seconds of flight: 5 is four at Micro's speed.")]
         [Min(0f)] public float approachDistance = 40f;
 
         [Header("Timing (seconds)")]
@@ -271,10 +277,9 @@ public class LayerDive_NEW : MonoBehaviour
         [Tooltip("How far the members stretch into streaks as they stream past.")]
         [Range(0f, 20f)] public float streak = 5f;
 
-        [Tooltip("Coming out only: the cluster is laid out in a cone of this half-angle, in " +
-                 "degrees, from its centre towards the view ahead — the part the camera sees. " +
-                 "Round the whole sphere, a twentieth of the galaxies would ever be in view. " +
-                 "180 = all round.")]
+        [Tooltip("Coming out only: the cluster fills a cone of this half-angle, in degrees, " +
+                 "from its centre towards where the camera looks at the gate. 180 = all round, " +
+                 "as a cluster is; smaller packs the same galaxies into the part in view.")]
         [Range(10f, 180f)] public float spread = 40f;
 
         [Header("Halo (coming out: the glow of the cluster being left)")]
@@ -320,7 +325,13 @@ public class LayerDive_NEW : MonoBehaviour
                  "photon that keeps its size. How many times they shrink. 1 = off.")]
         [Range(1f, 4f)] public float lookBackDolly = 2f;
 
-        [Tooltip("Brightness of the crowd on the approach, while it is still one glow.")]
+        [Tooltip("Coming out only: brightness of the cluster's galaxies the whole time the " +
+                 "photon crosses the world being left, before the approach brightens them. " +
+                 "0 = they show only over the approach.")]
+        [Range(0f, 2f)] public float ambientCrowd = 0f;
+
+        [Tooltip("Brightness of the crowd on the approach, while it is still one glow. Coming " +
+                 "out, what the cluster's galaxies brighten to by the gate.")]
         [Range(0f, 2f)] public float approachCrowd = 0.35f;
 
         [Tooltip("Brightness of the crowd during the dive.")]
@@ -427,7 +438,6 @@ public class LayerDive_NEW : MonoBehaviour
     static readonly int SizeScaleId = Shader.PropertyToID("_SizeScale");
     static readonly int ResolveId = Shader.PropertyToID("_Resolve");
     static readonly int NearFadeId = Shader.PropertyToID("_NearFade");
-    static readonly int RevealId = Shader.PropertyToID("_Reveal");
     static readonly int CoreId = Shader.PropertyToID("_Core");
     static readonly int SigmaId = Shader.PropertyToID("_Sigma");
 
@@ -481,11 +491,16 @@ public class LayerDive_NEW : MonoBehaviour
     // round the knot as the camera looks back.
     const float WebBeforePeak = 0.3f;
 
-    // Coming out, how much of the cluster has come into view on the approach (0 to 1), and
-    // how much had by the gate. It builds up, never faster than over OutApproachFadeSeconds.
-    float _approachShown;
-    float _shownAtBegin = 1f;
-    const float OutApproachFadeSeconds = 3f;
+    // Coming out, the cluster round the world being left: how far it has faded in (it is
+    // there the whole time the photon crosses that world), and how far the approach has
+    // brightened it. Neither changes faster than over the seconds below, however the photon
+    // got where it is — a debug jump lands it anywhere. And both as they stood at the gate.
+    float _presence;
+    float _brighten;
+    float _crowdAtBegin;
+    float _haloAtBegin;
+    const float ClusterFadeSeconds = 3f;
+    const float BrightenSeconds = 2f;
 
     TrailRenderer[] _trails = Array.Empty<TrailRenderer>();
     float[] _trailWidths = Array.Empty<float>();
@@ -527,43 +542,68 @@ public class LayerDive_NEW : MonoBehaviour
     }
 
     /// <summary>
-    /// The approach: the light in the cluster ahead, before the gate is reached — or, coming
-    /// out, the cluster's galaxies all round and its glow gathering round the photon.
+    /// Between gates. Heading for a dive in: its light in the cluster ahead, over the
+    /// approach. Heading for a way out: the cluster round the world the photon is crossing,
+    /// there the whole way, dim, brightening over the approach with its glow gathering.
     /// </summary>
     void Update()
     {
         if (IsActive) return;   // the dive draws the light itself
 
-        if (TryApproach(out Dive dive, out Vector3 focus, out Quaternion aim, out float closeness))
+        if (!TryNextDive(out Dive dive, out LayerGate_NEW gate, out float ahead))
         {
-            if (dive.direction == Direction.In)
-            {
-                float appear = Smooth(0f, 0.4f, closeness);
-                SetLight(dive, focus, Mathf.Lerp(dive.pointSize, dive.gateSize, closeness), appear);
-                SetCrowd(dive, focus, aim, 1f, dive.approachCrowd * appear, 0f);
-                HideHalo();
-            }
-            else
-            {
-                // Coming out, the cluster builds up round the photon instead of popping in:
-                // its glow thickens and its galaxies come into view one by one, never
-                // faster than over three seconds, however the photon got here — a debug jump
-                // lands it inside the approach, or at the gate.
-                float target = Smooth(0f, 0.6f, closeness);
-                _approachShown = Mathf.MoveTowards(_approachShown, target, Time.deltaTime / OutApproachFadeSeconds);
-
-                HideLight();
-                SetHalo(dive, focus, dive.haloRadius, dive.haloIntensity * _approachShown);
-                SetCrowd(dive, focus, aim, 1f, dive.approachCrowd * Smooth(0f, 0.3f, _approachShown), 0f, _approachShown);
-            }
-        }
-        else
-        {
-            _approachShown = 0f;
+            _presence = 0f;
+            _brighten = 0f;
             HideLight();
             HideCrowd();
             HideHalo();
+            return;
         }
+
+        if (dive.direction == Direction.Out)
+        {
+            TickCluster(dive, gate, ahead, _presence);
+            return;
+        }
+
+        _presence = 0f;
+        _brighten = 0f;
+        HideHalo();
+
+        if (dive.approachDistance <= 0f || ahead > dive.approachDistance)
+        {
+            HideLight();
+            HideCrowd();
+            return;
+        }
+
+        float closeness = 1f - ahead / dive.approachDistance;
+        float appear = Smooth(0f, 0.4f, closeness);
+        Vector3 focus = FocusFor(dive, gate, state != null ? state.CurrentLayerId : null);
+        SetLight(dive, focus, Mathf.Lerp(dive.pointSize, dive.gateSize, closeness), appear);
+        SetCrowd(dive, focus, Quaternion.identity, 1f, dive.approachCrowd * appear, 0f);
+    }
+
+    /// <summary>
+    /// Heading for a way out: the cluster round the world being crossed. It fades in once
+    /// (from <paramref name="presenceFrom"/>, at most over ClusterFadeSeconds) and stays,
+    /// dim; over the last approachDistance before the gate it brightens and its glow
+    /// gathers round the photon (at most over BrightenSeconds).
+    /// </summary>
+    void TickCluster(Dive dive, LayerGate_NEW gate, float ahead, float presenceFrom)
+    {
+        Vector3 centre = FocusFor(dive, gate, state != null ? state.CurrentLayerId : null);
+
+        float brightenTo = dive.approachDistance > 0f && ahead <= dive.approachDistance
+            ? Smooth(0f, 1f, 1f - ahead / dive.approachDistance)
+            : 0f;
+        _presence = Mathf.MoveTowards(presenceFrom, 1f, Time.deltaTime / ClusterFadeSeconds);
+        _brighten = Mathf.MoveTowards(_brighten, brightenTo, Time.deltaTime / BrightenSeconds);
+
+        HideLight();
+        SetCrowd(dive, centre, CrowdAim(dive, centre, gate), 1f,
+                 _presence * Mathf.Lerp(dive.ambientCrowd, dive.approachCrowd, _brighten), 0f);
+        SetHalo(dive, centre, dive.haloRadius, dive.haloIntensity * _presence * _brighten);
     }
 
     void LateUpdate()
@@ -639,10 +679,12 @@ public class LayerDive_NEW : MonoBehaviour
         _camera = brain != null ? brain.OutputCamera : Camera.main;
         _clock = 0f;
         _lookBack = 0f;
-        // Coming out, whatever of the cluster had not come into view by the gate comes in
-        // over the start of the breakout.
-        _shownAtBegin = dive.direction == Direction.Out ? _approachShown : 1f;
-        _approachShown = 0f;
+        // Coming out, the cluster goes on from how it stood at the gate — even if a debug
+        // jump got the photon there before the approach had finished brightening it.
+        _crowdAtBegin = _presence * Mathf.Lerp(dive.ambientCrowd, dive.approachCrowd, _brighten);
+        _haloAtBegin = _presence * _brighten;
+        _presence = 0f;
+        _brighten = 0f;
         IsActive = true;
 
         if (worlds != null) worlds.Hold(this);
@@ -787,6 +829,11 @@ public class LayerDive_NEW : MonoBehaviour
         if (worlds != null) worlds.SetGroupLook(_toId, Smooth(0f, 0.7f, v));
         SetLight(_dive, _emergeFocus, Mathf.Lerp(_dive.peakSize * 0.5f, _dive.pointSize, settle), 1f - Smooth(0.3f, 1f, v));
         SetEffects(1f - Smooth(0f, 0.9f, v));
+
+        // If the way on out of the world just entered leaves a cluster, that cluster comes in
+        // with the world, rather than its galaxies appearing on their own afterwards.
+        if (TryNextDive(out Dive next, out LayerGate_NEW gate, out float ahead) && next.direction == Direction.Out)
+            TickCluster(next, gate, ahead, Mathf.Max(_presence, Smooth(0.2f, 1f, v)));
     }
 
     // ── Coming out, on one clock ─────────────────────────────────────────────
@@ -811,20 +858,20 @@ public class LayerDive_NEW : MonoBehaviour
             : Mathf.Lerp(WebBeforePeak, 1f, Smooth(dive, dive + 0.6f * rest, t));
         if (worlds != null) worlds.SetGroupLook(_toId, web);
 
-        // The cluster — its galaxies and its glow — shrinks into its centre. Whatever of it
-        // had not come into view by the gate comes in over the first second or so, then its
-        // galaxies fade as the knot gets small, and the glow last of all.
+        // The cluster — its galaxies and its glow — shrinks into its centre, going on from
+        // how it stood at the gate; its galaxies fade as the knot gets small, and the glow
+        // last of all.
         float shrink = ClusterShrink(t);
         float arrive = Smooth(0f, 0.3f * dive, t);
-        float crowd = Mathf.Lerp(_dive.approachCrowd * Smooth(0f, 0.3f, _shownAtBegin), _dive.diveCrowd, arrive)
+        float crowd = Mathf.Lerp(_crowdAtBegin, _dive.diveCrowd, arrive)
                     * (1f - Smooth(dive + 0.2f * rest, dive + 0.8f * rest, t));
         float streak = _dive.streak * Smooth(0f, 0.25f * dive, t) * (1f - Smooth(dive, dive + 0.5f * rest, t));
-        SetCrowd(_dive, _focus, _crowdAim, shrink, crowd, streak, Mathf.Lerp(_shownAtBegin, 1f, arrive));
+        SetCrowd(_dive, _focus, _crowdAim, shrink, crowd, streak);
 
         // Its light gathers into less space as it shrinks: brighter, up to three times.
         float sigma = _dive.haloRadius * shrink;
         float gather = Mathf.Clamp(Mathf.Sqrt(_dive.haloRadius / Mathf.Max(4f * sigma, 1e-3f)), 1f, 3f);
-        SetHalo(_dive, _focus, sigma, _dive.haloIntensity * Mathf.Lerp(_shownAtBegin, 1f, arrive) * gather
+        SetHalo(_dive, _focus, sigma, _dive.haloIntensity * Mathf.Lerp(_haloAtBegin, 1f, arrive) * gather
                                       * (1f - Smooth(dive + 0.5f * rest, dive + rest, t)));
 
         // The camera swings round to look back, holds, and swings forward again; while it
@@ -869,6 +916,10 @@ public class LayerDive_NEW : MonoBehaviour
         if (!IsActive) return;
         if (debugLog) Debug.Log($"[LayerDive_NEW] Into '{_toId}'.", this);
         Cleanup();
+
+        // Straight on to what shows between gates, this same frame: a cluster that came in
+        // with the world would otherwise drop out for one.
+        Update();
     }
 
     /// <summary>
@@ -911,35 +962,34 @@ public class LayerDive_NEW : MonoBehaviour
 
     // ── Where ────────────────────────────────────────────────────────────────
 
-    /// <summary>The row whose gate the photon is closing on, within its approach distance.</summary>
-    bool TryApproach(out Dive dive, out Vector3 focus, out Quaternion aim, out float closeness)
+    /// <summary>
+    /// The nearest gate ahead of the photon along its line, if it has a row: what the photon
+    /// is heading for, and how far ahead the gate is. Not a gate into the layer it is
+    /// already in (a debug jump can land it before one).
+    /// </summary>
+    bool TryNextDive(out Dive dive, out LayerGate_NEW gate, out float ahead)
     {
         dive = null;
-        focus = default;
-        aim = Quaternion.identity;
-        closeness = 0f;
+        gate = null;
+        ahead = float.MaxValue;
         if (player == null) return false;
 
-        string current = state != null ? state.CurrentLayerId : null;
-
-        for (int i = 0; i < gates.Length; i++)
+        Vector3 at = player.transform.position;
+        Vector3 along = TravelDirection();
+        foreach (LayerGate_NEW g in _gatesByLayer.Values)
         {
-            Dive d = gates[i];
-            if (d == null || !d.enabled || d.approachDistance <= 0f) continue;
-            if (string.Equals(current, d.toLayerId, StringComparison.Ordinal)) continue;   // already through
-            if (!_gatesByLayer.TryGetValue(d.toLayerId, out LayerGate_NEW gate) || gate == null) continue;
-
-            float before = Vector3.Dot(GateCentre(gate) - player.transform.position, TravelDirection());
-            if (before <= 0f || before > d.approachDistance) continue;
-
-            dive = d;
-            focus = FocusFor(d, gate, current);
-            aim = CrowdAim(d, focus, gate);
-            closeness = 1f - before / d.approachDistance;
-            return true;
+            if (g == null) continue;
+            float d = Vector3.Dot(GateCentre(g) - at, along);
+            if (d > 0f && d < ahead)
+            {
+                ahead = d;
+                gate = g;
+            }
         }
 
-        return false;
+        if (gate == null) return false;
+        if (state != null && string.Equals(state.CurrentLayerId, gate.LayerId, StringComparison.Ordinal)) return false;
+        return TryGetDive(gate.LayerId, out dive);
     }
 
     Vector3 DiveFocus()
@@ -1256,9 +1306,7 @@ public class LayerDive_NEW : MonoBehaviour
     /// <param name="aim">Coming out, which way the cluster's cone points (CrowdAim).</param>
     /// <param name="zoom">How far the crowd has opened around the point — or shrunk into it,
     /// coming out. 1 = as built.</param>
-    /// <param name="reveal">How many of the members have come into view, each at its own
-    /// moment (BuildCrowdMesh): 1 all of them.</param>
-    void SetCrowd(Dive d, Vector3 at, Quaternion aim, float zoom, float alpha, float streak, float reveal = 1f)
+    void SetCrowd(Dive d, Vector3 at, Quaternion aim, float zoom, float alpha, float streak)
     {
         if (!d.resolve || d.memberCount <= 0 || alpha <= 0.001f)
         {
@@ -1285,7 +1333,6 @@ public class LayerDive_NEW : MonoBehaviour
         // fade from well off as they come close, before one fills the screen.
         bool inward = d.direction == Direction.In;
         _crowdMaterial.SetFloat(ResolveId, inward ? 1f : 0f);
-        _crowdMaterial.SetFloat(RevealId, reveal);
         _crowdMaterial.SetFloat(CoreId, inward ? 1f : 0.35f);
         _crowdMaterial.SetVector(NearFadeId, inward ? new Vector4(0.5f, 3f, 0f, 0f) : new Vector4(2.5f, 10f, 0f, 0f));
     }
@@ -1366,11 +1413,10 @@ public class LayerDive_NEW : MonoBehaviour
     /// the radius, so every member leaves the point looking the same. Fixed seed: the same
     /// crowd every run.
     ///
-    /// COMING OUT it is the cluster seen from inside: galaxies of one size, from near its
-    /// centre out to crowdRadius, denser inward — so as it shrinks away the stream past the
-    /// camera thins out instead of stopping — and only in the cone the camera looks
-    /// through (local +Z, turned by CrowdAim). Round the whole sphere, with the centre
-    /// behind the camera, a twentieth of them would ever be in view.
+    /// COMING OUT it is the cluster round the world being left, there the whole time the
+    /// photon crosses that world: galaxies of one size spread evenly through the volume from
+    /// an eighth of crowdRadius (clear of the galaxy itself) out to crowdRadius, in every
+    /// direction (spread 180) or in a cone round local +Z, turned by CrowdAim.
     /// </summary>
     static Mesh BuildCrowdMesh(Dive d)
     {
@@ -1385,7 +1431,7 @@ public class LayerDive_NEW : MonoBehaviour
         bool outward = d.direction == Direction.Out;
         // Enough decades that members are still leaving the point when the dive peaks.
         float decades = Mathf.Log10(Mathf.Max(1f, d.resolveZoom)) + 1.4f;
-        float inner = d.crowdRadius * 0.03f;
+        float inner = d.crowdRadius * 0.125f;
         float cosSpread = Mathf.Cos(d.spread * Mathf.Deg2Rad);
         float reach = 0f;
 
@@ -1395,8 +1441,10 @@ public class LayerDive_NEW : MonoBehaviour
             float radius;
             if (outward)
             {
-                float x = 1f - Mathf.Pow(1f - (float)rng.NextDouble(), 1f / 1.6f);
-                p = RandomInCone(rng, cosSpread) * (inner * Mathf.Pow(d.crowdRadius / inner, x));
+                // Evenly through the volume between inner and crowdRadius.
+                float r3 = inner * inner * inner;
+                float r = Mathf.Pow(r3 + (float)rng.NextDouble() * (d.crowdRadius * d.crowdRadius * d.crowdRadius - r3), 1f / 3f);
+                p = RandomInCone(rng, cosSpread) * r;
                 radius = d.memberSize * Mathf.Lerp(0.5f, 1.5f, (float)rng.NextDouble());
             }
             else
@@ -1410,16 +1458,12 @@ public class LayerDive_NEW : MonoBehaviour
             Color c = rng.NextDouble() < d.coolShare ? d.memberCool : d.memberWarm;
             c.a = Mathf.Lerp(0.25f, 1f, (float)rng.NextDouble());   // brightness
 
-            // Coming out, the moment of the reveal at which it comes into view, so the
-            // cluster builds up one galaxy at a time. Going in, all at once, as always.
-            float appearAt = outward ? 0.75f * (float)rng.NextDouble() : 0f;
-
             int v = i * 4;
             for (int k = 0; k < 4; k++)
             {
                 vertices[v + k] = p;
                 colors[v + k] = c;
-                sizes[v + k] = new Vector2(radius, appearAt);
+                sizes[v + k] = new Vector2(radius, 0f);
             }
             corners[v + 0] = new Vector2(-1f, -1f);
             corners[v + 1] = new Vector2(1f, -1f);

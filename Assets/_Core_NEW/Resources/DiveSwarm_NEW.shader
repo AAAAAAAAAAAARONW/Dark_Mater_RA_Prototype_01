@@ -19,8 +19,6 @@ Shader "Custom/DiveSwarm_NEW"
         _NearFade ("Near fade (start, end)", Vector) = (0.5, 3, 0, 0)
         // 1: members come out of the point's glow (going in). 0: there is no point in view.
         _Resolve  ("Resolve from the point", Range(0, 1)) = 1
-        // Members come into view one by one as this passes each one's own moment (uv2.y).
-        _Reveal   ("Reveal", Range(0, 1)) = 1
         // The bright middle of each member: 1 a point of light, lower a soft smudge.
         _Core     ("Core", Range(0, 1)) = 1
     }
@@ -39,7 +37,7 @@ Shader "Custom/DiveSwarm_NEW"
             #pragma fragment frag
             #include "UnityCG.cginc"
 
-            float  _Alpha, _Streak, _SizeScale, _Resolve, _Reveal, _Core;
+            float  _Alpha, _Streak, _SizeScale, _Resolve, _Core;
             float4 _NearFade;
 
             struct appdata
@@ -47,7 +45,7 @@ Shader "Custom/DiveSwarm_NEW"
                 float4 vertex : POSITION;    // member centre, object space
                 fixed4 color  : COLOR;       // member colour; alpha = its brightness
                 float2 uv     : TEXCOORD0;   // quad corner, -1..1
-                float2 size   : TEXCOORD1;   // x = radius in object units, y = when it comes into view
+                float2 size   : TEXCOORD1;   // x = radius in object units
             };
 
             struct v2f
@@ -92,12 +90,8 @@ Shader "Custom/DiveSwarm_NEW"
                 // resolved: they brighten as they separate from it (full by about three degrees).
                 float resolved = lerp(1.0, saturate((len - 0.01) / 0.04), _Resolve);
 
-                // Each member comes into view at its own moment of _Reveal, over a quarter of
-                // it, so a crowd builds up one by one instead of brightening all at once.
-                float revealed = saturate((_Reveal - v.size.y) * 4.0);
-
                 o.color = v.color;
-                o.color.a *= near * resolved * revealed * _Alpha;
+                o.color.a *= near * resolved * _Alpha;
                 return o;
             }
 
