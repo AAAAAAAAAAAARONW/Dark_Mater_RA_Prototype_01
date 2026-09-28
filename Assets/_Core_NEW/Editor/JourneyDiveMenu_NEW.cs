@@ -47,11 +47,11 @@ static class JourneyDiveMenu_NEW
             added++;
         }
 
-        LayerDive_NEW existingDive = Object.FindObjectOfType<LayerDive_NEW>();
+        LayerDive_NEW dive = Object.FindObjectOfType<LayerDive_NEW>();
         WorldSwitcher_NEW worlds = Object.FindObjectOfType<WorldSwitcher_NEW>();
-        if (existingDive != null)
+        if (dive != null)
         {
-            Debug.Log("Journey NEW: '" + existingDive.name + "' already has LayerDive_NEW.", existingDive);
+            Debug.Log("Journey NEW: '" + dive.name + "' already has LayerDive_NEW.", dive);
         }
         else if (worlds == null)
         {
@@ -60,14 +60,34 @@ static class JourneyDiveMenu_NEW
         }
         else
         {
-            Undo.AddComponent<LayerDive_NEW>(worlds.gameObject);
+            dive = Undo.AddComponent<LayerDive_NEW>(worlds.gameObject);
             Debug.Log("Journey NEW: added LayerDive_NEW to '" + worlds.name + "'. The gate into Micro " +
                       "now dives instead of looking down; add rows there for other gates.", worlds);
             added++;
         }
 
+        // The two gates tuned so far, each added only if the scene has no row for it yet —
+        // so running this after an update brings in a new gate without touching tuned ones.
+        if (dive != null)
+        {
+            added += AddRowIfMissing(dive, new LayerDive_NEW.Dive(), "dives in (cosmic web to galaxy)");
+            added += AddRowIfMissing(dive, LayerDive_NEW.Dive.PullOut("CosmicWeb"), "pulls out (galaxy back to the web)");
+        }
+
         if (added > 0)
             Debug.Log("Journey NEW: save the scene to keep " + (added == 1 ? "it" : "them") + ".");
+    }
+
+    static int AddRowIfMissing(LayerDive_NEW dive, LayerDive_NEW.Dive row, string what)
+    {
+        if (dive.HasRow(row.toLayerId)) return 0;
+
+        Undo.RecordObject(dive, "Add dive row");
+        dive.AddRow(row);
+        EditorUtility.SetDirty(dive);
+
+        Debug.Log("Journey NEW: added a row for the gate into " + row.toLayerId + ", which now " + what + ".", dive);
+        return 1;
     }
 
     [MenuItem(MenuPath, true)]

@@ -47,6 +47,15 @@ using UnityEngine.UI;
 ///   emerge     The light settles into the middle of the next world and fades as that
 ///              world fades in around it.
 ///
+/// COMING OUT (Direction.Out) runs all of it the other way, for a gate that goes up a
+/// scale — a galaxy back out to the cosmic web. The world just left collapses into a point
+/// ahead and fades; the crowd gathers in from all round, from beyond the edges and from
+/// behind, into a knot of light; the lens widens while the camera closes in, so the world
+/// falls away behind a photon that stays the same size, and the photon's trail widens —
+/// the light growing against its world. Past the whiteout the next world closes in around
+/// the knot from three times its size, and the knot shrinks to a speck in it: the whole
+/// galaxy just left, now one small light in the web.
+///
 /// THE LIGHT is a camera-facing glow in the world, drawn after the web and before the
 /// photon trail, so it sits inside the cluster and behind the photon. Only the full-screen
 /// whiteout at the peak is an overlay.
@@ -67,6 +76,22 @@ using UnityEngine.UI;
 [HierarchyBadge_NEW("DIVE", "#E07A5F")]
 public class LayerDive_NEW : MonoBehaviour
 {
+    /// <summary>Which way the scale goes through the gate.</summary>
+    public enum Direction
+    {
+        /// <summary>Down a scale: into the point (cosmic web to one galaxy).</summary>
+        In,
+
+        /// <summary>
+        /// Up a scale: out of the world just left, which collapses into the point ahead and
+        /// becomes a speck in the next world (a galaxy back out to the cosmic web). Every
+        /// magnitude below is used the other way round: the old world shrinks by diveZoom,
+        /// the crowd gathers in from resolveZoom, the lens widens by dollyZoom, the photon
+        /// grows by 1 / photonShrink, and the next world closes in from enterScale.
+        /// </summary>
+        Out
+    }
+
     [Serializable]
     public class Dive
     {
@@ -75,6 +100,48 @@ public class LayerDive_NEW : MonoBehaviour
 
         [Tooltip("Untick to put this gate back on the cover transition without losing the tuning.")]
         public bool enabled = true;
+
+        [Tooltip("In = down a scale, into the point. Out = up a scale: the world just left " +
+                 "collapses into the point and becomes a speck in the next one.")]
+        public Direction direction = Direction.In;
+
+        /// <summary>
+        /// Starting values for a gate that goes up a scale, tuned for the galaxy back out to
+        /// the cosmic web: no approach light (the destination is everything, not a point),
+        /// the old world fading early (a galaxy's particles cannot follow a scale), and the
+        /// web closing in around the point from three times its size.
+        /// </summary>
+        public static Dive PullOut(string toLayerId)
+        {
+            return new Dive
+            {
+                toLayerId = toLayerId,
+                direction = Direction.Out,
+                focusPastGate = 30f,
+                approachDistance = 0f,
+                emergeSeconds = 3.5f,
+                leaveGlow = 1.5f,
+                dissolveFrom = 0.3f,
+                enterScale = 3f,
+                lightColor = new Color(1f, 0.9f, 0.75f, 1f),
+                lightIntensity = 1.2f,
+                pointSize = 1.5f,
+                gateSize = 4f,
+                peakSize = 14f,
+                memberCount = 900,
+                crowdRadius = 8f,
+                memberSize = 0.25f,
+                resolveZoom = 40f,
+                streak = 4f,
+                approachCrowd = 0f,
+                coolShare = 0.4f,
+                dollyZoom = 2.2f,
+                photonShrink = 0.45f,
+                peakVignette = 0f,
+                peakBloom = 2.5f,
+                peakChromaticAberration = 0.1f
+            };
+        }
 
         [Header("Where")]
         [Tooltip("How far past the gate, along the direction of travel, the point sits. " +
@@ -354,6 +421,23 @@ public class LayerDive_NEW : MonoBehaviour
 
     // ── Called by CameraDirector_NEW ─────────────────────────────────────────
 
+    /// <summary>True if any row, enabled or not, is for the gate into <paramref name="toLayerId"/>.</summary>
+    public bool HasRow(string toLayerId)
+    {
+        for (int i = 0; i < gates.Length; i++)
+            if (gates[i] != null && string.Equals(gates[i].toLayerId, toLayerId, StringComparison.Ordinal))
+                return true;
+        return false;
+    }
+
+    /// <summary>Append a row. For the editor's setup menu; record an undo before calling.</summary>
+    public void AddRow(Dive row)
+    {
+        if (row == null) return;
+        Array.Resize(ref gates, gates.Length + 1);
+        gates[gates.Length - 1] = row;
+    }
+
     /// <summary>The enabled row for the gate into <paramref name="toLayerId"/>, if any.</summary>
     public bool TryGetDive(string toLayerId, out Dive dive)
     {
@@ -384,7 +468,8 @@ public class LayerDive_NEW : MonoBehaviour
         if (worlds != null) worlds.Hold(this);
 
         _focus = DiveFocus();
-        _emergeFocus = NextWorldCentre();
+        // Coming out, the next world closes in around the knot the old one collapsed into.
+        _emergeFocus = dive.direction == Direction.Out ? _focus : NextWorldCentre();
         _leave = Capture(worlds != null ? worlds.GroupRoot(_fromId) : null);
         _enter = Capture(worlds != null ? worlds.GroupRoot(_toId) : null);
 
@@ -410,33 +495,52 @@ public class LayerDive_NEW : MonoBehaviour
         if (!IsActive) return;
         u = Mathf.Clamp01(u);
 
-        ScaleAround(_leave, _focus, Mathf.Pow(_dive.diveZoom, SteadyRamp(u)));
+        bool outward = _dive.direction == Direction.Out;
+        float p = SteadyRamp(u);
+
+        // The old world grows around the point going in, and collapses into it coming out.
+        ScaleAround(_leave, _focus, Mathf.Pow(outward ? 1f / _dive.diveZoom : _dive.diveZoom, p));
 
         float dissolve = Smooth(_dive.dissolveFrom, 1f, u);
         float glow = Mathf.Lerp(1f, _dive.leaveGlow, Smooth(0f, 0.85f, u));
         if (worlds != null) worlds.SetGroupLook(_fromId, 1f - dissolve, glow);
 
-        // The light swells steadily from its size at the gate, and hands over to the
-        // whiteout as the camera arrives at it: a quad at the camera would cut through the
-        // near plane.
-        float size = Mathf.Lerp(_dive.gateSize, _dive.peakSize, SteadyRamp(u));
-        float arriving = _camera != null ? Smooth(1.5f, 6f, Vector3.Distance(_camera.transform.position, _focus)) : 1f;
-        SetLight(_dive, _focus, size, arriving);
+        if (outward)
+        {
+            // Coming out, the light is the knot the crowd gathers into: it contracts and
+            // brightens as the members arrive.
+            SetLight(_dive, _focus, Mathf.Lerp(_dive.peakSize, _dive.gateSize, p), Smooth(0.25f, 0.9f, u));
+        }
+        else
+        {
+            // Going in, the light swells steadily from its size at the gate, and hands over
+            // to the whiteout as the camera arrives at it: a quad at the camera would cut
+            // through the near plane.
+            float size = Mathf.Lerp(_dive.gateSize, _dive.peakSize, p);
+            float arriving = _camera != null ? Smooth(1.5f, 6f, Vector3.Distance(_camera.transform.position, _focus)) : 1f;
+            SetLight(_dive, _focus, size, arriving);
+        }
+
         SetVeil(_dive.whiteout * Smooth(0.7f, 1f, u));
 
-        // The crowd opens up at the dive's own constant rate, only much further, and hands
-        // over to the whiteout at the end.
-        float crowd = Mathf.Lerp(_dive.approachCrowd, _dive.diveCrowd, Smooth(0f, 0.2f, u)) * (1f - Smooth(0.8f, 1f, u));
+        // The crowd moves at the dive's own constant rate, only much further: going in it
+        // opens up past the camera, coming out it gathers in from all round — from beyond
+        // the edges and from behind — into the knot. Either way it hands over to the
+        // whiteout at the end.
+        float crowd = outward
+            ? _dive.diveCrowd * Smooth(0f, 0.25f, u) * (1f - Smooth(0.85f, 1f, u))
+            : Mathf.Lerp(_dive.approachCrowd, _dive.diveCrowd, Smooth(0f, 0.2f, u)) * (1f - Smooth(0.8f, 1f, u));
         float streak = _dive.streak * Smooth(0f, 0.25f, u) * (1f - Smooth(0.85f, 1f, u));
-        SetCrowd(_dive, _focus, Mathf.Pow(_dive.resolveZoom, SteadyRamp(u)), crowd, streak);
+        SetCrowd(_dive, _focus, Mathf.Pow(_dive.resolveZoom, outward ? 1f - p : p), crowd, streak);
 
         _fovMultiplier = Mathf.Lerp(1f, _dive.fieldOfViewScale, Smooth(0f, 1f, u));
         SetEffects(Smooth(0.2f, 1f, u));
 
-        // The photon becomes small against its world: the world behind it swells (dolly
-        // zoom) while the light itself narrows — both at the dive's constant rate.
-        _dolly = Mathf.Pow(_dive.dollyZoom, SteadyRamp(u));
-        SetTrailWidth(Mathf.Pow(_dive.photonShrink, SteadyRamp(u)));
+        // The photon against its world, at the same constant rate: small going in (the
+        // world swells behind it, the light narrows), large coming out (the world falls
+        // away behind it, the light widens).
+        _dolly = Mathf.Pow(outward ? 1f / _dive.dollyZoom : _dive.dollyZoom, p);
+        SetTrailWidth(Mathf.Pow(outward ? 1f / _dive.photonShrink : _dive.photonShrink, p));
     }
 
     /// <summary>The peak: the old world goes back where it was, out of sight, and the new one is readied.</summary>
@@ -450,11 +554,12 @@ public class LayerDive_NEW : MonoBehaviour
         ScaleAround(_enter, _emergeFocus, _dive.enterScale);
         if (worlds != null) worlds.SetGroupLook(_toId, 0f);
 
-        // Under the whiteout, the light moves to where the next world appears, and the lens
-        // and the photon snap back: the new world opens at normal framing, the light at its
-        // normal size — in a world that is now its scale.
+        // Under the whiteout, the light moves to where the next world appears (coming out,
+        // it is already there: the knot stays), and the lens and the photon snap back: the
+        // new world opens at normal framing, the light at its normal size — in a world that
+        // is now its scale.
         SetVeil(_dive.whiteout);
-        SetLight(_dive, _emergeFocus, _dive.peakSize * 0.5f, 1f);
+        SetLight(_dive, _emergeFocus, _dive.direction == Direction.Out ? _dive.gateSize : _dive.peakSize * 0.5f, 1f);
         HideCrowd();
         _dolly = 1f;
         SetTrailWidth(1f);
@@ -468,12 +573,22 @@ public class LayerDive_NEW : MonoBehaviour
 
         float settle = EaseOut(v);
 
-        // In log space, so growing from a hundredth reads as evenly as growing from a half.
+        // In log space, so growing from a hundredth reads as evenly as growing from a half —
+        // and closing in from three times the size (coming out) reads as evenly as either.
         ScaleAround(_enter, _emergeFocus, Mathf.Pow(_dive.enterScale, 1f - settle));
 
         if (worlds != null) worlds.SetGroupLook(_toId, Smooth(0f, 0.7f, v));
 
-        SetLight(_dive, _emergeFocus, Mathf.Lerp(_dive.peakSize * 0.5f, _dive.pointSize, settle), 1f - Smooth(0.3f, 1f, v));
+        if (_dive.direction == Direction.Out)
+        {
+            // The knot shrinks to a speck in the web closing in around it — the whole galaxy
+            // just left, now one small light — and is the last thing to go.
+            SetLight(_dive, _emergeFocus, Mathf.Lerp(_dive.gateSize, _dive.pointSize, settle), 1f - Smooth(0.55f, 1f, v));
+        }
+        else
+        {
+            SetLight(_dive, _emergeFocus, Mathf.Lerp(_dive.peakSize * 0.5f, _dive.pointSize, settle), 1f - Smooth(0.3f, 1f, v));
+        }
         SetVeil(_dive.whiteout * (1f - Smooth(0f, 0.45f, v)));
 
         _fovMultiplier = Mathf.Lerp(_dive.fieldOfViewScale, 1f, Smooth(0f, 1f, v));
@@ -985,11 +1100,13 @@ public class LayerDive_NEW : MonoBehaviour
         if (!Mathf.Approximately(_fovMultiplier, 1f))
             cam.fieldOfView = Mathf.Clamp(cam.fieldOfView * _fovMultiplier, 1f, 179f);
 
-        if (_dolly > 1.0001f && player != null)
+        if (Mathf.Abs(_dolly - 1f) > 1e-4f && player != null)
         {
             // Narrow the lens by _dolly and back away along the view by exactly as much as
             // keeps the photon's size: at _dolly times the distance, _dolly times the zoom.
             // Everything beyond the photon is magnified by up to _dolly; the photon is not.
+            // Below 1 it runs the other way: the lens widens, the camera closes in, and the
+            // world behind the photon falls away while the photon stays put.
             float halfTan = Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad) / _dolly;
             float distance = Vector3.Distance(cam.transform.position, player.transform.position);
 
