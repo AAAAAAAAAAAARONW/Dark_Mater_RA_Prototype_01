@@ -10,12 +10,19 @@ using UnityEditor;
 /// tex3D fetch per raymarch step instead of the original 4-6 fetches.
 /// Each volume gets its own unique texture, so colours/densities can differ freely.
 ///
+/// Custom/PurpleCloudVolumePercent renderers are baked too: the same cloud sampled in
+/// world space, kept only where the percent-selection noise falls under _RenderPercent,
+/// in _PercentColor. Their assets are named after the object AND the material
+/// (BIG_Custom_PurpleCloudVolumePercent_density), because the percent volume shares its
+/// object name with the baked BIG volume and would otherwise overwrite its texture.
+///
 /// Usage: Tools > Laxi > Bake Volume Density Textures
 /// Output: Assets/BakedVolumeTex/<ObjectName>_density.asset
 /// </summary>
 public static class BakeVolumeDensityTex
 {
     const string VOLUME_SHADER = "Custom/PurpleCloudVolume";
+    const string PERCENT_SHADER = "Custom/PurpleCloudVolumePercent";
     const string OUT_FOLDER    = "Assets/BakedVolumeTex";
     const string NOISE_PATH    = "Assets/Shaders/CloudNoiseTex3D.asset";
     const int    BAKE_SIZE     = 64;   // 64^3 RGBA16 = 2 MB/volume; change to 32 for 256 KB
@@ -43,17 +50,23 @@ public static class BakeVolumeDensityTex
         int count = 0;
         foreach (var mr in Object.FindObjectsOfType<MeshRenderer>())
         {
-            if (mr.sharedMaterial?.shader?.name != VOLUME_SHADER) continue;
-            BakeOne(mr, noisePx);
+            string shaderName = mr.sharedMaterial?.shader?.name;
+            if (shaderName == VOLUME_SHADER) BakeOne(mr, noisePx);
+            else if (shaderName == PERCENT_SHADER) BakePercent(mr, noisePx, noiseTex);
+            else continue;
             count++;
         }
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         if (count == 0)
-            Debug.LogWarning("[BakeVolumeDensityTex] No Custom/PurpleCloudVolume renderers found.");
+            Debug.LogWarning("[BakeVolumeDensityTex] No Custom/PurpleCloudVolume or " +
+                             "Custom/PurpleCloudVolumePercent renderers found - everything is baked.");
         else
-            Debug.Log($"[BakeVolumeDensityTex] Baked {count} volume(s) → {OUT_FOLDER}");
+        {
+            UnityEditor.SceneManagement.EditorSceneManager.MarkAllScenesDirty();
+            Debug.Log($"[BakeVolumeDensityTex] Baked {count} volume(s) → {OUT_FOLDER}. Save the scene to keep the swapped materials.");
+        }
     }
 
     [MenuItem("Tools/Laxi/Bake Volume Density Textures", validate = true)]
@@ -179,8 +192,120 @@ public static class BakeVolumeDensityTex
                 density);
         }
 
-        // --- Write Texture3D asset ---
         string safeName = mr.gameObject.name.Replace(" ", "_").Replace("/", "_");
+        SaveAndSwap(mr, mat, pixels, safeName, mat.GetFloat("_Opacity"));
+    }
+
+    // -------------------------------------------------------------------------
+    // Custom/PurpleCloudVolumePercent, mirrored line for line: the cloud is sampled in
+    // WORLD space, and a step counts only where a second, coarser noise falls under
+    // _RenderPercent, in one flat _PercentColor.
+    static void BakePercent(MeshRenderer mr, Color32[] noisePx, Texture3D sharedNoise)
+    {
+        var mat = mr.sharedMaterial;
+        var tf  = mr.transform;
+
+        if (mat.GetTexture("_NoiseTex") != sharedNoise)
+            Debug.LogWarning($"[BakeVolumeDensityTex] '{mr.gameObject.name}' uses a different noise " +
+                             $"texture from {NOISE_PATH}; baking with {NOISE_PATH}.", mr);
+
+        float featureSize     = mat.GetFloat("_FeatureSize");
+        float detailScale     = mat.GetFloat("_DetailScale");
+        float cloudSoftness   = mat.GetFloat("_CloudSoftness");
+        float coverage        = mat.GetFloat("_Coverage");
+        float erode           = mat.GetFloat("_Erode");
+        float edgeFade        = mat.GetFloat("_EdgeFade");
+        float edgeWidth       = mat.GetFloat("_EdgeWidth");
+        float boundaryBreakup = mat.GetFloat("_BoundaryBreakup");
+        float innerGlow       = mat.GetFloat("_InnerGlow");
+        float renderPercent   = Mathf.Clamp01(mat.GetFloat("_RenderPercent"));
+        Color percentColor    = mat.GetColor("_PercentColor");
+        Vector3 seed          = mat.GetVector("_PercentSeedOffset");
+
+        float invFeatureSize  = 1f / Mathf.Max(featureSize, 0.001f);
+        float earlyExitThr    = ((0.34f + coverage * 0.38f)
+                                 - 0.4f / (1.8f + cloudSoftness)) / 0.95f;
+
+        int S = BAKE_SIZE;
+        var pixels = new Color[S * S * S];
+
+        for (int zi = 0; zi < S; zi++)
+        for (int yi = 0; yi < S; yi++)
+        for (int xi = 0; xi < S; xi++)
+        {
+            int index = xi + yi * S + zi * S * S;
+
+            var pObj = new Vector3(
+                (xi + 0.5f) / S - 0.5f,
+                (yi + 0.5f) / S - 0.5f,
+                (zi + 0.5f) / S - 0.5f);
+            Vector3 pWorld = tf.TransformPoint(pObj);
+
+            // getPercentMask: step(n, _RenderPercent). The shader skips the step outright
+            // when it is not selected, so nothing else matters there.
+            float pick = SampleG(noisePx, pWorld * 0.11f + seed * 0.37f);
+            if (pick > renderPercent)
+            {
+                pixels[index] = Color.clear;
+                continue;
+            }
+
+            // sampleCloudDensity
+            Vector3 q = pWorld * invFeatureSize + seed;
+
+            float macro = SampleR(noisePx, q * 0.85f);
+            if (macro < earlyExitThr)
+            {
+                pixels[index] = Color.clear;
+                continue;
+            }
+
+            float detail = SampleA(noisePx, q * (detailScale * 0.333f)
+                                   + new Vector3(4.1f, -2.5f, 7.3f));
+            float baseShape = Mathf.Clamp01(
+                (macro * 0.95f + detail * 0.55f - (0.34f + coverage * 0.38f))
+                * (1.8f + cloudSoftness));
+
+            float erosion = SampleG(noisePx, q * (detailScale * 2.1f)
+                                    + new Vector3(-6.2f, 5.4f, -3.8f));
+            baseShape *= Mathf.Lerp(1f,
+                Mathf.Clamp01((erosion - (0.40f + erode * 0.35f)) * 3f), erode);
+
+            float maxAx      = Mathf.Max(Mathf.Abs(pObj.x),
+                               Mathf.Max(Mathf.Abs(pObj.y), Mathf.Abs(pObj.z)));
+            float toBoundary = Mathf.Clamp01((0.5f - maxAx) / Mathf.Max(0.001f, edgeWidth));
+            float breakup    = Mathf.Clamp01(Mathf.Lerp(
+                1f, SampleB(noisePx, q * 0.63f + new Vector3(12.3f, -4.2f, 8.7f)),
+                boundaryBreakup));
+            float edge    = Mathf.Pow(Mathf.Clamp01(toBoundary * breakup), edgeFade);
+            float density = Mathf.Pow(Mathf.Clamp01(baseShape * edge), cloudSoftness);
+
+            float inner = Mathf.Clamp01(1f - Vector3.Dot(pObj, pObj) / (0.95f * 0.95f));
+            float lum   = Mathf.Clamp01(inner * 0.65f + detail * 0.35f);
+
+            // The shader's colour is _PercentColor * _Emission * (0.35 + lum * _InnerGlow);
+            // PreBakedCloudVolume multiplies by _Emission itself, so bake the rest.
+            float lumEmit = 0.35f + lum * innerGlow;
+            pixels[index] = new Color(
+                percentColor.r * lumEmit,
+                percentColor.g * lumEmit,
+                percentColor.b * lumEmit,
+                density);
+        }
+
+        // Named after the material as well: the percent volume's object is called BIG too.
+        string safeName = (mr.gameObject.name + "_" + mat.name).Replace(" ", "_").Replace("/", "_");
+
+        // The shader's final alpha also carries _PercentColor.a.
+        SaveAndSwap(mr, mat, pixels, safeName, mat.GetFloat("_Opacity") * percentColor.a);
+    }
+
+    // -------------------------------------------------------------------------
+    // Write the Texture3D and a PreBakedCloudVolume material, and put that material on the
+    // renderer in place of the live one.
+    static void SaveAndSwap(MeshRenderer mr, Material mat, Color[] pixels, string safeName, float opacity)
+    {
+        int S = BAKE_SIZE;
         string assetPath = $"{OUT_FOLDER}/{safeName}_density.asset";
 
         var tex3D = new Texture3D(S, S, S, TextureFormat.RGBAHalf, false);
@@ -209,9 +334,12 @@ public static class BakeVolumeDensityTex
             bakMat.SetFloat("_Density",    mat.GetFloat("_Density"));
             bakMat.SetFloat("_Absorption", mat.GetFloat("_Absorption"));
             bakMat.SetFloat("_Emission",   mat.GetFloat("_Emission"));
-            bakMat.SetFloat("_Opacity",    mat.GetFloat("_Opacity"));
+            bakMat.SetFloat("_Opacity",    opacity);
             bakMat.SetFloat("_AlphaFog",   mat.GetFloat("_AlphaFog"));
             bakMat.SetFloat("_StepWorldLength", mat.GetFloat("_StepWorldLength"));
+            // Keep the live material's place in the draw order (the web's volumes are
+            // ordered around the photon trail; see the queues on BakedVolumeTex/*_mat).
+            bakMat.renderQueue = mat.renderQueue;
 
             AssetDatabase.DeleteAsset(bakMatPath);
             AssetDatabase.CreateAsset(bakMat, bakMatPath);

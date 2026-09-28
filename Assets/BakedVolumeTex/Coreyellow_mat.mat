@@ -28,6 +28,7 @@ Material:
     - _AlphaFog: 1.98
     - _Density: 2.1
     - _Emission: 5.36
+    - _LayerAroundPhoton: 1
     - _Opacity: 0.1
     - _StepWorldLength: 0.0736
     - _Steps: 16

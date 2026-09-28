@@ -15,41 +15,43 @@ using UnityEngine.UI;
 /// swap and says nothing about scale. Going from the cosmic web to a galaxy is not a
 /// change of scenery, it is a change of MAGNIFICATION — one small part of one cluster in
 /// the web IS a galaxy — and a camera that looks at the floor while the web vanishes and
-/// a galaxy appears reads as a cut. The web could not even fade: its baked volumes have
-/// no colour property, so WorldSwitcher_NEW could only switch it on and off (fixed there).
+/// a galaxy appears reads as a cut.
 ///
-/// WHAT A DIVE DOES, on the gates listed below:
+/// WHERE IT DIVES. Light only travels in a straight line, so whatever the photon is flying
+/// into when it reaches a gate is on that line: the point is the gate's centre carried
+/// focusPastGate further along the direction of travel. At the Micro gate that is the
+/// bright yellow cluster — the densest knot of the Core and Coreyellow meshes sits eleven
+/// units past the trigger, dead ahead.
 ///
-///   dive     The world being left grows around one point — exponentially in time², so
-///            the magnification itself accelerates, a drift that ends as a rush — while
-///            it brightens and then dissolves. A core of light at that point grows with
-///            it until the view is light. The lens widens as the world streams past.
-///   peak     Under the light, CoverReached fires: sky, speed and spectrum change, and
-///            the next zone camera goes live. This is the frame the cover camera used to
-///            provide, so every responder works unchanged.
-///   emerge   The light condenses back into the point it came from and the next world
-///            fades in around it, while the lens settles from wide to normal — which
-///            magnifies the new world as it appears.
+/// THE RHYTHM:
 ///
-/// The point defaults to the middle of the next world, so the galaxy appears exactly
-/// where the web was rushing towards: the web's one small part becoming the galaxy.
+///   approach   Before the gate, by distance: a light appears in the cluster
+///              approachDistance before the trigger and grows as the photon closes in, so
+///              the dive has a destination before it starts.
+///   dive       From the gate: the old world grows around the point at a CONSTANT rate —
+///              every second magnifies by the same factor, so it holds its speed instead
+///              of rushing — brightens and dissolves, while the light swells. The photon
+///              keeps flying into the point and arrives about as the dive ends.
+///   peak       Under full light, CoverReached fires: sky, speed and spectrum change, and
+///              the next zone camera goes live — the frame the cover camera used to give.
+///   emerge     The light settles into the middle of the next world and fades as that
+///              world fades in around it.
+///
+/// THE LIGHT is a camera-facing glow in the world, drawn after the web and before the
+/// photon trail, so it sits inside the cluster and behind the photon. Only the full-screen
+/// whiteout at the peak is an overlay.
 ///
 /// WHO OWNS WHAT. CameraDirector_NEW still owns time: it runs the clock, fires the anchors
 /// and moves the cameras, and asks this component only how the frame looks at a given
-/// progress. The render groups are borrowed from WorldSwitcher_NEW for the length of the
-/// dive (Hold / Release), so its anchor-driven swap cannot snap a world that is halfway
-/// through fading.
+/// progress. The approach is the one exception, and it is driven by distance, not time.
+/// The render groups are borrowed from WorldSwitcher_NEW for the length of the dive
+/// (Hold / Release), so its anchor-driven swap cannot snap a world halfway through fading.
 ///
 /// SCALING A WORLD. The baked volumes scale cleanly. Particle systems in "Local" scaling
 /// mode ignore their parents' scale, so for the length of a scale they are switched to
-/// "Hierarchy" with the parents divided back out — same size at scale 1, and they follow
-/// the root. Systems that simulate in world space cannot follow a moving root at all and
-/// only fade; that is why enterScale defaults to 1 (fade only) — the galaxy is mostly
-/// world-space particles.
-///
-/// TRYING IT. One row ships enabled, for the gate into Micro — the first galaxy. Add rows
-/// to dive on other gates; a gate with no row keeps the cover transition. The start
-/// layer's first gate always keeps its look-back handover.
+/// "Hierarchy" with the parents divided back out. Systems that simulate in world space
+/// cannot follow a moving root at all and only fade — which is why enterScale defaults
+/// to 1: the galaxy is mostly world-space particles.
 /// </summary>
 [DisallowMultipleComponent]
 [HierarchyBadge_NEW("DIVE", "#E07A5F")]
@@ -64,83 +66,94 @@ public class LayerDive_NEW : MonoBehaviour
         [Tooltip("Untick to put this gate back on the cover transition without losing the tuning.")]
         public bool enabled = true;
 
-        [Tooltip("The point to dive into, in the world being left.\n\n" +
-                 "EMPTY = the middle of the next world's visible objects, so the next world " +
-                 "grows out of exactly the place the old one rushes towards. Set it to put the " +
-                 "dive on a particular knot of the web — the next world then fades in where it " +
-                 "was built, with the light condensing there.")]
-        public Transform focus;
+        [Header("Where")]
+        [Tooltip("How far past the gate, along the direction of travel, the point sits. " +
+                 "Light only travels in a straight line, so the gate's position is enough: " +
+                 "at the Micro gate the yellow cluster's densest knot is 11 past the trigger.")]
+        public float focusPastGate = 11f;
+
+        [Tooltip("Optional. Dive into this object's position instead, for a target that is " +
+                 "not on the line.")]
+        public Transform focusOverride;
+
+        [Header("Approach (before the gate)")]
+        [Tooltip("The light appears at the point this far before the gate, in world units, " +
+                 "and grows as the photon closes in. 0 = it appears at the gate.")]
+        [Min(0f)] public float approachDistance = 40f;
 
         [Header("Timing (seconds)")]
-        [Tooltip("From the gate to the peak: the old world rushing in and dissolving into light.")]
-        [Min(0.1f)] public float diveSeconds = 2.4f;
+        [Tooltip("From the gate to the peak. About the time the photon takes to reach the " +
+                 "point, so the peak lands as it arrives: 16 units at Macro's 5 per second.")]
+        [Min(0.1f)] public float diveSeconds = 3f;
 
-        [Tooltip("Held at full light. The swap, the sky, and the camera change happen at its start.")]
+        [Tooltip("Held at full light. The swap, the sky and the camera change happen at its start.")]
         [Min(0f)] public float peakHoldSeconds = 0.2f;
 
-        [Tooltip("From the peak to the end: the light condensing and the new world appearing.")]
+        [Tooltip("From the peak to the end: the next world appearing around the light.")]
         [Min(0.1f)] public float emergeSeconds = 2.8f;
 
         [Header("The world being left")]
-        [Tooltip("Scale the old world reaches around the point by the peak.\n\n" +
-                 "Above 1 dives IN (the web opens up past the camera). Below 1 pulls OUT " +
-                 "(the old world shrinks into the point) — for the gates that go back up in " +
-                 "scale, galaxy to web.")]
-        [Min(0.01f)] public float leaveScale = 40f;
+        [Tooltip("Scale the old world reaches around the point by the peak, at a constant " +
+                 "rate. Above 1 dives in; below 1 pulls out, for gates that go up in scale.")]
+        [Min(0.01f)] public float diveZoom = 4f;
 
-        [Tooltip("How much brighter the old world glows at the peak, just before it is gone. " +
-                 "Multiplies _Emission on the baked volumes and emission colours elsewhere.")]
-        [Min(0f)] public float leaveGlow = 2.5f;
+        [Tooltip("How much brighter the old world glows at the peak, just before it is gone.")]
+        [Min(0f)] public float leaveGlow = 2f;
 
-        [Tooltip("Fraction of the dive at which the old world starts to dissolve. Earlier " +
-                 "leaves more of the rush to the light; later shows more of the web opening.")]
+        [Tooltip("Fraction of the dive at which the old world starts to dissolve.")]
         [Range(0f, 1f)] public float dissolveFrom = 0.5f;
 
         [Header("The world being entered")]
-        [Tooltip("Scale the new world starts at around the point, settling to 1 as it appears.\n\n" +
-                 "1 = fade in only. Below 1 grows out of the point; above 1 closes in from " +
-                 "around the camera. World-space particle systems cannot follow a scale and " +
-                 "only fade — see the class summary.")]
+        [Tooltip("Scale the new world starts at around its centre, settling to 1. 1 = fade " +
+                 "in only. World-space particle systems cannot follow a scale and only fade.")]
         [Min(0.01f)] public float enterScale = 1f;
 
         [Header("Light")]
-        [Tooltip("Colour of the core and of the full-screen light at the peak.")]
-        public Color lightColor = new Color(1f, 0.94f, 0.88f, 1f);
+        public Color lightColor = new Color(1f, 0.88f, 0.62f, 1f);
 
-        [Tooltip("Diameter of the core as the dive starts, in screen heights.")]
-        [Min(0f)] public float coreStartSize = 0.06f;
+        [Tooltip("Brightness of the light, which is added to what is behind it.")]
+        [Range(0f, 4f)] public float lightIntensity = 1.5f;
 
-        [Tooltip("Diameter the core condenses back to at the end, in screen heights.")]
-        [Min(0f)] public float coreEndSize = 0.12f;
+        [Tooltip("World-space diameter when the light first appears, approachDistance before the gate.")]
+        [Min(0f)] public float pointSize = 3f;
 
-        [Tooltip("Opacity of the full-screen light at the peak. 1 hides the swap completely; " +
-                 "lower lets both worlds show through each other for a moment.")]
+        [Tooltip("Diameter as the photon reaches the gate.")]
+        [Min(0f)] public float gateSize = 8f;
+
+        [Tooltip("Diameter at the peak.")]
+        [Min(0f)] public float peakSize = 40f;
+
+        [Tooltip("Opacity of the full-screen light at the peak. 1 hides the swap completely.")]
         [Range(0f, 1f)] public float whiteout = 1f;
 
         [Header("Lens (blended over the scene's own post-processing)")]
-        [Tooltip("Field of view multiplier at the peak. Above 1 widens as the world rushes past, " +
-                 "which reads as speed; settling back to 1 magnifies the new world as it appears.")]
-        [Range(0.5f, 2f)] public float fovKick = 1.3f;
+        [Tooltip("Field of view multiplier at the peak. 1 = unchanged. Above 1 widens, which " +
+                 "reads as speeding up.")]
+        [Range(0.5f, 2f)] public float fieldOfViewScale = 1f;
 
         [Tooltip("Bloom intensity at the peak. The scene's own is 0.8.")]
-        [Min(0f)] public float peakBloom = 5f;
+        [Min(0f)] public float peakBloom = 3f;
 
-        [Range(0f, 1f)] public float peakChromaticAberration = 0.6f;
+        [Range(0f, 1f)] public float peakChromaticAberration = 0.15f;
 
-        [Tooltip("Lens distortion at the peak, centred on the point. Positive bulges the " +
-                 "point towards the viewer; negative pulls the edges in.")]
-        [Range(-100f, 100f)] public float peakLensDistortion = 30f;
+        [Tooltip("Lens distortion at the peak, centred on the point. 0 = off.")]
+        [Range(-100f, 100f)] public float peakLensDistortion = 0f;
     }
 
+    // Renamed from 'dives', deliberately without FormerlySerializedAs: a row saved with the
+    // first version's rushing defaults (zoom 40, lens widening 1.3) is dropped, and the
+    // gate starts from these.
     [Tooltip("One row per gate that dives. Matched on the layer being entered.")]
-    [SerializeField] Dive[] dives = { new Dive() };
+    [SerializeField] Dive[] gates = { new Dive() };
 
     [Header("Wiring (found if empty)")]
     [SerializeField] WorldSwitcher_NEW worlds;
     [SerializeField] CinemachineBrain brain;
+    [SerializeField] LayerState_NEW state;
+    [SerializeField] PlayerRig_NEW player;
 
     [Header("Overlay")]
-    [Tooltip("Sort order of the light. Below the HUD canvases (0) keeps the HUD readable " +
+    [Tooltip("Sort order of the whiteout. Below the HUD canvases (0) keeps the HUD readable " +
              "through it; the entry fade sits far above at 32000.")]
     [SerializeField] int overlaySortOrder = -50;
 
@@ -164,26 +177,33 @@ public class LayerDive_NEW : MonoBehaviour
         public ParticleSystemScalingMode mode;
     }
 
+    static readonly int ColorId = Shader.PropertyToID("_Color");
+
+    readonly Dictionary<string, LayerGate_NEW> _gatesByLayer = new Dictionary<string, LayerGate_NEW>();
+
     Dive _dive;
     string _fromId;
     string _toId;
     Vector3 _focus;
+    Vector3 _emergeFocus;
     Scaled _leave;
     Scaled _enter;
     Camera _camera;
 
+    GameObject _light;
+    Material _lightMaterial;
+    Mesh _lightQuad;
+    Vector3 _lightPosition;
+    float _lightSize;
+    bool _warnedNoLightShader;
+
     GameObject _overlay;
-    RectTransform _core;
-    Image _coreImage;
     Image _veil;
-    float _coverSize;
 
     PP.PostProcessVolume _volume;
     PP.LensDistortion _lens;
 
     float _fovMultiplier = 1f;
-
-    static Sprite s_coreSprite;
 
     /// <summary>True from Begin until End or Abort.</summary>
     public bool IsActive { get; private set; }
@@ -194,22 +214,50 @@ public class LayerDive_NEW : MonoBehaviour
     {
         if (worlds == null) worlds = FindObjectOfType<WorldSwitcher_NEW>();
         if (brain == null) brain = FindObjectOfType<CinemachineBrain>();
+        if (state == null) state = FindObjectOfType<LayerState_NEW>();
+        if (player == null) player = FindObjectOfType<PlayerRig_NEW>();
+
+        foreach (LayerGate_NEW gate in FindObjectsOfType<LayerGate_NEW>())
+            if (gate != null && !string.IsNullOrEmpty(gate.LayerId) && !_gatesByLayer.ContainsKey(gate.LayerId))
+                _gatesByLayer.Add(gate.LayerId, gate);
 
         if (worlds == null)
             Debug.LogWarning("[LayerDive_NEW] No WorldSwitcher_NEW in the scene; a dive will " +
                              "play its light but cannot move or fade the worlds.", this);
     }
 
-    void OnDisable() => Abort();
+    void OnDisable()
+    {
+        Abort();
+        HideLight();
+    }
+
+    void OnDestroy() => DestroyLight();
+
+    /// <summary>The approach: the light in the cluster ahead, before the gate is reached.</summary>
+    void Update()
+    {
+        if (IsActive) return;   // the dive draws the light itself
+
+        if (TryApproach(out Dive dive, out Vector3 focus, out float closeness))
+            SetLight(dive, focus, Mathf.Lerp(dive.pointSize, dive.gateSize, closeness), Smooth(0f, 0.4f, closeness));
+        else
+            HideLight();
+    }
+
+    void LateUpdate()
+    {
+        if (_light != null && _light.activeSelf) PlaceLight();
+    }
 
     // ── Called by CameraDirector_NEW ─────────────────────────────────────────
 
     /// <summary>The enabled row for the gate into <paramref name="toLayerId"/>, if any.</summary>
     public bool TryGetDive(string toLayerId, out Dive dive)
     {
-        for (int i = 0; i < dives.Length; i++)
+        for (int i = 0; i < gates.Length; i++)
         {
-            Dive d = dives[i];
+            Dive d = gates[i];
             if (d != null && d.enabled && string.Equals(d.toLayerId, toLayerId, StringComparison.Ordinal))
             {
                 dive = d;
@@ -233,7 +281,8 @@ public class LayerDive_NEW : MonoBehaviour
 
         if (worlds != null) worlds.Hold(this);
 
-        _focus = ResolveFocus();
+        _focus = DiveFocus();
+        _emergeFocus = NextWorldCentre();
         _leave = Capture(worlds != null ? worlds.GroupRoot(_fromId) : null);
         _enter = Capture(worlds != null ? worlds.GroupRoot(_toId) : null);
 
@@ -245,33 +294,34 @@ public class LayerDive_NEW : MonoBehaviour
         CinemachineCore.CameraUpdatedEvent.AddListener(OnCameraUpdated);
 
         if (debugLog)
-            Debug.Log($"[LayerDive_NEW] '{_fromId}' -> '{_toId}', diving into {_focus} " +
-                      $"({(dive.focus != null ? dive.focus.name : "middle of the next world")}).", this);
+            Debug.Log($"[LayerDive_NEW] '{_fromId}' -> '{_toId}', diving into {_focus}, " +
+                      $"the next world appears at {_emergeFocus}.", this);
 
         TickDive(0f);
     }
 
-    /// <summary>The old world rushing in and dissolving. <paramref name="u"/> runs 0 to 1.</summary>
+    /// <summary>The old world opening up and dissolving into light. <paramref name="u"/> runs 0 to 1.</summary>
     public void TickDive(float u)
     {
         if (!IsActive) return;
         u = Mathf.Clamp01(u);
 
-        ScaleAround(_leave, Mathf.Pow(_dive.leaveScale, u * u));
+        ScaleAround(_leave, _focus, Mathf.Pow(_dive.diveZoom, SteadyRamp(u)));
 
         float dissolve = Smooth(_dive.dissolveFrom, 1f, u);
         float glow = Mathf.Lerp(1f, _dive.leaveGlow, Smooth(0f, 0.85f, u));
         if (worlds != null) worlds.SetGroupLook(_fromId, 1f - dissolve, glow);
 
-        // The core stays a point while the web is visibly opening and only floods the view
-        // at the very end (u⁴), and the veil comes in late for the same reason: the rush
-        // between half and nine-tenths of the dive is the part worth seeing.
-        float core = Mathf.Lerp(_dive.coreStartSize, _coverSize, Mathf.Pow(u, 4f));
-        float coreAlpha = Smooth(0f, 0.4f, u) * Mathf.Lerp(0.85f, 1f, Smooth(0.7f, 1f, u));
-        DrawLight(core, coreAlpha, _dive.whiteout * Smooth(0.72f, 1f, u));
+        // The light swells steadily from its size at the gate, and hands over to the
+        // whiteout as the camera arrives at it: a quad at the camera would cut through the
+        // near plane.
+        float size = Mathf.Lerp(_dive.gateSize, _dive.peakSize, SteadyRamp(u));
+        float arriving = _camera != null ? Smooth(1.5f, 6f, Vector3.Distance(_camera.transform.position, _focus)) : 1f;
+        SetLight(_dive, _focus, size, arriving);
+        SetVeil(_dive.whiteout * Smooth(0.7f, 1f, u));
 
-        _fovMultiplier = Mathf.Lerp(1f, _dive.fovKick, Smooth(0f, 1f, u));
-        SetEffects(Smooth(0.1f, 1f, u));
+        _fovMultiplier = Mathf.Lerp(1f, _dive.fieldOfViewScale, Smooth(0f, 1f, u));
+        SetEffects(Smooth(0.2f, 1f, u));
     }
 
     /// <summary>The peak: the old world goes back where it was, out of sight, and the new one is readied.</summary>
@@ -282,13 +332,15 @@ public class LayerDive_NEW : MonoBehaviour
         Restore(_leave);
         if (worlds != null) worlds.SetGroupLook(_fromId, 0f);
 
-        ScaleAround(_enter, _dive.enterScale);
+        ScaleAround(_enter, _emergeFocus, _dive.enterScale);
         if (worlds != null) worlds.SetGroupLook(_toId, 0f);
 
-        DrawLight(_coverSize, 1f, _dive.whiteout);
+        // Under the whiteout, the light moves to where the next world appears.
+        SetVeil(_dive.whiteout);
+        SetLight(_dive, _emergeFocus, _dive.peakSize * 0.5f, 1f);
     }
 
-    /// <summary>The light condensing and the new world appearing. <paramref name="v"/> runs 0 to 1.</summary>
+    /// <summary>The next world appearing around the light. <paramref name="v"/> runs 0 to 1.</summary>
     public void TickEmerge(float v)
     {
         if (!IsActive) return;
@@ -297,14 +349,14 @@ public class LayerDive_NEW : MonoBehaviour
         float settle = EaseOut(v);
 
         // In log space, so growing from a hundredth reads as evenly as growing from a half.
-        ScaleAround(_enter, Mathf.Pow(_dive.enterScale, 1f - settle));
+        ScaleAround(_enter, _emergeFocus, Mathf.Pow(_dive.enterScale, 1f - settle));
 
         if (worlds != null) worlds.SetGroupLook(_toId, Smooth(0f, 0.7f, v));
 
-        float core = Mathf.Lerp(_coverSize, _dive.coreEndSize, settle);
-        DrawLight(core, 1f - Smooth(0.3f, 1f, v), _dive.whiteout * (1f - Smooth(0f, 0.45f, v)));
+        SetLight(_dive, _emergeFocus, Mathf.Lerp(_dive.peakSize * 0.5f, _dive.pointSize, settle), 1f - Smooth(0.3f, 1f, v));
+        SetVeil(_dive.whiteout * (1f - Smooth(0f, 0.45f, v)));
 
-        _fovMultiplier = Mathf.Lerp(_dive.fovKick, 1f, Smooth(0f, 1f, v));
+        _fovMultiplier = Mathf.Lerp(_dive.fieldOfViewScale, 1f, Smooth(0f, 1f, v));
         SetEffects(1f - Smooth(0f, 0.9f, v));
     }
 
@@ -339,39 +391,96 @@ public class LayerDive_NEW : MonoBehaviour
 
         DestroyOverlay();
         DestroyEffects();
+        HideLight();
 
         IsActive = false;
 
         if (worlds != null) worlds.Release(this, _toId);
     }
 
-    // ── Where to dive ────────────────────────────────────────────────────────
+    // ── Where ────────────────────────────────────────────────────────────────
 
-    Vector3 ResolveFocus()
+    /// <summary>The row whose gate the photon is closing on, within its approach distance.</summary>
+    bool TryApproach(out Dive dive, out Vector3 focus, out float closeness)
     {
-        if (_dive.focus != null) return _dive.focus.position;
+        dive = null;
+        focus = default;
+        closeness = 0f;
+        if (player == null) return false;
 
-        // The middle of what the next world will show. Active objects only: groups keep
-        // disabled prototypes around, and those would pull the point off the real thing.
-        Transform root = worlds != null ? worlds.GroupRoot(_toId) : null;
-        if (root != null)
+        string current = state != null ? state.CurrentLayerId : null;
+
+        for (int i = 0; i < gates.Length; i++)
         {
-            Vector3 sum = Vector3.zero;
-            int n = 0;
-            foreach (Renderer r in root.GetComponentsInChildren<Renderer>(false))
-            {
-                sum += r.transform.position;
-                n++;
-            }
+            Dive d = gates[i];
+            if (d == null || !d.enabled || d.approachDistance <= 0f) continue;
+            if (string.Equals(current, d.toLayerId, StringComparison.Ordinal)) continue;   // already through
+            if (!_gatesByLayer.TryGetValue(d.toLayerId, out LayerGate_NEW gate) || gate == null) continue;
 
-            return n > 0 ? sum / n : root.position;
+            float before = Vector3.Dot(GateCentre(gate) - player.transform.position, TravelDirection());
+            if (before <= 0f || before > d.approachDistance) continue;
+
+            dive = d;
+            focus = FocusFor(d, gate);
+            closeness = 1f - before / d.approachDistance;
+            return true;
         }
 
-        if (_camera != null) return _camera.transform.position + _camera.transform.forward * 60f;
-        return transform.position;
+        return false;
     }
 
-    // ── Scaling a world around the point ─────────────────────────────────────
+    Vector3 DiveFocus()
+    {
+        if (_dive.focusOverride != null) return _dive.focusOverride.position;
+
+        if (_gatesByLayer.TryGetValue(_toId, out LayerGate_NEW gate) && gate != null)
+            return FocusFor(_dive, gate);
+
+        // No trigger to measure from — a jump straight into the layer. Straight ahead.
+        if (player != null) return player.transform.position + TravelDirection() * _dive.focusPastGate;
+        return _camera != null ? _camera.transform.position + _camera.transform.forward * _dive.focusPastGate : transform.position;
+    }
+
+    Vector3 FocusFor(Dive d, LayerGate_NEW gate)
+    {
+        if (d.focusOverride != null) return d.focusOverride.position;
+        return GateCentre(gate) + TravelDirection() * d.focusPastGate;
+    }
+
+    /// <summary>The light's straight line: the photon's heading.</summary>
+    Vector3 TravelDirection()
+    {
+        Vector3 dir = player != null ? player.MovementDirection : Vector3.forward;
+        return dir.sqrMagnitude > 1e-6f ? dir.normalized : Vector3.forward;
+    }
+
+    static Vector3 GateCentre(LayerGate_NEW gate)
+    {
+        Collider c = gate.GetComponent<Collider>();
+        return c != null ? c.bounds.center : gate.transform.position;
+    }
+
+    /// <summary>
+    /// The middle of what the next world will show. Active objects only: groups keep
+    /// disabled prototypes around, and those would pull the point off the real thing.
+    /// </summary>
+    Vector3 NextWorldCentre()
+    {
+        Transform root = worlds != null ? worlds.GroupRoot(_toId) : null;
+        if (root == null) return _focus;
+
+        Vector3 sum = Vector3.zero;
+        int n = 0;
+        foreach (Renderer r in root.GetComponentsInChildren<Renderer>(false))
+        {
+            sum += r.transform.position;
+            n++;
+        }
+
+        return n > 0 ? sum / n : root.position;
+    }
+
+    // ── Scaling a world around a point ───────────────────────────────────────
 
     static Scaled Capture(Transform root)
     {
@@ -379,7 +488,7 @@ public class LayerDive_NEW : MonoBehaviour
         return new Scaled { root = root, position = root.position, localScale = root.localScale };
     }
 
-    void ScaleAround(Scaled s, float k)
+    static void ScaleAround(Scaled s, Vector3 pivot, float k)
     {
         if (s == null || s.root == null) return;
 
@@ -387,7 +496,7 @@ public class LayerDive_NEW : MonoBehaviour
         // the parents' scale has to be measured at 1.
         if (!s.particlesPrepared && !Mathf.Approximately(k, 1f)) PrepareParticles(s);
 
-        s.root.position = _focus + (s.position - _focus) * k;
+        s.root.position = pivot + (s.position - pivot) * k;
         s.root.localScale = s.localScale * k;
     }
 
@@ -436,12 +545,135 @@ public class LayerDive_NEW : MonoBehaviour
         s.particlesPrepared = false;
     }
 
+    // ── The light ────────────────────────────────────────────────────────────
+
+    void SetLight(Dive d, Vector3 at, float size, float fade)
+    {
+        EnsureLight();
+        if (_light == null) return;
+
+        float intensity = d.lightIntensity * Mathf.Clamp01(fade);
+        bool on = intensity > 0.001f && size > 0f;
+        if (_light.activeSelf != on) _light.SetActive(on);
+        if (!on) return;
+
+        _lightPosition = at;
+        _lightSize = size;
+        _lightMaterial.SetColor(ColorId, new Color(d.lightColor.r, d.lightColor.g, d.lightColor.b, intensity));
+        PlaceLight();
+    }
+
+    void HideLight()
+    {
+        if (_light != null && _light.activeSelf) _light.SetActive(false);
+    }
+
+    /// <summary>Faces the camera. Round, so a frame of lag in the facing never shows.</summary>
+    void PlaceLight()
+    {
+        Camera cam = _camera != null ? _camera : (brain != null ? brain.OutputCamera : Camera.main);
+
+        Transform t = _light.transform;
+        t.position = _lightPosition;
+        t.localScale = new Vector3(_lightSize, _lightSize, _lightSize);
+        if (cam != null) t.rotation = cam.transform.rotation;
+    }
+
+    void EnsureLight()
+    {
+        if (_light != null) return;
+
+        Shader shader = Resources.Load<Shader>("DiveGlow_NEW");
+        if (shader == null)
+        {
+            if (!_warnedNoLightShader)
+                Debug.LogWarning("[LayerDive_NEW] Resources/DiveGlow_NEW.shader is missing; the dive " +
+                                 "plays without its light.", this);
+            _warnedNoLightShader = true;
+            return;
+        }
+
+        _lightMaterial = new Material(shader) { name = "DiveGlow (runtime)" };
+
+        _lightQuad = new Mesh { name = "DiveLight quad" };
+        _lightQuad.vertices = new[]
+        {
+            new Vector3(-0.5f, -0.5f, 0f), new Vector3(0.5f, -0.5f, 0f),
+            new Vector3(0.5f, 0.5f, 0f), new Vector3(-0.5f, 0.5f, 0f)
+        };
+        _lightQuad.uv = new[] { new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(0f, 1f) };
+        _lightQuad.triangles = new[] { 0, 2, 1, 0, 3, 2 };
+        _lightQuad.RecalculateBounds();
+
+        _light = new GameObject("DiveLight (temporary)");
+        // The player's layer: whatever draws the photon draws this.
+        if (player != null) _light.layer = player.gameObject.layer;
+
+        _light.AddComponent<MeshFilter>().sharedMesh = _lightQuad;
+        MeshRenderer mr = _light.AddComponent<MeshRenderer>();
+        mr.sharedMaterial = _lightMaterial;
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        mr.receiveShadows = false;
+        mr.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+        mr.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+
+        _light.SetActive(false);
+    }
+
+    void DestroyLight()
+    {
+        if (_light != null) Destroy(_light);
+        if (_lightMaterial != null) Destroy(_lightMaterial);
+        if (_lightQuad != null) Destroy(_lightQuad);
+        _light = null;
+        _lightMaterial = null;
+        _lightQuad = null;
+    }
+
+    // ── Whiteout ─────────────────────────────────────────────────────────────
+
+    void BuildOverlay()
+    {
+        _overlay = new GameObject("DiveWhiteout (temporary)", typeof(RectTransform));
+
+        Canvas canvas = _overlay.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = overlaySortOrder;
+
+        GameObject go = new GameObject("Veil", typeof(RectTransform));
+        go.transform.SetParent(_overlay.transform, false);
+
+        _veil = go.AddComponent<Image>();
+        _veil.raycastTarget = false;
+        _veil.color = Color.clear;
+
+        RectTransform rt = _veil.rectTransform;
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+    }
+
+    void SetVeil(float alpha)
+    {
+        if (_veil == null) return;
+        Color c = _dive.lightColor;
+        _veil.color = new Color(c.r, c.g, c.b, Mathf.Clamp01(alpha));
+    }
+
+    void DestroyOverlay()
+    {
+        if (_overlay != null) Destroy(_overlay);
+        _overlay = null;
+        _veil = null;
+    }
+
     // ── Lens ─────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Widens the brain's field of view by the dive's kick. Runs right after the brain has
-    /// written the lens, which it does from scratch every time, so this never accumulates
-    /// and composes with JourneyZoom_NEW doing the same.
+    /// Scales the brain's field of view. Runs right after the brain has written the lens,
+    /// which it does from scratch every time, so this never accumulates and composes with
+    /// JourneyZoom_NEW doing the same.
     /// </summary>
     void OnCameraUpdated(CinemachineBrain updated)
     {
@@ -468,21 +700,37 @@ public class LayerDive_NEW : MonoBehaviour
         int bit = 0;
         while (bit < 31 && (mask & (1 << bit)) == 0) bit++;
 
-        PP.Bloom bloom = ScriptableObject.CreateInstance<PP.Bloom>();
-        bloom.enabled.Override(true);
-        bloom.intensity.Override(_dive.peakBloom);
+        var settings = new List<PP.PostProcessEffectSettings>();
 
-        PP.ChromaticAberration chroma = ScriptableObject.CreateInstance<PP.ChromaticAberration>();
-        chroma.enabled.Override(true);
-        chroma.intensity.Override(_dive.peakChromaticAberration);
+        if (_dive.peakBloom > 0f)
+        {
+            PP.Bloom bloom = ScriptableObject.CreateInstance<PP.Bloom>();
+            bloom.enabled.Override(true);
+            bloom.intensity.Override(_dive.peakBloom);
+            settings.Add(bloom);
+        }
 
-        _lens = ScriptableObject.CreateInstance<PP.LensDistortion>();
-        _lens.enabled.Override(true);
-        _lens.intensity.Override(_dive.peakLensDistortion);
-        _lens.centerX.Override(0f);
-        _lens.centerY.Override(0f);
+        if (_dive.peakChromaticAberration > 0f)
+        {
+            PP.ChromaticAberration chroma = ScriptableObject.CreateInstance<PP.ChromaticAberration>();
+            chroma.enabled.Override(true);
+            chroma.intensity.Override(_dive.peakChromaticAberration);
+            settings.Add(chroma);
+        }
 
-        _volume = PP.PostProcessManager.instance.QuickVolume(bit, 100f, bloom, chroma, _lens);
+        if (!Mathf.Approximately(_dive.peakLensDistortion, 0f))
+        {
+            _lens = ScriptableObject.CreateInstance<PP.LensDistortion>();
+            _lens.enabled.Override(true);
+            _lens.intensity.Override(_dive.peakLensDistortion);
+            _lens.centerX.Override(0f);
+            _lens.centerY.Override(0f);
+            settings.Add(_lens);
+        }
+
+        if (settings.Count == 0) return;
+
+        _volume = PP.PostProcessManager.instance.QuickVolume(bit, 100f, settings.ToArray());
         _volume.weight = 0f;
     }
 
@@ -511,116 +759,20 @@ public class LayerDive_NEW : MonoBehaviour
         _lens = null;
     }
 
-    // ── Light ────────────────────────────────────────────────────────────────
-
-    void BuildOverlay()
-    {
-        _overlay = new GameObject("DiveLight (temporary)", typeof(RectTransform));
-
-        Canvas canvas = _overlay.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = overlaySortOrder;
-
-        // Veil first so the core draws over it.
-        _veil = NewImage("Veil", null);
-        RectTransform veil = _veil.rectTransform;
-        veil.anchorMin = Vector2.zero;
-        veil.anchorMax = Vector2.one;
-        veil.offsetMin = Vector2.zero;
-        veil.offsetMax = Vector2.zero;
-
-        _coreImage = NewImage("Core", CoreSprite());
-        _core = _coreImage.rectTransform;
-        _core.anchorMin = Vector2.zero;
-        _core.anchorMax = Vector2.zero;
-        _core.pivot = new Vector2(0.5f, 0.5f);
-
-        // Big enough to spill past every corner from anywhere on screen.
-        float aspect = Screen.height > 0 ? (float)Screen.width / Screen.height : 16f / 9f;
-        _coverSize = 2.5f * Mathf.Sqrt(aspect * aspect + 1f);
-    }
-
-    Image NewImage(string name, Sprite sprite)
-    {
-        GameObject go = new GameObject(name, typeof(RectTransform));
-        go.transform.SetParent(_overlay.transform, false);
-
-        Image image = go.AddComponent<Image>();
-        image.sprite = sprite;
-        image.raycastTarget = false;
-        image.color = Color.clear;
-        return image;
-    }
-
-    /// <param name="size">Core diameter in screen heights.</param>
-    void DrawLight(float size, float coreAlpha, float veilAlpha)
-    {
-        if (_overlay == null) return;
-
-        Color c = _dive.lightColor;
-        _veil.color = new Color(c.r, c.g, c.b, Mathf.Clamp01(veilAlpha));
-
-        // The core sits on the point wherever it is on screen, and hides if it falls
-        // behind the camera rather than mirroring through.
-        bool onScreen = false;
-        if (_camera != null)
-        {
-            Vector3 sp = _camera.WorldToScreenPoint(_focus);
-            if (sp.z > 0f)
-            {
-                float px = Mathf.Max(0f, size) * Screen.height;
-                _core.anchoredPosition = new Vector2(sp.x, sp.y);
-                _core.sizeDelta = new Vector2(px, px);
-                onScreen = true;
-            }
-        }
-
-        _coreImage.color = new Color(c.r, c.g, c.b, onScreen ? Mathf.Clamp01(coreAlpha) : 0f);
-    }
-
-    void DestroyOverlay()
-    {
-        if (_overlay != null) Destroy(_overlay);
-        _overlay = null;
-        _core = null;
-        _coreImage = null;
-        _veil = null;
-    }
-
-    /// <summary>A soft radial glow, made once. Drawn by the default UI shader, which every build has.</summary>
-    static Sprite CoreSprite()
-    {
-        if (s_coreSprite != null) return s_coreSprite;
-
-        const int size = 128;
-        Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
-        {
-            name = "DiveCore (generated)",
-            wrapMode = TextureWrapMode.Clamp,
-            filterMode = FilterMode.Bilinear
-        };
-
-        Color32[] pixels = new Color32[size * size];
-        for (int y = 0; y < size; y++)
-        {
-            for (int x = 0; x < size; x++)
-            {
-                float dx = (x + 0.5f) / size * 2f - 1f;
-                float dy = (y + 0.5f) / size * 2f - 1f;
-                float a = Smooth(0f, 1f, 1f - Mathf.Sqrt(dx * dx + dy * dy));
-                a = Mathf.Pow(a, 1.5f);   // brighter, tighter middle
-                pixels[y * size + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(a * 255f));
-            }
-        }
-
-        tex.SetPixels32(pixels);
-        tex.Apply(false, true);
-
-        s_coreSprite = Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f);
-        return s_coreSprite;
-    }
-
     // ── Curves ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 0 to 1 at a constant rate after a short ease-in, so the magnification — exponential
+    /// in this — grows by the same factor every second. The first version squared time
+    /// here, which is what read as a sudden rush.
+    /// </summary>
+    static float SteadyRamp(float u)
+    {
+        const float easeIn = 0.12f;
+        u = Mathf.Clamp01(u);
+        float p = u < easeIn ? u * u / (2f * easeIn) : u - easeIn * 0.5f;
+        return p / (1f - easeIn * 0.5f);
+    }
 
     /// <summary>Smoothstep of x between from and to.</summary>
     static float Smooth(float from, float to, float x)

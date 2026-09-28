@@ -2,13 +2,14 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// Puts the journey's left-stick zoom and the layer dive into the open scene.
+/// Puts the journey's left-stick zoom, the layer dive and the photon layering into the
+/// open scene.
 ///
-/// Both find everything else they need at runtime, so adding the two components is the
-/// whole setup: JourneyZoom_NEW goes on the player, LayerDive_NEW next to
-/// WorldSwitcher_NEW (the responders object), and CameraDirector_NEW picks the dive up
-/// by itself. Each is skipped if the scene already has one, so running this twice is
-/// harmless.
+/// All of them find everything else they need at runtime, so adding the components is the
+/// whole setup: JourneyZoom_NEW and PhotonLayering_NEW go on the player, LayerDive_NEW next
+/// to WorldSwitcher_NEW (the responders object), and CameraDirector_NEW picks the dive up
+/// by itself. Each is skipped if the scene already has one, so running this again after an
+/// update adds only what is new.
 ///
 /// It works on the scene as loaded in the editor, not on the file, so unsaved changes
 /// stay and the additions are one more undoable step. Nothing here ships.
@@ -35,6 +36,14 @@ static class JourneyDiveMenu_NEW
         {
             Undo.AddComponent<JourneyZoom_NEW>(player.gameObject);
             Debug.Log("Journey NEW: added JourneyZoom_NEW to '" + player.name + "'. Left stick zooms.", player);
+            added++;
+        }
+
+        if (player != null && Object.FindObjectOfType<PhotonLayering_NEW>() == null)
+        {
+            Undo.AddComponent<PhotonLayering_NEW>(player.gameObject);
+            Debug.Log("Journey NEW: added PhotonLayering_NEW to '" + player.name + "'. Web volumes " +
+                      "with Layer Around Photon ticked now pass in front of and behind the light.", player);
             added++;
         }
 
