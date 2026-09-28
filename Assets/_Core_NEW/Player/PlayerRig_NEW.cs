@@ -86,6 +86,7 @@ public class PlayerRig_NEW : MonoBehaviour
     Vector3 _defaultDirection;
     float _externalSpeedMultiplier = 1f;
     bool _cameraInputLocked;
+    float _lookSensitivityScale = 1f;
 
     // ── Public API ───────────────────────────────────────────────────────────
 
@@ -93,6 +94,16 @@ public class PlayerRig_NEW : MonoBehaviour
     public float Speed => speed;
     public float ExternalSpeedMultiplier => _externalSpeedMultiplier;
     public bool CameraInputLocked => _cameraInputLocked;
+    public SpeedInput SpeedInputMode => speedInput;
+
+    /// <summary>
+    /// Scales look sensitivity. JourneyZoom_NEW sets it to the zoom ratio so that a
+    /// narrowed view does not feel faster than a wide one.
+    /// </summary>
+    public void SetLookSensitivityScale(float scale)
+    {
+        _lookSensitivityScale = Mathf.Max(0.01f, scale);
+    }
 
     public void SetMovementDirection(Vector3 direction)
     {
@@ -155,7 +166,7 @@ public class PlayerRig_NEW : MonoBehaviour
 
         // 4 · Look input
         if (!_cameraInputLocked && !orbit.IsResetting)
-            orbit.DriveInput(dt);
+            orbit.DriveInput(dt, _lookSensitivityScale);
 
         // 5 · Recentre request
         //

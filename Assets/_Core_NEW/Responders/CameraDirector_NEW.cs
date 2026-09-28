@@ -30,6 +30,10 @@ using UnityEngine;
 ///
 /// The exit sequence is gone. Gates are one-way, so "returning to a layer" is not a
 /// state the player can reach; the old LookDownExitSequence was unreachable code.
+///
+/// LATER: DIVES. A gate that LayerDive_NEW lists plays DiveSequence instead of the cover:
+/// the view zooms into the world being left rather than looking away from it. Same
+/// anchors, same clock owner — see DiveSequence.
 /// </summary>
 [DisallowMultipleComponent]
 [HierarchyBadge_NEW("CAMERA", "#4A94F2")]
@@ -61,6 +65,11 @@ public class CameraDirector_NEW : MonoBehaviour
     [Tooltip("Per-layer overrides. Add a row instead of editing code.")]
     [SerializeField] ZoneCamera[] zoneCameras = Array.Empty<ZoneCamera>();
 
+    [Header("Dive")]
+    [Tooltip("Gates this lists dive into the world instead of blending to the cover camera. " +
+             "Found in the scene if empty; with none, every gate uses the cover as before.")]
+    [SerializeField] LayerDive_NEW dive;
+
     [Header("Cover detection")]
     [Tooltip("Blend weight at which the cover counts as complete. 1 = wait for the very end.")]
     [Range(0.5f, 1f)]
@@ -89,6 +98,7 @@ public class CameraDirector_NEW : MonoBehaviour
     Coroutine _sequence;
     Coroutine _orbit;
     bool _inputLockedBySequence;
+    bool _diving;
 
     // ── Lifecycle ────────────────────────────────────────────────────────────
 
@@ -97,6 +107,7 @@ public class CameraDirector_NEW : MonoBehaviour
         if (state == null) state = FindObjectOfType<LayerState_NEW>();
         if (player == null) player = FindObjectOfType<PlayerRig_NEW>();
         if (brain == null) brain = FindObjectOfType<CinemachineBrain>();
+        if (dive == null) dive = FindObjectOfType<LayerDive_NEW>();
 
         if (brain == null)
             Debug.LogError("[CameraDirector_NEW] No CinemachineBrain in scene. Cover detection " +
@@ -183,6 +194,14 @@ public class CameraDirector_NEW : MonoBehaviour
             _sequence = null;
         }
 
+        // A stopped coroutine runs no cleanup, so a dive cut short is put back by hand —
+        // otherwise its world stays scaled and its light stays on screen.
+        if (_diving)
+        {
+            _diving = false;
+            if (dive != null) dive.Abort();
+        }
+
         // Only release the lock this class took. The orbit routine manages its own lock,
         // so an interrupted sequence no longer unlocks input mid-orbit — a real bug in
         // the old HandleLayerChanged, which called SetCameraInputLocked(false) blindly.
@@ -215,6 +234,8 @@ public class CameraDirector_NEW : MonoBehaviour
             yield return InitialSequence(current);
         else if (previous.useLookBackSequence)
             yield return FirstGateSequence(current);
+        else if (dive != null && dive.TryGetDive(current.layerId, out LayerDive_NEW.Dive spec))
+            yield return DiveSequence(previous, current, spec);
         else
             yield return ZoneEnterSequence(current);
 
@@ -342,6 +363,57 @@ public class CameraDirector_NEW : MonoBehaviour
         SetPriority(coverVcam, priorityOff);
 
         yield return WaitUntilLive(zone);
+    }
+
+    /// <summary>
+    /// A gate LayerDive_NEW lists: zoom into the world being left instead of looking away.
+    ///
+    /// Same anchors as ZoneEnterSequence, so every responder works unchanged. CoverReached
+    /// fires at the peak of the dive, under full light — the moment the cover used to
+    /// reach full weight — and the next zone camera goes live there too, so its blend is
+    /// hidden by the light. This method keeps the clock; LayerDive_NEW only draws the
+    /// frame for a given progress.
+    /// </summary>
+    IEnumerator DiveSequence(LayerProfile_NEW previous, LayerProfile_NEW current, LayerDive_NEW.Dive spec)
+    {
+        CinemachineFreeLook zone = ResolveZoneCamera(current.layerId);
+
+        // Nothing looks away: the zone camera the player is on stays live for the dive.
+        SetPriority(coverVcam, priorityOff);
+        SetPriority(lookBackVcam, priorityOff);
+
+        _diving = true;
+        dive.Begin(previous, current, spec);
+
+        for (float t = 0f; t < spec.diveSeconds; t += Time.deltaTime)
+        {
+            dive.TickDive(t / spec.diveSeconds);
+            yield return null;
+        }
+
+        dive.TickDive(1f);
+        dive.Crossover();
+
+        foreach (CinemachineFreeLook v in _allZoneVcams) SetPriority(v, priorityOff);
+        SetPriority(zone, priorityHigh);
+
+        Fire(TransitionAnchor_NEW.CoverReached, current, spec.peakHoldSeconds + spec.emergeSeconds);
+
+        if (spec.peakHoldSeconds > 0f)
+            yield return new WaitForSeconds(spec.peakHoldSeconds);
+
+        for (float t = 0f; t < spec.emergeSeconds; t += Time.deltaTime)
+        {
+            dive.TickEmerge(t / spec.emergeSeconds);
+            yield return null;
+        }
+
+        dive.TickEmerge(1f);
+
+        Fire(TransitionAnchor_NEW.LookUpStart, current, -1f);
+
+        _diving = false;
+        dive.End();
     }
 
     IEnumerator OrbitToForward(float duration)

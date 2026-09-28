@@ -145,6 +145,17 @@ public class SceneHandoff_NEW : MonoBehaviour
             return null;
         }
 
+#if UNITY_EDITOR
+        // A path does not follow a rename. Say so here, rather than failing inside the load.
+        if (UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEditor.SceneAsset>(journeyScenePath) == null)
+        {
+            Debug.LogError("[SceneHandoff_NEW] There is no scene at '" + journeyScenePath + "'. " +
+                           "Was it renamed or moved? journeyScenePath is a path, so it does not " +
+                           "follow a rename; set it to the journey scene's new path.", this);
+            return null;
+        }
+#endif
+
         if (SceneUtility.GetBuildIndexByScenePath(journeyScenePath) >= 0)
             return SceneManager.LoadSceneAsync(journeyScenePath, LoadSceneMode.Single);
 

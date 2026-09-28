@@ -9481,7 +9481,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   handoffEnabled: 1
   outro: {fileID: 0}
-  journeyScenePath: Assets/_Core_NEW/Gameplay_Scene_Ana.unity
+  journeyScenePath: Assets/_Core_NEW/Gameplay_Scene_Aaron.unity
   titleHoldSeconds: 3
   fadeToBlackSeconds: 1
   settleSeconds: 0.75

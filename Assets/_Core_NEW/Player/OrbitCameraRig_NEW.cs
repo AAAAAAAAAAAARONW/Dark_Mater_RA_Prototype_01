@@ -78,13 +78,16 @@ public class OrbitCameraRig_NEW
     /// The maths is unchanged. What changed is who decides which axis the right stick is
     /// on: this used to answer it with a serialized string per scene, and now asks the
     /// active pad profile, which is the only thing that knows what is plugged in.
+    ///
+    /// <paramref name="sensitivityScale"/> is the zoom's correction (JourneyZoom_NEW): at a
+    /// narrower field the same stick sweeps more of the picture, so it turns slower.
     /// </summary>
-    public void DriveInput(float dt)
+    public void DriveInput(float dt, float sensitivityScale = 1f)
     {
         float deadband = useProfileDeadband ? InputScheme_NEW.Deadband() : stickDeadband;
 
-        float x = InputScheme_NEW.LookX(InputScheme_NEW.Stick.Right, xSensitivity, deadband, dt);
-        float y = InputScheme_NEW.LookY(InputScheme_NEW.Stick.Right, ySensitivity, deadband, dt);
+        float x = InputScheme_NEW.LookX(InputScheme_NEW.Stick.Right, xSensitivity * sensitivityScale, deadband, dt);
+        float y = InputScheme_NEW.LookY(InputScheme_NEW.Stick.Right, ySensitivity * sensitivityScale, deadband, dt);
 
         for (int i = 0; i < orbitCameras.Length; i++)
         {
