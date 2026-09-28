@@ -3,8 +3,9 @@ Shader "Custom/DiveSwarm_NEW"
     // What a dive's point resolves into: the galaxies of a cluster (and, on later gates,
     // the stars of a galaxy). One mesh, one draw — every member is a quad whose four
     // vertices all sit at its centre, and the vertex shader spreads them into a small
-    // camera-facing glow there, stretched along its line away from the point while the
-    // dive opens the members up, so the ones streaming past read as streaks.
+    // camera-facing glow there, stretched along the way it moves on screen — along its line
+    // through the crowd's centre, away from it while the dive opens the crowd up, towards
+    // it while a cluster being left shrinks away — so the ones streaming past read as streaks.
     //
     // Additive, queue 2990: after the cosmic web's volumes, before the photon trail —
     // the members sit inside the web and behind the light, like the dive's own glow.
@@ -16,6 +17,8 @@ Shader "Custom/DiveSwarm_NEW"
         _Streak   ("Streak", Range(0, 20)) = 0
         _SizeScale("Size scale", Float) = 1
         _NearFade ("Near fade (start, end)", Vector) = (0.5, 3, 0, 0)
+        // 1: members come out of the point's glow (going in). 0: there is no point in view.
+        _Resolve  ("Resolve from the point", Range(0, 1)) = 1
     }
 
     SubShader
@@ -32,7 +35,7 @@ Shader "Custom/DiveSwarm_NEW"
             #pragma fragment frag
             #include "UnityCG.cginc"
 
-            float  _Alpha, _Streak, _SizeScale;
+            float  _Alpha, _Streak, _SizeScale, _Resolve;
             float4 _NearFade;
 
             struct appdata
@@ -60,11 +63,20 @@ Shader "Custom/DiveSwarm_NEW"
 
                 float2 offset = v.uv * v.size.x * scale * _SizeScale;
 
-                // Stretch along the member's line away from the point, on screen.
+                // Stretch along the way the member moves on screen. It moves along its line
+                // through the crowd's centre, one way or the other; that line's direction on
+                // screen, where the member is, is the derivative of its projection. Unlike the
+                // difference of the two projections, it holds when the centre is behind the
+                // camera, as a cluster being left is.
+                float3 line3 = centre - origin;
+                float2 flow  = line3.xy * (-centre.z) + centre.xy * line3.z;
+                float  flen  = length(flow);
+                float2 dir   = flen > 1e-6 ? flow / flen : float2(0, 1);
+
+                // Going in, how far the member has separated from the point, on screen.
                 float2 away = centre.xy / max(-centre.z, 1e-3) - origin.xy / max(-origin.z, 1e-3);
                 float  len  = length(away);
-                float2 dir  = len > 1e-4 ? away / len : float2(0, 1);
-                offset += dir * dot(offset, dir) * _Streak * saturate(len * 4.0);
+                offset += dir * dot(offset, dir) * _Streak * lerp(1.0, saturate(len * 4.0), _Resolve);
 
                 o.pos = mul(UNITY_MATRIX_P, float4(centre + float3(offset, 0), 1.0));
                 o.uv = v.uv;
@@ -72,9 +84,9 @@ Shader "Custom/DiveSwarm_NEW"
                 // Members passing the camera would fill the screen: fade them out first.
                 float near = saturate((-centre.z - _NearFade.x) / max(1e-3, _NearFade.y - _NearFade.x));
 
-                // Members still inside the point are part of its glow, not yet resolved:
-                // they brighten as they separate from it (full by about three degrees).
-                float resolved = saturate((len - 0.01) / 0.04);
+                // Going in, members still inside the point are part of its glow, not yet
+                // resolved: they brighten as they separate from it (full by about three degrees).
+                float resolved = lerp(1.0, saturate((len - 0.01) / 0.04), _Resolve);
 
                 o.color = v.color;
                 o.color.a *= near * resolved * _Alpha;

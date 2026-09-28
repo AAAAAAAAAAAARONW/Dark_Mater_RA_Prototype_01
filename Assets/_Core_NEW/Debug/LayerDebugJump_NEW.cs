@@ -38,6 +38,11 @@ public class LayerDebugJump_NEW : MonoBehaviour
     [Tooltip("Offset along the gate's forward axis. Negative places the player just before it.")]
     [SerializeField] float forwardOffset = -2f;
 
+    [Tooltip("Found if empty. With Shift held, a number lands just before where that gate's " +
+             "dive approach begins, so the approach plays as it would in a run — the jump " +
+             "alone lands inside it, where the approach pops in.")]
+    [SerializeField] LayerDive_NEW dive;
+
     [Header("Overlay")]
     [Tooltip("F1 toggles DebugView_NEW.Overlay, which every debug visual reads.")]
     [SerializeField] KeyCode toggleOverlayKey = KeyCode.F1;
@@ -70,6 +75,7 @@ public class LayerDebugJump_NEW : MonoBehaviour
     {
         if (state == null) state = FindObjectOfType<LayerState_NEW>();
         if (tracker == null) tracker = FindObjectOfType<UniverseJourneyTracker>();
+        if (dive == null) dive = FindObjectOfType<LayerDive_NEW>();
 
         if (player == null)
         {
@@ -108,14 +114,18 @@ public class LayerDebugJump_NEW : MonoBehaviour
             if (!Input.GetKeyDown(KeyCode.Alpha1 + i) && !Input.GetKeyDown(KeyCode.Keypad1 + i))
                 continue;
 
-            JumpTo(i);
+            JumpTo(i, Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift));
             return;
         }
     }
 
     // ── Jump ─────────────────────────────────────────────────────────────────
 
-    public void JumpTo(int index)
+    public void JumpTo(int index) => JumpTo(index, false);
+
+    /// <param name="beforeApproach">Land just before where the gate's dive approach begins,
+    /// instead of just before the gate.</param>
+    public void JumpTo(int index, bool beforeApproach)
     {
         if (player == null || index < 0 || index >= gates.Length) return;
 
@@ -126,9 +136,13 @@ public class LayerDebugJump_NEW : MonoBehaviour
             return;
         }
 
+        // A few units of margin, so the approach starts from nothing.
+        float approach = beforeApproach && dive != null ? dive.ApproachDistance(gate.LayerId) : 0f;
+        float along = forwardOffset - (approach > 0f ? approach + 3f : 0f);
+
         Vector3 target = gate.transform.position
                        + Vector3.up * verticalOffset
-                       + gate.transform.forward * forwardOffset;
+                       + gate.transform.forward * along;
 
         // CharacterController overrides direct transform writes, so disable it for the move.
         CharacterController cc = player.GetComponent<CharacterController>();
@@ -136,7 +150,9 @@ public class LayerDebugJump_NEW : MonoBehaviour
         player.position = target;
         if (cc != null) cc.enabled = true;
 
-        Note($"jumped to {gate.LayerId}");
+        if (approach > 0f) Note($"jumped to before {gate.LayerId}'s dive approach ({approach:F0} out)");
+        else if (beforeApproach) Note($"jumped to {gate.LayerId} (it has no dive approach)");
+        else Note($"jumped to {gate.LayerId}");
     }
 
     void Note(string message)
@@ -192,6 +208,8 @@ public class LayerDebugJump_NEW : MonoBehaviour
             _sb.Append(isCurrent ? "> " : "  ")
                .Append(i + 1).Append("  ").Append(id).Append('\n');
         }
+
+        if (dive != null) _sb.Append("Shift+N   before the dive approach\n");
 
         float age = Time.unscaledTime - _lastActionTime;
         if (age < ActionFadeSeconds && !string.IsNullOrEmpty(_lastAction))
