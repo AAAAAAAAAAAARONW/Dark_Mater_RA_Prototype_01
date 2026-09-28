@@ -69,8 +69,9 @@ using UnityEngine.UI;
 /// SCALING A WORLD. The baked volumes scale cleanly. Particle systems in "Local" scaling
 /// mode ignore their parents' scale, so for the length of a scale they are switched to
 /// "Hierarchy" with the parents divided back out. Systems that simulate in world space
-/// cannot follow a moving root at all and only fade — which is why enterScale defaults
-/// to 1: the galaxy is mostly world-space particles.
+/// leave their particles where they were emitted whatever the root does — the Micro
+/// galaxy's spiral arms are eight of them — so for the length of a scale they stop
+/// emitting and their particles are carried along by hand, and put back after.
 /// </summary>
 [DisallowMultipleComponent]
 [HierarchyBadge_NEW("DIVE", "#E07A5F")]
@@ -107,9 +108,13 @@ public class LayerDive_NEW : MonoBehaviour
 
         /// <summary>
         /// Starting values for a gate that goes up a scale, tuned for the galaxy back out to
-        /// the cosmic web: no approach light (the destination is everything, not a point),
-        /// the old world fading early (a galaxy's particles cannot follow a scale), and the
-        /// web closing in around the point from three times its size.
+        /// the cosmic web. At that gate the Micro galaxy is just behind the camera and twelve
+        /// below — the photon is still inside its stars — so collapsing it into the point
+        /// ahead sends it swooping past the camera and away into the distance. To a tenth,
+        /// so it ends in the knot as one of its members, not beside it; dissolving only in
+        /// the last stretch, once it has been seen getting small. No approach light: the
+        /// destination is everything, not a point. The web closes in around the knot from
+        /// three times its size.
         /// </summary>
         public static Dive PullOut(string toLayerId)
         {
@@ -120,8 +125,9 @@ public class LayerDive_NEW : MonoBehaviour
                 focusPastGate = 30f,
                 approachDistance = 0f,
                 emergeSeconds = 3.5f,
+                diveZoom = 10f,
                 leaveGlow = 1.5f,
-                dissolveFrom = 0.3f,
+                dissolveFrom = 0.6f,
                 enterScale = 3f,
                 lightColor = new Color(1f, 0.9f, 0.75f, 1f),
                 lightIntensity = 1.2f,
@@ -170,8 +176,8 @@ public class LayerDive_NEW : MonoBehaviour
         [Min(0.1f)] public float emergeSeconds = 2.8f;
 
         [Header("The world being left")]
-        [Tooltip("Scale the old world reaches around the point by the peak, at a constant " +
-                 "rate. Above 1 dives in; below 1 pulls out, for gates that go up in scale.")]
+        [Tooltip("How many times the old world grows around the point by the peak, at a " +
+                 "constant rate — or shrinks into it, coming out.")]
         [Min(0.01f)] public float diveZoom = 4f;
 
         [Tooltip("How much brighter the old world glows at the peak, just before it is gone.")]
@@ -182,8 +188,8 @@ public class LayerDive_NEW : MonoBehaviour
         [Range(0f, 1f)] public float dissolveFrom = 0.6f;
 
         [Header("The world being entered")]
-        [Tooltip("Scale the new world starts at around its centre, settling to 1. 1 = fade " +
-                 "in only. World-space particle systems cannot follow a scale and only fade.")]
+        [Tooltip("Scale the new world starts at around where it appears, settling to 1. " +
+                 "1 = fade in only.")]
         [Min(0.01f)] public float enterScale = 1f;
 
         [Header("Light")]
@@ -311,6 +317,12 @@ public class LayerDive_NEW : MonoBehaviour
         public Vector3 localScale;
         public bool particlesPrepared;
         public readonly List<ParticleState> particles = new List<ParticleState>();
+
+        // World-space systems, whose particles are carried along by hand, and the scale and
+        // pivot they were last carried to. One pivot per scale, as every caller uses.
+        public readonly List<WorldParticles> world = new List<WorldParticles>();
+        public float carried = 1f;
+        public Vector3 pivot;
     }
 
     struct ParticleState
@@ -319,6 +331,16 @@ public class LayerDive_NEW : MonoBehaviour
         public Vector3 localScale;
         public ParticleSystemScalingMode mode;
     }
+
+    struct WorldParticles
+    {
+        public ParticleSystem system;
+        public bool emitting;   // emission was on
+        public bool resize;     // its size is carried too (see CarryWorldParticles)
+        public bool size3D;
+    }
+
+    static ParticleSystem.Particle[] _particleBuffer = Array.Empty<ParticleSystem.Particle>();
 
     static readonly int ColorId = Shader.PropertyToID("_Color");
     static readonly int AlphaId = Shader.PropertyToID("_Alpha");
@@ -738,9 +760,19 @@ public class LayerDive_NEW : MonoBehaviour
 
         s.root.position = pivot + (s.position - pivot) * k;
         s.root.localScale = s.localScale * k;
+
+        if (s.world.Count > 0 && !Mathf.Approximately(k, s.carried))
+        {
+            CarryWorldParticles(s.world, pivot, k / s.carried);
+            s.carried = k;
+            s.pivot = pivot;
+        }
     }
 
-    /// <summary>See the class summary: Local-scaling systems follow the root for the length of a scale.</summary>
+    /// <summary>
+    /// See the class summary: Local-scaling systems follow the root for the length of a
+    /// scale, and world-space systems stop emitting and are listed to be carried by hand.
+    /// </summary>
     static void PrepareParticles(Scaled s)
     {
         s.particlesPrepared = true;
@@ -749,6 +781,24 @@ public class LayerDive_NEW : MonoBehaviour
         {
             Transform t = ps.transform;
             ParticleSystem.MainModule main = ps.main;
+
+            if (main.simulationSpace == ParticleSystemSimulationSpace.World)
+            {
+                // Left in its own scaling mode, so whatever size the system's scale gives its
+                // particles stays put and the carry alone resizes them — unless Hierarchy
+                // scaling already hands them the root's scale. A particle born mid-scale
+                // would come out at the old size, so none are, for the few seconds it lasts.
+                ParticleSystem.EmissionModule emission = ps.emission;
+                s.world.Add(new WorldParticles
+                {
+                    system = ps,
+                    emitting = emission.enabled,
+                    resize = main.scalingMode != ParticleSystemScalingMode.Hierarchy,
+                    size3D = main.startSize3D
+                });
+                emission.enabled = false;
+                continue;
+            }
 
             // Leaves only: resizing a transform that has children would move them.
             if (main.scalingMode != ParticleSystemScalingMode.Local || t.childCount > 0) continue;
@@ -761,6 +811,37 @@ public class LayerDive_NEW : MonoBehaviour
 
             main.scalingMode = ParticleSystemScalingMode.Hierarchy;
             t.localScale = new Vector3(t.localScale.x / parent.x, t.localScale.y / parent.y, t.localScale.z / parent.z);
+        }
+    }
+
+    /// <summary>
+    /// A world-space system keeps its particles where they were emitted, whatever its root
+    /// does, so a scale moves them by hand: every particle, around the same pivot, by the
+    /// change since the last call — position, velocity and size. The Micro galaxy's spiral
+    /// arms are such systems, a few hundred particles a frame for a few seconds.
+    /// </summary>
+    static void CarryWorldParticles(List<WorldParticles> systems, Vector3 pivot, float ratio)
+    {
+        for (int i = 0; i < systems.Count; i++)
+        {
+            WorldParticles w = systems[i];
+            if (w.system == null) continue;
+
+            int count = w.system.particleCount;
+            if (count == 0) continue;
+            if (_particleBuffer.Length < count) _particleBuffer = new ParticleSystem.Particle[Mathf.NextPowerOfTwo(count)];
+
+            count = w.system.GetParticles(_particleBuffer);
+            for (int j = 0; j < count; j++)
+            {
+                _particleBuffer[j].position = pivot + (_particleBuffer[j].position - pivot) * ratio;
+                _particleBuffer[j].velocity *= ratio;
+
+                if (!w.resize) continue;
+                if (w.size3D) _particleBuffer[j].startSize3D *= ratio;
+                else _particleBuffer[j].startSize *= ratio;
+            }
+            w.system.SetParticles(_particleBuffer, count);
         }
     }
 
@@ -781,7 +862,20 @@ public class LayerDive_NEW : MonoBehaviour
             p.system.transform.localScale = p.localScale;
         }
 
+        // Back to where and how big they would be had nothing been scaled — the world may be
+        // shown again — and emitting as before.
+        if (!Mathf.Approximately(s.carried, 1f)) CarryWorldParticles(s.world, s.pivot, 1f / s.carried);
+
+        for (int i = 0; i < s.world.Count; i++)
+        {
+            if (s.world[i].system == null) continue;
+            ParticleSystem.EmissionModule emission = s.world[i].system.emission;
+            emission.enabled = s.world[i].emitting;
+        }
+
         s.particles.Clear();
+        s.world.Clear();
+        s.carried = 1f;
         s.particlesPrepared = false;
     }
 
