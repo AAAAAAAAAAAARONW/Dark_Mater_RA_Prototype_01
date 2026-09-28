@@ -35,10 +35,15 @@ using UnityEngine.UI;
 ///              opens at the same steady rate but fifteen times further, so its members
 ///              stream past the camera as streaks while the web behind them hardly grows:
 ///              the small scale racing by against a large one that barely moves is what
-///              makes the difference in size felt. The photon keeps flying into the point
-///              and arrives about as the dive ends.
+///              makes the difference in size felt. And the photon becomes small against its
+///              world: a dolly zoom swells everything behind it while keeping it the same
+///              size, its trail narrows, and a vignette closes in on the point like a
+///              funnel. The photon keeps flying into the point and arrives about as the
+///              dive ends.
 ///   peak       Under full light, CoverReached fires: sky, speed and spectrum change, and
 ///              the next zone camera goes live — the frame the cover camera used to give.
+///              The lens and the photon snap back here, unseen: the new world opens at
+///              normal framing with the light its normal size — in a world now its scale.
 ///   emerge     The light settles into the middle of the next world and fades as that
 ///              world fades in around it.
 ///
@@ -105,8 +110,9 @@ public class LayerDive_NEW : MonoBehaviour
         [Tooltip("How much brighter the old world glows at the peak, just before it is gone.")]
         [Min(0f)] public float leaveGlow = 2f;
 
-        [Tooltip("Fraction of the dive at which the old world starts to dissolve.")]
-        [Range(0f, 1f)] public float dissolveFrom = 0.5f;
+        [Tooltip("Fraction of the dive at which the old world starts to dissolve. Late enough " +
+                 "that it is seen swelling around the photon first.")]
+        [Range(0f, 1f)] public float dissolveFrom = 0.6f;
 
         [Header("The world being entered")]
         [Tooltip("Scale the new world starts at around its centre, settling to 1. 1 = fade " +
@@ -173,6 +179,28 @@ public class LayerDive_NEW : MonoBehaviour
 
         [Tooltip("Share of the members in the cool colour.")]
         [Range(0f, 1f)] public float coolShare = 0.3f;
+
+        [Header("Shrink (the photon becomes small against its world)")]
+        [Tooltip("Dolly zoom. The lens narrows while the camera backs away just enough to keep " +
+                 "the photon the same size on screen, so everything behind it swells up around " +
+                 "it — the world growing around the light, which reads as the light shrinking " +
+                 "into it. How many times the world behind the photon is magnified by the peak. " +
+                 "Reset under the whiteout. 1 = off.")]
+        [Range(1f, 6f)] public float dollyZoom = 2.5f;
+
+        [Tooltip("Width the photon's trail narrows to by the peak, as a fraction of its own. It is " +
+                 "back to full width in the new world — the light its normal size again, in a " +
+                 "smaller world. 1 = off.")]
+        [Range(0.05f, 1f)] public float photonShrink = 0.35f;
+
+        [Tooltip("Vignette at the peak, closing the view in on the point like a funnel. 0 = off.")]
+        [Range(0f, 1f)] public float peakVignette = 0.45f;
+
+        [Tooltip("Optional. Played as the dive starts. A descending boom or a long reverse swell " +
+                 "makes a change of scale felt more than any picture can.")]
+        public AudioClip diveSound;
+
+        [Range(0f, 1f)] public float diveSoundVolume = 0.8f;
 
         [Header("Lens (blended over the scene's own post-processing)")]
         [Tooltip("Field of view multiplier at the peak. 1 = unchanged. Above 1 widens, which " +
@@ -259,8 +287,13 @@ public class LayerDive_NEW : MonoBehaviour
 
     PP.PostProcessVolume _volume;
     PP.LensDistortion _lens;
+    PP.Vignette _vignette;
 
     float _fovMultiplier = 1f;
+    float _dolly = 1f;
+
+    TrailRenderer[] _trails = Array.Empty<TrailRenderer>();
+    float[] _trailWidths = Array.Empty<float>();
 
     /// <summary>True from Begin until End or Abort.</summary>
     public bool IsActive { get; private set; }
@@ -360,6 +393,8 @@ public class LayerDive_NEW : MonoBehaviour
 
         BuildOverlay();
         BuildEffects();
+        CaptureTrails();
+        PlayDiveSound(dive);
         CinemachineCore.CameraUpdatedEvent.AddListener(OnCameraUpdated);
 
         if (debugLog)
@@ -397,6 +432,11 @@ public class LayerDive_NEW : MonoBehaviour
 
         _fovMultiplier = Mathf.Lerp(1f, _dive.fieldOfViewScale, Smooth(0f, 1f, u));
         SetEffects(Smooth(0.2f, 1f, u));
+
+        // The photon becomes small against its world: the world behind it swells (dolly
+        // zoom) while the light itself narrows — both at the dive's constant rate.
+        _dolly = Mathf.Pow(_dive.dollyZoom, SteadyRamp(u));
+        SetTrailWidth(Mathf.Pow(_dive.photonShrink, SteadyRamp(u)));
     }
 
     /// <summary>The peak: the old world goes back where it was, out of sight, and the new one is readied.</summary>
@@ -410,10 +450,14 @@ public class LayerDive_NEW : MonoBehaviour
         ScaleAround(_enter, _emergeFocus, _dive.enterScale);
         if (worlds != null) worlds.SetGroupLook(_toId, 0f);
 
-        // Under the whiteout, the light moves to where the next world appears.
+        // Under the whiteout, the light moves to where the next world appears, and the lens
+        // and the photon snap back: the new world opens at normal framing, the light at its
+        // normal size — in a world that is now its scale.
         SetVeil(_dive.whiteout);
         SetLight(_dive, _emergeFocus, _dive.peakSize * 0.5f, 1f);
         HideCrowd();
+        _dolly = 1f;
+        SetTrailWidth(1f);
     }
 
     /// <summary>The next world appearing around the light. <paramref name="v"/> runs 0 to 1.</summary>
@@ -464,6 +508,10 @@ public class LayerDive_NEW : MonoBehaviour
 
         CinemachineCore.CameraUpdatedEvent.RemoveListener(OnCameraUpdated);
         _fovMultiplier = 1f;
+        _dolly = 1f;
+        SetTrailWidth(1f);
+        _trails = Array.Empty<TrailRenderer>();
+        _trailWidths = Array.Empty<float>();
 
         DestroyOverlay();
         DestroyEffects();
@@ -923,19 +971,64 @@ public class LayerDive_NEW : MonoBehaviour
     // ── Lens ─────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Scales the brain's field of view. Runs right after the brain has written the lens,
-    /// which it does from scratch every time, so this never accumulates and composes with
-    /// JourneyZoom_NEW doing the same.
+    /// Scales the brain's field of view, and plays the dolly zoom. Runs right after the
+    /// brain has written the camera, which it does from scratch every time, so none of
+    /// this accumulates, and it composes with JourneyZoom_NEW doing the same.
     /// </summary>
     void OnCameraUpdated(CinemachineBrain updated)
     {
         if (brain != null && updated != brain) return;
-        if (Mathf.Approximately(_fovMultiplier, 1f)) return;
 
         Camera cam = updated.OutputCamera;
         if (cam == null || cam.orthographic) return;
 
-        cam.fieldOfView = Mathf.Clamp(cam.fieldOfView * _fovMultiplier, 1f, 179f);
+        if (!Mathf.Approximately(_fovMultiplier, 1f))
+            cam.fieldOfView = Mathf.Clamp(cam.fieldOfView * _fovMultiplier, 1f, 179f);
+
+        if (_dolly > 1.0001f && player != null)
+        {
+            // Narrow the lens by _dolly and back away along the view by exactly as much as
+            // keeps the photon's size: at _dolly times the distance, _dolly times the zoom.
+            // Everything beyond the photon is magnified by up to _dolly; the photon is not.
+            float halfTan = Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad) / _dolly;
+            float distance = Vector3.Distance(cam.transform.position, player.transform.position);
+
+            cam.fieldOfView = Mathf.Max(1f, 2f * Mathf.Atan(halfTan) * Mathf.Rad2Deg);
+            cam.transform.position -= cam.transform.forward * (distance * (_dolly - 1f));
+        }
+    }
+
+    // ── The photon, the sound ────────────────────────────────────────────────
+
+    void CaptureTrails()
+    {
+        _trails = player != null ? player.GetComponentsInChildren<TrailRenderer>(false) : Array.Empty<TrailRenderer>();
+        _trailWidths = new float[_trails.Length];
+        for (int i = 0; i < _trails.Length; i++)
+            _trailWidths[i] = _trails[i] != null ? _trails[i].widthMultiplier : 1f;
+    }
+
+    /// <param name="fraction">Of each trail's own width when the dive began.</param>
+    void SetTrailWidth(float fraction)
+    {
+        for (int i = 0; i < _trails.Length; i++)
+            if (_trails[i] != null)
+                _trails[i].widthMultiplier = _trailWidths[i] * fraction;
+    }
+
+    /// <summary>Two-dimensional, so it does not fade as the camera flies away from where it started.</summary>
+    void PlayDiveSound(Dive d)
+    {
+        if (d.diveSound == null) return;
+
+        var go = new GameObject("DiveSound (temporary)");
+        AudioSource source = go.AddComponent<AudioSource>();
+        source.clip = d.diveSound;
+        source.volume = d.diveSoundVolume;
+        source.spatialBlend = 0f;
+        source.playOnAwake = false;
+        source.Play();
+        Destroy(go, d.diveSound.length + 0.1f);
     }
 
     void BuildEffects()
@@ -970,6 +1063,16 @@ public class LayerDive_NEW : MonoBehaviour
             settings.Add(chroma);
         }
 
+        if (_dive.peakVignette > 0f)
+        {
+            _vignette = ScriptableObject.CreateInstance<PP.Vignette>();
+            _vignette.enabled.Override(true);
+            _vignette.intensity.Override(_dive.peakVignette);
+            _vignette.smoothness.Override(0.6f);
+            _vignette.center.Override(new Vector2(0.5f, 0.5f));
+            settings.Add(_vignette);
+        }
+
         if (!Mathf.Approximately(_dive.peakLensDistortion, 0f))
         {
             _lens = ScriptableObject.CreateInstance<PP.LensDistortion>();
@@ -992,14 +1095,21 @@ public class LayerDive_NEW : MonoBehaviour
 
         _volume.weight = Mathf.Clamp01(weight);
 
-        // Distort around the point being dived into, not the middle of the screen.
-        if (_lens != null && _camera != null)
+        // Distort, and close the funnel, around the point being dived into — not the middle
+        // of the screen.
+        if ((_lens != null || _vignette != null) && _camera != null)
         {
             Vector3 vp = _camera.WorldToViewportPoint(_focus);
             if (vp.z > 0f)
             {
-                _lens.centerX.value = Mathf.Clamp(vp.x * 2f - 1f, -1f, 1f);
-                _lens.centerY.value = Mathf.Clamp(vp.y * 2f - 1f, -1f, 1f);
+                if (_lens != null)
+                {
+                    _lens.centerX.value = Mathf.Clamp(vp.x * 2f - 1f, -1f, 1f);
+                    _lens.centerY.value = Mathf.Clamp(vp.y * 2f - 1f, -1f, 1f);
+                }
+
+                if (_vignette != null)
+                    _vignette.center.value = new Vector2(Mathf.Clamp01(vp.x), Mathf.Clamp01(vp.y));
             }
         }
     }
@@ -1009,6 +1119,7 @@ public class LayerDive_NEW : MonoBehaviour
         if (_volume != null) PP.RuntimeUtilities.DestroyVolume(_volume, true, true);
         _volume = null;
         _lens = null;
+        _vignette = null;
     }
 
     // ── Curves ───────────────────────────────────────────────────────────────
