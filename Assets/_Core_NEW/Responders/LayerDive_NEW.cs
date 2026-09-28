@@ -58,16 +58,20 @@ using UnityEngine.UI;
 ///   approach   The cluster's galaxies come into view all round as the photon nears the
 ///              gate, and its yellow glow — the light the dive in went into — gathers
 ///              round the photon: we are inside a cluster.
-///   dive       The whole cluster shrinks into its centre behind and below at a constant
+///   breakout   The whole cluster shrinks into its centre behind and below at a constant
 ///              rate, the world left with it and the glow too, whose edge sweeps past the
 ///              camera: the yellow sinks away below and behind, and the photon walks out
-///              of it. Its galaxies come at the camera from ahead, fall away behind and
-///              below — rising out of it — and each is smaller than the last as it goes
-///              by, until the way ahead is empty. The photon, the one thing that keeps its
-///              size, is the ruler: everything it passes is getting small against it.
-///   peak       Empty space. Nothing is left to hide, so there is no whiteout; the swap and
-///              the sky change happen in the dark.
-///   emerge     The web fades in all round — the scale where a cluster is a knot.
+///              of it. Its galaxies come at the camera from ahead and fall away behind.
+///   look back  Then the camera swings round the photon to look back at what it has left,
+///              while the photon flies on: the cluster, seen from outside for the first
+///              time, collapses from a ball of yellow light into one bright knot, and the
+///              web fades in round it — the whole cluster is now a point in the web. A
+///              dolly zoom the other way (the lens widening while the camera closes in)
+///              makes it all fall away behind a photon that keeps its size. That is only
+///              allowed facing back: facing forward, the world falling away reads as the
+///              light backing off; facing back, as the light pulling away. The cluster
+///              keeps shrinking through the peak — no whiteout, no swap to hide — and
+///              slows to a stop as the camera swings forward again, into the web.
 ///
 /// THE LIGHT is a camera-facing glow in the world, drawn after the web and before the
 /// photon trail, so it sits inside the cluster and behind the photon. Only the full-screen
@@ -99,9 +103,9 @@ public class LayerDive_NEW : MonoBehaviour
         /// <summary>
         /// Up a scale: out of a cluster (a galaxy back out to the cosmic web). The point is
         /// the middle of the world being left, behind the photon; the old world and the
-        /// crowd shrink into it by diveZoom and resolveZoom, so they fall away behind. The
-        /// light, the lens and the photon's width work as they do going in — ComingOut
-        /// turns them off.
+        /// crowd shrink into it by diveZoom and resolveZoom, so they fall away behind, and
+        /// the camera can look back at them. The light, the dolly and the photon's width
+        /// work as they do going in — ComingOut turns them off; the look back has its own.
         /// </summary>
         Out
     }
@@ -122,12 +126,11 @@ public class LayerDive_NEW : MonoBehaviour
         /// <summary>
         /// Starting values for a gate that goes up a scale, tuned for the galaxy back out to
         /// the cosmic web (see COMING OUT on the class). Measured against the scene: from the
-        /// gate about 260 of the cluster's galaxies are in view, each one passing the camera
-        /// smaller than the one before — 1 down to 0.06 units — and the way ahead is empty
-        /// 2.7 seconds in. The yellow halo is about half as bright from inside as through
-        /// its middle; the view clears of it from the top down and is out of it 1.8 seconds
-        /// in. No light, no whiteout, nothing done to the lens or the photon: nothing is
-        /// dived into, and the photon is the ruler.
+        /// gate about 260 of the cluster's galaxies are in view, and the yellow halo is about
+        /// half as bright from inside as through its middle. The camera starts round 0.8
+        /// seconds in and has the cluster in frame by 1.75, the photon to the left in front
+        /// of it; the halo is 17 degrees across then, 5 at the peak and a 1-degree knot by
+        /// 5 seconds, while the lens widens from 40 to 72. Facing forward again by 7.2.
         /// </summary>
         public static Dive ComingOut(string toLayerId)
         {
@@ -137,7 +140,7 @@ public class LayerDive_NEW : MonoBehaviour
                 direction = Direction.Out,
                 focusPastGate = 30f,
                 approachDistance = 20f,
-                emergeSeconds = 3.5f,
+                emergeSeconds = 4.5f,
                 diveZoom = 30f,
                 leaveGlow = 1f,
                 dissolveFrom = 0.4f,
@@ -152,12 +155,19 @@ public class LayerDive_NEW : MonoBehaviour
                 spread = 40f,
                 haloRadius = 60f,
                 haloIntensity = 1f,
+                lookBackYaw = 150f,
+                lookBackLift = 2f,
+                lookBackFrame = 0.45f,
+                lookBackFrom = 0.8f,
+                lookBackUntil = 7.2f,
+                lookBackSwing = 1.4f,
+                lookBackDolly = 2f,
                 approachCrowd = 1f,
                 coolShare = 0.35f,
                 dollyZoom = 1f,
                 photonShrink = 1f,
                 peakVignette = 0f,
-                peakBloom = 0f,
+                peakBloom = 2.5f,
                 peakChromaticAberration = 0f
             };
         }
@@ -275,8 +285,38 @@ public class LayerDive_NEW : MonoBehaviour
 
         public Color haloColor = new Color(1f, 0.85f, 0.45f, 1f);
 
-        [Tooltip("Brightness looking through its middle from outside. From inside, about half.")]
+        [Tooltip("Brightness looking through its middle from outside. From inside, about half. " +
+                 "It brightens as it gathers into a knot, up to three times.")]
         [Range(0f, 4f)] public float haloIntensity = 1f;
+
+        [Header("Look back (coming out: the cluster seen from outside, left behind)")]
+        [Tooltip("Coming out, the camera swings this far round the photon, in degrees, to look " +
+                 "back at the cluster it is leaving while the photon flies on: the cluster " +
+                 "collapses into a knot and the web appears round it. Facing back, everything " +
+                 "falling away reads as the light pulling away from it. 0 = no look back.")]
+        [Range(0f, 180f)] public float lookBackYaw = 0f;
+
+        [Tooltip("How high the camera rises as it swings, in world units, to look down on the " +
+                 "cluster behind and below.")]
+        public float lookBackLift = 2f;
+
+        [Tooltip("Where the camera aims while looking back: 0 at the photon, 1 at the cluster.")]
+        [Range(0f, 1f)] public float lookBackFrame = 0.45f;
+
+        [Tooltip("Seconds from the gate when the swing round begins.")]
+        [Min(0f)] public float lookBackFrom = 0.8f;
+
+        [Tooltip("Seconds from the gate by when the camera faces forward again. Keep it within " +
+                 "the transition: diveSeconds + peakHoldSeconds + emergeSeconds.")]
+        [Min(0f)] public float lookBackUntil = 7.2f;
+
+        [Tooltip("Seconds each swing takes, round and back.")]
+        [Min(0.1f)] public float lookBackSwing = 1.4f;
+
+        [Tooltip("While looking back, a dolly zoom the other way: the lens widens while the " +
+                 "camera closes in on the photon, so the cluster and the web fall away behind a " +
+                 "photon that keeps its size. How many times they shrink. 1 = off.")]
+        [Range(1f, 4f)] public float lookBackDolly = 2f;
 
         [Tooltip("Brightness of the crowd on the approach, while it is still one glow.")]
         [Range(0f, 2f)] public float approachCrowd = 0.35f;
@@ -428,6 +468,15 @@ public class LayerDive_NEW : MonoBehaviour
     float _fovMultiplier = 1f;
     float _dolly = 1f;
 
+    // Coming out: seconds since the gate, across the dive, the hold and the emerge, and how
+    // far round the camera has swung to look back (0 facing forward, 1 facing back).
+    float _clock;
+    float _lookBack;
+
+    // Coming out, the web starts to show under the cluster before the peak, so it is there
+    // round the knot as the camera looks back.
+    const float WebBeforePeak = 0.3f;
+
     TrailRenderer[] _trails = Array.Empty<TrailRenderer>();
     float[] _trailWidths = Array.Empty<float>();
 
@@ -569,6 +618,8 @@ public class LayerDive_NEW : MonoBehaviour
         _fromId = from != null ? from.layerId : null;
         _toId = to.layerId;
         _camera = brain != null ? brain.OutputCamera : Camera.main;
+        _clock = 0f;
+        _lookBack = 0f;
         IsActive = true;
 
         if (worlds != null) worlds.Hold(this);
@@ -613,44 +664,49 @@ public class LayerDive_NEW : MonoBehaviour
         float glow = Mathf.Lerp(1f, _dive.leaveGlow, Smooth(0f, 0.85f, u));
         if (worlds != null) worlds.SetGroupLook(_fromId, 1f - dissolve, glow);
 
+        SetVeil(_dive.whiteout * Smooth(0.7f, 1f, u));
+        _fovMultiplier = Mathf.Lerp(1f, _dive.fieldOfViewScale, Smooth(0f, 1f, u));
+
+        // The photon's trail narrows at the same constant rate: small against its world.
+        // Off coming out (ComingOut sets 1): there the photon is the ruler.
+        SetTrailWidth(Mathf.Pow(_dive.photonShrink, p));
+
         if (outward)
         {
-            // Nothing ahead to dive into. The cluster's glow shrinks with the cluster, into
-            // its centre behind and below: its edge sweeps past the camera, the yellow sinks
-            // away, and the photon walks out of it. Gone by the peak, well behind.
-            HideLight();
-            SetHalo(_dive, _focus, _dive.haloRadius * Mathf.Pow(1f / _dive.resolveZoom, p),
-                    _dive.haloIntensity * (1f - Smooth(0.85f, 1f, u)));
-        }
-        else
-        {
-            // Going in, the light swells steadily from its size at the gate, and hands over
-            // to the whiteout as the camera arrives at it: a quad at the camera would cut
-            // through the near plane.
-            float size = Mathf.Lerp(_dive.gateSize, _dive.peakSize, p);
-            float arriving = _camera != null ? Smooth(1.5f, 6f, Vector3.Distance(_camera.transform.position, _focus)) : 1f;
-            SetLight(_dive, _focus, size, arriving);
+            _clock = u * _dive.diveSeconds;
+            TickComingOut();
+            return;
         }
 
-        SetVeil(_dive.whiteout * Smooth(0.7f, 1f, u));
+        // Going in, the light swells steadily from its size at the gate, and hands over to
+        // the whiteout as the camera arrives at it: a quad at the camera would cut through
+        // the near plane.
+        float size = Mathf.Lerp(_dive.gateSize, _dive.peakSize, p);
+        float arriving = _camera != null ? Smooth(1.5f, 6f, Vector3.Distance(_camera.transform.position, _focus)) : 1f;
+        SetLight(_dive, _focus, size, arriving);
 
-        // The crowd moves at the dive's own constant rate, only much further: going in it
-        // opens up out of the point and past the camera; coming out, the cluster shrinks
-        // into its centre behind, so its galaxies come at the camera from ahead and fall
-        // away behind, each smaller than the last, until the way ahead is empty. Either
-        // way it has handed over by the peak.
+        // The crowd opens at the dive's own constant rate, only much further, out of the
+        // point and past the camera; it has handed over to the whiteout by the peak.
         float crowd = Mathf.Lerp(_dive.approachCrowd, _dive.diveCrowd, Smooth(0f, 0.2f, u)) * (1f - Smooth(0.8f, 1f, u));
         float streak = _dive.streak * Smooth(0f, 0.25f, u) * (1f - Smooth(0.85f, 1f, u));
-        SetCrowd(_dive, _focus, _crowdAim, Mathf.Pow(outward ? 1f / _dive.resolveZoom : _dive.resolveZoom, p), crowd, streak);
+        SetCrowd(_dive, _focus, _crowdAim, Mathf.Pow(_dive.resolveZoom, p), crowd, streak);
 
-        _fovMultiplier = Mathf.Lerp(1f, _dive.fieldOfViewScale, Smooth(0f, 1f, u));
         SetEffects(Smooth(0.2f, 1f, u));
 
-        // The photon becomes small against its world, at the same constant rate: the world
-        // swells behind it and its trail narrows. Both off coming out (ComingOut sets 1):
-        // there the photon is the ruler everything else shrinks against.
+        // And the world swells behind the photon, at the same rate: the dolly zoom.
         _dolly = Mathf.Pow(_dive.dollyZoom, p);
-        SetTrailWidth(Mathf.Pow(_dive.photonShrink, p));
+    }
+
+    /// <summary>
+    /// The hold at the peak. <paramref name="h"/> runs 0 to 1. Going in the whiteout just
+    /// holds; coming out, the cluster keeps collapsing and the camera keeps looking back.
+    /// </summary>
+    public void TickHold(float h)
+    {
+        if (!IsActive || _dive.direction != Direction.Out) return;
+
+        _clock = _dive.diveSeconds + Mathf.Clamp01(h) * _dive.peakHoldSeconds;
+        TickComingOut();
     }
 
     /// <summary>The peak: the old world goes back where it was, out of sight, and the new one is readied.</summary>
@@ -658,23 +714,30 @@ public class LayerDive_NEW : MonoBehaviour
     {
         if (!IsActive) return;
 
+        // The world left has dissolved by now: back where it was built, out of sight.
         Restore(_leave);
         if (worlds != null) worlds.SetGroupLook(_fromId, 0f);
 
         ScaleAround(_enter, _emergeFocus, _dive.enterScale);
-        if (worlds != null) worlds.SetGroupLook(_toId, 0f);
+        SetVeil(_dive.whiteout);
+        SetTrailWidth(1f);
+
+        if (_dive.direction == Direction.Out)
+        {
+            // Nothing to hide and nothing to snap back: the web keeps fading in round the
+            // collapsing cluster, and the camera keeps looking back at it.
+            _clock = _dive.diveSeconds;
+            TickComingOut();
+            return;
+        }
 
         // Under the whiteout, the light moves to where the next world appears, and the lens
         // and the photon snap back: the new world opens at normal framing, the light at its
-        // normal size — in a world that is now its scale. Coming out there is no light, and
-        // nothing left in view to hide.
-        SetVeil(_dive.whiteout);
-        if (_dive.direction == Direction.In) SetLight(_dive, _emergeFocus, _dive.peakSize * 0.5f, 1f);
-        else HideLight();
+        // normal size — in a world that is now its scale.
+        if (worlds != null) worlds.SetGroupLook(_toId, 0f);
+        SetLight(_dive, _emergeFocus, _dive.peakSize * 0.5f, 1f);
         HideCrowd();
-        HideHalo();
         _dolly = 1f;
-        SetTrailWidth(1f);
     }
 
     /// <summary>The next world appearing around the light. <paramref name="v"/> runs 0 to 1.</summary>
@@ -688,17 +751,90 @@ public class LayerDive_NEW : MonoBehaviour
         // In log space, so growing from a hundredth reads as evenly as growing from a half.
         ScaleAround(_enter, _emergeFocus, Mathf.Pow(_dive.enterScale, 1f - settle));
 
-        // Coming out, sooner: the dark before it is the gap between the cluster and the web,
-        // and should be felt, not waited through.
-        bool outward = _dive.direction == Direction.Out;
-        if (worlds != null) worlds.SetGroupLook(_toId, Smooth(0f, outward ? 0.5f : 0.7f, v));
-
-        if (!outward)
-            SetLight(_dive, _emergeFocus, Mathf.Lerp(_dive.peakSize * 0.5f, _dive.pointSize, settle), 1f - Smooth(0.3f, 1f, v));
         SetVeil(_dive.whiteout * (1f - Smooth(0f, 0.45f, v)));
-
         _fovMultiplier = Mathf.Lerp(_dive.fieldOfViewScale, 1f, Smooth(0f, 1f, v));
+
+        if (_dive.direction == Direction.Out)
+        {
+            _clock = _dive.diveSeconds + _dive.peakHoldSeconds + v * _dive.emergeSeconds;
+            TickComingOut();
+            return;
+        }
+
+        if (worlds != null) worlds.SetGroupLook(_toId, Smooth(0f, 0.7f, v));
+        SetLight(_dive, _emergeFocus, Mathf.Lerp(_dive.peakSize * 0.5f, _dive.pointSize, settle), 1f - Smooth(0.3f, 1f, v));
         SetEffects(1f - Smooth(0f, 0.9f, v));
+    }
+
+    // ── Coming out, on one clock ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Coming out, the cluster, the web and the camera run straight through the peak, so
+    /// they are drawn from one clock (_clock, seconds since the gate) rather than from the
+    /// dive's and the emerge's own progress. See COMING OUT on the class.
+    /// </summary>
+    void TickComingOut()
+    {
+        float dive = _dive.diveSeconds;
+        float rest = Mathf.Max(1e-3f, _dive.peakHoldSeconds + _dive.emergeSeconds);
+        float t = _clock;
+
+        HideLight();
+
+        // The web starts to show before the peak, so it is there round the knot as the
+        // camera looks back, and is all there a little after half the rest.
+        float web = t < dive
+            ? WebBeforePeak * Smooth(0.55f * dive, dive, t)
+            : Mathf.Lerp(WebBeforePeak, 1f, Smooth(dive, dive + 0.6f * rest, t));
+        if (worlds != null) worlds.SetGroupLook(_toId, web);
+
+        // The cluster — its galaxies and its glow — shrinks into its centre. Its galaxies
+        // fade as the knot gets small, and the glow last of all.
+        float shrink = ClusterShrink(t);
+        float crowd = Mathf.Lerp(_dive.approachCrowd, _dive.diveCrowd, Smooth(0f, 0.2f * dive, t))
+                    * (1f - Smooth(dive + 0.2f * rest, dive + 0.8f * rest, t));
+        float streak = _dive.streak * Smooth(0f, 0.25f * dive, t) * (1f - Smooth(dive, dive + 0.5f * rest, t));
+        SetCrowd(_dive, _focus, _crowdAim, shrink, crowd, streak);
+
+        // Its light gathers into less space as it shrinks: brighter, up to three times.
+        float sigma = _dive.haloRadius * shrink;
+        float gather = Mathf.Clamp(Mathf.Sqrt(_dive.haloRadius / Mathf.Max(4f * sigma, 1e-3f)), 1f, 3f);
+        SetHalo(_dive, _focus, sigma, _dive.haloIntensity * gather * (1f - Smooth(dive + 0.5f * rest, dive + rest, t)));
+
+        // The camera swings round to look back, holds, and swings forward again; while it
+        // faces back, the dolly zoom runs the other way and the bloom comes up with it.
+        if (_dive.lookBackYaw > 0f)
+        {
+            float swing = Mathf.Max(0.1f, _dive.lookBackSwing);
+            _lookBack = Smooth(_dive.lookBackFrom, _dive.lookBackFrom + swing, t)
+                      * (1f - Smooth(_dive.lookBackUntil - swing, _dive.lookBackUntil, t));
+            float pull = Smooth(_dive.lookBackFrom + 0.5f * swing, _dive.lookBackUntil - swing, t);
+            _dolly = Mathf.Pow(1f / _dive.lookBackDolly, pull * _lookBack);
+        }
+        else
+        {
+            _lookBack = 0f;
+            _dolly = 1f;
+        }
+        SetEffects(_lookBack);
+    }
+
+    /// <summary>
+    /// Coming out, how much of its size the cluster has left, <paramref name="t"/> seconds
+    /// from the gate: at the dive's constant rate to 1 / resolveZoom by the peak, then on
+    /// at the rate it reached there, slowing to a stop by the end.
+    /// </summary>
+    float ClusterShrink(float t)
+    {
+        float dive = _dive.diveSeconds;
+        float logZoom = Mathf.Log(Mathf.Max(1f, _dive.resolveZoom));
+        if (t <= dive) return Mathf.Exp(-logZoom * SteadyRamp(t / dive));
+
+        // EaseOut starts at three times its average rate: go on as far as matches the rate
+        // at the peak.
+        float rest = Mathf.Max(1e-3f, _dive.peakHoldSeconds + _dive.emergeSeconds);
+        float further = logZoom * SteadyRate * rest / (3f * dive);
+        return Mathf.Exp(-logZoom - further * EaseOut((t - dive) / rest));
     }
 
     /// <summary>Finished: hand the worlds back and remove everything the dive made.</summary>
@@ -730,6 +866,8 @@ public class LayerDive_NEW : MonoBehaviour
         CinemachineCore.CameraUpdatedEvent.RemoveListener(OnCameraUpdated);
         _fovMultiplier = 1f;
         _dolly = 1f;
+        _lookBack = 0f;
+        _clock = 0f;
         SetTrailWidth(1f);
         _trails = Array.Empty<TrailRenderer>();
         _trailWidths = Array.Empty<float>();
@@ -1431,9 +1569,10 @@ public class LayerDive_NEW : MonoBehaviour
     // ── Lens ─────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Scales the brain's field of view, and plays the dolly zoom. Runs right after the
-    /// brain has written the camera, which it does from scratch every time, so none of
-    /// this accumulates, and it composes with JourneyZoom_NEW doing the same.
+    /// Swings the camera round to look back, scales the brain's field of view, and plays
+    /// the dolly zoom. Runs right after the brain has written the camera, which it does
+    /// from scratch every time, so none of this accumulates, and it composes with
+    /// JourneyZoom_NEW doing the same.
     /// </summary>
     void OnCameraUpdated(CinemachineBrain updated)
     {
@@ -1441,6 +1580,8 @@ public class LayerDive_NEW : MonoBehaviour
 
         Camera cam = updated.OutputCamera;
         if (cam == null || cam.orthographic) return;
+
+        if (_lookBack > 1e-4f && player != null) LookBack(cam.transform);
 
         if (!Mathf.Approximately(_fovMultiplier, 1f))
             cam.fieldOfView = Mathf.Clamp(cam.fieldOfView * _fovMultiplier, 1f, 179f);
@@ -1450,14 +1591,39 @@ public class LayerDive_NEW : MonoBehaviour
             // Narrow the lens by _dolly and back away along the view by exactly as much as
             // keeps the photon's size: at _dolly times the distance, _dolly times the zoom.
             // Everything beyond the photon is magnified by up to _dolly; the photon is not.
-            // Never below 1: run the other way it makes the world fall away from the light,
-            // which reads as the light backing off.
+            // Below 1 — only ever while looking back — it runs the other way: the lens
+            // widens, the camera closes in, and what lies beyond the photon falls away.
+            // Facing forward that would read as the light backing off; facing back, as the
+            // light pulling away from what it has left.
             float halfTan = Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad) / _dolly;
             float distance = Vector3.Distance(cam.transform.position, player.transform.position);
 
             cam.fieldOfView = Mathf.Max(1f, 2f * Mathf.Atan(halfTan) * Mathf.Rad2Deg);
             cam.transform.position -= cam.transform.forward * (distance * (_dolly - 1f));
         }
+    }
+
+    /// <summary>
+    /// Coming out, the camera partway (_lookBack) round the photon, looking back past it at
+    /// the cluster it is leaving. The brain's own camera is swung round the photon, kept at
+    /// its distance and raised, and turned to aim between the photon and the cluster, so
+    /// the light is in front and what it left behind it. At 0 this is the brain's camera
+    /// exactly, so the swing starts and ends without a jump.
+    /// </summary>
+    void LookBack(Transform cam)
+    {
+        float w = _lookBack;
+        Vector3 photon = player.transform.position;
+
+        Quaternion swing = Quaternion.AngleAxis(_dive.lookBackYaw * w, Vector3.up);
+        Vector3 position = photon + swing * (cam.position - photon) + Vector3.up * (_dive.lookBackLift * w);
+
+        Quaternion rotation = swing * cam.rotation;
+        Vector3 toAim = Vector3.Lerp(photon, _focus, _dive.lookBackFrame) - position;
+        if (toAim.sqrMagnitude > 1e-6f)
+            rotation = Quaternion.Slerp(rotation, Quaternion.LookRotation(toAim, Vector3.up), w);
+
+        cam.SetPositionAndRotation(position, rotation);
     }
 
     // ── The photon, the sound ────────────────────────────────────────────────
@@ -1593,11 +1759,15 @@ public class LayerDive_NEW : MonoBehaviour
     /// </summary>
     static float SteadyRamp(float u)
     {
-        const float easeIn = 0.12f;
         u = Mathf.Clamp01(u);
-        float p = u < easeIn ? u * u / (2f * easeIn) : u - easeIn * 0.5f;
-        return p / (1f - easeIn * 0.5f);
+        float p = u < SteadyEaseIn ? u * u / (2f * SteadyEaseIn) : u - SteadyEaseIn * 0.5f;
+        return p * SteadyRate;
     }
+
+    const float SteadyEaseIn = 0.12f;
+
+    /// <summary>SteadyRamp's slope once past its ease-in.</summary>
+    const float SteadyRate = 1f / (1f - SteadyEaseIn * 0.5f);
 
     /// <summary>Smoothstep of x between from and to.</summary>
     static float Smooth(float from, float to, float x)

@@ -372,8 +372,10 @@ public class CameraDirector_NEW : MonoBehaviour
     /// Same anchors as ZoneEnterSequence, so every responder works unchanged. CoverReached
     /// fires at the peak of the dive, under full light — the moment the cover used to
     /// reach full weight — and the next zone camera goes live there too, so its blend is
-    /// hidden by the light. This method keeps the clock; LayerDive_NEW only draws the
-    /// frame for a given progress.
+    /// hidden by the light. (Coming out of a cluster there is no light: the camera is
+    /// looking back by then, and the blend happens under its swing.) This method keeps the
+    /// clock, the hold at the peak included; LayerDive_NEW only draws the frame for a given
+    /// progress.
     /// </summary>
     IEnumerator DiveSequence(LayerProfile_NEW previous, LayerProfile_NEW current, LayerDive_NEW.Dive spec)
     {
@@ -400,8 +402,12 @@ public class CameraDirector_NEW : MonoBehaviour
 
         Fire(TransitionAnchor_NEW.CoverReached, current, spec.peakHoldSeconds + spec.emergeSeconds);
 
-        if (spec.peakHoldSeconds > 0f)
-            yield return new WaitForSeconds(spec.peakHoldSeconds);
+        // Ticked, not waited out: coming out, the cluster keeps collapsing through the hold.
+        for (float t = 0f; t < spec.peakHoldSeconds; t += Time.deltaTime)
+        {
+            dive.TickHold(t / spec.peakHoldSeconds);
+            yield return null;
+        }
 
         for (float t = 0f; t < spec.emergeSeconds; t += Time.deltaTime)
         {
