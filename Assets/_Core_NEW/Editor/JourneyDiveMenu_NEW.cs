@@ -17,7 +17,7 @@ using UnityEngine;
 static class JourneyDiveMenu_NEW
 {
     const string MenuPath = "Tools/Journey NEW/Add Zoom and Dive to Open Scene";
-    const string ResetPath = "Tools/Journey NEW/Reset Dive Rows to Starting Values";
+    const string ResetPath = "Tools/Journey NEW/Reset Dive Row to Starting Values/";
 
     [MenuItem(MenuPath)]
     static void AddZoomAndDive()
@@ -69,7 +69,7 @@ static class JourneyDiveMenu_NEW
 
         // The two gates tuned so far, each added only if the scene has no row for it yet —
         // so running this after an update brings in a new gate without touching tuned ones.
-        // A gate whose starting values have changed since is reset with the menu below.
+        // A gate whose starting values have changed since is reset with the menus below.
         if (dive != null)
         {
             foreach (Preset preset in Presets)
@@ -80,13 +80,18 @@ static class JourneyDiveMenu_NEW
             Debug.Log("Journey NEW: save the scene to keep " + (added == 1 ? "it" : "them") + ".");
     }
 
+    // One gate at a time: a row for another gate may carry tuning that has to survive.
+    [MenuItem(ResetPath + "Into Micro (dive in)")]
+    static void ResetMicroRow() => ResetRow(Presets[0]);
+
+    [MenuItem(ResetPath + "Into CosmicWeb (leave the cluster)")]
+    static void ResetCosmicWebRow() => ResetRow(Presets[1]);
+
     /// <summary>
-    /// Puts the tuned gates back to their current starting values, replacing whatever rows
-    /// the scene has for them — for when those values have changed since the rows were
-    /// added. Other rows are left alone, and it is one undoable step.
+    /// Puts one gate's row back to its current starting values — for when those have
+    /// changed since the row was added. Every other row is left alone; one undoable step.
     /// </summary>
-    [MenuItem(ResetPath)]
-    static void ResetDiveRows()
+    static void ResetRow(Preset preset)
     {
         LayerDive_NEW dive = Object.FindObjectOfType<LayerDive_NEW>();
         if (dive == null)
@@ -95,16 +100,13 @@ static class JourneyDiveMenu_NEW
             return;
         }
 
-        Undo.RecordObject(dive, "Reset dive rows");
-        foreach (Preset preset in Presets)
-        {
-            LayerDive_NEW.Dive row = preset.row();
-            dive.ReplaceRow(row);
-            Debug.Log("Journey NEW: the gate into " + row.toLayerId + " " + preset.what + ", from its starting values.", dive);
-        }
+        LayerDive_NEW.Dive row = preset.row();
+        Undo.RecordObject(dive, "Reset dive row");
+        dive.ReplaceRow(row);
         EditorUtility.SetDirty(dive);
 
-        Debug.Log("Journey NEW: save the scene to keep them.");
+        Debug.Log("Journey NEW: the gate into " + row.toLayerId + " " + preset.what + ", from its starting " +
+                  "values. Save the scene to keep it.", dive);
     }
 
     struct Preset
@@ -134,6 +136,7 @@ static class JourneyDiveMenu_NEW
     [MenuItem(MenuPath, true)]
     static bool AddZoomAndDiveValidate() => !Application.isPlaying;
 
-    [MenuItem(ResetPath, true)]
-    static bool ResetDiveRowsValidate() => !Application.isPlaying;
+    [MenuItem(ResetPath + "Into Micro (dive in)", true)]
+    [MenuItem(ResetPath + "Into CosmicWeb (leave the cluster)", true)]
+    static bool ResetRowValidate() => !Application.isPlaying;
 }
