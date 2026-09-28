@@ -30553,7 +30553,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 39e4bf05ccf40914195b63694ecb8c1c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  profileId: Vizlab
+  profileId: Xbox
   logOnAwake: 1
 --- !u!114 &207495170
 MonoBehaviour:
