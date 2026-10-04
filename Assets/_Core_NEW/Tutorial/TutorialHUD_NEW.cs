@@ -160,6 +160,19 @@ public class TutorialHUD_NEW : MonoBehaviour
                  "at the lower edge then stays down for as long as this picture is up, so " +
                  "one screen never asks for the same button twice.")]
         public bool carriesTheButton;
+
+        [Tooltip("Put the stick diagram ON this picture — over the pad drawn in it — " +
+                 "instead of hanging it off the plate's left edge.")]
+        public bool stickOnArt;
+
+        [Tooltip("Where the centre of the stick ring sits on the picture, 0 to 1: x from " +
+                 "the left edge, y from the BOTTOM edge. Read every frame, so it can be " +
+                 "dragged into place in Play mode (copy the value out before stopping).")]
+        public Vector2 stickPosition = new Vector2(0.5f, 0.5f);
+
+        [Tooltip("Size of the whole diagram — ring, knob and its travel together. 1 is " +
+                 "the authored size.")]
+        public float stickScale = 1f;
     }
 
     /// <summary>Whether Build or Update may rewrite the legend wording.</summary>
@@ -182,6 +195,12 @@ public class TutorialHUD_NEW : MonoBehaviour
     /// hint has to become the size of whatever is actually on it and go back afterwards.
     /// </summary>
     Vector2 _plateSize;
+
+    /// <summary>The stick diagram's authored placement, put back whenever a hint does
+    /// not ask for it to sit on the picture.</summary>
+    RectTransform _stickRect;
+    Vector2 _stickAnchorMin, _stickAnchorMax, _stickPosition;
+    Vector3 _stickScale;
 
     /// <summary>The beat whose words are on the hint line, polled for LiveHintText.</summary>
     TutorialBeat_NEW _hintBeat;
@@ -211,6 +230,15 @@ public class TutorialHUD_NEW : MonoBehaviour
 
         if (hintRoot != null) _hintRect = hintRoot.GetComponent<RectTransform>();
         if (_hintRect != null) _plateSize = _hintRect.sizeDelta;
+
+        if (stickGuide != null)
+        {
+            _stickRect = stickGuide.GetComponent<RectTransform>();
+            _stickAnchorMin = _stickRect.anchorMin;
+            _stickAnchorMax = _stickRect.anchorMax;
+            _stickPosition = _stickRect.anchoredPosition;
+            _stickScale = _stickRect.localScale;
+        }
 
         HideAll();
     }
@@ -266,6 +294,29 @@ public class TutorialHUD_NEW : MonoBehaviour
         stickGuide.SetGesture(live
             ? _currentBeat.StickGesture
             : TutorialStickGuide_NEW.Gesture.None);
+
+        PlaceStickGuide();
+    }
+
+    /// <summary>
+    /// On the picture where the picture asks for it, otherwise where the builder put it.
+    /// Every frame rather than on a change, so stickPosition and stickScale can be tuned
+    /// in Play mode against the actual art.
+    /// </summary>
+    void PlaceStickGuide()
+    {
+        if (_stickRect == null) return;
+
+        bool onArt = _shownArt != null && _shownArt.stickOnArt;
+
+        Vector2 anchor = onArt ? _shownArt.stickPosition : Vector2.zero;
+
+        _stickRect.anchorMin = onArt ? anchor : _stickAnchorMin;
+        _stickRect.anchorMax = onArt ? anchor : _stickAnchorMax;
+        _stickRect.anchoredPosition = onArt ? Vector2.zero : _stickPosition;
+        _stickRect.localScale = onArt ? Vector3.one * _shownArt.stickScale : _stickScale;
+
+        stickGuide.ShowStickLabel(!onArt);
     }
 
     /// <summary>

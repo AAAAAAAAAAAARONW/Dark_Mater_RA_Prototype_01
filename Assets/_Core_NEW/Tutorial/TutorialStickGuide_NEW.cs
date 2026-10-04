@@ -311,6 +311,16 @@ public class TutorialStickGuide_NEW : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Whether the L / R under the ring is shown. Off while the diagram sits on a drawn
+    /// plate, which already says which stick in its own words.
+    /// </summary>
+    public void ShowStickLabel(bool show)
+    {
+        if (stickLabel != null && stickLabel.gameObject.activeSelf != show)
+            stickLabel.gameObject.SetActive(show);
+    }
+
     /// <summary>Nothing on screen, nothing part-way through a motion. The attract reset.</summary>
     public void ResetForAttract()
     {

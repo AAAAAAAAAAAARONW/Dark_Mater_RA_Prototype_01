@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.0047255782, g: 0.0017805211, b: 0.011669519, a: 1}
+  m_IndirectSpecularColor: {r: 0.17236353, g: 0.06632826, b: 0.4424081, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -8408,7 +8408,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 47a859678c344d298df8a31ea82b1353, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 01385bd96d849cf4e9a2fbd32c6df94c, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1
@@ -18837,27 +18837,51 @@ MonoBehaviour:
   - hintText: "RIGHT STICK  \xB7  LOOK AROUND"
     sprite: {fileID: 21300000, guid: 47a859678c344d298df8a31ea82b1353, type: 3}
     carriesTheButton: 0
+    stickOnArt: 1
+    stickPosition: {x: 0.9, y: 0.58}
+    stickScale: 0.5
   - hintText: "LEFT STICK  \xB7  ZOOM IN"
     sprite: {fileID: 21300000, guid: 09851e294352425ea006a7690b908dfc, type: 3}
     carriesTheButton: 0
+    stickOnArt: 1
+    stickPosition: {x: 0.1, y: 0.58}
+    stickScale: 0.5
   - hintText: "LEFT STICK  \xB7  ZOOM OUT"
     sprite: {fileID: 21300000, guid: c8721ef55c2144e7bdb6594e88cfccd9, type: 3}
     carriesTheButton: 0
+    stickOnArt: 1
+    stickPosition: {x: 0.1, y: 0.58}
+    stickScale: 0.5
   - hintText: "RIGHT STICK  \xB7  LOOK RIGHT"
     sprite: {fileID: 21300000, guid: bdd9363a6dff482e920b788d9b88c272, type: 3}
     carriesTheButton: 0
+    stickOnArt: 1
+    stickPosition: {x: 0.9, y: 0.58}
+    stickScale: 0.5
   - hintText: "RIGHT STICK  \xB7  LOOK UP"
     sprite: {fileID: 21300000, guid: 481603e8100a466cb0b0d3f4460a73b9, type: 3}
     carriesTheButton: 0
+    stickOnArt: 1
+    stickPosition: {x: 0.9, y: 0.58}
+    stickScale: 0.5
   - hintText: "RIGHT STICK  \xB7  TURN AROUND"
     sprite: {fileID: 21300000, guid: 9dbe01beef634ba89a6fda4ff710a428, type: 3}
     carriesTheButton: 0
+    stickOnArt: 1
+    stickPosition: {x: 0.9, y: 0.58}
+    stickScale: 0.5
   - hintText: A  TO  RECENTRE
-    sprite: {fileID: 21300000, guid: 995bcc5f918c4385995ec4c31c9ac093, type: 3}
+    sprite: {fileID: 21300000, guid: 9663b9ea908f0c648bd75c9d32e62d05, type: 3}
     carriesTheButton: 1
+    stickOnArt: 0
+    stickPosition: {x: 0.5, y: 0.5}
+    stickScale: 1
   - hintText: A  TO  EMIT
     sprite: {fileID: 21300000, guid: f4e1e5833574440c9d094c3a1de1dc02, type: 3}
     carriesTheButton: 1
+    stickOnArt: 0
+    stickPosition: {x: 0.5, y: 0.5}
+    stickScale: 1
   stickGuide: {fileID: 1694468535}
   confirmPromptRoot: {fileID: 853785534}
   confirmPromptText: {fileID: 756577338}

@@ -4013,6 +4013,9 @@ public static class TutorialSceneBuilder_NEW
                 entry.FindPropertyRelative("hintText").stringValue = row.Hint;
                 entry.FindPropertyRelative("sprite").objectReferenceValue = null;
                 entry.FindPropertyRelative("carriesTheButton").boolValue = row.Button;
+                entry.FindPropertyRelative("stickOnArt").boolValue = false;
+                entry.FindPropertyRelative("stickPosition").vector2Value = new Vector2(0.5f, 0.5f);
+                entry.FindPropertyRelative("stickScale").floatValue = 1f;
 
                 changed = true;
             }
