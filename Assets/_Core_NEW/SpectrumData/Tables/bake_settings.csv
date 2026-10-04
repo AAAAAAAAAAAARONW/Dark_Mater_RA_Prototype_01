@@ -3,7 +3,7 @@
 # Nothing here is read at runtime.
 key,value,note
 lambda_min_A,0,Left edge of the journey bar (Å). 0 = auto = 1216 Å: the birth tick is the left edge (no Ly-alpha line ever lives left of it).
-lambda_max_A,0,Right edge of the journey bar (Å). 0 = auto = final_emitted_max_A × (1 + z_quasar): the reference window's right edge. The Ly-alpha peak ends at ~94% with its red side showing.
+lambda_max_A,9000,Right edge of the bar (Å). 9000 = DECIDED 2026-10-04 (option A): UV / visible / IR all on the bar (visible 4000–7000 Å) so the tutorial's band division and the journey share one axis. At Earth the Ly-alpha peak (~5610 Å) sits at ~76%.
 columns,1024,Samples across the bar. The HUD draws 512; 1024 keeps narrow features from aliasing.
 rows,384,Steps along the journey. Uniform in ln(1+z) — every step is the same amount of stretch.
 cells_per_row,32,Internal cells per step (~40 km/s). Fine enough for the arrival frame to resolve forest lines like the reference figure. Bake time only; no runtime cost.
@@ -15,6 +15,8 @@ density_correlation_kms,100,Correlation length of the density field in km/s. App
 tau_density_slope,1.6,tau ∝ rho^alpha with alpha = 2 − 0.7(gamma − 1) and gamma ≈ 1.6.
 continuum_alpha_lambda,-1.70,Quasar continuum slope F_lambda ∝ lambda^alpha (Selsing et al. 2016).
 continuum_pivot_A,1450,Where the continuum is normalised. Arbitrary; the display normalises to the Ly-alpha peak.
+template_source,1,Quasar spectrum: 1 = the measured Selsing et al. 2016 composite (quasar_composite.csv); 0 = power law + emission_lines.csv (old hand-built template).
+composite_forest_z,1.5,Typical redshift of the composite's own quasars (Selsing: 1 < z < 2.1; approximate). Used to divide out the average Ly-alpha forest already in the composite below 1216 Å so it is not absorbed twice. 0 = no correction.
 euv_alpha_lambda,-0.3,Continuum slope below 912 Å: F_lambda ∝ lambda^-0.3 (alpha_nu = -1.7; Lusso et al. 2015). Joined continuously at 912 Å.
 heii_reionization_z,3.0,Helium is fully ionised below this z; above it everything shorter than 228 Å locally is absorbed.
 proximity_zone_pmpc,1.5,Measured proximity-zone size at z ≈ 7 (transmission falls to 10%). Known z > 7 quasars: 1.3–1.9 pMpc.
@@ -28,3 +30,4 @@ z_table_size,256,Entries in the z(lookback) table the runtime uses.
 final_emitted_min_A,1000,Arrival frame (the zoom at Earth): left edge in EMITTED Å. 1000 = the classic forest figure (Q1422+2309).
 final_emitted_max_A,1350,Arrival frame: right edge in emitted Å. 1350 = the classic figure; shows the Ly-alpha peak and red continuum.
 final_columns,16384,Samples in the arrival frame (log axis over journey bar + reference window). ~100 km/s. 64 KB in the file.
+intrinsic_columns,8192,Samples of the quasar's emitted spectrum stored for the tutorial (log axis over every emitted wavelength the bar shows). 32 KB.

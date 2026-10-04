@@ -53,7 +53,10 @@ public sealed class BakedSpectrumData_NEW
     /// 2 — adds the arrival frame (the zoom into the reference forest figure at Earth).
     /// 3 — adds the arrival frame's displayed spectrum (quasar × displayed absorption).
     /// </summary>
-    public const int FormatVersion = 3;
+    public const int FormatVersion = 4;
+
+    /// <summary>Oldest version this build still reads (no tutorial data: HasRecord is false).</summary>
+    public const int OldestReadableVersion = 3;
 
     // -- Header ------------------------------------------------------------------
 
@@ -156,9 +159,9 @@ public sealed class BakedSpectrumData_NEW
                 }
 
                 int version = r.ReadInt32();
-                if (version != FormatVersion)
+                if (version < OldestReadableVersion || version > FormatVersion)
                 {
-                    error = "format version " + version + ", this build reads " + FormatVersion + " — re-bake";
+                    error = "format version " + version + ", this build reads " + OldestReadableVersion + "–" + FormatVersion + " — re-bake";
                     return null;
                 }
 
@@ -243,7 +246,7 @@ public sealed class BakedSpectrumData_NEW
 
                 long finalBytes = (long)finalColumns * 3 * sizeof(ushort);
                 long finalOffset = ms.Position;
-                if (bytes.Length - finalOffset != finalBytes)
+                if (version == 3 ? bytes.Length - finalOffset != finalBytes : bytes.Length - finalOffset < finalBytes)
                 {
                     error = "expected " + finalBytes + " bytes of arrival-frame data, found " +
                             (bytes.Length - finalOffset) + " — the file is truncated or from another version";
@@ -258,6 +261,9 @@ public sealed class BakedSpectrumData_NEW
                 Buffer.BlockCopy(bytes, (int)finalOffset + 2 * finalColumns * sizeof(ushort), d._finalFluxLya, 0, finalColumns * sizeof(ushort));
                 d._finalLnMin = Math.Log(d.FinalLambdaMin);
                 d._finalLnWidth = Math.Log(d.FinalLambdaMax / (double)d.FinalLambdaMin);
+
+                ms.Position = finalOffset + finalBytes;
+                if (version >= 4 && !d.ReadTutorialBlock(r, bytes.Length - ms.Position, out error)) return null;
 
                 d._lnMin = Math.Log(d.LambdaMin);
                 d._lnWidth = Math.Log(d.LambdaMax / (double)d.LambdaMin);
@@ -417,5 +423,173 @@ public sealed class BakedSpectrumData_NEW
             if (absorptionOut != null)
                 absorptionOut[c] = (_absorption[a + c] + (_absorption[b + c] - _absorption[a + c]) * k) * Inv;
         }
+    }
+
+    // =====================================================================================
+    // Version 4: the path record and the intrinsic spectrum
+    //
+    // Enough to draw ANY moment of the journey on ANY log axis at the simulation's own
+    // resolution (37 km/s), which the 1024-column journey grid cannot: the tutorial magnifies
+    // the first few hundred kilometres per second of the bar ~17×.
+    //
+    // Why one 1-D array is enough: Ly-alpha touches a photon once, when that photon is at
+    // 1216 Å locally, and after that it only stretches. So at any z_now, observed λ shows
+    // exactly the gas at 1 + z_abs = (λ / 1216)(1 + z_now) — one cell of the record.
+    // =====================================================================================
+
+    ushort[] _record;
+    double _recordSTop;
+    double _recordDelta;
+    float[] _intrinsic;
+    double _intrinsicLnMin;
+    double _intrinsicLnWidth;
+
+    /// <summary>True when the file carries the tutorial's data (format 4 or later).</summary>
+    public bool HasRecord { get { return _record != null && _intrinsic != null; } }
+
+    /// <summary>Cells in the path record. Cell 0 is the gas right at the quasar.</summary>
+    public int RecordCells { get { return _record != null ? _record.Length : 0; } }
+
+    /// <summary>
+    /// Fractional record cell for gas at absorber redshift zAbs. Below 0: beyond the quasar
+    /// (no gas). Above RecordCells − 1: not reached in the bake.
+    /// </summary>
+    public double RecordCellFromZ(double zAbs)
+    {
+        return (_recordSTop - Math.Log(1.0 + zAbs)) / _recordDelta;
+    }
+
+    /// <summary>Absorber redshift of a (fractional) record cell.</summary>
+    public double ZFromRecordCell(double cell)
+    {
+        return Math.Exp(_recordSTop - cell * _recordDelta) - 1.0;
+    }
+
+    /// <summary>Ly-alpha transmission one record cell imprinted. Outside the record: 1.</summary>
+    public float RecordAt(int cell)
+    {
+        if (_record == null || cell < 0 || cell >= _record.Length) return 1f;
+        return _record[cell] * (1f / 65535f);
+    }
+
+    /// <summary>
+    /// The quasar's own spectrum at emitted wavelength lambdaEmitted, in the HUD's
+    /// normalisation (the same units as the flux grid). Outside the stored range the end
+    /// value is held.
+    /// </summary>
+    public float IntrinsicAt(double lambdaEmitted)
+    {
+        if (_intrinsic == null || lambdaEmitted <= 0.0) return 0f;
+        int n = _intrinsic.Length;
+        double f = (Math.Log(lambdaEmitted) - _intrinsicLnMin) / _intrinsicLnWidth * (n - 1);
+        if (f <= 0.0) return _intrinsic[0];
+        if (f >= n - 1) return _intrinsic[n - 1];
+        int lo = (int)f;
+        float k = (float)(f - lo);
+        return _intrinsic[lo] + (_intrinsic[lo + 1] - _intrinsic[lo]) * k;
+    }
+
+    bool ReadTutorialBlock(BinaryReader r, long available, out string error)
+    {
+        error = null;
+        const int HeaderBytes = sizeof(int) + 2 * sizeof(double);
+        if (available < 2 * HeaderBytes) { error = "tutorial block is truncated"; return false; }
+
+        int cells = r.ReadInt32();
+        _recordSTop = r.ReadDouble();
+        _recordDelta = r.ReadDouble();
+        if (cells < 1 || cells > 1 << 22 || !(_recordDelta > 0.0)) { error = "path record header is out of range"; return false; }
+        if (available < HeaderBytes + (long)cells * sizeof(ushort) + HeaderBytes) { error = "path record is truncated"; return false; }
+        _record = new ushort[cells];
+        for (int i = 0; i < cells; i++) _record[i] = r.ReadUInt16();
+
+        int n = r.ReadInt32();
+        double lo = r.ReadDouble(), hi = r.ReadDouble();
+        if (n < 2 || n > 1 << 20 || !(lo > 0.0) || !(hi > lo)) { error = "intrinsic spectrum header is out of range"; return false; }
+        if (available != 2 * HeaderBytes + (long)cells * sizeof(ushort) + (long)n * sizeof(float))
+        {
+            error = "tutorial block has the wrong length — the file is truncated or from another version";
+            return false;
+        }
+        _intrinsic = new float[n];
+        for (int i = 0; i < n; i++) _intrinsic[i] = r.ReadSingle();
+        _intrinsicLnMin = Math.Log(lo);
+        _intrinsicLnWidth = Math.Log(hi / lo);
+        return true;
+    }
+
+    /// <summary>
+    /// Draw the light at redshift zNow on a log axis [lambdaMin, lambdaMax] (Å, the light's
+    /// current frame), at the record's own resolution: each output column box-averages the
+    /// record cells it covers.
+    ///
+    /// transmissionOut: Ly-alpha transmission (what the HUD shows as absorption).
+    /// fluxOut: the quasar's own spectrum × that transmission — the journey HUD's Flux curve.
+    /// Either may be null.
+    ///
+    /// cellWeight, if given, scales how much of each cell's absorption is shown (0 = none,
+    /// 1 = all): the tutorial uses it to show only the lines its atoms cut, then the whole
+    /// forest. Null = everything, which matches the journey grid row for row.
+    ///
+    /// Light bluer than 1216 Å has not met its gas yet and is never absorbed; light redder
+    /// than 1216 Å × the stretch so far left the quasar redward of Ly-alpha and never will be.
+    /// </summary>
+    public void SampleView(float zNow, double lambdaMin, double lambdaMax, float[] fluxOut, float[] transmissionOut,
+                           Func<int, float> cellWeight = null)
+    {
+        float[] any = fluxOut ?? transmissionOut;
+        if (any == null || !HasRecord) return;
+        int n = any.Length;
+
+        double lnMin = Math.Log(lambdaMin), lnMax = Math.Log(lambdaMax);
+        double colLn = (lnMax - lnMin) / Math.Max(1, n - 1);
+        double onePlusNow = 1.0 + zNow;
+        double cellNow = RecordCellFromZ(zNow);         // the birth tick, right now
+        double lnBirth = Math.Log(LymanAlphaA);
+        double toEmitted = onePlusNow / (1.0 + ZQuasar);
+        int last = _record.Length - 1;
+
+        for (int c = 0; c < n; c++)
+        {
+            double lnL = lnMin + c * colLn;
+
+            // Column edges → record cells. Cell index FALLS as wavelength rises (redder light
+            // met its gas earlier, nearer the quasar).
+            double cA = CellAt(lnL + 0.5 * colLn, lnBirth, onePlusNow);
+            double cFull = CellAt(lnL - 0.5 * colLn, lnBirth, onePlusNow);
+            double cB = cFull;
+            if (cB > cellNow) cB = cellNow;              // not crossed yet: no absorption
+
+            double t;
+            if (cB <= cA) t = 1.0;
+            else
+            {
+                double sum = 0.0;
+                double width = cFull - cA;      // the whole column: its unabsorbed part counts as 1
+                int q0 = (int)Math.Floor(cA + 0.5), q1 = (int)Math.Floor(cB + 0.5);
+                for (int q = q0; q <= q1; q++)
+                {
+                    double lo = Math.Max(cA, q - 0.5), hi = Math.Min(cB, q + 0.5);
+                    if (hi <= lo) continue;
+                    double a = q < 0 || q > last ? 0.0 : 1.0 - _record[q] * (1.0 / 65535.0);
+                    if (cellWeight != null && a > 0.0) a *= cellWeight(q);
+                    sum += a * (hi - lo);
+                }
+                t = 1.0 - sum / width;
+            }
+
+            if (transmissionOut != null) transmissionOut[c] = (float)t;
+            if (fluxOut != null)
+            {
+                double f = IntrinsicAt(Math.Exp(lnL) * toEmitted) * t;
+                fluxOut[c] = f <= 0.0 ? 0f : f >= 1.0 ? 1f : (float)f;
+            }
+        }
+    }
+
+    double CellAt(double lnLambda, double lnBirth, double onePlusNow)
+    {
+        // 1 + z_abs = (λ / 1216)(1 + z_now)  →  cell = (sTop − ln(1 + z_abs)) / δ
+        return (_recordSTop - (lnLambda - lnBirth + Math.Log(onePlusNow))) / _recordDelta;
     }
 }

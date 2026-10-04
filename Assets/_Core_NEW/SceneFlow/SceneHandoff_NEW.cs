@@ -59,9 +59,12 @@ public class SceneHandoff_NEW : MonoBehaviour
     [Header("Timing (real seconds)")]
     [Tooltip("How long WELCOME TO THE JOURNEY stays up after it has fully faded in. The " +
              "load runs underneath; if it is slower than this, the title simply holds " +
-             "until it is ready.")]
+             "until it is ready.\n\n" +
+             "4, not 3, because the tutorial's Closing line is still being said here: " +
+             "the journey loads Single and takes the tutorial's AudioSource with it, so " +
+             "a shorter hold cuts the last half second off the line.")]
     [Min(0f)]
-    [SerializeField] float titleHoldSeconds = 3f;
+    [SerializeField] float titleHoldSeconds = 4f;
 
     [Tooltip("Fade from the title to full black.")]
     [Min(0f)]

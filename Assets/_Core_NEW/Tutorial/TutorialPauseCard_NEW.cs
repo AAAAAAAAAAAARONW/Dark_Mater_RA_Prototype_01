@@ -1,5 +1,6 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// What the screen looks like while the piece is paused: dimmed, with PAUSED and
@@ -35,6 +36,10 @@ public class TutorialPauseCard_NEW : MonoBehaviour
              "the wording lives.")]
     [SerializeField] TMP_Text resumeLabel;
 
+    [Tooltip("Drawn PRESS B · RESUME, in place of the words above. Assigning one switches " +
+             "the text off; leaving it empty is the card exactly as it was.")]
+    [SerializeField] Image resumeImage;
+
     [Header("Timing")]
     [Tooltip("Seconds to fade in and out. Short: a pause should feel immediate.")]
     [SerializeField] float fadeSeconds = 0.2f;
@@ -47,6 +52,11 @@ public class TutorialPauseCard_NEW : MonoBehaviour
     void Awake()
     {
         if (pause == null) pause = FindObjectOfType<TutorialPause_NEW>();
+
+        // Art wins where there is art, and the words stay as the fallback — the same
+        // arrangement as the attract card and the hint line.
+        if (resumeImage != null && resumeImage.sprite != null && resumeLabel != null)
+            resumeLabel.gameObject.SetActive(false);
 
         Apply(0f);
     }

@@ -5342,6 +5342,8 @@ MonoBehaviour:
   hintText: 
   builderOwnsCopy: 1
   stickGuide: 0
+  voiceOverClip: {fileID: 8300000, guid: f5f78b7630319bb4db7b41beb70a0ffa, type: 3}
+  promptClip: {fileID: 0}
   advanceMode: 0
   duration: 12
   inputGraceSeconds: 0.15
@@ -5367,8 +5369,6 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
-  voiceOverSource: {fileID: 0}
-  voiceOverClip: {fileID: 0}
   onHalfway:
     m_PersistentCalls:
       m_Calls: []
@@ -5532,6 +5532,8 @@ MonoBehaviour:
   hintText: A  TO  RECENTRE
   builderOwnsCopy: 1
   stickGuide: 0
+  voiceOverClip: {fileID: 8300000, guid: fe7623cd91eb3a14990e750d6cd2147d, type: 3}
+  promptClip: {fileID: 0}
   advanceMode: 1
   duration: 8
   inputGraceSeconds: 0.15
@@ -5920,6 +5922,8 @@ MonoBehaviour:
   hintText: 
   builderOwnsCopy: 1
   stickGuide: 0
+  voiceOverClip: {fileID: 8300000, guid: eb7685486fcaf784c8b185d1ca7699c6, type: 3}
+  promptClip: {fileID: 0}
   advanceMode: 0
   duration: 5
   inputGraceSeconds: 0.15
@@ -5956,11 +5960,83 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
-  voiceOverSource: {fileID: 0}
-  voiceOverClip: {fileID: 0}
   onHalfway:
     m_PersistentCalls:
       m_Calls: []
+--- !u!1 &276721345
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 276721346}
+  - component: {fileID: 276721348}
+  - component: {fileID: 276721347}
+  m_Layer: 0
+  m_Name: ResumeArt
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &276721346
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 276721345}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 2083303173}
+  m_RootOrder: 2
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: -70}
+  m_SizeDelta: {x: 229.48787, y: 110}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &276721347
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 276721345}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 0
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 21300000, guid: 4d6cfb08f42915d4a929f622e666880a, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 1
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &276721348
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 276721345}
+  m_CullTransparentMesh: 0
 --- !u!1 &290742772
 GameObject:
   m_ObjectHideFlags: 0
@@ -6103,6 +6179,8 @@ MonoBehaviour:
   hintText: 
   builderOwnsCopy: 1
   stickGuide: 0
+  voiceOverClip: {fileID: 8300000, guid: 3df727774f2f6814b85d526df79ebc24, type: 3}
+  promptClip: {fileID: 0}
   advanceMode: 0
   duration: 10
   inputGraceSeconds: 0.15
@@ -6139,8 +6217,6 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
-  voiceOverSource: {fileID: 0}
-  voiceOverClip: {fileID: 0}
   onHalfway:
     m_PersistentCalls:
       m_Calls: []
@@ -6917,6 +6993,154 @@ MonoBehaviour:
   reddenSeconds: 8
   uvGlowWhenRed: 0.25
   irGlowWhenRed: 1.8
+--- !u!1 &352502075
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 352502076}
+  - component: {fileID: 352502078}
+  - component: {fileID: 352502077}
+  m_Layer: 0
+  m_Name: VoiceOver
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &352502076
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 352502075}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 1086822905}
+  m_RootOrder: 10
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &352502077
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 352502075}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 31b98bde40f5794428070c3e6a01de87, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  director: {fileID: 98769950}
+  source: {fileID: 352502078}
+  endingClip: {fileID: 8300000, guid: 14618286adde1184f9f9b789c174b1e2, type: 3}
+  closingClip: {fileID: 8300000, guid: c87539a7840b79d44b34095862d25c83, type: 3}
+  gapSeconds: 0.4
+  promptRepeatSeconds: 12
+  maxPromptRepeats: 2
+  debugLog: 0
+--- !u!82 &352502078
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 352502075}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_PlayOnAwake: 0
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 0
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!1 &375335491
 GameObject:
   m_ObjectHideFlags: 0
@@ -7340,6 +7564,8 @@ MonoBehaviour:
   hintText: A  TO  RECENTRE
   builderOwnsCopy: 1
   stickGuide: 0
+  voiceOverClip: {fileID: 0}
+  promptClip: {fileID: 8300000, guid: b51c4b137d33fde48bee3acce53567fd, type: 3}
   advanceMode: 1
   duration: 8
   inputGraceSeconds: 0.15
@@ -9387,8 +9613,10 @@ MonoBehaviour:
   hintText: 
   builderOwnsCopy: 1
   stickGuide: 0
+  voiceOverClip: {fileID: 8300000, guid: cd085345a616ed0438fac32763183ad6, type: 3}
+  promptClip: {fileID: 0}
   advanceMode: 0
-  duration: 5
+  duration: 6.2
   inputGraceSeconds: 0.15
   useScaledTime: 0
   onEnter:
@@ -9445,8 +9673,6 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
-  voiceOverSource: {fileID: 0}
-  voiceOverClip: {fileID: 0}
   onHalfway:
     m_PersistentCalls:
       m_Calls: []
@@ -9482,7 +9708,7 @@ MonoBehaviour:
   handoffEnabled: 1
   outro: {fileID: 0}
   journeyScenePath: Assets/_Core_NEW/Gameplay_Scene_Aaron.unity
-  titleHoldSeconds: 3
+  titleHoldSeconds: 4
   fadeToBlackSeconds: 1
   settleSeconds: 0.75
   fadeInSeconds: 2.5
@@ -14713,6 +14939,8 @@ MonoBehaviour:
   hintText: 
   builderOwnsCopy: 1
   stickGuide: 0
+  voiceOverClip: {fileID: 8300000, guid: 2bb7887434a1e744fb773d84002f5c03, type: 3}
+  promptClip: {fileID: 0}
   advanceMode: 0
   duration: 8
   inputGraceSeconds: 0.15
@@ -14793,8 +15021,6 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
-  voiceOverSource: {fileID: 0}
-  voiceOverClip: {fileID: 0}
   onHalfway:
     m_PersistentCalls:
       m_Calls: []
@@ -14970,6 +15196,8 @@ MonoBehaviour:
   hintText: 
   builderOwnsCopy: 1
   stickGuide: 0
+  voiceOverClip: {fileID: 0}
+  promptClip: {fileID: 0}
   advanceMode: 0
   duration: 8
   inputGraceSeconds: 0.15
@@ -14995,8 +15223,6 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
-  voiceOverSource: {fileID: 0}
-  voiceOverClip: {fileID: 0}
   onHalfway:
     m_PersistentCalls:
       m_Calls: []
@@ -15352,6 +15578,8 @@ MonoBehaviour:
   hintText: 
   builderOwnsCopy: 1
   stickGuide: 0
+  voiceOverClip: {fileID: 8300000, guid: a402d44773807d34887746ba21eb41b4, type: 3}
+  promptClip: {fileID: 0}
   advanceMode: 0
   duration: 10
   inputGraceSeconds: 0.15
@@ -15377,8 +15605,6 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
-  voiceOverSource: {fileID: 0}
-  voiceOverClip: {fileID: 0}
   onHalfway:
     m_PersistentCalls:
       m_Calls: []
@@ -15668,6 +15894,8 @@ MonoBehaviour:
   hintText: "LEFT STICK  \xB7  ZOOM IN"
   builderOwnsCopy: 1
   stickGuide: 0
+  voiceOverClip: {fileID: 8300000, guid: 6c6c7cc121e43c14ba7262d86588c04d, type: 3}
+  promptClip: {fileID: 8300000, guid: 0db93aee1495f9447b727234d1c92ce9, type: 3}
   advanceMode: 1
   duration: 8
   inputGraceSeconds: 0.15
@@ -16178,6 +16406,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1086822905}
+  - component: {fileID: 1086822906}
   m_Layer: 0
   m_Name: '[Tutorial]'
   m_TagString: Untagged
@@ -16206,9 +16435,56 @@ Transform:
   - {fileID: 2098220305}
   - {fileID: 651426913}
   - {fileID: 15941953}
+  - {fileID: 352502076}
   m_Father: {fileID: 0}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1086822906
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1086822904}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: afc8966d3543a0a4b8ca7becb6a8b036, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  useBakedData: 1
+  bakedFile: {fileID: 4900000, guid: 2bbc25ff98c0b3f46b5fcc06a6a0de6a, type: 3}
+  spectrum: {fileID: 0}
+  hud: {fileID: 0}
+  field: {fileID: 0}
+  director: {fileID: 0}
+  spectrumTrail: {fileID: 0}
+  curve: 0
+  columns: 1024
+  gyrPerSecond: 0.003
+  maxSpanGyr: 0.24
+  zoomWidthLn: 0.117
+  zoomLeftShare: 0.1
+  zoomInBeat: D4
+  zoomOutBeat: D9
+  zoomSeconds: 2
+  searchCells: 12
+  searchCellsFallback: 40
+  minLineDepth: 0.6
+  lineEdgeFraction: 0.25
+  maxLineHalfCells: 5
+  revealBeat: D9
+  revealSeconds: 3
+  trailAxis: 0
+  farUvShare: 0.2
+  lineRegionEndA: 1400
+  lineRegionShare: 0.3
+  uvRestShare: 0.15
+  visibleShare: 0.4
+  driveBands: 1
+  driveTrailColours: 1
+  uvAlpha: 0.65
+  trailTextureWidth: 256
+  logLoad: 1
 --- !u!1 &1095802323
 GameObject:
   m_ObjectHideFlags: 0
@@ -16527,6 +16803,8 @@ MonoBehaviour:
   hintText: "RIGHT STICK  \xB7  TURN AROUND"
   builderOwnsCopy: 1
   stickGuide: 0
+  voiceOverClip: {fileID: 8300000, guid: 821ce0b649c224c4ba469d4b4ac2f0af, type: 3}
+  promptClip: {fileID: 0}
   advanceMode: 1
   duration: 8
   inputGraceSeconds: 0.15
@@ -16951,6 +17229,8 @@ MonoBehaviour:
   hintText: "LEFT STICK  \xB7  ZOOM OUT"
   builderOwnsCopy: 1
   stickGuide: 0
+  voiceOverClip: {fileID: 0}
+  promptClip: {fileID: 8300000, guid: c5466f71942e4ca4c922c930f7944452, type: 3}
   advanceMode: 1
   duration: 8
   inputGraceSeconds: 0.15
@@ -17458,6 +17738,8 @@ MonoBehaviour:
   hintText: "RIGHT STICK  \xB7  LOOK RIGHT"
   builderOwnsCopy: 1
   stickGuide: 0
+  voiceOverClip: {fileID: 0}
+  promptClip: {fileID: 8300000, guid: fdd2d68783bed4649890c769f68b305c, type: 3}
   advanceMode: 1
   duration: 8
   inputGraceSeconds: 0.15
@@ -17531,6 +17813,8 @@ MonoBehaviour:
   hintText: "RIGHT STICK  \xB7  LOOK UP"
   builderOwnsCopy: 1
   stickGuide: 0
+  voiceOverClip: {fileID: 0}
+  promptClip: {fileID: 8300000, guid: 0c6c6c3d5412a18488db44da37a2339f, type: 3}
   advanceMode: 1
   duration: 8
   inputGraceSeconds: 0.15
@@ -17615,6 +17899,8 @@ MonoBehaviour:
   hintText: "RIGHT STICK  \xB7  TURN AROUND"
   builderOwnsCopy: 1
   stickGuide: 0
+  voiceOverClip: {fileID: 0}
+  promptClip: {fileID: 8300000, guid: 3e08174ce3bd4a0458e71cffd85970dd, type: 3}
   advanceMode: 1
   duration: 8
   inputGraceSeconds: 0.15
@@ -17644,7 +17930,82 @@ MonoBehaviour:
   measureFrom: 0
   disc: {fileID: 586351133}
   discInFrameHalfAngle: 40
+  sideCommitDegrees: 20
   lookRig: {fileID: 714473260}
+--- !u!1 &1584109489
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1584109492}
+  - component: {fileID: 1584109491}
+  - component: {fileID: 1584109490}
+  m_Layer: 0
+  m_Name: TitleArt
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1584109490
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1584109489}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 0}
+  m_RaycastTarget: 0
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 21300000, guid: 09c4b1581d75e1a46905e1326c436544, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 1
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &1584109491
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1584109489}
+  m_CullTransparentMesh: 0
+--- !u!224 &1584109492
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1584109489}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 1674860943}
+  m_RootOrder: 1
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 1033.2, y: 120}
+  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1642247594
 GameObject:
   m_ObjectHideFlags: 0
@@ -17695,6 +18056,8 @@ MonoBehaviour:
   hintText: "RIGHT STICK  \xB7  LOOK AROUND"
   builderOwnsCopy: 1
   stickGuide: 0
+  voiceOverClip: {fileID: 8300000, guid: c1ab99e679e582f4db575bc9dfdb95d7, type: 3}
+  promptClip: {fileID: 8300000, guid: 55a41a51d91c9a64bacc0e19b27fb5a4, type: 3}
   advanceMode: 1
   duration: 8
   inputGraceSeconds: 0.15
@@ -17891,6 +18254,7 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 2124164678}
+  - {fileID: 1584109492}
   m_Father: {fileID: 1752711749}
   m_RootOrder: 16
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -18510,6 +18874,8 @@ MonoBehaviour:
   hintText: 
   builderOwnsCopy: 1
   stickGuide: 0
+  voiceOverClip: {fileID: 8300000, guid: 13a47cdd8abf9954a994717be073ed60, type: 3}
+  promptClip: {fileID: 0}
   advanceMode: 0
   duration: 10
   inputGraceSeconds: 0.15
@@ -18535,8 +18901,6 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
-  voiceOverSource: {fileID: 0}
-  voiceOverClip: {fileID: 0}
   onHalfway:
     m_PersistentCalls:
       m_Calls: []
@@ -18804,6 +19168,17 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+      - m_Target: {fileID: 352502077}
+        m_MethodName: ResetForAttract
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: 
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
   debugLog: 0
 --- !u!114 &1752711751
 MonoBehaviour:
@@ -18878,6 +19253,12 @@ MonoBehaviour:
     stickScale: 1
   - hintText: A  TO  EMIT
     sprite: {fileID: 21300000, guid: f4e1e5833574440c9d094c3a1de1dc02, type: 3}
+    carriesTheButton: 1
+    stickOnArt: 0
+    stickPosition: {x: 0.5, y: 0.5}
+    stickScale: 1
+  - hintText: B  TO  PAUSE
+    sprite: {fileID: 21300000, guid: 8ef39bdb988be5a49b923cdc1ddd5c6a, type: 3}
     carriesTheButton: 1
     stickOnArt: 0
     stickPosition: {x: 0.5, y: 0.5}
@@ -18999,6 +19380,8 @@ MonoBehaviour:
   hintText: 
   builderOwnsCopy: 1
   stickGuide: 0
+  voiceOverClip: {fileID: 8300000, guid: 4488b8f3ffc0ec44a88b68fe8af22adb, type: 3}
+  promptClip: {fileID: 0}
   advanceMode: 0
   duration: 12
   inputGraceSeconds: 0.15
@@ -19024,8 +19407,6 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
-  voiceOverSource: {fileID: 0}
-  voiceOverClip: {fileID: 0}
   onHalfway:
     m_PersistentCalls:
       m_Calls: []
@@ -19420,6 +19801,8 @@ MonoBehaviour:
   hintText: 
   builderOwnsCopy: 1
   stickGuide: 0
+  voiceOverClip: {fileID: 0}
+  promptClip: {fileID: 0}
   advanceMode: 0
   duration: 5
   inputGraceSeconds: 0.15
@@ -19434,8 +19817,6 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
-  voiceOverSource: {fileID: 0}
-  voiceOverClip: {fileID: 0}
   onHalfway:
     m_PersistentCalls:
       m_Calls: []
@@ -19540,8 +19921,10 @@ MonoBehaviour:
   hintText: 
   builderOwnsCopy: 1
   stickGuide: 0
+  voiceOverClip: {fileID: 8300000, guid: fe417890487e2be4d9c9fb9d52424352, type: 3}
+  promptClip: {fileID: 0}
   advanceMode: 0
-  duration: 8
+  duration: 9.6
   inputGraceSeconds: 0.15
   useScaledTime: 0
   onEnter:
@@ -19587,8 +19970,6 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
-  voiceOverSource: {fileID: 0}
-  voiceOverClip: {fileID: 0}
   onHalfway:
     m_PersistentCalls:
       m_Calls: []
@@ -19677,6 +20058,8 @@ MonoBehaviour:
   hintText: B  TO  PAUSE
   builderOwnsCopy: 1
   stickGuide: 0
+  voiceOverClip: {fileID: 0}
+  promptClip: {fileID: 8300000, guid: dc6c816a396dc5543adaf7ceee48f403, type: 3}
   advanceMode: 1
   duration: 8
   inputGraceSeconds: 0.15
@@ -19990,8 +20373,10 @@ MonoBehaviour:
   hintText: 
   builderOwnsCopy: 1
   stickGuide: 0
+  voiceOverClip: {fileID: 8300000, guid: 3ef25136640fbb144ba26ea73067b20d, type: 3}
+  promptClip: {fileID: 0}
   advanceMode: 0
-  duration: 4
+  duration: 6.5
   inputGraceSeconds: 0.15
   useScaledTime: 0
   onEnter:
@@ -20015,8 +20400,6 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
-  voiceOverSource: {fileID: 0}
-  voiceOverClip: {fileID: 0}
   onHalfway:
     m_PersistentCalls:
       m_Calls: []
@@ -20165,6 +20548,7 @@ RectTransform:
   m_Children:
   - {fileID: 2011223378}
   - {fileID: 391538136}
+  - {fileID: 276721346}
   m_Father: {fileID: 1752711749}
   m_RootOrder: 15
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -20188,6 +20572,7 @@ MonoBehaviour:
   pause: {fileID: 384702600}
   group: {fileID: 2083303175}
   resumeLabel: {fileID: 391538137}
+  resumeImage: {fileID: 276721347}
   fadeSeconds: 0.2
 --- !u!225 &2083303175
 CanvasGroup:
@@ -20321,6 +20706,7 @@ MonoBehaviour:
   title: {fileID: 2124164676}
   titleText: WELCOME  TO  THE  JOURNEY
   builderOwnsCopy: 1
+  titleImage: {fileID: 1584109490}
   titleDelaySeconds: 0.6
   titleFadeSeconds: 1.6
   holdBeforeAttractSeconds: 7
@@ -20345,7 +20731,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &2124164676
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -20512,6 +20898,8 @@ MonoBehaviour:
   hintText: A  TO  EMIT
   builderOwnsCopy: 1
   stickGuide: 0
+  voiceOverClip: {fileID: 0}
+  promptClip: {fileID: 8300000, guid: 406245690bd3b7b4fb28fcf309022207, type: 3}
   advanceMode: 1
   duration: 8
   inputGraceSeconds: 0.15

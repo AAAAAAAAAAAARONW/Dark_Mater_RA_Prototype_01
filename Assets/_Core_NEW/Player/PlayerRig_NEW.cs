@@ -96,6 +96,7 @@ public class PlayerRig_NEW : MonoBehaviour
     CharacterController _controller;
     Vector3 _defaultDirection;
     float _externalSpeedMultiplier = 1f;
+    float _narrationSpeedMultiplier = 1f;
     bool _cameraInputLocked;
     string _lockReason;
     float _lookSensitivityScale = 1f;
@@ -149,6 +150,18 @@ public class PlayerRig_NEW : MonoBehaviour
     {
         _externalSpeedMultiplier = Mathf.Max(0f, multiplier);
     }
+
+    /// <summary>
+    /// A second, separate multiplier for narration: slows the flight while something is being
+    /// explained (NarrationSlowdown_NEW). Separate so it never fights SpeedResponder_NEW, which
+    /// owns the external one per layer. The two multiply. 1 = no effect.
+    /// </summary>
+    public void SetNarrationSpeedMultiplier(float multiplier)
+    {
+        _narrationSpeedMultiplier = Mathf.Max(0f, multiplier);
+    }
+
+    public float NarrationSpeedMultiplier => _narrationSpeedMultiplier;
 
     /// <summary>
     /// Called by CameraDirector_NEW around a transition. <paramref name="reason"/> is what
@@ -205,7 +218,7 @@ public class PlayerRig_NEW : MonoBehaviour
         bend.Tick(dt, transform.position, speed, ref movementDirection, ref _defaultDirection);
 
         // 3 · Move
-        float finalSpeed = speed * _externalSpeedMultiplier;
+        float finalSpeed = speed * _externalSpeedMultiplier * _narrationSpeedMultiplier;
         _controller.Move(movementDirection * (finalSpeed * dt));
 
         // 4 · Look input

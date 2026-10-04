@@ -71,6 +71,15 @@ public static class DebugOverlayRows_NEW
     /// <summary>TutorialRumble_NEW — which XInput pads are connected, and the last pulse.</summary>
     public const int Rumble = 9;
 
+    /// <summary>
+    /// TutorialDirector_NEW — what pad is plugged in, by the name it reports, and which
+    /// profile is driving it.
+    /// </summary>
+    public const int Pad = 10;
+
+    /// <summary>TutorialVoiceOver_NEW — the line being said, what is queued, the prompt repeat.</summary>
+    public const int VoiceOver = 11;
+
     /// <summary>The rectangle for one row. Use this rather than writing a Rect inline.</summary>
     public static Rect Row(int index)
     {

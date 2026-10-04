@@ -11,6 +11,8 @@ WHEN THE FOREST FREEZES
   = the first 7.7% of the journey's light-travel time
   light-travel distance quasar -> freeze: 283.7 proper Mpc
 
+TEMPLATE  Selsing et al. 2016 composite, 25875 points, 1000-11350 A rest; held flat below, slope -1.7 above
+
 CALIBRATION  (mean transmission of the model vs the measured table)
       z    target    model
    0.00   0.98500   0.98500
@@ -37,14 +39,18 @@ PROXIMITY ZONE
   derived ionisation scale R_ion:      0.00 proper Mpc
 
 GRID
-  25357 cells of 37 km/s, 32 per journey step; output 1024 columns of 479 km/s x 384 rows
-  axis 1216 - 6231 A, log. 1216 A at 0.000 of the bar
+  28304 cells of 37 km/s, 32 per journey step; output 1024 columns of 587 km/s x 384 rows
+  axis 1216 - 9000 A, log. 1216 A at 0.000 of the bar
 
 ARRIVAL FRAME  (what the HUD zooms into at Earth)
   reference window: emitted 1000-1350 A = observed 4616-6231 A
-  sampled 16384 columns over 1216-6231 A observed (30 km/s each)
-  forest level (emitted 1050-1180 A) / red continuum (1270-1350 A) = 0.773
+  sampled 16384 columns over 1216-9000 A observed (37 km/s each)
+  forest level (emitted 1050-1180 A) / red continuum (1270-1350 A) = 0.646
   (for comparison: Q1422+2309 at z = 3.62, the reference, reads ~0.7 on this measure)
+
+TUTORIAL DATA  (path record + intrinsic spectrum)
+  12256 path cells of 37 km/s, z 3.616 -> 0.000
+  intrinsic spectrum: 8192 samples, emitted 263-9000 A
 
 NOTABLE ABSORBERS  (for RedshiftMarks_NEW; [0] is the first line)
   [ 0]  z = 3.6152   transmission 0.016   <- first
@@ -74,7 +80,7 @@ PATH CHECK  (mean transmission actually imprinted, outside the proximity zone)
 ARRIVAL AT EARTH  (last row)
   quasar Ly-alpha peak observed at 5611 A (VISIBLE); Lyman limit at 4208 A
   DISPLAYED (Ly-alpha absorption only):
-    mean transmission 4208 - 5611 A (older lines, z_abs > 2.46):  0.6602
+    mean transmission 4208 - 5611 A (older lines, z_abs > 2.46):  0.6603
     mean transmission 1216 - 4208 A (younger lines):             0.9447
     mean transmission below 1216 A (no line reaches here):      NaN
   NOT DISPLAYED: photoionisation below 912 A, Ly-beta and helium. They are in the

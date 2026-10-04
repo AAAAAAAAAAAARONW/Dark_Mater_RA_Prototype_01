@@ -126,6 +126,11 @@ public class TutorialSpectrumBands_NEW : MonoBehaviour
         float visStart = trailBands != null ? trailBands.VisibleStart : 0.15f;
         float visEnd = trailBands != null ? trailBands.VisibleEnd : 0.85f;
 
+        // An external data source can put the bar on a different axis from the trail (the
+        // tutorial's zoom); the bar's bands then follow the bar.
+        float barStart, barEnd;
+        if (spectrum != null && spectrum.TryGetBarBands(out barStart, out barEnd)) { visStart = barStart; visEnd = barEnd; }
+
         Span(uvBand, 0f, visStart);
         Span(visibleBand, visStart, visEnd);
         Span(irBand, visEnd, 1f);

@@ -3,6 +3,45 @@ using UnityEngine.Events;
 using UnityEngine.Serialization;
 
 /// <summary>
+/// Something that can stand in for TutorialSpectrum_NEW's own line-stamping — where lines
+/// land, how they move, and what the bar draws. Set with SetExternalSource; with none set,
+/// the component behaves exactly as it always has.
+///
+/// A hook rather than a dependency: the tutorial does not know what implements it.
+/// TutorialBakedSpectrum_NEW (SpectrumData/Tutorial) drives the bar from the journey's
+/// baked data through it, behind its own kill switch.
+/// </summary>
+public interface ITutorialSpectrumSource_NEW
+{
+    /// <summary>The bar was emptied (D3). Back to the moment of emission.</summary>
+    void OnClear();
+
+    /// <summary>D7 switched to the drifting profile.</summary>
+    void OnStartDrift();
+
+    /// <summary>Attract reset: everything back to before D1.</summary>
+    void OnReset();
+
+    /// <summary>An atom absorbed. True = handled, so nothing is stamped into the field.</summary>
+    bool Absorb();
+
+    /// <summary>Where hydrogen absorbs, 0–1 across the bar: the birth tick.</summary>
+    float RestFramePosition { get; }
+
+    bool HasTrackedLine { get; }
+
+    /// <summary>Where the newest line is now, 0–1 across the bar.</summary>
+    float TrackedLinePosition { get; }
+
+    /// <summary>Where the newest line is now, 0–1 across the TRAIL (its axis may differ from the bar's).</summary>
+    float TrackedLineTrailPosition { get; }
+
+    /// <summary>Visible band (4000–7000 Å) on the BAR, 0–1 — the bar's band overlay uses these.</summary>
+    float BarVisibleStart { get; }
+    float BarVisibleEnd { get; }
+}
+
+/// <summary>
 /// The tutorial's spectrum bar: when it exists, what is on it, and what cuts a line
 /// into it.
 ///
@@ -158,6 +197,22 @@ public class TutorialSpectrum_NEW : MonoBehaviour
     /// <summary>How many of linePositions have been used since the last Clear.</summary>
     int _cut;
 
+    ITutorialSpectrumSource_NEW _source;
+
+    /// <summary>Hand line placement and drawing to an external source. See ITutorialSpectrumSource_NEW.</summary>
+    public void SetExternalSource(ITutorialSpectrumSource_NEW source) { _source = source; }
+
+    /// <summary>Back to stamping lines into the field ourselves.</summary>
+    public void ClearExternalSource(ITutorialSpectrumSource_NEW source) { if (_source == source) _source = null; }
+
+    public bool HasExternalSource { get { return _source != null; } }
+
+    /// <summary>The HUD this bar draws on (found before the bar is hidden, so valid while it is).</summary>
+    public SpectrumHUD_NEW Hud { get { return hud; } }
+
+    /// <summary>The shared absorption buffer the trail reads.</summary>
+    public AbsorptionField_NEW Field { get { return field; } }
+
     // ── Public API ───────────────────────────────────────────────────────────
 
     /// <summary>Lines cut so far. Read by the debug overlay and by D4's beat.</summary>
@@ -178,11 +233,15 @@ public class TutorialSpectrum_NEW : MonoBehaviour
     /// </summary>
     public float RestFramePosition
     {
-        get { return linePositions != null && linePositions.Length > 0 ? linePositions[0] : 0.412f; }
+        get
+        {
+            if (_source != null) return _source.RestFramePosition;
+            return linePositions != null && linePositions.Length > 0 ? linePositions[0] : 0.412f;
+        }
     }
 
     /// <summary>True from the first absorption until the line drifts off the red end.</summary>
-    public bool HasTrackedLine { get { return _tracking; } }
+    public bool HasTrackedLine { get { return _source != null ? _source.HasTrackedLine : _tracking; } }
 
     /// <summary>
     /// Where the first absorption line is right now, on the 0 (UV) to 1 (IR) axis —
@@ -193,14 +252,28 @@ public class TutorialSpectrum_NEW : MonoBehaviour
     /// clock the field drifts on (scaled time), so a pause holds it and slow motion
     /// slows it, exactly as they do the line itself.
     /// </summary>
-    public float TrackedLinePosition { get { return _trackedPosition; } }
+    public float TrackedLinePosition { get { return _source != null ? _source.TrackedLinePosition : _trackedPosition; } }
+
+    /// <summary>The newest line on the trail. Same as TrackedLinePosition unless an external source gives the trail its own axis.</summary>
+    public float TrackedLineTrailPosition { get { return _source != null ? _source.TrackedLineTrailPosition : TrackedLinePosition; } }
+
+    /// <summary>
+    /// The visible band on the BAR, when an external source sets it. False = use the trail's
+    /// band edges, as before.
+    /// </summary>
+    public bool TryGetBarBands(out float start, out float end)
+    {
+        start = _source != null ? _source.BarVisibleStart : 0f;
+        end = _source != null ? _source.BarVisibleEnd : 1f;
+        return _source != null;
+    }
 
     bool _tracking;
     float _trackedPosition;
 
     void Update()
     {
-        if (!_tracking || field == null) return;
+        if (_source != null || !_tracking || field == null) return;
 
         _trackedPosition += field.CurrentDriftPerSecond * Time.deltaTime;
 
@@ -290,6 +363,8 @@ public class TutorialSpectrum_NEW : MonoBehaviour
     /// </summary>
     public void StartDrift()
     {
+        if (_source != null) _source.OnStartDrift();
+
         if (driftingProfile == null)
         {
             Debug.LogWarning("[TutorialSpectrum_NEW] No drifting profile assigned, so D3 has " +
@@ -324,6 +399,8 @@ public class TutorialSpectrum_NEW : MonoBehaviour
         // there would be nothing to rehearse against. GDD §5's restart has to be total,
         // and that includes the clock the curve is drawn from.
         if (hud != null) hud.ResetRedshift();
+
+        if (_source != null) _source.OnClear();
 
         if (debugLog) Debug.Log("[TutorialSpectrum_NEW] Cleared.", this);
     }
@@ -362,14 +439,16 @@ public class TutorialSpectrum_NEW : MonoBehaviour
     {
         if (field == null) return;
 
-        field.StampLine(Mathf.Clamp01(RestFramePosition), atomAbsorbDepth, lineWidth, pulseOnCut);
+        // An external source places the line itself (at the data's own cell for this moment).
+        if (_source == null || !_source.Absorb())
+            field.StampLine(Mathf.Clamp01(RestFramePosition), atomAbsorbDepth, lineWidth, pulseOnCut);
         _cut++;
 
         // The indicator follows the NEWEST mark, not the first. The newest is the one the
         // player just caused, and it is the one that has to be paired with the collision
         // they have this second watched — the earlier lines have said their piece and are
         // on their way red.
-        _tracking = true;
+        _tracking = _source == null;
         _trackedPosition = RestFramePosition;
 
         if (debugLog) Debug.Log("[TutorialSpectrum_NEW] Absorption " + _cut + " at rest frame.", this);
@@ -419,7 +498,8 @@ public class TutorialSpectrum_NEW : MonoBehaviour
     {
         if (field == null) return;
 
-        field.StampLine(Mathf.Clamp01(uvPosition), lineDepth, lineWidth, pulseOnCut);
+        if (_source == null || !_source.Absorb())
+            field.StampLine(Mathf.Clamp01(uvPosition), lineDepth, lineWidth, pulseOnCut);
         _cut++;
 
         if (debugLog)
@@ -448,6 +528,8 @@ public class TutorialSpectrum_NEW : MonoBehaviour
     /// </summary>
     public void ResetForAttract()
     {
+        if (_source != null) _source.OnReset();
+
         Hide();
         Clear();
 

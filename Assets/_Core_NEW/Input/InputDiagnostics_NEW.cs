@@ -95,7 +95,16 @@ public class InputDiagnostics_NEW : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyDown(toggleKey)) _visible = !_visible;
+        if (Input.GetKeyDown(toggleKey))
+        {
+            _visible = !_visible;
+
+            // Opening the page is the moment somebody wants the truth about what is
+            // plugged in, which is also the moment a pad has usually just been plugged in.
+            // Asking XInput is slow on empty slots, so it is asked here rather than per
+            // frame while the page is up.
+            if (_visible) TutorialRumble_NEW.RefreshXInput();
+        }
 
         // Cycling is allowed while hidden: somebody who knows the shortcut should not
         // have to show a diagnostic panel to a room full of visitors to use it.
@@ -129,18 +138,24 @@ public class InputDiagnostics_NEW : MonoBehaviour
         _sb.Append("PROFILE   ").Append(pad.displayName)
            .Append(InputScheme_NEW.IsPinned ? "   (pinned)" : "   (detected)").Append('\n');
 
-        string[] names = Input.GetJoystickNames();
-        _sb.Append("PADS      ");
-        bool anyPad = false;
-        for (int i = 0; i < names.Length; i++)
-        {
-            if (string.IsNullOrEmpty(names[i])) continue;
-            if (anyPad) _sb.Append(" | ");
-            _sb.Append(names[i]);
-            anyPad = true;
-        }
-        if (!anyPad) _sb.Append("(none connected)");
-        _sb.Append("\n\n");
+        _sb.Append("PADS      ").Append(InputScheme_NEW.ConnectedPadNames()).Append('\n');
+
+        // What the NAME points at, next to what is actually driving. A pinned profile is
+        // allowed to disagree - that is what pinning is for, and the exhibition build pins
+        // deliberately - but an unpinned disagreement is the scrambled-controls failure.
+        PadProfile_NEW guess = InputScheme_NEW.Guess();
+        _sb.Append("NAME SAYS ")
+           .Append(guess == null ? "no profile matches this name - using " + PadProfile_NEW.Fallback.id
+                                 : guess.displayName);
+        if (guess != null && guess != pad)
+            _sb.Append(InputScheme_NEW.IsPinned ? "   (overridden by the pin)"
+                                                : "   <- DISAGREES, press " + cycleProfileKey);
+        _sb.Append('\n');
+
+        // Whether rumble can reach this pad at all. On the Logitech this is its X/D
+        // switch: X mode is an XInput device and rumbles, D mode is not and cannot.
+        _sb.Append("XINPUT    ").Append(TutorialRumble_NEW.XInputSummary())
+           .Append("   (rumble needs a pad here)").Append("\n\n");
 
         // -- Raw axes --------------------------------------------------------
         //

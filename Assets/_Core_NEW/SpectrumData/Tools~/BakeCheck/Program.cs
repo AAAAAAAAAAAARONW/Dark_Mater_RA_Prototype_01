@@ -104,19 +104,50 @@ static class Program
         // The last journey row and the arrival frame are the same light — they must agree.
         d.SampleRow(d.Rows - 1, null, abs);
         double agree = 0; int na = 0;
-        for (int c = 0; c < d.Columns; c += 16) { agree += Math.Abs((1 - abs[c]) - d.SampleFinal(d.ToLambda(c / (float)(d.Columns - 1)), BakedSpectrumData_NEW.FinalChannel.Transmission)); na++; }
+        for (int c = 0; c < d.Columns; c += 16) { agree += Math.Abs((1 - abs[c]) - ColumnMean(d, c, BakedSpectrumData_NEW.FinalChannel.Transmission)); na++; }
         Check(agree / na < 0.05, "last journey row agrees with the arrival frame (mean diff " + (agree / na).ToString("0.000") + ")");
         // Same for the displayed spectrum: the zoom starts on exactly what the journey showed.
         d.SampleRow(d.Rows - 1, flux, null);
         double agreeF = 0; int nf = 0;
-        for (int c = 0; c < d.Columns; c += 16) { agreeF += Math.Abs(flux[c] - d.SampleFinal(d.ToLambda(c / (float)(d.Columns - 1)), BakedSpectrumData_NEW.FinalChannel.DisplayedSpectrum)); nf++; }
+        for (int c = 0; c < d.Columns; c += 16) { agreeF += Math.Abs(flux[c] - ColumnMean(d, c, BakedSpectrumData_NEW.FinalChannel.DisplayedSpectrum)); nf++; }
         Check(agreeF / nf < 0.03, "last journey spectrum agrees with the arrival frame (mean diff " + (agreeF / nf).ToString("0.000") + ")");
         // At emission the displayed spectrum must be the quasar's own: Ly-alpha peak at the left edge, shape to its right.
         d.SampleRow(0, flux, null);
         float first = flux[0], later = flux[d.Columns / 2];
         Check(first > 0.7f && later > 0.02f && later < first, "at emission: peak at left edge (" + first.ToString("0.00") + "), continuum to its right (" + later.ToString("0.00") + ")");
 
+        // ---- Tutorial data (format 4): the record must reproduce the journey grid --------------
+        Check(d.HasRecord, "file carries the path record and intrinsic spectrum");
+        Check(Math.Abs(d.ZFromRecordCell(d.RecordCellFromZ(3.0)) - 3.0) < 1e-9, "record cell <-> z round trip");
+        var vFlux = new float[d.Columns];
+        var vT = new float[d.Columns];
+        foreach (int r in new[] { 1, 5, 20, 60, 150, d.Rows - 1 })
+        {
+            float zr = (float)(Math.Exp(Math.Log(1 + d.ZQuasar) * (1.0 - r / (double)(d.Rows - 1))) - 1);
+            d.SampleRow(r, flux, abs);
+            d.SampleView(zr, d.LambdaMin, d.LambdaMax, vFlux, vT);
+            double dT = 0, dF = 0;
+            for (int c = 2; c < d.Columns; c++) { dT += Math.Abs((1 - abs[c]) - vT[c]); dF += Math.Abs(flux[c] - vFlux[c]); }
+            dT /= d.Columns - 2; dF /= d.Columns - 2;
+            Check(dT < 0.01 && dF < 0.01, "record view = journey row " + r + " (mean diff T " + dT.ToString("0.0000") + ", flux " + dF.ToString("0.0000") + ")");
+        }
+        // Magnified view near the birth tick resolves single cells: the tutorial's whole reason.
+        {
+            var zoom = new float[800];
+            float zt = d.ZFromLookback((float)(s.LookbackStartGyr - 0.15));
+            d.SampleView(zt, 1202, 1350, null, zoom);
+            int dips = 0; bool inDip = false;
+            for (int c = 0; c < zoom.Length; c++) { bool dip = zoom[c] < 0.5f; if (dip && !inDip) dips++; inDip = dip; }
+            Console.WriteLine("TUTORIAL VIEW  0.15 Gyr after emission (z " + zt.ToString("0.000") + "), 1202-1350 A: " + dips + " separate lines below 50%");
+            float bluer = zoom[50];
+            Check(Math.Abs(bluer - 1f) < 1e-6, "light bluer than 1216 A is never absorbed (got " + bluer + ")");
+        }
+
         // ---- Per-frame cost ------------------------------------------------------------------
+        sw.Restart();
+        for (int i = 0; i < 200; i++) d.SampleView(d.ZQuasar - 0.001f * i, d.LambdaMin, d.LambdaMax, vFlux, vT);
+        sw.Stop();
+        Console.WriteLine("PER-FRAME COST (tutorial view, full axis, " + d.Columns + " columns) " + (sw.Elapsed.TotalMilliseconds * 1000 / 200).ToString("0.0") + " us");
         sw.Restart();
         const int N = 20000;
         for (int i = 0; i < N; i++)
@@ -148,6 +179,15 @@ static class Program
 
         Console.WriteLine(failures == 0 ? "ALL CHECKS PASSED" : failures + " CHECK(S) FAILED");
         return failures == 0 ? 0 : 1;
+    }
+
+    // The arrival frame averaged over one journey column's width: a journey column is a box
+    // average (~590 km/s), the arrival frame is sampled every ~30 km/s, so compare like with like.
+    static double ColumnMean(BakedSpectrumData_NEW d, int c, BakedSpectrumData_NEW.FinalChannel ch)
+    {
+        double sum = 0; const int S = 24;
+        for (int k = 0; k < S; k++) sum += d.SampleFinal(d.ToLambda((c - 0.5f + (k + 0.5f) / S) / (d.Columns - 1)), ch);
+        return sum / S;
     }
 
     static void Check(bool ok, string what)

@@ -47,6 +47,13 @@ public class Beat_TurnAround_NEW : TutorialBeat_NEW
              "player to be looking at the disc, not to be aiming at it.")]
     [SerializeField] float discInFrameHalfAngle = 35f;
 
+    [Header("Stick diagram")]
+    [Tooltip("How far off dead behind the disc has to be, in degrees, before the diagram " +
+             "will change which way round it sends the player. Stops the knob flicking " +
+             "left and right while the disc is straight behind.")]
+    [Range(0f, 90f)]
+    [SerializeField] float sideCommitDegrees = 20f;
+
     [Header("Wiring")]
     [SerializeField] FirstPersonLookRig_NEW lookRig;
 
@@ -64,17 +71,25 @@ public class Beat_TurnAround_NEW : TutorialBeat_NEW
     /// as not having turned at all. The gate would be right and the picture would have
     /// caused the failure.
     ///
-    /// THE TWO HALVES OF THE GATE ARE ANSWERED IN ORDER, which is also the order they
-    /// are actually met in. Until the turn is far enough, the knob reports how much of
-    /// the 150 degrees is left; after that it reports how far off frame the disc still
-    /// is, so a player who has turned past the threshold looking at their feet is told
-    /// to bring it into view rather than left staring at a dot that says nothing. Both
-    /// come off the same numbers GateSatisfied is judged on.
+    /// BOTH HALVES OF THE GATE AT ONCE, as one reading. This used to answer them in
+    /// order — the turn first, then the disc — and the seam between them was visible:
+    /// B2 leaves the player looking 40 degrees up, so the knob came home as they finished
+    /// the turn, said "done", and then sprang back out pointing down because the disc
+    /// was below the frame. Now the demand is whichever half has more left, so it only
+    /// reaches the centre when the gate actually opens, and the direction is the disc's
+    /// bearing throughout — sideways while it is behind, tipping down as it comes round
+    /// if the player is still looking up.
+    ///
+    /// The disc's half is scaled over the whole way round (discInFrameHalfAngle to 180)
+    /// rather than FullDeflectionDegrees. At 45 it would read hard over for the first
+    /// hundred degrees of a turn that is the longest movement in the piece, and the
+    /// knob would say nothing about progress until the very end.
     ///
     /// WHICH SIDE is read off the disc, so the diagram sends the player the short way
-    /// round to the thing the gate also requires to be in frame. Beyond 180 degrees both
-    /// answers are equally short and the sign flips about; it settles as soon as the
-    /// player has committed either way, and by then they are past needing it.
+    /// round to the thing the gate also requires to be in frame. Near dead behind both
+    /// ways are equally short and the sign used to flip with every twitch of the stick,
+    /// throwing the knob across the ring; it is now held until the disc is clearly on one
+    /// side (sideCommitDegrees short of behind).
     /// </summary>
     protected override TutorialStickGuide_NEW.Gesture GateGesture
     {
@@ -85,39 +100,38 @@ public class Beat_TurnAround_NEW : TutorialBeat_NEW
             Vector3 local = lookRig.transform.InverseTransformPoint(disc.position);
             TutorialStickGuide_NEW.StickSide side = Beat_LookAt_NEW.LookSide(lookRig);
 
-            if (!TurnedFar())
-            {
-                // Behind and dead centre is the one bearing with no short way round.
-                // Right is as good an answer as left, and a fixed answer beats a
-                // flickering one.
-                float way = Mathf.Abs(local.x) > 0.0001f ? Mathf.Sign(local.x) : 1f;
-
-                float left = minYawDegrees > 0.0001f
-                    ? (minYawDegrees - YawTurned()) / minYawDegrees
-                    : 0f;
-
-                return TutorialStickGuide_NEW.Gesture.Track(side, new Vector2(way, 0f),
-                                                            Mathf.Clamp01(left));
-            }
-
-            // Turned far enough; the disc still has to be in frame. Now it is the same
-            // question Beat_LookAt_NEW asks, so it gets the same answer.
             float flat = new Vector2(local.x, local.z).magnitude;
 
             Vector2 bearing = new Vector2(Mathf.Atan2(local.x, local.z) * Mathf.Rad2Deg,
                                           Mathf.Atan2(local.y, flat) * Mathf.Rad2Deg);
 
+            // Behind and dead centre has no short way round. Right is as good an answer
+            // as left, and a held answer beats a flickering one.
+            if (_way == 0f || Mathf.Abs(bearing.x) < 180f - sideCommitDegrees)
+                _way = Mathf.Abs(bearing.x) > 0.0001f ? Mathf.Sign(bearing.x) : 1f;
+
+            bearing.x = _way * Mathf.Abs(bearing.x);
+
+            float turnLeft = minYawDegrees > 0.0001f
+                ? (minYawDegrees - YawTurned()) / minYawDegrees
+                : 0f;
+
             float offBy = Vector3.Angle(Vector3.forward, local) - discInFrameHalfAngle;
+            float discLeft = offBy / Mathf.Max(1f, 180f - discInFrameHalfAngle);
 
             return TutorialStickGuide_NEW.Gesture.Track(
-                side, bearing,
-                Mathf.Clamp01(offBy / TutorialStickGuide_NEW.FullDeflectionDegrees));
+                side, Beat_LookAt_NEW.OutsideReticle(bearing, discInFrameHalfAngle),
+                Mathf.Clamp01(Mathf.Max(turnLeft, discLeft)));
         }
     }
+
+    /// <summary>Which way round the diagram is sending the player; 0 until decided.</summary>
+    float _way;
 
     protected override void OnBeatEnter()
     {
         _forced = false;
+        _way = 0f;
 
         if (lookRig == null) lookRig = FindObjectOfType<FirstPersonLookRig_NEW>();
 

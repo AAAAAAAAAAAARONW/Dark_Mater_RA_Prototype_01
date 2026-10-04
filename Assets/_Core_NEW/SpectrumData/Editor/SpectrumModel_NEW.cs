@@ -85,6 +85,12 @@ public static class SpectrumModel_NEW
         public double FinalEmittedMinA = 1000.0;
         public double FinalEmittedMaxA = 1350.0;
         public int FinalColumns = 16384;
+        public int IntrinsicColumns = 8192;
+
+        // Quasar template: true = the real Selsing et al. 2016 composite (Tables/quasar_composite.csv),
+        // false = the old power law + Gaussian emission lines (Tables/emission_lines.csv).
+        public bool UseComposite = true;
+        public double CompositeForestZ = 1.5;
     }
 
     public struct EmissionLine
@@ -105,6 +111,8 @@ public static class SpectrumModel_NEW
     {
         public Settings Settings;
         public EmissionLine[] Lines;
+        public double[] CompositeLambda;   // rest Å, ascending; null when UseComposite is off
+        public double[] CompositeFlux;
         public Point[] MeanFlux;
         public Point[] MeanFreePath;
     }
@@ -152,6 +160,9 @@ public static class SpectrumModel_NEW
             FinalEmittedMinA = settings.Value("final_emitted_min_A"),
             FinalEmittedMaxA = settings.Value("final_emitted_max_A"),
             FinalColumns = (int)settings.Value("final_columns"),
+            IntrinsicColumns = (int)settings.Value("intrinsic_columns"),
+            UseComposite = settings.Value("template_source") != 0.0,
+            CompositeForestZ = settings.Value("composite_forest_z"),
         };
 
         Validate(s);
@@ -173,13 +184,87 @@ public static class SpectrumModel_NEW
             };
         }
 
-        return new Inputs
+        Inputs inputs = new Inputs
         {
             Settings = s,
             Lines = el,
             MeanFlux = ReadPoints(meanFlux, "z", "mean_flux", 0.0, 1.0),
             MeanFreePath = ReadPoints(mfp, "z", "mfp_pmpc", 1e-6, 1e6),
         };
+
+        if (s.UseComposite)
+        {
+            ReadComposite(new CsvTable_NEW("quasar_composite.csv", readTable("quasar_composite.csv")), inputs);
+            if (s.CompositeForestZ > 0.0) RemoveCompositeForest(inputs, s.CompositeForestZ);
+        }
+
+        return inputs;
+    }
+
+    /// <summary>
+    /// The composite is built from real spectra, so blueward of Ly-alpha it already carries
+    /// the average forest of its own quasars (z ≈ 1–2). The bake then absorbs again, which
+    /// counted that slice twice: the first composite bake put the forest at 0.61 of the
+    /// continuum where Q1422 reads ~0.7. Divide it back out — at each blue wavelength, by
+    /// the measured mean transmission (mean_flux.csv) at the redshift where the composite's
+    /// typical quasar would have absorbed it. The standard correction; ≤ 10% here.
+    /// </summary>
+    static void RemoveCompositeForest(Inputs inputs, double zComposite)
+    {
+        double[] lam = inputs.CompositeLambda, flux = inputs.CompositeFlux;
+        Point[] mf = inputs.MeanFlux;
+
+        for (int i = 0; i < lam.Length && lam[i] < BakedSpectrumData_NEW.LymanAlphaA; i++)
+        {
+            double zAbs = (1.0 + zComposite) * lam[i] / BakedSpectrumData_NEW.LymanAlphaA - 1.0;
+
+            double f;
+            if (zAbs <= mf[0].Z) f = mf[0].Value;
+            else if (zAbs >= mf[mf.Length - 1].Z) f = mf[mf.Length - 1].Value;
+            else
+            {
+                int k = 1;
+                while (mf[k].Z < zAbs) k++;
+                double u = (zAbs - mf[k - 1].Z) / (mf[k].Z - mf[k - 1].Z);
+                f = mf[k - 1].Value + (mf[k].Value - mf[k - 1].Value) * u;
+            }
+
+            if (f > 0.05) flux[i] /= f;
+        }
+    }
+
+    /// <summary>
+    /// The measured composite, lightly smoothed. A 5-sample boxcar (2 Å, ~500 km/s at
+    /// 1216 Å) takes out pixel noise — the composite's blue end has ~18% errors — while
+    /// leaving the broad emission lines (Ly-alpha is ~16 Å wide) untouched.
+    /// </summary>
+    static void ReadComposite(CsvTable_NEW t, Inputs inputs)
+    {
+        int cl = t.Column("rest_A");
+        int cf = t.Column("flux");
+        int n = t.Rows.Count;
+        if (n < 100) throw new FormatException("quasar_composite.csv: too few rows (" + n + ")");
+
+        double[] lam = new double[n];
+        double[] raw = new double[n];
+        for (int i = 0; i < n; i++)
+        {
+            lam[i] = t.Number(i, cl);
+            raw[i] = t.Number(i, cf);
+            if (i > 0 && lam[i] <= lam[i - 1]) throw new FormatException("quasar_composite.csv: rest_A must increase (row " + (i + 1) + ")");
+        }
+
+        double[] smooth = new double[n];
+        for (int i = 0; i < n; i++)
+        {
+            double sum = 0.0;
+            int count = 0;
+            for (int j = Math.Max(0, i - 2); j <= Math.Min(n - 1, i + 2); j++) { sum += raw[j]; count++; }
+            smooth[i] = Math.Max(0.0, sum / count);
+        }
+
+        inputs.CompositeLambda = lam;
+        inputs.CompositeFlux = smooth;
     }
 
     static Point[] ReadPoints(CsvTable_NEW t, string zCol, string vCol, double min, double max)
@@ -211,6 +296,7 @@ public static class SpectrumModel_NEW
         if (s.LambdaMin > BakedSpectrumData_NEW.LymanAlphaA + 0.01) throw new FormatException("bake_settings: lambda_min_A must be at or below 1216 Å so the birth tick is on the bar (0 = exactly 1216)");
         if (!(s.FinalEmittedMaxA > s.FinalEmittedMinA) || s.FinalEmittedMinA <= 0.0) throw new FormatException("bake_settings: final_emitted_min_A / final_emitted_max_A are invalid");
         if (s.FinalColumns < 64 || s.FinalColumns > 65536) throw new FormatException("bake_settings: final_columns out of range");
+        if (s.IntrinsicColumns < 64 || s.IntrinsicColumns > 65536) throw new FormatException("bake_settings: intrinsic_columns out of range");
         if (s.Columns < 16 || s.Columns > 8192) throw new FormatException("bake_settings: columns out of range");
         if (s.Rows < 16 || s.Rows > 8192) throw new FormatException("bake_settings: rows out of range");
         if (s.CellsPerRow < 1 || s.CellsPerRow > 64) throw new FormatException("bake_settings: cells_per_row out of range");
@@ -248,6 +334,25 @@ public static class SpectrumModel_NEW
         public float[] FinalTransmissionLya;    // what the journey HUD shows, at Earth
         public float[] FinalFluxLya;            // quasar spectrum × the displayed absorption — continuous with the journey
         public float[] FinalFlux;               // the real spectrum, at Earth — the reference look
+
+        // Version 4: what the tutorial needs to draw any moment of the journey on any axis,
+        // at the simulation's own resolution rather than the 1024-column journey grid.
+        //
+        // LyaRecord: the Ly-alpha transmission each cell of the path imprinted, in path order
+        // (cell 0 = right at the quasar). Cell q is gas at ln(1+z) = RecordSTop − q·RecordDelta.
+        // Ly-alpha only touches light once — at 1216 Å locally, then it only stretches — so this
+        // one array IS the displayed absorption of every row: at any z_now, observed λ shows
+        // the cell whose gas saw it at 1216 Å.
+        public float[] LyaRecord;
+        public double RecordSTop;
+        public double RecordDelta;
+
+        // Intrinsic: the quasar's emitted spectrum / the HUD's normalisation, on a log axis of
+        // EMITTED wavelength [IntrinsicLambdaMin, IntrinsicLambdaMax] — every emitted λ the bar
+        // ever shows. Flux on the bar = Intrinsic(λ_now · (1+z_now)/(1+z_q)) × displayed T.
+        public float[] Intrinsic;
+        public double IntrinsicLambdaMin;
+        public double IntrinsicLambdaMax;
         public readonly List<string> Report = new List<string>();
     }
 
@@ -305,7 +410,11 @@ public static class SpectrumModel_NEW
 
         // -- Emission template --------------------------------------------------------
 
-        Template template = new Template(s, input.Lines);
+        Template template = new Template(s, input.Lines, input.CompositeLambda, input.CompositeFlux);
+        rep.Add(input.CompositeLambda != null
+            ? F("TEMPLATE  Selsing et al. 2016 composite, {0} points, {1:0}-{2:0} A rest; held flat below, slope {3} above", input.CompositeLambda.Length, input.CompositeLambda[0], input.CompositeLambda[input.CompositeLambda.Length - 1], s.ContinuumAlphaLambda)
+            : "TEMPLATE  power law + emission_lines.csv (hand-built)");
+        rep.Add("");
         double norm = template.PeakOver(s.LambdaMin, s.LambdaMax);
 
         // -- Calibration: A(z) such that <exp(-A rho^alpha)> = measured mean flux ---------
@@ -551,6 +660,29 @@ public static class SpectrumModel_NEW
         rep.Add("  (for comparison: Q1422+2309 at z = 3.62, the reference, reads ~0.7 on this measure)");
         rep.Add("");
 
+        // -- Path record and intrinsic spectrum, for the tutorial ---------------------------
+        //
+        // segT is already the record: the loop appends one entry per cell crossed, in path
+        // order, and segment q sits at ln(1+z) = sQ − (q + 0.5)·delta (row 1, j = k−1 is the
+        // first). The template is sampled over every emitted wavelength the bar ever shows.
+
+        res.LyaRecord = new float[segT.Count];
+        for (int q = 0; q < segT.Count; q++) res.LyaRecord[q] = (float)segT[q];
+        res.RecordSTop = sQ - 0.5 * delta;
+        res.RecordDelta = delta;
+
+        res.IntrinsicLambdaMin = s.LambdaMin / (1.0 + zQ);
+        res.IntrinsicLambdaMax = s.LambdaMax;
+        res.Intrinsic = new float[s.IntrinsicColumns];
+        double lnIMin = Math.Log(res.IntrinsicLambdaMin), lnIMax = Math.Log(res.IntrinsicLambdaMax);
+        for (int c = 0; c < res.Intrinsic.Length; c++)
+            res.Intrinsic[c] = (float)(template.At(Math.Exp(lnIMin + (lnIMax - lnIMin) * c / (res.Intrinsic.Length - 1))) / norm);
+
+        rep.Add("TUTORIAL DATA  (path record + intrinsic spectrum)");
+        rep.Add(F("  {0} path cells of {1:0} km/s, z {2:0.000} -> {3:0.000}", segT.Count, cellKms, zQ, segZ.Count > 0 ? segZ[segZ.Count - 1] : zQ));
+        rep.Add(F("  intrinsic spectrum: {0} samples, emitted {1:0}-{2:0} A", res.Intrinsic.Length, res.IntrinsicLambdaMin, res.IntrinsicLambdaMax));
+        rep.Add("");
+
         // -- Notable absorbers --------------------------------------------------------------
 
         SelectAbsorbers(s, segZ, segT, zQ, zFreeze, res);
@@ -667,6 +799,16 @@ public static class SpectrumModel_NEW
             // Version 3: the arrival frame's displayed spectrum (quasar × displayed absorption).
             for (int i = 0; i < r.FinalFluxLya.Length; i++) w.Write(ToU16(r.FinalFluxLya[i]));
 
+            // Version 4: the path record and the intrinsic spectrum (the tutorial's data).
+            w.Write(r.LyaRecord.Length);
+            w.Write(r.RecordSTop);
+            w.Write(r.RecordDelta);
+            for (int i = 0; i < r.LyaRecord.Length; i++) w.Write(ToU16(r.LyaRecord[i]));
+            w.Write(r.Intrinsic.Length);
+            w.Write(r.IntrinsicLambdaMin);
+            w.Write(r.IntrinsicLambdaMax);
+            for (int i = 0; i < r.Intrinsic.Length; i++) w.Write(r.Intrinsic[i]);
+
             w.Flush();
             return ms.ToArray();
         }
@@ -683,7 +825,18 @@ public static class SpectrumModel_NEW
     // Pieces
     // =====================================================================================
 
-    /// <summary>Power-law continuum plus Gaussian emission lines, in the quasar's rest frame.</summary>
+    /// <summary>
+    /// The quasar's emitted spectrum, rest frame.
+    ///
+    /// DEFAULT: the measured Selsing et al. (2016) composite, 1000–11350 Å. Beyond its blue
+    /// end the level is HELD FLAT at the composite's own blue-end level — the real spectrum
+    /// is flat-to-falling left of Ly-alpha, and the old power law rising toward the blue was
+    /// what made the left of the HUD climb. Beyond its red end the measured slope
+    /// (λ^−1.70, the paper's own fit) continues it.
+    ///
+    /// FALLBACK (template_source = 0): power-law continuum + Gaussian lines from
+    /// emission_lines.csv.
+    /// </summary>
     sealed class Template
     {
         readonly double _alpha;
@@ -692,8 +845,28 @@ public static class SpectrumModel_NEW
         readonly double _at912;
         readonly double[] _centre, _sigma, _amp;
 
-        public Template(Settings s, EmissionLine[] lines)
+        readonly double[] _cl, _cf;   // composite, or null
+        readonly double _blueHold;
+        readonly double _redEndFlux;
+
+        public Template(Settings s, EmissionLine[] lines, double[] compositeLambda, double[] compositeFlux)
         {
+            _cl = compositeLambda;
+            _cf = compositeFlux;
+
+            if (_cl != null)
+            {
+                // Hold level = the mean of the first 20 Å, not the first pixel: the blue end
+                // is the noisiest part of the composite.
+                double sum = 0.0; int n = 0;
+                for (int i = 0; i < _cl.Length && _cl[i] < _cl[0] + 20.0; i++) { sum += _cf[i]; n++; }
+                _blueHold = n > 0 ? sum / n : _cf[0];
+
+                sum = 0.0; n = 0;
+                for (int i = _cl.Length - 1; i >= 0 && _cl[i] > _cl[_cl.Length - 1] - 20.0; i--) { sum += _cf[i]; n++; }
+                _redEndFlux = n > 0 ? sum / n : _cf[_cf.Length - 1];
+            }
+
             _alpha = s.ContinuumAlphaLambda;
             _euvAlpha = s.EuvAlphaLambda;
             _pivot = s.ContinuumPivotA;
@@ -731,6 +904,8 @@ public static class SpectrumModel_NEW
         {
             if (lambdaRest <= 0.0) return 0.0;
 
+            if (_cl != null) return Composite(lambdaRest);
+
             double v = Continuum(lambdaRest);
             for (int i = 0; i < _centre.Length; i++)
             {
@@ -739,6 +914,23 @@ public static class SpectrumModel_NEW
             }
 
             return v;
+        }
+
+        double Composite(double lambda)
+        {
+            int n = _cl.Length;
+            if (lambda <= _cl[0]) return _blueHold;
+            if (lambda >= _cl[n - 1]) return _redEndFlux * Math.Pow(lambda / _cl[n - 1], _alpha);
+
+            int lo = 0, hi = n - 1;
+            while (hi - lo > 1)
+            {
+                int mid = (lo + hi) >> 1;
+                if (_cl[mid] <= lambda) lo = mid; else hi = mid;
+            }
+
+            double k = (lambda - _cl[lo]) / (_cl[hi] - _cl[lo]);
+            return _cf[lo] + (_cf[hi] - _cf[lo]) * k;
         }
 
         /// <summary>Brightest point in a range — the normalisation, so the Ly-alpha peak is 1.</summary>

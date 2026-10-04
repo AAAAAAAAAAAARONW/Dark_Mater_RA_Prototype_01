@@ -83,6 +83,7 @@ Tutorial/
 ├─ TutorialEmission_NEW       Phase 2 时序：加速 → 阈值 → 发射（反转航向、开拖尾）
 ├─ TutorialFlash_NEW          全屏闪白，颜色和时长由调用方给
 ├─ TutorialCameraShake_NEW    相机位移抖动，幅度由外部驱动
+├─ TutorialVoiceOver_NEW     配音：一条一条说，不抢话，随暂停停，随重置停
 ├─ Beats/
 │   ├─ Beat_Cinematic_NEW     A1 C1 C3（无动作，按分镜时长走）
 │   ├─ Beat_Zoom_NEW          A2 A3（推进去 / 拉回来 —— 开场那段的教学）
@@ -96,6 +97,34 @@ Tutorial/
 ```
 
 运行时依赖：引擎、UGUI、`_Core_NEW` 的 `DebugView_NEW` / `HierarchyBadge_NEW` / `NebulaProfile_NEW`，以及 **`Assets/Scripts/PhotonSpectrumTrail.cs`**（旧脚本，光子拖尾的光谱生成，刻意复用而不是重写）。**不依赖 Cinemachine** —— 教程是第一人称，不走 FreeLook。
+
+---
+
+## 配音
+
+文件放在 `Assets/VoiceOver/Tutorial/`，**按文件名对到拍子上**，`Build or Update` 自动填：
+
+| 文件名 | 去哪 |
+|---|---|
+| `<beatId>_随便.mp3`（如 `A1_LookAround`） | 那一拍的 `voiceOverClip` —— 叙述，拍子一开就说 |
+| `N_<beatId>_随便.mp3`（如 `N_B3_TurnAround`） | 那一拍的 `promptClip` —— 操作指令，叙述说完再说 |
+| `Ending_PullBack.mp3` / `Closing.mp3` | `[Tutorial]/VoiceOver` 上的 `endingClip` / `closingClip`，最后一拍结束、镜头拉远时接连说 |
+
+beatId 后面的下划线是必须的 —— 它让 `D1_` 不会吃掉 D10 的文件。只填空槽：手动换过的 clip 不会被覆盖。想让某一拍不说话，要把文件改名或挪走，光清空槽位下次会被填回来。对不上任何拍子的文件（目前是 Phase 4 的 E1、N_E2、N_E3）会在 Console 里列出来，等那一拍建出来自动接上。
+
+**拍子只存 clip，不负责播。** 播放统一由 `TutorialVoiceOver_NEW` 做，规则：
+
+1. **叙述不会被下一拍打断。** 玩家很快过了 A1，A2 的台词排在 A1 后面，不叠音。
+2. **排队时拍子已经结束的台词直接丢掉**，不晚说 —— 迟到的叙述讲的是玩家已经不在看的画面。
+3. **操作指令在门控满足的那一刻就停。** 玩家都转过去了还在说「向右看」，读起来像游戏没注意到。
+4. **需要玩家操作的拍子，指令说完 12 秒没动静就再说一遍，最多重复 2 次。**（`promptRepeatSeconds` / `maxPromptRepeats`）
+5. 暂停时台词跟着暂停，恢复时接着说；回到标题卡、F2/数字键跳拍时直接停。
+
+调试 overlay 第 12 行是 VO：正在说哪句、进度、排队几句、下一次重复还剩几秒。
+
+**时长对不上会报警告。** 按时间走的拍子如果比自己那句台词短，`Build or Update` 会在 Console 里写出来。台词不会被切，但下一拍的叙述要等它说完，配音会慢慢落后于画面。时长归你调，builder 不改。
+
+Journey 场景的配音在 `Assets/VoiceOver/Journey/`（J1–J9），由 `JourneyVoiceOver_NEW` 播：打开 gameplay 场景，跑 `Tools > Journey NEW > Voice Over > Wire Journey Voice Over (open scene)`。每层一行（层 id、等哪个转场锚点、延迟、按顺序的 clip），红移演示的台词挂在 `JourneySequence_NEW` 的 F1 / F4 / F5 上，演示本身在 J5 说完后才开始。对应关系写在 `JourneyVoiceOverBuilder_NEW` 的类注释里。
 
 ---
 

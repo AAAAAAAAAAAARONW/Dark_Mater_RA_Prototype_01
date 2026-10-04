@@ -104,7 +104,8 @@ public class Beat_LookAt_NEW : TutorialBeat_NEW
         {
             if (lookRig == null || target == null) return base.GateGesture;
 
-            return TutorialStickGuide_NEW.Gesture.Track(LookSide(lookRig), BearingToTarget(),
+            return TutorialStickGuide_NEW.Gesture.Track(LookSide(lookRig),
+                                                        OutsideReticle(BearingToTarget(), reticleHalfAngle),
                                                         Demand());
         }
     }
@@ -142,6 +143,23 @@ public class Beat_LookAt_NEW : TutorialBeat_NEW
         float pitch = Mathf.Atan2(local.y, flat) * Mathf.Rad2Deg;
 
         return new Vector2(yaw, pitch);
+    }
+
+    /// <summary>
+    /// A bearing with each axis reduced by the part the reticle already forgives.
+    ///
+    /// B2's mote sits 40 up and 8 right. The 8 is inside the reticle and never needs
+    /// correcting, but in the raw bearing it stays 8 while the 40 shrinks, so the knob
+    /// rolled further and further right as the player did exactly what LOOK UP asked.
+    /// Taking the forgiven part off each axis leaves only the movement still needed:
+    /// straight up for B2, straight right for B1, and both only when both are short.
+    /// Near the edge both axes can be inside while the diagonal is not; that returns
+    /// zero and the guide keeps the last direction it drew.
+    /// </summary>
+    internal static Vector2 OutsideReticle(Vector2 bearing, float halfAngle)
+    {
+        return new Vector2(Mathf.Sign(bearing.x) * Mathf.Max(0f, Mathf.Abs(bearing.x) - halfAngle),
+                           Mathf.Sign(bearing.y) * Mathf.Max(0f, Mathf.Abs(bearing.y) - halfAngle));
     }
 
     /// <summary>

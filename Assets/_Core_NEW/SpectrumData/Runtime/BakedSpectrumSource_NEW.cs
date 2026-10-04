@@ -72,11 +72,31 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
     [SerializeField] HudCurve hudDisplay = HudCurve.Flux;
 
     [SerializeField] AbsorptionField_NEW field;
-    [Tooltip("Feed the photon trail's absorption texture. The trail's colour bands are " +
-             "drawn by PhotonSpectrumTrail and do not know about wavelength, so this puts " +
-             "the right lines in the right ORDER on the trail but not under the right " +
-             "colours. That was already true of the procedural forest.")]
+    [Tooltip("Feed the photon trail's absorption texture. With trailRealWavelengths on (below), " +
+             "the trail is also coloured by real wavelength, so each line sits under its own colour.")]
     [SerializeField] bool driveTrail = true;
+
+    [Tooltip("Put the trail on real wavelengths, like the tutorial's: a far-UV margin (1000 Å up to " +
+             "the bar's left edge) on the ribbon's outer side, then exactly the bar's axis, coloured by " +
+             "real wavelength — UV below 4000 Å, the rainbow 4000–7000 Å, IR above.\n\n" +
+             "Without the margin a just-born line sits on the ribbon's outer edge, where the trail " +
+             "shader fades everything out; without real colours a line sits under a colour that is " +
+             "not its wavelength. Off = the trail is fed the bar's array as before, art colours kept.")]
+    [SerializeField] bool trailRealWavelengths = true;
+
+    [Range(0f, 0.4f)]
+    [SerializeField] float trailFarUvShare = 0.2f;
+
+    [Tooltip("Opacity of the UV part of the ribbon (most of the journey's lines are UV).")]
+    [Range(0f, 1f)]
+    [SerializeField] float trailUvAlpha = 0.65f;
+
+    [Tooltip("How wide a highlighted line is cut on the trail, as a fraction of the bar either side.")]
+    [Range(0.001f, 0.03f)]
+    [SerializeField] float emphasisHalfWidth = 0.005f;
+
+    [Tooltip("The journey's photon trail (its colours are read for the UV and IR bands). Found if empty.")]
+    [SerializeField] PhotonSpectrumTrail spectrumTrail;
 
     [SerializeField] RedshiftMarks_NEW marks;
     [SerializeField] bool driveMarks = true;
@@ -162,6 +182,16 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
     float _replaySeconds;
 
     bool _showReadout;
+    float _holdLookback = -1f;   // from the tutorial: hold here until the tracker passes it
+    float[] _trailAbsorption;
+    float[] _marksZ = new float[0];
+    float _emphT = float.NaN;
+    float _emphK;
+    bool _trailDirty;
+    TrailRenderer _trailRenderer;
+    MaterialPropertyBlock _trailBlock;
+    Texture2D _trailTex;
+    Color32[] _trailPixels;
     float _lastPushTime = -1f;
     float _lastPushedRow = float.NaN;
     GUIStyle _readoutStyle;
@@ -188,6 +218,46 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
 
     /// <summary>The loaded data, or null. For editor tools and readouts.</summary>
     public BakedSpectrumData_NEW Data { get { return _data; } }
+
+    /// <summary>Redshifts of the marked lines (the bake's notable absorbers; [0] the player's own when handed over).</summary>
+    public System.Collections.Generic.IList<float> MarkZ { get { return _marksZ; } }
+
+    /// <summary>True while the bar is simply following the flight: not holding, replaying or arriving.</summary>
+    public bool IsFollowingJourney { get { return _active && _arrival == Arrival.Journey && !_replaying && _holdLookback < 0f; } }
+
+    /// <summary>Where a line from gas at zAbs is on the bar now, 0–1. NaN before the light reaches that gas.</summary>
+    public float BarLineT(float zAbs) { return LineTNow(zAbs); }
+
+    /// <summary>The birth tick (1216 Å, where every line is born) on the bar now, 0–1.</summary>
+    public float BirthBarT { get { return _active ? AxisT(BakedSpectrumData_NEW.LymanAlphaA) : 0f; } }
+
+    /// <summary>The same line across the TRAIL, 0 (UV edge) – 1 (IR edge).</summary>
+    public float TrailLineT(float zAbs)
+    {
+        float t = LineTNow(zAbs);
+        return float.IsNaN(t) ? t : TrailT(t);
+    }
+
+    /// <summary>The trail renderer the journey's spectrum is drawn on.</summary>
+    public TrailRenderer Trail { get { return _trailRenderer; } }
+
+    /// <summary>
+    /// Cut one line solid on the trail — barT is its place on the bar, k 0–1 how strongly.
+    /// AbsorberHighlight_NEW blinks a line this way, so only THAT line blinks, not the forest.
+    /// </summary>
+    public void SetTrailEmphasis(float barT, float k)
+    {
+        _emphT = barT;
+        _emphK = Mathf.Clamp01(k);
+        _trailDirty = true;
+    }
+
+    public void ClearTrailEmphasis()
+    {
+        if (float.IsNaN(_emphT)) return;
+        _emphT = float.NaN;
+        _trailDirty = true;
+    }
 
     /// <summary>Flip the switch from code or a UnityEvent.</summary>
     public void SetUseBakedData(bool on) { useBakedData = on; }
@@ -346,19 +416,26 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
         _axisLnMax = Math.Log(_data.LambdaMax);
 
         if (driveHud && hud != null) hud.SetExternalCurve(_hudCurve, _hudCurve.Length);
-        if (driveTrail && field != null) field.SetExternalAbsorption(_absorption, _absorption.Length);
+        _trailAbsorption = new float[_data.Columns];
+        if (spectrumTrail == null) spectrumTrail = FindObjectOfType<PhotonSpectrumTrail>();
+        if (spectrumTrail != null) _trailRenderer = spectrumTrail.GetComponent<TrailRenderer>();
+        if (driveTrail && field != null) field.SetExternalAbsorption(_trailAbsorption, _trailAbsorption.Length);
+        if (driveTrail && trailRealWavelengths) ApplyTrailColours();
         if (driveMarks && marks != null)
         {
             // The marks come from the data itself — the bake's notable absorbers — so they
             // cannot go stale when the data changes, and nobody fills them by hand. [0] is
             // the first line the light acquired; the rest are the strongest absorber in each
             // equal-stretch redshift slice, i.e. the densest gas crossed in that slice.
-            marks.SetPhysicalMarks(_data.AbsorberZ);
+            _marksZ = MarksWithTutorialLine();
+            marks.SetPhysicalMarks(_marksZ);
             marks.SetPhysicalReplay(_replay);
             marks.SetPhysicalMapping(AxisT(BakedSpectrumData_NEW.LymanAlphaA), _lineT);
         }
 
         // Fill immediately so the first frame is right, not one frame late.
+        TakeHandoff();
+
         _zNow = _data.ZFromLookback(CurrentLookbackGyr());
         _zDisplay = _zNow;
         _replaying = false;
@@ -403,6 +480,12 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
 
         if (hud != null && hud.HasExternalCurve) hud.ClearExternalCurve();
         if (field != null && field.HasExternalAbsorption) field.ClearExternalAbsorption();
+        if (_trailRenderer != null && _trailBlock != null)
+        {
+            _trailBlock.Clear();
+            _trailRenderer.SetPropertyBlock(_trailBlock);
+        }
+        _emphT = float.NaN;
         if (marks != null) marks.ClearPhysicalMapping();
 
         _active = false;
@@ -447,7 +530,7 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
         }
 
         if (driveHud && hud != null) hud.MarkExternalCurveDirty();
-        if (driveTrail && field != null) field.MarkExternalAbsorptionDirty();
+        BuildTrail();
         if (driveMarks && marks != null) marks.MarkPhysicalDirty();
     }
 
@@ -467,7 +550,18 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
             return _data != null ? _data.LookbackStartGyr : 0f;
         }
 
-        return (float)(tracker.RemainingDistanceLy / 1e9);
+        float fromTracker = (float)(tracker.RemainingDistanceLy / 1e9);
+
+        // Coming from the tutorial: its light is already a little way out, and the bar must
+        // open where the tutorial's closed. Hold there until the tracker catches up, then let
+        // go for good. Lookback only falls, so min() is "whichever is further along".
+        if (_holdLookback >= 0f)
+        {
+            if (fromTracker > _holdLookback) return _holdLookback;
+            _holdLookback = -1f;
+        }
+
+        return fromTracker;
     }
 
     float LineTNow(float zAbs)
@@ -663,5 +757,117 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
     {
         t = Mathf.Clamp01(t);
         return t * t * (3f - 2f * t);
+    }
+
+    // ── Tutorial handoff ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Read (and consume) where the tutorial's light got to. Called on activation, before
+    /// the marks are set, so mark [0] can be the player's own first line.
+    /// </summary>
+    void TakeHandoff()
+    {
+        if (!SpectrumHandoff_NEW.HasHandoff) return;
+
+        _holdLookback = Mathf.Min(SpectrumHandoff_NEW.EndLookbackGyr, _data.LookbackStartGyr);
+        if (logLoad)
+            Debug.Log("[BakedSpectrumSource_NEW] Continuing from the tutorial: holding at " +
+                      _holdLookback.ToString("0.000") + " Gyr (z " + _data.ZFromLookback(_holdLookback).ToString("0.000") +
+                      ") until the tracker passes it.", this);
+
+        SpectrumHandoff_NEW.Clear();
+    }
+
+    /// <summary>
+    /// The bake's notable absorbers, with [0] — "the first line" — replaced by the line the
+    /// player's own atom cut in the tutorial, when there was one. It is a real cell of the same
+    /// record, so it is where the data says a line is; it is just the one THEY made.
+    /// </summary>
+    float[] MarksWithTutorialLine()
+    {
+        float z = SpectrumHandoff_NEW.FirstLineZ;
+        float[] src = _data.AbsorberZ;
+        if (float.IsNaN(z) || src.Length == 0 || z > _data.ZQuasar) return src;
+
+        float[] marksZ = (float[])src.Clone();
+        marksZ[0] = z;
+        return marksZ;
+    }
+
+    // ── Trail: real wavelengths, and one line at a time ──────────────────────
+
+    /// <summary>Bar position → trail position (the far-UV margin sits on the ribbon's outer side).</summary>
+    float TrailT(float barT)
+    {
+        return trailRealWavelengths ? trailFarUvShare + (1f - trailFarUvShare) * barT : barT;
+    }
+
+    /// <summary>The bar's absorption, laid out on the trail's axis, with any emphasis cut in.</summary>
+    void BuildTrail()
+    {
+        _trailDirty = false;
+        if (!driveTrail || field == null || _trailAbsorption == null) return;
+
+        int n = _trailAbsorption.Length;
+        float m = trailRealWavelengths ? trailFarUvShare : 0f;
+        for (int c = 0; c < n; c++)
+        {
+            float t = c / (float)(n - 1);
+            if (t < m) { _trailAbsorption[c] = 0f; continue; }   // bluer than the birth tick: never absorbed
+            float b = (t - m) / (1f - m) * (n - 1);
+            int lo = (int)b, hi = lo + 1 < n ? lo + 1 : lo;
+            _trailAbsorption[c] = _absorption[lo] + (_absorption[hi] - _absorption[lo]) * (b - lo);
+        }
+
+        if (!float.IsNaN(_emphT) && _emphK > 0f)
+        {
+            float centre = TrailT(_emphT);
+            float half = emphasisHalfWidth * (1f - m);
+            int c0 = Mathf.Max(0, Mathf.FloorToInt((centre - half) * (n - 1)));
+            int c1 = Mathf.Min(n - 1, Mathf.CeilToInt((centre + half) * (n - 1)));
+            for (int c = c0; c <= c1; c++) _trailAbsorption[c] = Mathf.Max(_trailAbsorption[c], _emphK);
+        }
+
+        field.MarkExternalAbsorptionDirty();
+    }
+
+    void LateUpdate()
+    {
+        if (_active && _trailDirty) BuildTrail();
+    }
+
+    /// <summary>
+    /// Colour the ribbon by real wavelength on the journey bar's axis (fixed: the trail keeps
+    /// the journey axis even during the arrival zoom, as its data does).
+    /// </summary>
+    void ApplyTrailColours()
+    {
+        if (_trailRenderer == null || _data == null) return;
+
+        TrailSpectrumColours_NEW.Ensure(ref _trailTex, ref _trailPixels, 512, "BakedSpectrumSource_Trail");
+
+        Color uvBase = spectrumTrail != null ? spectrumTrail.uvColor : new Color(0.55f, 0f, 1f, 1f);
+        Color irBase = spectrumTrail != null ? spectrumTrail.irColor : new Color(0.8f, 0.02f, 0f, 1f);
+        float irB = spectrumTrail != null ? spectrumTrail.irBrightness : 0.28f;
+        Color uv = uvBase * trailUvAlpha; uv.a = trailUvAlpha;
+        Color ir = irBase * irB; ir.a = irB;
+
+        double lnFar = Math.Log(1000.0), ln0 = Math.Log(_data.LambdaMin), ln1 = Math.Log(_data.LambdaMax);
+        float m = trailFarUvShare;
+        TrailSpectrumColours_NEW.Fill(_trailPixels,
+            t => t < m ? Math.Exp(lnFar + (ln0 - lnFar) * t / m) : Math.Exp(ln0 + (ln1 - ln0) * (t - m) / (1f - m)),
+            uv, ir);
+        _trailTex.SetPixels32(_trailPixels);
+        _trailTex.Apply(false);
+
+        if (_trailBlock == null) _trailBlock = new MaterialPropertyBlock();
+        _trailRenderer.GetPropertyBlock(_trailBlock);
+        _trailBlock.SetTexture("_SpectrumTex", _trailTex);
+        _trailRenderer.SetPropertyBlock(_trailBlock);
+    }
+
+    void OnDestroy()
+    {
+        if (_trailTex != null) Destroy(_trailTex);
     }
 }

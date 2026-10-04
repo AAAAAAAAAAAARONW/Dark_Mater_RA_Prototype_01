@@ -146,7 +146,7 @@ public class TutorialLineIndicator_NEW : MonoBehaviour
         if (flipAcross) across = -across;
 
         float width = trail.widthMultiplier * trail.widthCurve.Evaluate(0f);
-        float u = trailBands.WidthFraction(spectrum.TrackedLinePosition);
+        float u = trailBands.WidthFraction(spectrum.TrackedLineTrailPosition);
 
         point += across * (u - 0.5f) * width;
 

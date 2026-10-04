@@ -22,9 +22,13 @@ using UnityEngine.Events;
 /// duration into an advance, and the two modes are separate enum values so the intent
 /// is visible in the Inspector rather than inferred from a zero.
 ///
-/// Every beat carries UnityEvents for enter and satisfy. VO, VFX, audio cues and the
-/// A3 rumble hook are wired there rather than in code, because the storyboard is going
-/// to move and the person moving it is not going to be in Visual Studio.
+/// Every beat carries UnityEvents for enter and satisfy. VFX, audio cues and the A3
+/// rumble hook are wired there rather than in code, because the storyboard is going to
+/// move and the person moving it is not going to be in Visual Studio.
+///
+/// Voice-over is the exception: each beat carries its clips as plain fields, and
+/// TutorialVoiceOver_NEW plays them. A UnityEvent calling PlayOneShot cannot know a
+/// line is still being said, so the next frame would talk over it.
 /// </summary>
 [DisallowMultipleComponent]
 public abstract class TutorialBeat_NEW : MonoBehaviour
@@ -93,6 +97,22 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
              "is what the Phase 3 frames want.")]
     [SerializeField] TutorialStickGuide_NEW.GuideKind stickGuide =
         TutorialStickGuide_NEW.GuideKind.None;
+
+    [Header("Voice over")]
+    [Tooltip("The narration for this frame, said once when it opens. Assets/VoiceOver/" +
+             "Tutorial/<beatId>_*.mp3 — Build or Update fills it when it is empty.\n\n" +
+             "The beat does not play it. TutorialVoiceOver_NEW does, because it is the one " +
+             "thing that knows what else is being said: a line is never cut off by the " +
+             "next frame opening, and it stops with the pause.\n\n" +
+             "Was on Beat_Cinematic_NEW only. It moved here because the gated frames have " +
+             "narration too — A1 and A2 explain before they ask.")]
+    [SerializeField] AudioClip voiceOverClip;
+
+    [Tooltip("The instruction — what to do to move on. Assets/VoiceOver/Tutorial/N_<beatId>_*" +
+             ".mp3, filled by Build or Update when empty.\n\n" +
+             "Said once the narration has finished, and on a gated frame said again if the " +
+             "player still has not done it — see TutorialVoiceOver_NEW for how often.")]
+    [SerializeField] AudioClip promptClip;
 
     [Header("Advance")]
     [SerializeField] AdvanceMode advanceMode = AdvanceMode.Duration;
@@ -213,6 +233,13 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
     /// through SerializedObject; this is here so the intent is visible from code too.
     /// </summary>
     public bool BuilderOwnsCopy { get { return builderOwnsCopy; } }
+
+    /// <summary>Narration said when this frame opens, or null. Read by TutorialVoiceOver_NEW.</summary>
+    public AudioClip VoiceOverClip { get { return voiceOverClip; } }
+
+    /// <summary>The spoken instruction for this frame, or null. Read by TutorialVoiceOver_NEW.</summary>
+    public AudioClip PromptClip { get { return promptClip; } }
+
     public AdvanceMode Mode { get { return advanceMode; } }
     public float Duration { get { return duration; } }
     public float Elapsed { get { return _elapsed; } }

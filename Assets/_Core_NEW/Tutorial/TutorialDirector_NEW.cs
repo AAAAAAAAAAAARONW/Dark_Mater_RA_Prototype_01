@@ -59,10 +59,10 @@ public class TutorialDirector_NEW : MonoBehaviour
              "the debug overlay is switched off for the exhibition build.")]
     [SerializeField] KeyCode skipBeatKey = KeyCode.F2;
 
-    [Tooltip("Flip the pad layout between Xbox and PlayStation numbering, for the case " +
-             "where the auto-detection guesses wrong. Debug only, and behind " +
-             "DebugView_NEW.Overlay like the skip key — the exhibition pad is the Xbox " +
-             "one and the build should never need this. See TutorialInput_NEW.PadLayout.")]
+    [Tooltip("Step to the next pad profile — Vizlab, PlayStation, Xbox — for the case where " +
+             "the auto-detection guesses wrong. Debug only, and behind DebugView_NEW.Overlay " +
+             "like the skip key: the exhibition build pins the Logitech profile explicitly " +
+             "through InputProfilePinner_NEW and should never need this. See PadProfile_NEW.")]
     [SerializeField] KeyCode padLayoutKey = KeyCode.F3;
 
     [Tooltip("First beat of each phase, in storyboard order. Number key 1 jumps to the " +
@@ -105,6 +105,14 @@ public class TutorialDirector_NEW : MonoBehaviour
 
     /// <summary>No input for idleTimeoutSeconds. Attract listens for this.</summary>
     public event Action OnIdleTimeout;
+
+    /// <summary>
+    /// A debug jump is about to open a beat out of order. Raised before the beats in
+    /// between are replayed, so anything that carries over from one beat to the next —
+    /// a voice-over line still being said — can drop it rather than finish it over a
+    /// frame it does not belong to.
+    /// </summary>
+    public event Action OnJumped;
 
     // ── Public API ───────────────────────────────────────────────────────────
 
@@ -163,6 +171,8 @@ public class TutorialDirector_NEW : MonoBehaviour
             if (!string.Equals(beats[i].BeatId, id, StringComparison.OrdinalIgnoreCase)) continue;
 
             CloseCurrentBeat();
+
+            if (OnJumped != null) OnJumped();
 
             _state = State.Running;
             _index = i;
@@ -487,6 +497,49 @@ public class TutorialDirector_NEW : MonoBehaviour
         return sb.Length == 0 ? "none" : sb.ToString();
     }
 
+    /// <summary>
+    /// What is plugged in, and what the build is doing about it.
+    ///
+    /// WHY THIS ROW EXISTS. The exhibition pad is a Logitech at Carnegie Observatories
+    /// that nobody here can hold, and three separate things about it cannot be settled
+    /// from a desk: which model it is, whether XInput can see it (so whether it can
+    /// rumble), and whether detection recognises its name at all. All three are answers
+    /// the build can read off the hardware the moment it is plugged in — so the build
+    /// asks, rather than anyone guessing in advance.
+    ///
+    /// Three facts, deliberately side by side:
+    ///
+    ///   PAD      the model string Windows reports. This is the ONLY identification the
+    ///            legacy Input Manager offers, and what every profile is matched against.
+    ///   profile  which mapping is actually driving, and whether it was pinned or guessed.
+    ///   xinput   whether rumble can reach it. For the Logitech this reads its X/D switch:
+    ///            X mode is an XInput device and rumbles, D mode is not and cannot.
+    ///
+    /// A guessed profile that disagrees with the name is called out, because that is the
+    /// scrambled-controls failure and it is otherwise invisible. A PINNED profile that
+    /// disagrees is left alone: pinning is a deliberate override, and the exhibition build
+    /// pins on purpose.
+    /// </summary>
+    string PadIdentity()
+    {
+        string line = "PAD  " + InputScheme_NEW.ConnectedPadNames() +
+                      "   profile " + InputScheme_NEW.Pad.displayName +
+                      (InputScheme_NEW.IsPinned ? " (pinned)" : " (detected)") +
+                      "   xinput " + TutorialRumble_NEW.XInputSummary();
+
+        if (!InputScheme_NEW.IsPinned)
+        {
+            PadProfile_NEW guess = InputScheme_NEW.Guess();
+
+            if (guess == null)
+                line += "   — name matches no profile, using the fallback";
+            else if (guess != InputScheme_NEW.Pad)
+                line += "   — name says " + guess.id + ", press F3";
+        }
+
+        return line;
+    }
+
     bool HasBeat(string id)
     {
         if (string.IsNullOrEmpty(id)) return false;
@@ -523,5 +576,7 @@ public class TutorialDirector_NEW : MonoBehaviour
         GUI.Label(DebugOverlayRows_NEW.Row(DebugOverlayRows_NEW.Buttons),
                   "PAD BUTTONS  " + PressedButtons() +
                   "   (press one to see what the pad sends — see §10 item 1)");
+
+        GUI.Label(DebugOverlayRows_NEW.Row(DebugOverlayRows_NEW.Pad), PadIdentity());
     }
 }

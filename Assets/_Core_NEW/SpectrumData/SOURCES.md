@@ -35,17 +35,18 @@ Every number the bake uses, where it comes from, and how far to trust it. The va
 
 **If the tracker's starting distance changes, change this setting and re-bake.** Otherwise the spectrum and the journey disagree about where the light is.
 
-## Quasar emission — `Tables/emission_lines.csv`, `bake_settings.csv`
+## Quasar emission — `Tables/quasar_composite.csv`, `bake_settings.csv`
 
 | Quantity | Value | Source | Confidence |
 |---|---|---|---|
-| Continuum slope above 912 Å | F_λ ∝ λ^−1.70 | Selsing et al. 2016, A&A 585, A87 (X-shooter composite) | Published |
-| Continuum slope below 912 Å | F_λ ∝ λ^−0.3 (α_ν = −1.7) | Lusso et al. 2015, MNRAS 449, 4204 | Published |
-| Emission-line equivalent widths | see CSV | Vanden Berk et al. 2001, AJ 122, 549, Table 2 | **Approx — verify** |
-| Emission-line widths | 3500–5000 km/s (broad), 1000 (narrow [O III]) | typical values | Model choice |
+| **Emitted spectrum, 1000–11,350 Å rest** | measured composite, 25,875 points | **Selsing et al. 2016, A&A 585, A87**, "An X-shooter composite of bright 1 < z < 2 quasars from UV to infrared". Downloaded from CDS: https://cdsarc.cds.unistra.fr/ftp/cats/J/A+A/585/A87/ (`spectrum.dat`; raw copy and ReadMe in `Tables/Raw~/`) | Published, measured |
+| Below 1000 Å rest | held at the mean of 1000–1020 Å | model choice: the forest dominates there anyway | Model choice |
+| Above 11,350 Å rest | F_λ ∝ λ^−1.70 from the last point | Selsing et al. 2016 | Published |
+| Continuum slope below 912 Å (physics only) | F_λ ∝ λ^−0.3 (α_ν = −1.7) | Lusso et al. 2015, MNRAS 449, 4204 | Published |
 
-**Upgrade path:** replace the Gaussian template with the actual Selsing et al. (2016) composite spectrum (public, 1000–11000 Å rest frame).
+**Forest correction.** The composite is made of real quasars at z ≈ 1–2, so its blue side (< 1216 Å) already contains their averaged forest. The baker divides it out using `mean_flux.csv` at `composite_forest_z` (1.5), so the forest is not counted twice. Check: final forest level / red continuum = 0.646 (Q1422 reference figure ≈ 0.7).
 
+`template_source = 0` in `bake_settings.csv` falls back to the old Gaussian template in `emission_lines.csv` (line strengths **recalled, not looked up**; kept only as a fallback).
 ## Intergalactic absorption
 
 ### Mean transmission — `Tables/mean_flux.csv`

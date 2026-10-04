@@ -448,6 +448,13 @@ public static class TutorialSceneBuilder_NEW
         // piece is put back from.
         AddCall(attract, "onReset", outro, "ResetForAttract");
 
+        // ── Voice over ───────────────────────────────────────────────────────
+        // After the beats, because it fills their clip slots; after the attract, because
+        // a line still being said must not survive into the next visitor's title card.
+        TutorialVoiceOver_NEW voiceOver = BuildVoiceOver(root.transform, director);
+        AddCall(attract, "onReset", voiceOver, "ResetForAttract");
+        WireVoiceOverClips(beats.transform, voiceOver);
+
         TutorialFadeIn_NEW fade = AddIfMissing<TutorialFadeIn_NEW>(blackout);
         Wire(fade)
             .Ref("director", director)
@@ -1331,14 +1338,14 @@ public static class TutorialSceneBuilder_NEW
     /// </summary>
     static void BuildPhase3(Transform parent, Phase3Rig rig)
     {
-        Beat_Cinematic_NEW d1 = Cinematic(parent, "D1", 4f,
+        Beat_Cinematic_NEW d1 = Cinematic(parent, "D1", 6.5f,
             "UV and IR. The trail widens from the colours the eye can see to the whole " +
             "spectrum the light carries, with ultraviolet and infrared at its edges.");
 
         Beat_Cinematic_NEW d2 = Cinematic(parent, "D2", 5f,
             "The visible band flashes: this is the part of the light human eyes can see.");
 
-        Beat_Cinematic_NEW d3 = Cinematic(parent, "D3", 5f,
+        Beat_Cinematic_NEW d3 = Cinematic(parent, "D3", 6.2f,
             "The spectrum. The bar appears, empty, with UV, visible and IR marked on it.");
 
         Beat_Cinematic_NEW d4 = Cinematic(parent, "D4", 10f,
@@ -1359,7 +1366,7 @@ public static class TutorialSceneBuilder_NEW
             "by the time the next arrives, so each atom cuts its own line and a row of " +
             "them builds up. This is a forest forming.");
 
-        Beat_Cinematic_NEW d7 = Cinematic(parent, "D7", 8f,
+        Beat_Cinematic_NEW d7 = Cinematic(parent, "D7", 9.6f,
             "Redshift, named. The curve and the bands hold still — they are the wavelength " +
             "scale, and 500 nm is green whatever the light has been through. What the " +
             "player has been watching slide is the marks: every line the light is carrying, " +
@@ -1504,11 +1511,11 @@ public static class TutorialSceneBuilder_NEW
     static void RepairPhase3Durations(TutorialBeat_NEW d1, TutorialBeat_NEW d2, TutorialBeat_NEW d3)
     {
         RepairSerialized(d1, "duration", p => Mathf.Approximately(p.floatValue, 10f),
-                         p => p.floatValue = 4f, "was the old approach frame's 10s; now UV/IR, 4s.");
+                         p => p.floatValue = 6.5f, "was the old approach frame's 10s; now UV/IR, 6.5s.");
         RepairSerialized(d2, "duration", p => Mathf.Approximately(p.floatValue, 8f),
                          p => p.floatValue = 5f, "was the old contact frame's 8s; now the visible flash, 5s.");
         RepairSerialized(d3, "duration", p => Mathf.Approximately(p.floatValue, 8f),
-                         p => p.floatValue = 5f, "was the old drift frame's 8s; now the spectrum, 5s.");
+                         p => p.floatValue = 6.2f, "was the old drift frame's 8s; now the spectrum, 6.2s.");
     }
 
     /// <summary>
@@ -1822,6 +1829,12 @@ public static class TutorialSceneBuilder_NEW
         TMP_Text resumeText = AddText(resume, "B  TO  RESUME", 30, TextAlignmentOptions.Center);
         if (IsFresh(resumeText)) resumeText.color = new Color(1f, 1f, 1f, 0.8f);
 
+        // The drawn PRESS B · RESUME under the title. The card switches the words off
+        // wherever it finds a picture, same as the attract card.
+        GameObject resumeArt = AddArt(card, "ResumeArt", new Vector2(0f, -70f),
+                                      TutorialWorldAssets_NEW.HintSprite("TutorialHint_Resume"),
+                                      ResumeArtHeight);
+
         // Every run, not only when fresh: canvas elements the builder adds later in the
         // same build (the zoom gauge, anything new) would otherwise land on top of it,
         // and a pause card under the HUD cannot do its one job.
@@ -1833,10 +1846,22 @@ public static class TutorialSceneBuilder_NEW
             .Ref("pause", pause)
             .Ref("group", group)
             .Ref("resumeLabel", resumeText)
+            .Ref("resumeImage", resumeArt.GetComponent<Image>())
             .Apply();
 
         return component;
     }
+
+    /// <summary>Height of the drawn PRESS B · RESUME plate on the pause card.</summary>
+    const float ResumeArtHeight = 110f;
+
+    /// <summary>
+    /// The drawn handover title for the ending. Lives with the other ArtV2 titles rather
+    /// than in the tutorial's Hints folder, so it is loaded by path.
+    /// </summary>
+    const string OutroTitleArtPath = "Assets/UI/ArtV2/Title_EnteringCosmicWeb.png";
+
+    const float OutroTitleArtHeight = 120f;
 
     /// <summary>
     /// The ending: a full-screen black with the handover line on it, and the component
@@ -1878,6 +1903,19 @@ public static class TutorialSceneBuilder_NEW
 
         if (IsFresh(title)) title.color = new Color(1f, 1f, 1f, 0f);
 
+        Sprite titleSprite = AssetDatabase.LoadAssetAtPath<Sprite>(OutroTitleArtPath);
+
+        if (titleSprite == null)
+            Debug.LogWarning("[TutorialSceneBuilder_NEW] No outro title art at " + OutroTitleArtPath +
+                             ". The ending keeps its words.");
+
+        GameObject titleArt = AddArt(card, "TitleArt", Vector2.zero, titleSprite, OutroTitleArtHeight);
+
+        // Clear until the outro fades it up, like the words. Without this the drawn title
+        // would sit over the whole HUD in the Scene and Game views at edit time.
+        Image titleImage = titleArt.GetComponent<Image>();
+        if (IsFresh(titleImage)) titleImage.color = new Color(1f, 1f, 1f, 0f);
+
         // Every run, not only when fresh: anything the builder adds to the canvas later
         // would otherwise land on top of the one thing that has to be the last frame.
         card.transform.SetAsLastSibling();
@@ -1894,10 +1932,141 @@ public static class TutorialSceneBuilder_NEW
             .Ref("travel", travel)
             .Ref("blackout", black)
             .Ref("title", title)
+            .Ref("titleImage", titleImage)
             .Copy("titleText", "WELCOME  TO  THE  JOURNEY")
             .Apply();
 
         return outro;
+    }
+
+    /// <summary>Where the tutorial's lines live. One folder, named by beat id — see WireVoiceOverClips.</summary>
+    const string VoiceOverFolder = "Assets/VoiceOver/Tutorial";
+
+    /// <summary>
+    /// The one AudioSource every tutorial line is said on, and the component that decides
+    /// when. On the rig root, beside the rumble and the pause.
+    /// </summary>
+    static TutorialVoiceOver_NEW BuildVoiceOver(Transform root, TutorialDirector_NEW director)
+    {
+        GameObject go = FindOrCreate("VoiceOver", root, Vector3.zero);
+
+        AudioSource source = AddIfMissing<AudioSource>(go);
+
+        if (IsFresh(source))
+        {
+            // 2D. A narrator is not somewhere in the world, and a 3D source on the rig
+            // root would pan as the player turns their head.
+            source.spatialBlend = 0f;
+            source.playOnAwake = false;
+            source.loop = false;
+            source.priority = 0;
+        }
+
+        TutorialVoiceOver_NEW voiceOver = AddIfMissing<TutorialVoiceOver_NEW>(go);
+
+        Wire(voiceOver)
+            .Ref("director", director)
+            .Ref("source", source)
+            .Apply();
+
+        return voiceOver;
+    }
+
+    /// <summary>
+    /// Put every line in VoiceOverFolder on the beat it belongs to, by file name:
+    ///
+    ///   &lt;id&gt;_Anything.mp3     narration for that beat     A1_LookAround → A1
+    ///   N_&lt;id&gt;_Anything.mp3   its spoken instruction      N_B3_TurnAround → B3
+    ///   Ending_PullBack.mp3      the pull-back, on TutorialVoiceOver_NEW
+    ///   Closing.mp3              the line after it
+    ///
+    /// The underscore after the id is what keeps D1_ from claiming D10's lines.
+    ///
+    /// Fill-only, like every other reference here: a clip somebody swapped in by hand
+    /// stays. To take a line off a beat for good, rename or move the file — clearing the
+    /// slot alone is a gap the next run fills.
+    ///
+    /// Then two reports. Lines that matched no beat, which today is Phase 4's (E1, N_E2,
+    /// N_E3) because Phase 4 is not built — so they are listed rather than lost. And
+    /// timed beats that end before their own line does: the line is not cut, the next
+    /// frame's narration waits for it, and the VO drifts behind the picture. The
+    /// duration is yours, so it is reported and not changed.
+    /// </summary>
+    static void WireVoiceOverClips(Transform beats, TutorialVoiceOver_NEW voiceOver)
+    {
+        string[] guids = AssetDatabase.FindAssets("t:AudioClip", new[] { VoiceOverFolder });
+
+        if (guids.Length == 0)
+        {
+            Debug.LogWarning("[TutorialSceneBuilder_NEW] No audio in " + VoiceOverFolder +
+                             ". The tutorial runs silent.");
+            return;
+        }
+
+        TutorialBeat_NEW[] all = beats.GetComponentsInChildren<TutorialBeat_NEW>(true);
+        System.Collections.Generic.List<string> unmatched = new System.Collections.Generic.List<string>();
+
+        for (int i = 0; i < guids.Length; i++)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guids[i]);
+            string name = System.IO.Path.GetFileNameWithoutExtension(path);
+            AudioClip clip = AssetDatabase.LoadAssetAtPath<AudioClip>(path);
+            if (clip == null) continue;
+
+            if (name == "Ending_PullBack")
+            {
+                Wire(voiceOver).Ref("endingClip", clip).Apply();
+                continue;
+            }
+
+            if (name == "Closing")
+            {
+                Wire(voiceOver).Ref("closingClip", clip).Apply();
+                continue;
+            }
+
+            bool isPrompt = name.StartsWith("N_");
+            string rest = isPrompt ? name.Substring(2) : name;
+
+            TutorialBeat_NEW owner = null;
+            for (int b = 0; b < all.Length; b++)
+            {
+                string id = all[b].BeatId;
+                if (!string.IsNullOrEmpty(id) && rest.StartsWith(id + "_"))
+                {
+                    owner = all[b];
+                    break;
+                }
+            }
+
+            if (owner == null)
+            {
+                unmatched.Add(name);
+                continue;
+            }
+
+            Wire(owner).Ref(isPrompt ? "promptClip" : "voiceOverClip", clip).Apply();
+        }
+
+        if (unmatched.Count > 0)
+            Debug.Log("[TutorialSceneBuilder_NEW] Voice-over with no beat to go on yet: " +
+                      string.Join(", ", unmatched.ToArray()) + ". They will be picked up when " +
+                      "a beat with that id exists.");
+
+        for (int b = 0; b < all.Length; b++)
+        {
+            TutorialBeat_NEW beat = all[b];
+            AudioClip line = beat.VoiceOverClip;
+
+            if (line == null || beat.Mode != TutorialBeat_NEW.AdvanceMode.Duration) continue;
+            if (line.length <= beat.Duration) continue;
+
+            Debug.LogWarning("[TutorialSceneBuilder_NEW] " + beat.BeatId + " runs " +
+                             beat.Duration.ToString("F1") + "s but its line '" + line.name +
+                             "' is " + line.length.ToString("F1") + "s. The line is not cut; " +
+                             "the next frame's narration waits for it. Lengthen " + beat.BeatId +
+                             "'s duration if the two should stay together.", beat);
+        }
     }
 
     /// <summary>
@@ -3966,7 +4135,8 @@ public static class TutorialSceneBuilder_NEW
         new HintArtRow("RIGHT STICK  ·  LOOK UP",     "TutorialHint_LookUp",     false),
         new HintArtRow("RIGHT STICK  ·  TURN AROUND", "TutorialHint_TurnAround", false),
         new HintArtRow("A  TO  RECENTRE",             "TutorialHint_Recenter",   true),
-        new HintArtRow("A  TO  EMIT",                 "TutorialHint_Emit",       true)
+        new HintArtRow("A  TO  EMIT",                 "TutorialHint_Emit",       true),
+        new HintArtRow("B  TO  PAUSE",                "TutorialHint_Pause",      true)
     };
 
     /// <summary>

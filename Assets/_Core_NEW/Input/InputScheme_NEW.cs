@@ -141,9 +141,21 @@ public static class InputScheme_NEW
 
         if (_pinned) return;
 
-        _pad = PadProfile_NEW.Fallback;
+        _pad = Guess() ?? PadProfile_NEW.Fallback;
+    }
 
-        string[] names = Input.GetJoystickNames();
+    /// <summary>
+    /// Which profile the connected pad's name points at, or null if no name matches.
+    ///
+    /// Separate from <see cref="Detect"/>, and changing nothing, so a readout can say what
+    /// the hardware looks like NEXT TO what the profile in force actually is. On an
+    /// exhibition build those two are allowed to differ - the profile is pinned on purpose -
+    /// but a difference nobody chose is the failure this file exists to catch, and it can
+    /// only be seen if both halves are on screen.
+    /// </summary>
+    public static PadProfile_NEW Guess()
+    {
+        string[] names = PadNames();
 
         for (int p = 0; p < PadProfile_NEW.All.Length; p++)
         {
@@ -157,14 +169,78 @@ public static class InputScheme_NEW
 
                 for (int f = 0; f < candidate.detectNameFragments.Length; f++)
                 {
-                    if (name.Contains(candidate.detectNameFragments[f]))
-                    {
-                        _pad = candidate;
-                        return;
-                    }
+                    if (name.Contains(candidate.detectNameFragments[f])) return candidate;
                 }
             }
         }
+
+        return null;
+    }
+
+    // -- What is plugged in --------------------------------------------------
+
+    static string[] _names;
+    static string _namesLine;
+    static float _namesReadAt = -99f;
+
+    /// <summary>
+    /// Seconds a read of the pad names is reused for. Long enough that a per-frame readout
+    /// costs nothing, short enough that plugging a pad in shows up while you are still
+    /// standing there.
+    /// </summary>
+    const float NamesCacheSeconds = 2f;
+
+    /// <summary>
+    /// The connected pads' reported names.
+    ///
+    /// Cached because GetJoystickNames ALLOCATES AN ARRAY OF STRINGS on every call, and
+    /// its callers are a debug readout drawn every frame and a profile guess made beside
+    /// it. Two allocations per frame for an answer that changes when somebody walks over
+    /// with a controller is the kind of cost that never shows up in a profile and never
+    /// goes away either.
+    /// </summary>
+    static string[] PadNames()
+    {
+        float now = Time.unscaledTime;
+
+        if (_names != null && now - _namesReadAt < NamesCacheSeconds) return _names;
+
+        _namesReadAt = now;
+        _names = Input.GetJoystickNames();
+        _namesLine = null;
+
+        return _names;
+    }
+
+    /// <summary>
+    /// The connected pads' reported names, as one line - the model string Windows gives
+    /// Unity. This is the ONLY identification the legacy Input Manager offers, and the
+    /// thing every profile is matched against, so it is what a readout has to show when
+    /// the question is "which pad is this".
+    ///
+    /// Empty slots are dropped: Unity pads the array out to its maximum length and the
+    /// holes say nothing.
+    /// </summary>
+    public static string ConnectedPadNames()
+    {
+        string[] names = PadNames();
+
+        if (_namesLine != null) return _namesLine;
+
+        string line = "";
+        int found = 0;
+
+        for (int i = 0; i < names.Length; i++)
+        {
+            if (string.IsNullOrEmpty(names[i])) continue;
+
+            if (found > 0) line += "  |  ";
+            line += names[i];
+            found++;
+        }
+
+        _namesLine = found == 0 ? "none connected" : line;
+        return _namesLine;
     }
 
     /// <summary>

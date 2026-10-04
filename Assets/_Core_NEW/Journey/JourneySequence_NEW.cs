@@ -122,6 +122,13 @@ public class JourneySequence_NEW : MonoBehaviour
     /// <summary>True while the sequence is playing, including its start delay.</summary>
     public bool IsRunning { get { return _running; } }
 
+    /// <summary>Fired as each step begins, after it is current and before its onEnter. Lets other
+    /// components follow the sequence without being wired into every step.</summary>
+    public event Action<Step> OnStepEntered;
+
+    /// <summary>Fired once when the last step ends (not on Stop()).</summary>
+    public event Action OnFinished;
+
     /// <summary>
     /// Start from the top. Safe to call while running — it restarts rather than stacking,
     /// because two copies of one sequence driving the same objects is not a state anybody
@@ -249,6 +256,7 @@ public class JourneySequence_NEW : MonoBehaviour
         {
             if (debugLog) Debug.Log("[JourneySequence_NEW] Finished.", this);
             Stop();
+            if (OnFinished != null) OnFinished();
             return;
         }
 
@@ -260,6 +268,8 @@ public class JourneySequence_NEW : MonoBehaviour
         if (debugLog)
             Debug.Log("[JourneySequence_NEW] " + step.id + " (" +
                       step.duration.ToString("0.0") + "s): " + step.description, this);
+
+        if (OnStepEntered != null) OnStepEntered(step);
 
         // Invoked last, so anything it triggers sees the step already current.
         if (step.onEnter != null) step.onEnter.Invoke();

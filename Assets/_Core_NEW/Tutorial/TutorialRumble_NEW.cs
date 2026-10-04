@@ -13,7 +13,22 @@ using UnityEngine;
 /// WHAT IT CANNOT DO. XInput is Xbox-family only. A DualSense or DualShock is not an XInput
 /// device, and nothing sent through here reaches it — which matters on this project,
 /// because the pad on the development desk is usually a DualSense (see
-/// TutorialInput_NEW.PadLayout). The exhibition pad is the Xbox one.
+/// TutorialInput_NEW.PadLayout). DS4Windows or Steam Input presents one as an XInput pad,
+/// and then this works unchanged; that is a desk convenience, not something to install on
+/// site.
+///
+/// THE EXHIBITION PAD IS THE LOGITECH (PadProfile_NEW.Vizlab), and it does have motors.
+/// Whether they can be reached from here depends on the switch on the back of the pad:
+///
+///   X mode (XInput)       reports as an Xbox pad — this rumbles it, and the AXES are
+///                         Xbox-numbered, so the Vizlab profile's axis mapping is wrong
+///   D mode (DirectInput)  the mapping the Vizlab profile was taken from — but it is not
+///                         an XInput device in this mode, so nothing here reaches it
+///
+/// So axes and rumble currently want opposite switch positions. UNRESOLVED, and it has to
+/// be settled on the real pad: see §12. The likely answer is X mode with the Xbox profile
+/// pinned, which gets both, but the Logitech's letters sit where Xbox's do in that mode
+/// and that needs reading off the hardware, not guessing.
 ///
 /// SO IT SAYS WHY WHEN IT DOES NOTHING. A haptic that silently fails is indistinguishable
 /// from one that was never wired, and the first time this was tried the only report was
@@ -69,12 +84,66 @@ public class TutorialRumble_NEW : MonoBehaviour
     float _duration;
     float _elapsed = -1f;
 
-    bool _unavailable;
+    /// <summary>
+    /// No XInput on this machine. Static because it is a fact about the machine — the DLL
+    /// is there or it is not — and because XInputSummary answers for the build, not for
+    /// one component.
+    /// </summary>
+    static bool _unavailable;
+
     bool _motorsOn;
     bool _warnedNoPad;
 
     /// <summary>Bit per XInput slot with a pad in it, as of the last check.</summary>
     int _connected;
+
+    /// <summary>
+    /// The last probe's answer, readable without a reference to the component: -1 means
+    /// nothing has probed yet, 0 means XInput sees no pad, otherwise a bit per slot.
+    ///
+    /// Static because the question is about the machine, not about this object, and
+    /// because the pad readout asking it is drawn by the director - which must not have to
+    /// find the Rumble object, or create one, to say what is plugged in. Probing is slow
+    /// on empty slots (see Pulse), so nothing re-probes to answer: readers get the
+    /// background refresh's last answer or the honest "not probed yet".
+    /// </summary>
+    public static int LastXInputSlots { get { return _xinputSlots; } }
+
+    static int _xinputSlots = -1;
+
+    /// <summary>
+    /// XInput's view of what is plugged in, for a debug readout. One short phrase.
+    ///
+    /// THE QUESTION THIS ANSWERS is the Logitech's X/D switch. In X mode the pad is an
+    /// XInput device and can be rumbled; in D mode it is not, and nothing here reaches it.
+    /// Both modes look identical in the hand and report a similar name, so "does XInput
+    /// see it" is the only way to tell from inside the build - and it is the same check
+    /// that says whether a DualSense is being presented through DS4Windows.
+    /// </summary>
+    public static string XInputSummary()
+    {
+        // Probed here only when nothing has probed yet, which is the case in a scene with
+        // no Rumble object — the journey's, where the F4 page still has to answer. Where
+        // there is one it refreshes in the background every couple of seconds, and this
+        // reads that answer rather than paying for a fresh query per frame.
+        if (!_unavailable && _xinputSlots < 0) ConnectedSlots();
+
+        if (_unavailable) return "no XInput on this machine";
+        if (_xinputSlots < 0) return "not probed yet";
+        if (_xinputSlots == 0) return "sees no pad";
+
+        return "sees " + SlotList(_xinputSlots);
+    }
+
+    /// <summary>
+    /// Re-ask XInput now, rather than waiting for the background refresh. For the moment
+    /// after a pad is plugged in, or a mode switch flicked, with a readout open.
+    /// </summary>
+    public static void RefreshXInput()
+    {
+        if (_unavailable) return;
+        ConnectedSlots();
+    }
 
     string _lastPulse = "none yet";
 
@@ -333,8 +402,10 @@ public class TutorialRumble_NEW : MonoBehaviour
                          "connected, so nothing was sent. Joysticks Unity can see: " + seen + ". " +
                          "An Xbox pad rumbles through XInput; a PlayStation pad (DualSense, " +
                          "DualShock — Windows calls it \"Wireless Controller\") is not an XInput " +
-                         "device and cannot be rumbled from here. The exhibition pad is the Xbox " +
-                         "one. Press F4 with the overlay on to test again.", this);
+                         "device and cannot be rumbled from here — run DS4Windows or Steam Input " +
+                         "to present it as one. The exhibition pad is the Logitech, which has " +
+                         "motors but only reaches XInput with the switch on its back in X mode. " +
+                         "Press F4 with the overlay on to test again.", this);
     }
 
     static string SlotList(int mask)
@@ -367,7 +438,7 @@ public class TutorialRumble_NEW : MonoBehaviour
 
     // ── XInput ───────────────────────────────────────────────────────────────
 
-    int ConnectedSlots()
+    static int ConnectedSlots()
     {
 #if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
         if (_unavailable) return 0;
@@ -386,13 +457,16 @@ public class TutorialRumble_NEW : MonoBehaviour
             if (result == 0) mask |= 1 << (int)slot;
         }
 
+        // Published for the pad readout, which must not probe for itself.
+        _xinputSlots = mask;
         return mask;
 #else
         if (!_unavailable)
         {
             _unavailable = true;
+            _xinputSlots = 0;
             Debug.Log("[TutorialRumble_NEW] Rumble is Windows-only (XInput). Pulses will be " +
-                      "ignored on this platform.", this);
+                      "ignored on this platform.");
         }
         return 0;
 #endif
@@ -435,7 +509,7 @@ public class TutorialRumble_NEW : MonoBehaviour
 
     static int _dll;   // 0 untried, 1 = xinput1_4, 2 = xinput9_1_0
 
-    bool SetState(uint slot, ref XInputVibration v)
+    static bool SetState(uint slot, ref XInputVibration v)
     {
         if (_dll != 2)
         {
@@ -452,7 +526,7 @@ public class TutorialRumble_NEW : MonoBehaviour
         return false;
     }
 
-    bool GetState(uint slot, out XInputState state, out uint result)
+    static bool GetState(uint slot, out XInputState state, out uint result)
     {
         state = default(XInputState);
         result = 1167;
@@ -472,16 +546,21 @@ public class TutorialRumble_NEW : MonoBehaviour
         return false;
     }
 
-    void MarkUnavailable()
+    /// <summary>
+    /// Static, like the interop it guards: whether the DLL is on this machine is a fact
+    /// about the machine, and the probe that discovers it runs whether or not a Rumble
+    /// object exists in the scene. No motor can be running when no call ever reached one,
+    /// so there is nothing per-component to tidy up here.
+    /// </summary>
+    static void MarkUnavailable()
     {
         if (_unavailable) return;
 
         _unavailable = true;
-        _motorsOn = false;
-        _lastPulse = "no XInput DLL";
+        _xinputSlots = 0;
 
         Debug.LogWarning("[TutorialRumble_NEW] No XInput DLL on this machine, so the pad " +
-                         "will not rumble. Everything else is unaffected.", this);
+                         "will not rumble. Everything else is unaffected.");
     }
 #endif
 }

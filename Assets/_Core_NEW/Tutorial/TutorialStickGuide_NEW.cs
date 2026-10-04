@@ -285,6 +285,7 @@ public class TutorialStickGuide_NEW : MonoBehaviour
 
     /// <summary>Where the knob was last drawn, so a direction change eases rather than jumps.</summary>
     Vector2 _shownDirection = Vector2.right;
+    float _directionVelocity;
 
     // ── Public API ───────────────────────────────────────────────────────────
 
@@ -329,6 +330,7 @@ public class TutorialStickGuide_NEW : MonoBehaviour
         _alpha = 0f;
         _shownDemand = 0f;
         _demandVelocity = 0f;
+        _directionVelocity = 0f;
 
         Apply();
     }
@@ -402,7 +404,25 @@ public class TutorialStickGuide_NEW : MonoBehaviour
         // A target almost dead ahead gives a direction of nearly nothing. Keeping the
         // last one rather than collapsing to the centre stops the knob flickering as the
         // player arrives — which is the exact moment they are looking at it.
-        if (dir.sqrMagnitude > 0.0001f) _shownDirection = dir.normalized;
+        if (_gesture.motion != StickMotion.Track)
+        {
+            if (dir.sqrMagnitude > 0.0001f) _shownDirection = dir.normalized;
+        }
+        else if (dir.sqrMagnitude > 0.0001f)
+        {
+            // Tracked directions come off live bearings and can swing quickly; ease the
+            // angle on the same lag as the demand so the knob rolls round the ring
+            // instead of cutting across it. The canned motions keep their fixed axis.
+            float shown = Mathf.Atan2(_shownDirection.y, _shownDirection.x) * Mathf.Rad2Deg;
+            float wanted = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+
+            float angle = trackSmoothing > 0f
+                ? Mathf.SmoothDampAngle(shown, wanted, ref _directionVelocity, trackSmoothing,
+                                        Mathf.Infinity, Time.unscaledDeltaTime)
+                : wanted;
+
+            _shownDirection = new Vector2(Mathf.Cos(angle * Mathf.Deg2Rad), Mathf.Sin(angle * Mathf.Deg2Rad));
+        }
 
         if (_gesture.motion == StickMotion.Track)
         {

@@ -112,6 +112,11 @@ public class TutorialOutro_NEW : MonoBehaviour
     [Tooltip("Let the builder keep this wording in step. Untick to write your own.")]
     [SerializeField] bool builderOwnsCopy = true;
 
+    [Tooltip("Drawn title, in place of the words above. Assigning one switches the text " +
+             "off and fades the picture instead; leaving it empty is the ending exactly " +
+             "as it was.")]
+    [SerializeField] Image titleImage;
+
     [Tooltip("Seconds after the screen is black before the words arrive. A beat of " +
              "nothing is what makes them read as a title rather than as a caption on the " +
              "frame that just ended.")]
@@ -211,7 +216,7 @@ public class TutorialOutro_NEW : MonoBehaviour
         if (zoom != null) zoom.enabled = true;
 
         if (blackout != null) SetAlpha(blackout, 0f);
-        if (title != null) SetAlpha(title, 0f);
+        SetAlpha(TitleGraphic, 0f);
 
         // The field of view is NOT put back here, deliberately. TutorialZoom_NEW writes
         // it every frame from its own state, and the attract has already called its
@@ -232,6 +237,9 @@ public class TutorialOutro_NEW : MonoBehaviour
         if (travel == null) travel = FindObjectOfType<TutorialTravel_NEW>();
 
         if (title != null) title.text = titleText;
+
+        // Art wins where there is art; the words stay in the scene as the fallback.
+        if (HasTitleArt && title != null) title.gameObject.SetActive(false);
 
         ResetForAttract();
     }
@@ -306,7 +314,7 @@ public class TutorialOutro_NEW : MonoBehaviour
             ? Mathf.Clamp01((sinceBlack - titleDelaySeconds) / titleFadeSeconds)
             : (sinceBlack >= titleDelaySeconds ? 1f : 0f);
 
-        if (title != null) SetAlpha(title, titleAlpha);
+        SetAlpha(TitleGraphic, titleAlpha);
 
         if (titleAlpha < 1f) return;
 
@@ -364,6 +372,11 @@ public class TutorialOutro_NEW : MonoBehaviour
         // is a better guess than giving up.
         return viewCamera != null ? viewCamera.transform.parent : null;
     }
+
+    bool HasTitleArt { get { return titleImage != null && titleImage.sprite != null; } }
+
+    /// <summary>Whichever of the picture and the words is the title this run.</summary>
+    Graphic TitleGraphic { get { return HasTitleArt ? (Graphic)titleImage : title; } }
 
     static void SetAlpha(Graphic graphic, float alpha)
     {
