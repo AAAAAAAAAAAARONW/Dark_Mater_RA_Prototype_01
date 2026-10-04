@@ -3965,7 +3965,7 @@ public static class TutorialSceneBuilder_NEW
         new HintArtRow("RIGHT STICK  ·  LOOK RIGHT",  "TutorialHint_LookRight",  false),
         new HintArtRow("RIGHT STICK  ·  LOOK UP",     "TutorialHint_LookUp",     false),
         new HintArtRow("RIGHT STICK  ·  TURN AROUND", "TutorialHint_TurnAround", false),
-        new HintArtRow("A  TO  RECENTRE",             "TutorialHint_Recentre",   true),
+        new HintArtRow("A  TO  RECENTRE",             "TutorialHint_Recenter",   true),
         new HintArtRow("A  TO  EMIT",                 "TutorialHint_Emit",       true)
     };
 
