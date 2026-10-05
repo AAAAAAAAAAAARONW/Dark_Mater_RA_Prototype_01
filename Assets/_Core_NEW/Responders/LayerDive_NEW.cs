@@ -227,8 +227,13 @@ public class LayerDive_NEW : MonoBehaviour
 
         [Header("The world being entered")]
         [Tooltip("Scale the new world starts at around where it appears, settling to 1. " +
-                 "1 = fade in only.")]
+                 "1 = fade in only. Below 1 the new world grows out of the light — the planets " +
+                 "of a solar system moving out to their orbits round its star.")]
         [Min(0.01f)] public float enterScale = 1f;
+
+        [Tooltip("Optional. Where the light settles and the new world appears from, instead of " +
+                 "the middle of the new world — its star, for a solar system.")]
+        public Transform emergeOverride;
 
         [Header("Light")]
         public Color lightColor = new Color(1f, 0.88f, 0.62f, 1f);
@@ -690,7 +695,9 @@ public class LayerDive_NEW : MonoBehaviour
         _focus = DiveFocus();
         _crowdAim = CrowdAim(dive, _focus, _gatesByLayer.TryGetValue(_toId, out LayerGate_NEW gate) ? gate : null);
         // Coming out there is no light to settle anywhere; the next world is all round.
-        _emergeFocus = dive.direction == Direction.Out ? _focus : NextWorldCentre();
+        _emergeFocus = dive.direction == Direction.Out ? _focus
+                     : dive.emergeOverride != null ? dive.emergeOverride.position
+                     : NextWorldCentre();
         _leave = Capture(worlds != null ? worlds.GroupRoot(_fromId) : null);
         _enter = Capture(worlds != null ? worlds.GroupRoot(_toId) : null);
 
