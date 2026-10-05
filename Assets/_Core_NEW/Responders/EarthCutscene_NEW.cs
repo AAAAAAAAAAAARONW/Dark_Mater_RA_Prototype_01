@@ -33,6 +33,11 @@ public class EarthCutscene_NEW : MonoBehaviour
     [SerializeField] GameObject videoCanvas;
 
     [Header("Fade")]
+    [Tooltip("Seconds after reaching Earth before the video fades in. With EarthClouds_NEW, " +
+             "about when the camera comes out under its cloud (its ClearedAt), so the clouds are " +
+             "seen first — the setup menu sets it. 0 = straight away.")]
+    [Min(0f)] [SerializeField] float startDelay = 0f;
+
     [SerializeField] float fadeDuration = 1.5f;
 
     [Tooltip("Peak opacity of the overlay. The render layers are hidden behind it by " +
@@ -44,6 +49,13 @@ public class EarthCutscene_NEW : MonoBehaviour
     [SerializeField] bool debugLog = false;
 
     Coroutine _running;
+
+    /// <summary>Seconds after reaching Earth before the video fades in. For the setup menu.</summary>
+    public float StartDelay
+    {
+        get => startDelay;
+        set => startDelay = Mathf.Max(0f, value);
+    }
 
     void Awake()
     {
@@ -102,8 +114,10 @@ public class EarthCutscene_NEW : MonoBehaviour
         videoCanvas.SetActive(true);
         videoCanvasGroup.alpha = 0f;
 
+        // Prepared straight away, played once the delay is up — the clouds first.
+        float arrived = Time.time;
         videoPlayer.Prepare();
-        yield return new WaitUntil(() => videoPlayer.isPrepared);
+        yield return new WaitUntil(() => videoPlayer.isPrepared && Time.time - arrived >= startDelay);
         videoPlayer.Play();
 
         float elapsed = 0f;
