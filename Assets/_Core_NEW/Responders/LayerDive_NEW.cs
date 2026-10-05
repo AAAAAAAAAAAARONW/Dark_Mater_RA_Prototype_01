@@ -58,23 +58,25 @@ using UnityEngine.UI;
 ///   cluster    The cluster's galaxies are there all along: dim, soft smudges spread evenly
 ///              round the world being left, the whole time the photon crosses it. They come
 ///              in with that world as the dive into it ends, never on their own.
-///   approach   Only over the last few seconds before the gate do they brighten, while the
-///              cluster's yellow glow — the light the dive in went into — gathers round the
-///              photon.
+///   approach   Only over the last few seconds before the gate do they brighten. No glow
+///              gathers round the photon: washing the screen yellow in four seconds read as
+///              the screen suddenly turning yellow.
 ///   breakout   The whole cluster shrinks into its centre behind and below at a constant
-///              rate, the world left with it and the glow too, whose edge sweeps past the
-///              camera: the yellow sinks away below and behind, and the photon walks out
-///              of it. Its galaxies come at the camera from ahead and fall away behind.
+///              rate, the world left with it. Its galaxies come at the camera from ahead and
+///              fall away behind.
 ///   look back  Then the camera swings round the photon to look back at what it has left,
 ///              while the photon flies on: the cluster, seen from outside for the first
-///              time, collapses from a ball of yellow light into one bright knot, and the
-///              web fades in round it — the whole cluster is now a point in the web. A
-///              dolly zoom the other way (the lens widening while the camera closes in)
-///              makes it all fall away behind a photon that keeps its size. That is only
-///              allowed facing back: facing forward, the world falling away reads as the
-///              light backing off; facing back, as the light pulling away. The cluster
-///              keeps shrinking through the peak — no whiteout, no swap to hide — and
-///              slows to a stop as the camera swings forward again, into the web.
+///              time, collapses into one bright knot — its glow shows only now, as the
+///              camera comes round to face it — and the web fades in round it, slowly: the
+///              whole cluster is now a point in the web. A dolly zoom the other way (the
+///              lens widening while the camera closes in) makes it all fall away behind a
+///              photon that keeps its size. That is only allowed facing back: facing
+///              forward, the world falling away reads as the light backing off; facing
+///              back, as the light pulling away. The cluster keeps shrinking through the
+///              peak — no whiteout, no swap to hide — and slows to a stop as the camera
+///              swings forward again, into the web. In the Aaron scene the web's own yellow
+///              cluster sits where the photon comes out, so it is still inside that yellow
+///              then, and flies out of it in the next few seconds.
 ///
 /// THE LIGHT is a camera-facing glow in the world, drawn after the web and before the
 /// photon trail, so it sits inside the cluster and behind the photon. Only the full-screen
@@ -131,11 +133,12 @@ public class LayerDive_NEW : MonoBehaviour
         /// the cosmic web (see COMING OUT on the class). Measured against the scene: 2000
         /// galaxies spread evenly 20 to 160 out round the Micro galaxy put 100 to 350 in view
         /// while the photon crosses it, dim; over the last 5 units (four seconds at Micro's
-        /// speed) they brighten and the yellow halo gathers, about half as bright from inside
-        /// as through its middle; about 100 are in view at the gate. The camera starts round
+        /// speed) they brighten; about 100 are in view at the gate. The camera starts round
         /// 0.8 seconds in and has the cluster in frame by 1.75, the photon to the left in
-        /// front of it; the halo is 17 degrees across then, 5 at the peak and a 1-degree knot
-        /// by 5 seconds, while the lens widens from 40 to 72. Facing forward again by 7.2.
+        /// front of it; its glow, gold rather than yellow and under the bloom while it is
+        /// big, is 17 degrees across then, 5 at the peak and a 1-degree knot by 5 seconds,
+        /// while the lens widens from 40 to 72. The web takes from 0.75 to 6.5 seconds to
+        /// come in. Facing forward again by 7.2.
         /// </summary>
         public static Dive ComingOut(string toLayerId)
         {
@@ -159,7 +162,8 @@ public class LayerDive_NEW : MonoBehaviour
                 streak = 3f,
                 spread = 180f,
                 haloRadius = 60f,
-                haloIntensity = 1f,
+                haloIntensity = 0.6f,
+                haloColor = new Color(1f, 0.88f, 0.62f, 1f),
                 lookBackYaw = 150f,
                 lookBackLift = 2f,
                 lookBackFrame = 0.45f,
@@ -174,7 +178,7 @@ public class LayerDive_NEW : MonoBehaviour
                 dollyZoom = 1f,
                 photonShrink = 1f,
                 peakVignette = 0f,
-                peakBloom = 2.5f,
+                peakBloom = 1.5f,
                 peakChromaticAberration = 0f
             };
         }
@@ -283,17 +287,16 @@ public class LayerDive_NEW : MonoBehaviour
         [Range(10f, 180f)] public float spread = 40f;
 
         [Header("Halo (coming out: the glow of the cluster being left)")]
-        [Tooltip("The cluster's own light, a soft ball of it around its centre that the photon " +
-                 "starts inside: the yellow the dive in went into. It shrinks with the cluster, " +
-                 "so its edge sweeps past and the yellow sinks away below and behind — walking " +
-                 "out of it. How far out it fades to a third, in world units, before it " +
-                 "shrinks. 0 = none.")]
+        [Tooltip("The cluster's own light, a soft ball of it round its centre that shrinks with " +
+                 "the cluster into the knot the camera looks back at. Seen only from outside, " +
+                 "as the camera comes round. How far out it fades to a third, in world units, " +
+                 "before it shrinks. 0 = none.")]
         [Min(0f)] public float haloRadius = 0f;
 
-        public Color haloColor = new Color(1f, 0.85f, 0.45f, 1f);
+        public Color haloColor = new Color(1f, 0.88f, 0.62f, 1f);
 
-        [Tooltip("Brightness looking through its middle from outside. From inside, about half. " +
-                 "It brightens as it gathers into a knot, up to three times.")]
+        [Tooltip("Brightness looking through its middle. It brightens as it gathers into a " +
+                 "knot, up to twice.")]
         [Range(0f, 4f)] public float haloIntensity = 1f;
 
         [Header("Look back (coming out: the cluster seen from outside, left behind)")]
@@ -487,18 +490,13 @@ public class LayerDive_NEW : MonoBehaviour
     float _clock;
     float _lookBack;
 
-    // Coming out, the web starts to show under the cluster before the peak, so it is there
-    // round the knot as the camera looks back.
-    const float WebBeforePeak = 0.3f;
-
     // Coming out, the cluster round the world being left: how far it has faded in (it is
     // there the whole time the photon crosses that world), and how far the approach has
     // brightened it. Neither changes faster than over the seconds below, however the photon
-    // got where it is — a debug jump lands it anywhere. And both as they stood at the gate.
+    // got where it is — a debug jump lands it anywhere. And its brightness at the gate.
     float _presence;
     float _brighten;
     float _crowdAtBegin;
-    float _haloAtBegin;
     const float ClusterFadeSeconds = 3f;
     const float BrightenSeconds = 2f;
 
@@ -587,8 +585,9 @@ public class LayerDive_NEW : MonoBehaviour
     /// <summary>
     /// Heading for a way out: the cluster round the world being crossed. It fades in once
     /// (from <paramref name="presenceFrom"/>, at most over ClusterFadeSeconds) and stays,
-    /// dim; over the last approachDistance before the gate it brightens and its glow
-    /// gathers round the photon (at most over BrightenSeconds).
+    /// dim; over the last approachDistance before the gate its galaxies brighten (at most
+    /// over BrightenSeconds). Nothing else: its glow is only ever seen from outside, looking
+    /// back (TickComingOut) — gathered round the photon here, it turned the screen yellow.
     /// </summary>
     void TickCluster(Dive dive, LayerGate_NEW gate, float ahead, float presenceFrom)
     {
@@ -601,9 +600,9 @@ public class LayerDive_NEW : MonoBehaviour
         _brighten = Mathf.MoveTowards(_brighten, brightenTo, Time.deltaTime / BrightenSeconds);
 
         HideLight();
+        HideHalo();
         SetCrowd(dive, centre, CrowdAim(dive, centre, gate), 1f,
                  _presence * Mathf.Lerp(dive.ambientCrowd, dive.approachCrowd, _brighten), 0f);
-        SetHalo(dive, centre, dive.haloRadius, dive.haloIntensity * _presence * _brighten);
     }
 
     void LateUpdate()
@@ -682,7 +681,6 @@ public class LayerDive_NEW : MonoBehaviour
         // Coming out, the cluster goes on from how it stood at the gate — even if a debug
         // jump got the photon there before the approach had finished brightening it.
         _crowdAtBegin = _presence * Mathf.Lerp(dive.ambientCrowd, dive.approachCrowd, _brighten);
-        _haloAtBegin = _presence * _brighten;
         _presence = 0f;
         _brighten = 0f;
         IsActive = true;
@@ -851,29 +849,6 @@ public class LayerDive_NEW : MonoBehaviour
 
         HideLight();
 
-        // The web starts to show before the peak, so it is there round the knot as the
-        // camera looks back, and is all there a little after half the rest.
-        float web = t < dive
-            ? WebBeforePeak * Smooth(0.55f * dive, dive, t)
-            : Mathf.Lerp(WebBeforePeak, 1f, Smooth(dive, dive + 0.6f * rest, t));
-        if (worlds != null) worlds.SetGroupLook(_toId, web);
-
-        // The cluster — its galaxies and its glow — shrinks into its centre, going on from
-        // how it stood at the gate; its galaxies fade as the knot gets small, and the glow
-        // last of all.
-        float shrink = ClusterShrink(t);
-        float arrive = Smooth(0f, 0.3f * dive, t);
-        float crowd = Mathf.Lerp(_crowdAtBegin, _dive.diveCrowd, arrive)
-                    * (1f - Smooth(dive + 0.2f * rest, dive + 0.8f * rest, t));
-        float streak = _dive.streak * Smooth(0f, 0.25f * dive, t) * (1f - Smooth(dive, dive + 0.5f * rest, t));
-        SetCrowd(_dive, _focus, _crowdAim, shrink, crowd, streak);
-
-        // Its light gathers into less space as it shrinks: brighter, up to three times.
-        float sigma = _dive.haloRadius * shrink;
-        float gather = Mathf.Clamp(Mathf.Sqrt(_dive.haloRadius / Mathf.Max(4f * sigma, 1e-3f)), 1f, 3f);
-        SetHalo(_dive, _focus, sigma, _dive.haloIntensity * Mathf.Lerp(_haloAtBegin, 1f, arrive) * gather
-                                      * (1f - Smooth(dive + 0.5f * rest, dive + rest, t)));
-
         // The camera swings round to look back, holds, and swings forward again; while it
         // faces back, the dolly zoom runs the other way and the bloom comes up with it.
         if (_dive.lookBackYaw > 0f)
@@ -890,6 +865,29 @@ public class LayerDive_NEW : MonoBehaviour
             _dolly = 1f;
         }
         SetEffects(_lookBack);
+
+        // The web comes in slowly, from when the camera starts round to near the end. The
+        // photon comes out where the web's own yellow cluster is — the one the dive in went
+        // into — so inside it the web is mostly that yellow, and it should gather, not flood.
+        float web = Smooth(0.25f * dive, dive + 0.75f * rest, t);
+        if (worlds != null) worlds.SetGroupLook(_toId, web);
+
+        // The cluster shrinks into its centre, going on from how it stood at the gate; its
+        // galaxies fade as the knot gets small.
+        float shrink = ClusterShrink(t);
+        float arrive = Smooth(0f, 0.3f * dive, t);
+        float crowd = Mathf.Lerp(_crowdAtBegin, _dive.diveCrowd, arrive)
+                    * (1f - Smooth(dive + 0.2f * rest, dive + 0.8f * rest, t));
+        float streak = _dive.streak * Smooth(0f, 0.25f * dive, t) * (1f - Smooth(dive, dive + 0.5f * rest, t));
+        SetCrowd(_dive, _focus, _crowdAim, shrink, crowd, streak);
+
+        // Its glow is only seen from outside, as the camera comes round to face it: the knot
+        // the cluster becomes, not a haze round the photon. Its light gathers into less space
+        // as it shrinks, brightening up to twice, and it is the last thing to go.
+        float sigma = _dive.haloRadius * shrink;
+        float gather = Mathf.Clamp(Mathf.Sqrt(_dive.haloRadius / Mathf.Max(4f * sigma, 1e-3f)), 1f, 2f);
+        SetHalo(_dive, _focus, sigma, _dive.haloIntensity * _lookBack * gather
+                                      * (1f - Smooth(dive + 0.5f * rest, dive + rest, t)));
     }
 
     /// <summary>

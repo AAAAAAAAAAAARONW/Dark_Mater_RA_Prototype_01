@@ -67,9 +67,9 @@ static class JourneyDiveMenu_NEW
             added++;
         }
 
-        // The two gates tuned so far, each added only if the scene has no row for it yet —
-        // so running this after an update brings in a new gate without touching tuned ones.
-        // A gate whose starting values have changed since is reset with the menus below.
+        // The gates tuned so far, each added only if the scene has no row for it yet — so
+        // running this after an update brings in a new gate without touching tuned ones. A
+        // gate whose starting values have changed since is reset with the menus below.
         if (dive != null)
         {
             foreach (Preset preset in Presets)
@@ -86,6 +86,9 @@ static class JourneyDiveMenu_NEW
 
     [MenuItem(ResetPath + "Into CosmicWeb (leave the cluster)")]
     static void ResetCosmicWebRow() => ResetRow(Presets[1]);
+
+    [MenuItem(ResetPath + "Into MilkyWay (dive in)")]
+    static void ResetMilkyWayRow() => ResetRow(Presets[2]);
 
     /// <summary>
     /// Puts one gate's row back to its current starting values — for when those have
@@ -118,7 +121,17 @@ static class JourneyDiveMenu_NEW
     static readonly Preset[] Presets =
     {
         new Preset { row = () => new LayerDive_NEW.Dive(), what = "dives in (cosmic web to galaxy)" },
-        new Preset { row = () => LayerDive_NEW.Dive.ComingOut("CosmicWeb"), what = "leaves the cluster (galaxy back up to the web)" }
+        new Preset { row = () => LayerDive_NEW.Dive.ComingOut("CosmicWeb"), what = "leaves the cluster (galaxy back up to the web)" },
+
+        // The same dive as into Micro, into the Milky Way. The point: 12 past the gate, on the
+        // line, inside the bright Core knot of the x6000 web there (centre 3.4 off the line,
+        // 7 across), with yellow knots just beyond; the approach starts once the photon is
+        // out of the yellow cluster it came out into. dissolveFrom as tuned on Micro.
+        new Preset
+        {
+            row = () => new LayerDive_NEW.Dive { toLayerId = "MilkyWay", focusPastGate = 12f, approachDistance = 30f, dissolveFrom = 0.5f },
+            what = "dives in (cosmic web to the Milky Way)"
+        }
     };
 
     static int AddRowIfMissing(LayerDive_NEW dive, LayerDive_NEW.Dive row, string what)
@@ -138,5 +151,6 @@ static class JourneyDiveMenu_NEW
 
     [MenuItem(ResetPath + "Into Micro (dive in)", true)]
     [MenuItem(ResetPath + "Into CosmicWeb (leave the cluster)", true)]
+    [MenuItem(ResetPath + "Into MilkyWay (dive in)", true)]
     static bool ResetRowValidate() => !Application.isPlaying;
 }
