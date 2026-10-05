@@ -235,6 +235,14 @@ public class LayerDive_NEW : MonoBehaviour
                  "the middle of the new world — its star, for a solar system.")]
         public Transform emergeOverride;
 
+        [Tooltip("Going in, above 0: nothing is hidden. The new world fades in through the old " +
+                 "one, to this much by the peak, grown from enterScale from the start; the light " +
+                 "stays where it is and fades into what it lands on; the dive eases in and out " +
+                 "rather than stopping at speed. Use it with whiteout 0 and the focus and " +
+                 "emergeOverride on the same object, so the light never has to move. 0 = the " +
+                 "whiteout swap.")]
+        [Range(0f, 1f)] public float crossfade = 0f;
+
         [Header("Light")]
         public Color lightColor = new Color(1f, 0.88f, 0.62f, 1f);
 
@@ -378,6 +386,11 @@ public class LayerDive_NEW : MonoBehaviour
                  "reads as speeding up.")]
         [Range(0.5f, 2f)] public float fieldOfViewScale = 1f;
 
+        [Tooltip("The lens narrows to this field of view over the dive, at the dive's own rate, " +
+                 "and holds it: a push-in on the point. Set it to the next zone camera's (the " +
+                 "Solar camera's is 20) and the camera hands over without a step. 0 = off.")]
+        [Range(0f, 90f)] public float targetFieldOfView = 0f;
+
         [Tooltip("Bloom intensity at the peak. The scene's own is 0.8.")]
         [Min(0f)] public float peakBloom = 3f;
 
@@ -398,6 +411,7 @@ public class LayerDive_NEW : MonoBehaviour
     [SerializeField] CinemachineBrain brain;
     [SerializeField] LayerState_NEW state;
     [SerializeField] PlayerRig_NEW player;
+    [SerializeField] NebulaResponder_NEW nebula;
 
     [Header("Overlay")]
     [Tooltip("Sort order of the whiteout. Below the HUD canvases (0) keeps the HUD readable " +
@@ -490,6 +504,11 @@ public class LayerDive_NEW : MonoBehaviour
     float _fovMultiplier = 1f;
     float _dolly = 1f;
 
+    // How far the lens has gone towards targetFieldOfView, and, crossfading, the light's size
+    // at the peak, which it keeps while it fades into what it landed on.
+    float _fovPush;
+    float _peakLightSize;
+
     // Coming out: seconds since the gate, across the dive, the hold and the emerge, and how
     // far round the camera has swung to look back (0 facing forward, 1 facing back).
     float _clock;
@@ -519,6 +538,7 @@ public class LayerDive_NEW : MonoBehaviour
         if (brain == null) brain = FindObjectOfType<CinemachineBrain>();
         if (state == null) state = FindObjectOfType<LayerState_NEW>();
         if (player == null) player = FindObjectOfType<PlayerRig_NEW>();
+        if (nebula == null) nebula = FindObjectOfType<NebulaResponder_NEW>();
 
         foreach (LayerGate_NEW gate in FindObjectsOfType<LayerGate_NEW>())
             if (gate != null && !string.IsNullOrEmpty(gate.LayerId) && !_gatesByLayer.ContainsKey(gate.LayerId))
@@ -700,9 +720,12 @@ public class LayerDive_NEW : MonoBehaviour
                      : NextWorldCentre();
         _leave = Capture(worlds != null ? worlds.GroupRoot(_fromId) : null);
         _enter = Capture(worlds != null ? worlds.GroupRoot(_toId) : null);
+        _fovPush = 0f;
 
-        // The next world stays out of sight until the peak.
+        // The next world stays out of sight until the peak — or, crossfading, until it starts
+        // to show through the old one, already at the size it grows from, inside the light.
         if (worlds != null) worlds.SetGroupLook(_toId, 0f);
+        if (Crossfading) ScaleAround(_enter, _emergeFocus, _dive.enterScale);
 
         BuildOverlay();
         BuildEffects();
@@ -724,11 +747,16 @@ public class LayerDive_NEW : MonoBehaviour
         u = Mathf.Clamp01(u);
 
         bool outward = _dive.direction == Direction.Out;
-        float p = SteadyRamp(u);
+        // Crossfading, nothing waits under a whiteout to be snapped back, so the dive lands
+        // instead of stopping at speed.
+        float p = Crossfading ? LandingRamp(u) : SteadyRamp(u);
 
         // The old world grows around the point ahead going in. Coming out it shrinks into
         // its own middle, behind the photon, with the rest of its cluster.
         ScaleAround(_leave, _focus, Mathf.Pow(outward ? 1f / _dive.diveZoom : _dive.diveZoom, p));
+
+        // The lens pushes in on the point at the dive's own rate.
+        _fovPush = _dive.targetFieldOfView > 0f ? p : 0f;
 
         float dissolve = Smooth(_dive.dissolveFrom, 1f, u);
         float glow = Mathf.Lerp(1f, _dive.leaveGlow, Smooth(0f, 0.85f, u));
@@ -750,8 +778,11 @@ public class LayerDive_NEW : MonoBehaviour
 
         // Going in, the light swells steadily from its size at the gate, and hands over to
         // the whiteout as the camera arrives at it: a quad at the camera would cut through
-        // the near plane.
-        float size = Mathf.Lerp(_dive.gateSize, _dive.peakSize, p);
+        // the near plane. Crossfading, it grows as the dive magnifies — by the same factor
+        // each second — into what it is about to become.
+        float size = Crossfading
+            ? _dive.gateSize * Mathf.Pow(_dive.peakSize / Mathf.Max(1e-3f, _dive.gateSize), p)
+            : Mathf.Lerp(_dive.gateSize, _dive.peakSize, p);
         float arriving = _camera != null ? Smooth(1.5f, 6f, Vector3.Distance(_camera.transform.position, _focus)) : 1f;
         SetLight(_dive, _focus, size, arriving);
 
@@ -762,6 +793,9 @@ public class LayerDive_NEW : MonoBehaviour
         SetCrowd(_dive, _focus, _crowdAim, Mathf.Pow(_dive.resolveZoom, p), crowd, streak);
 
         SetEffects(Smooth(0.2f, 1f, u));
+
+        // Crossfading, the next world starts to show through the old one before the peak.
+        if (Crossfading && worlds != null) worlds.SetGroupLook(_toId, _dive.crossfade * Smooth(0.6f, 1f, u));
 
         // And the world swells behind the photon, at the same rate: the dolly zoom.
         _dolly = Mathf.Pow(_dive.dollyZoom, p);
@@ -788,6 +822,11 @@ public class LayerDive_NEW : MonoBehaviour
         Restore(_leave);
         if (worlds != null) worlds.SetGroupLook(_fromId, 0f);
 
+        // The sky changes as soon as this returns (CoverReached), and every sky snaps — fine
+        // under a whiteout, but coming out or crossfading nothing hides it: blend it instead.
+        if ((Crossfading || _dive.direction == Direction.Out) && nebula != null)
+            nebula.BlendNextOver(Mathf.Max(0.5f, 0.8f * (_dive.peakHoldSeconds + _dive.emergeSeconds)));
+
         ScaleAround(_enter, _emergeFocus, _dive.enterScale);
         SetVeil(_dive.whiteout);
         SetTrailWidth(1f);
@@ -801,13 +840,24 @@ public class LayerDive_NEW : MonoBehaviour
             return;
         }
 
+        HideCrowd();
+        _dolly = 1f;
+
+        if (Crossfading)
+        {
+            // Nothing to hide: the next world goes on fading in, and the light stays as it is —
+            // it is already where the next world grows from, at the size it lands at.
+            if (worlds != null) worlds.SetGroupLook(_toId, _dive.crossfade);
+            _peakLightSize = _lightSize;
+            SetLight(_dive, _emergeFocus, _peakLightSize, 1f);
+            return;
+        }
+
         // Under the whiteout, the light moves to where the next world appears, and the lens
         // and the photon snap back: the new world opens at normal framing, the light at its
         // normal size — in a world that is now its scale.
         if (worlds != null) worlds.SetGroupLook(_toId, 0f);
         SetLight(_dive, _emergeFocus, _dive.peakSize * 0.5f, 1f);
-        HideCrowd();
-        _dolly = 1f;
     }
 
     /// <summary>The next world appearing around the light. <paramref name="v"/> runs 0 to 1.</summary>
@@ -816,7 +866,9 @@ public class LayerDive_NEW : MonoBehaviour
         if (!IsActive) return;
         v = Mathf.Clamp01(v);
 
-        float settle = EaseOut(v);
+        // Crossfading, the new world's growing eases in as well as out: the dive has just
+        // landed, and nothing should set off at speed.
+        float settle = Crossfading ? Smooth(0f, 1f, v) : EaseOut(v);
 
         // In log space, so growing from a hundredth reads as evenly as growing from a half.
         ScaleAround(_enter, _emergeFocus, Mathf.Pow(_dive.enterScale, 1f - settle));
@@ -831,8 +883,22 @@ public class LayerDive_NEW : MonoBehaviour
             return;
         }
 
-        if (worlds != null) worlds.SetGroupLook(_toId, Smooth(0f, 0.7f, v));
-        SetLight(_dive, _emergeFocus, Mathf.Lerp(_dive.peakSize * 0.5f, _dive.pointSize, settle), 1f - Smooth(0.3f, 1f, v));
+        // The lens holds where the push-in left it — the next zone camera blends in under it —
+        // and lets go over the end, by when that camera is all there is.
+        _fovPush = _dive.targetFieldOfView > 0f ? 1f - Smooth(0.7f, 1f, v) : 0f;
+
+        if (Crossfading)
+        {
+            // The light fades into what it landed on, keeping its size, while the new world
+            // fades the rest of the way in and grows out of it.
+            if (worlds != null) worlds.SetGroupLook(_toId, Mathf.Lerp(_dive.crossfade, 1f, Smooth(0f, 0.6f, v)));
+            SetLight(_dive, _emergeFocus, _peakLightSize, 1f - Smooth(0.1f, 0.7f, v));
+        }
+        else
+        {
+            if (worlds != null) worlds.SetGroupLook(_toId, Smooth(0f, 0.7f, v));
+            SetLight(_dive, _emergeFocus, Mathf.Lerp(_dive.peakSize * 0.5f, _dive.pointSize, settle), 1f - Smooth(0.3f, 1f, v));
+        }
         SetEffects(1f - Smooth(0f, 0.9f, v));
 
         // If the way on out of the world just entered leaves a cluster, that cluster comes in
@@ -948,6 +1014,7 @@ public class LayerDive_NEW : MonoBehaviour
         CinemachineCore.CameraUpdatedEvent.RemoveListener(OnCameraUpdated);
         _fovMultiplier = 1f;
         _dolly = 1f;
+        _fovPush = 0f;
         _lookBack = 0f;
         _clock = 0f;
         SetTrailWidth(1f);
@@ -1667,6 +1734,15 @@ public class LayerDive_NEW : MonoBehaviour
 
         if (_lookBack > 1e-4f && player != null) LookBack(cam.transform);
 
+        if (_fovPush > 1e-4f && _dive != null && _dive.targetFieldOfView > 0f)
+        {
+            // In log space (of the half-angle's tangent, which is what magnifies), so the
+            // push-in runs at the dive's rate rather than speeding up as the lens narrows.
+            float from = Mathf.Log(Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad));
+            float to = Mathf.Log(Mathf.Tan(_dive.targetFieldOfView * 0.5f * Mathf.Deg2Rad));
+            cam.fieldOfView = 2f * Mathf.Atan(Mathf.Exp(Mathf.Lerp(from, to, _fovPush))) * Mathf.Rad2Deg;
+        }
+
         if (!Mathf.Approximately(_fovMultiplier, 1f))
             cam.fieldOfView = Mathf.Clamp(cam.fieldOfView * _fovMultiplier, 1f, 179f);
 
@@ -1852,6 +1928,24 @@ public class LayerDive_NEW : MonoBehaviour
 
     /// <summary>SteadyRamp's slope once past its ease-in.</summary>
     const float SteadyRate = 1f / (1f - SteadyEaseIn * 0.5f);
+
+    /// <summary>
+    /// SteadyRamp with a landing: the same ease-in and constant rate, then the last 30%
+    /// slowing to a stop. For a crossfading dive, which arrives instead of being cut off.
+    /// </summary>
+    static float LandingRamp(float u)
+    {
+        const float easeOut = 0.3f;
+        const float rate = 1f / (1f - (SteadyEaseIn + easeOut) * 0.5f);
+        u = Mathf.Clamp01(u);
+        if (u < SteadyEaseIn) return rate * u * u / (2f * SteadyEaseIn);
+        if (u <= 1f - easeOut) return rate * (u - SteadyEaseIn * 0.5f);
+        float s = 1f - u;
+        return 1f - rate * s * s / (2f * easeOut);
+    }
+
+    /// <summary>A dive in that crossfades into the next world instead of a whiteout swap.</summary>
+    bool Crossfading => _dive != null && _dive.direction == Direction.In && _dive.crossfade > 0f;
 
     /// <summary>Smoothstep of x between from and to.</summary>
     static float Smooth(float from, float to, float x)

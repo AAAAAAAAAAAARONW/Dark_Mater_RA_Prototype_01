@@ -52,6 +52,7 @@ public class NebulaResponder_NEW : LayerResponder_NEW
     Coroutine _tween;
     NebulaState _current;
     bool _hasCurrent;
+    float _nextBlend = -1f;
 
     // Property ids, identical to the originals.
     static readonly int ColorDarkId = Shader.PropertyToID("_ColorDark");
@@ -91,8 +92,19 @@ public class NebulaResponder_NEW : LayerResponder_NEW
 
     protected override TimedChannel_NEW SelectChannel(LayerProfile_NEW profile) => profile.timing.nebula;
 
+    /// <summary>
+    /// The next change blends over this many seconds, whatever its profile says. Every profile
+    /// snaps (blend 0), which is right under a cover or a whiteout; a transition that hides
+    /// nothing — LayerDive_NEW crossfading, or coming out of a cluster — asks for this just
+    /// before the sky changes, so the snap does not show.
+    /// </summary>
+    public void BlendNextOver(float seconds) => _nextBlend = seconds;
+
     protected override void Apply(LayerProfile_NEW profile)
     {
+        float requested = _nextBlend;
+        _nextBlend = -1f;
+
         NebulaProfile_NEW np = profile.nebula;
         if (np == null)
         {
@@ -106,14 +118,15 @@ public class NebulaResponder_NEW : LayerResponder_NEW
         if (_tween != null) { StopCoroutine(_tween); _tween = null; }
 
         NebulaState goal = FromProfile(np);
+        float blend = requested > 0f ? requested : np.blendDuration;
 
-        if (np.blendDuration <= 0f || !_hasCurrent)
+        if (blend <= 0f || !_hasCurrent)
         {
             Write(goal);
             return;
         }
 
-        _tween = StartCoroutine(TweenTo(goal, np.blendDuration));
+        _tween = StartCoroutine(TweenTo(goal, blend));
     }
 
     // ── Discovery ────────────────────────────────────────────────────────────

@@ -140,29 +140,31 @@ static class JourneyDiveMenu_NEW
     };
 
     /// <summary>
-    /// The dive from the Milky Way into the Solar System — the deepest step down, some eight
-    /// powers of ten against the two from the web into a galaxy — so the same dive, pushed
-    /// further, with stars where the clusters' galaxies were. Measured against the scene:
+    /// The dive from the Milky Way into the Solar System. Not the web dive pushed harder — that
+    /// was tried: a bright marker sitting on the galaxy rather than in it, and a dive cut into
+    /// pieces by streaks, a hard dolly and a whiteout, under which the light jumped a hundred
+    /// units to the Sun. This is one unbroken telephoto push-in on our star, crossfading
+    /// (crossfade) instead of cutting. Measured against the scene:
     ///
-    ///   approach   The point is one star 8 past the gate on the line, a quarter of the way
-    ///              out from the galaxy's centre and 5 above its disc — the photon flies just
-    ///              over the disc's glow: our Sun, as one star among the galaxy's, warm white
-    ///              and brighter than they are, with a sparse, faint field of neighbours round
-    ///              it. It comes up from a 1.3-degree point to 13 degrees at the gate, the
-    ///              galaxy's bright centre to the right and below throughout.
-    ///   dive       Four seconds, against three: the galaxy swells six times round the star,
-    ///              its neighbours open into a long stream of streaking points (sharp, small,
-    ///              many, half of them blue-white), the photon shrinks harder (the world three
-    ///              times magnified behind it, its trail to a quarter) into a vignette, and the
-    ///              star swells into a blazing disc: sunlight.
-    ///   peak       The Solar camera (field of view 20, against 40) goes live under the light:
-    ///              a twofold zoom nobody sees happen.
-    ///   emerge     The light settles into the Sun — emergeOverride, set here to the scene's
-    ///              Sun — and the Solar System grows out of it from 0.15 of its size, the
-    ///              planets moving out to their orbits round it: the star resolving into its
-    ///              system. Through that lens the Sun sits 5 degrees left of the line, 2.6
-    ///              across, the planets spreading from within 1.5 degrees of it to 11.6; the
-    ///              Earth ends almost dead ahead, where the next gate is.
+    ///   approach   The point is the scene's Sun itself (focusOverride), 111 past the gate
+    ///              and 5 degrees left — on the far rim of the galaxy's disc as seen from
+    ///              there. On the approach it is just a faint star, 0.2 to 0.6 degrees, the
+    ///              size and brightness of those round it: nothing marks it but that
+    ///              everything turns out to be going there.
+    ///   dive       Six seconds on one ramp that eases in, holds its rate and lands. The lens
+    ///              narrows from 40 to 20 in step (targetFieldOfView: exactly the Solar
+    ///              camera's, so there is no handover). The galaxy is not magnified — round a
+    ///              point that far off, its core would fly back past the camera — it slides
+    ///              out of the narrowing frame and dissolves. The stars round our star bloom
+    ///              outward out of it, staying ahead of the camera and drifting off the edges,
+    ///              barely streaked; and it grows by the same factor each second into a disc
+    ///              whose core is the Sun's own size there, 2.6 degrees, with its glow round it.
+    ///   emerge     No whiteout and no jump: the light is already the Sun's size, in its
+    ///              place. The Solar System, faded in through the end of the dive at 0.15 of its
+    ///              size inside the glow, grows out of it — easing in and out — the planets
+    ///              moving out to their orbits while the light fades into the Sun. Through the
+    ///              lens the Sun sits 30% of the way left, the planets spreading to 11.6 degrees
+    ///              round it, the Earth ending almost dead ahead, at the next gate.
     /// </summary>
     static LayerDive_NEW.Dive SolarDive()
     {
@@ -170,42 +172,46 @@ static class JourneyDiveMenu_NEW
         Transform system = worlds != null ? worlds.GroupRoot("SolarSystem") : null;
         Transform sun = system != null ? system.Find("Sun") : null;
         if (sun == null)
-            Debug.LogWarning("Journey NEW: no 'Sun' under the SolarSystem group, so the dive into it settles " +
-                             "in the middle of the system instead. Set Emerge Override on its row by hand.");
+            Debug.LogWarning("Journey NEW: no 'Sun' under the SolarSystem group. Set Focus Override and " +
+                             "Emerge Override on the SolarSystem dive row by hand.");
 
         return new LayerDive_NEW.Dive
         {
             toLayerId = "SolarSystem",
-            focusPastGate = 8f,
-            approachDistance = 20f,
-            diveSeconds = 4f,
-            peakHoldSeconds = 0.3f,
-            emergeSeconds = 4f,
-            diveZoom = 6f,
-            dissolveFrom = 0.5f,
-            enterScale = 0.15f,
+            focusOverride = sun,
             emergeOverride = sun,
-            lightColor = new Color(1f, 0.94f, 0.8f, 1f),
-            lightIntensity = 2f,
-            pointSize = 0.8f,
-            gateSize = 3f,
-            peakSize = 50f,
-            memberCount = 1200,
-            crowdRadius = 4f,
-            memberSize = 0.06f,
-            resolveZoom = 120f,
-            memberGrowth = 0.3f,
-            streak = 8f,
-            approachCrowd = 0.25f,
-            diveCrowd = 1.2f,
-            memberWarm = new Color(1f, 0.86f, 0.66f, 1f),
-            memberCool = new Color(0.75f, 0.85f, 1f, 1f),
+            approachDistance = 40f,
+            diveSeconds = 6f,
+            peakHoldSeconds = 0f,
+            emergeSeconds = 5f,
+            diveZoom = 1f,
+            leaveGlow = 1f,
+            dissolveFrom = 0.3f,
+            enterScale = 0.15f,
+            crossfade = 0.4f,
+            lightColor = new Color(1f, 0.93f, 0.78f, 1f),
+            lightIntensity = 1.2f,
+            pointSize = 0.6f,
+            gateSize = 1.2f,
+            peakSize = 15f,
+            whiteout = 0f,
+            memberCount = 1500,
+            crowdRadius = 6f,
+            memberSize = 0.15f,
+            resolveZoom = 12f,
+            memberGrowth = 0.6f,
+            streak = 1f,
+            approachCrowd = 0.3f,
+            diveCrowd = 1f,
+            memberWarm = new Color(1f, 0.9f, 0.75f, 1f),
+            memberCool = new Color(0.78f, 0.86f, 1f, 1f),
             coolShare = 0.5f,
-            dollyZoom = 3f,
-            photonShrink = 0.25f,
-            peakVignette = 0.5f,
-            peakBloom = 3f,
-            peakChromaticAberration = 0.2f
+            dollyZoom = 1f,
+            photonShrink = 1f,
+            peakVignette = 0.2f,
+            targetFieldOfView = 20f,
+            peakBloom = 1.5f,
+            peakChromaticAberration = 0f
         };
     }
 
