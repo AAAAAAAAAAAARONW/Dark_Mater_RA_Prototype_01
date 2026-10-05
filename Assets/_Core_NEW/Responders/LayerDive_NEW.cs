@@ -299,6 +299,15 @@ public class LayerDive_NEW : MonoBehaviour
                  "as a cluster is; smaller packs the same galaxies into the part in view.")]
         [Range(10f, 180f)] public float spread = 40f;
 
+        [Tooltip("Going in: the crowd's thickness against its width. Below 1 it lies flat in the " +
+                 "plane square to the world's up — a galaxy's disc — so diving into a galaxy, its " +
+                 "stars resolve in its own plane and stream past under the photon. 1 = round.")]
+        [Range(0.02f, 1f)] public float crowdFlatten = 1f;
+
+        [Tooltip("Going in: how much of each member is a bright point. Lower makes soft glows — " +
+                 "a galaxy's own stars, rather than points stuck on it.")]
+        [Range(0f, 1f)] public float memberCore = 1f;
+
         [Header("Halo (coming out: the glow of the cluster being left)")]
         [Tooltip("The cluster's own light, a soft ball of it round its centre that shrinks with " +
                  "the cluster into the knot the camera looks back at. Seen only from outside, " +
@@ -790,8 +799,11 @@ public class LayerDive_NEW : MonoBehaviour
         SetLight(_dive, _focus, size, arriving * rising);
 
         // The crowd opens at the dive's own constant rate, only much further, out of the
-        // point and past the camera; it has handed over to the whiteout by the peak.
-        float crowd = Mathf.Lerp(_dive.approachCrowd, _dive.diveCrowd, Smooth(0f, 0.2f, u)) * (1f - Smooth(0.8f, 1f, u));
+        // point and past the camera; it has handed over to the whiteout by the peak. With no
+        // approach crowd nothing has shown it yet: it resolves over the first half of the
+        // dive, the way detail comes up as you close in, instead of being there at the gate.
+        float rise = _dive.approachCrowd > 0f ? Smooth(0f, 0.2f, u) : Smooth(0.05f, 0.5f, u);
+        float crowd = Mathf.Lerp(_dive.approachCrowd, _dive.diveCrowd, rise) * (1f - Smooth(0.8f, 1f, u));
         float streak = _dive.streak * Smooth(0f, 0.25f, u) * (1f - Smooth(0.85f, 1f, u));
         SetCrowd(_dive, _focus, _crowdAim, Mathf.Pow(_dive.resolveZoom, p), crowd, streak);
 
@@ -1396,7 +1408,10 @@ public class LayerDive_NEW : MonoBehaviour
         Transform t = _crowd.transform;
         t.position = at;
         t.rotation = aim;
-        t.localScale = new Vector3(zoom, zoom, zoom);
+        // Going in, flattened into the plane square to the world's up (a galaxy's disc). The
+        // shader sizes members by the x scale, so flattening leaves their size alone.
+        float thickness = d.direction == Direction.In ? d.crowdFlatten : 1f;
+        t.localScale = new Vector3(zoom, zoom * thickness, zoom);
 
         _crowdMaterial.SetFloat(AlphaId, alpha);
         _crowdMaterial.SetFloat(StreakId, streak);
@@ -1408,7 +1423,7 @@ public class LayerDive_NEW : MonoBehaviour
         // fade from well off as they come close, before one fills the screen.
         bool inward = d.direction == Direction.In;
         _crowdMaterial.SetFloat(ResolveId, inward ? 1f : 0f);
-        _crowdMaterial.SetFloat(CoreId, inward ? 1f : 0.35f);
+        _crowdMaterial.SetFloat(CoreId, inward ? d.memberCore : 0.35f);
         _crowdMaterial.SetVector(NearFadeId, inward ? new Vector4(0.5f, 3f, 0f, 0f) : new Vector4(2.5f, 10f, 0f, 0f));
     }
 

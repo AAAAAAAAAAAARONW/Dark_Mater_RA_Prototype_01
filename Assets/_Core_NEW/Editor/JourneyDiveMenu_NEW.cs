@@ -140,28 +140,33 @@ static class JourneyDiveMenu_NEW
     };
 
     /// <summary>
-    /// The dive from the Milky Way into the Solar System: down into the galaxy's own disc.
+    /// The dive from the Milky Way into the Solar System: down into the galaxy's own disc, with
+    /// the dive into Micro's language, and the galaxy resolving into its stars on the way.
     ///
-    /// Two earlier tries taught the rules. A marker light standing on the galaxy reads as a
-    /// marker, not as part of it; a point anywhere but inside the galaxy's particles is a
-    /// portal somewhere else; and added stars, however soft, look stuck on. So the dive goes
-    /// into the galaxy itself and nothing is added to it but the light it dives towards.
+    /// Three earlier tries taught the rules. A marker light standing on the galaxy reads as a
+    /// marker, not part of it; a point anywhere but inside the galaxy's particles is a portal
+    /// somewhere else; sharp stars scattered round a point look stuck on; and with nothing
+    /// added at all the galaxy — big soft particles — only blurs as it magnifies, and nothing
+    /// shows the drop in scale. So: into the galaxy itself, and what is added is made of it.
     ///
-    ///   the point  SolarDivePoint, an empty object placed in the galaxy's disc — inside its
-    ///              particle systems, 9.7 from the centre — where the camera's own sight line
-    ///              through the photon (one down in three, from 3 behind and 1 above) meets
-    ///              the disc midway through the dive. So from the camera the photon sits in
-    ///              front of the point the whole way, within 4 degrees: it is seen plunging
-    ///              into it, and the camera never has to turn. Move it to dive elsewhere.
-    ///   dive       No marker beforehand. From the gate, five seconds: the lens pushes in from
-    ///              40 to 20 (the Solar camera's own, so there is no handover); the galaxy
-    ///              magnifies eight times round the point, its own disc and stars swelling
-    ///              and flowing out round the photon; a warm light rises out of the point in
-    ///              the disc and swells; the photon's trail narrows to half; a soft vignette;
-    ///              the galaxy dissolves late, into sunlight.
+    ///   the point  SolarDivePoint, an empty object in the galaxy's disc — inside its particle
+    ///              systems, 9.7 from the centre — where the camera's own sight line through
+    ///              the photon (one down in three, from 3 behind and 1 above) meets the disc
+    ///              midway through the dive: from the camera the photon sits in front of it the
+    ///              whole way, so it is seen plunging into it. Move it to dive elsewhere.
+    ///   dive       No marker beforehand. From the gate, four and a half seconds, the Micro
+    ///              dive's moves: the galaxy swells six times round the point and brightens as
+    ///              it goes; the photon shrinks against it (dolly zoom 2.5, trail to 0.35); a
+    ///              vignette closes in on the point; a warm light rises out of it and swells
+    ///              into sunlight. And the galaxy resolves into its stars: soft, in its own
+    ///              colours (the arms' warm white and blue), lying flat in its plane, they come
+    ///              up out of the glow over the first half of the dive — about 200 in frame —
+    ///              and stream past under the photon at an even pace, the small scale racing
+    ///              by while the galaxy itself hardly grows: that is the drop in scale.
     ///   emerge     Under the light the Solar camera takes over and the light moves to the Sun
     ///              (emergeOverride); the Solar System grows out of it from 0.15 of its size,
-    ///              the planets moving out to their orbits, the Earth ending almost dead ahead.
+    ///              the planets moving out to their orbits — one star of all those, with its
+    ///              planets — the Earth ending almost dead ahead.
     /// </summary>
     static LayerDive_NEW.Dive SolarDive()
     {
@@ -178,26 +183,39 @@ static class JourneyDiveMenu_NEW
             focusOverride = SolarDivePoint(worlds),
             emergeOverride = sun,
             approachDistance = 0f,
-            diveSeconds = 5f,
-            peakHoldSeconds = 0.2f,
+            diveSeconds = 4.5f,
+            peakHoldSeconds = 0.3f,
             emergeSeconds = 4.5f,
-            diveZoom = 8f,
-            leaveGlow = 1.5f,
+            diveZoom = 6f,
+            leaveGlow = 1.8f,
             dissolveFrom = 0.55f,
             enterScale = 0.15f,
-            lightColor = new Color(1f, 0.93f, 0.78f, 1f),
+            lightColor = new Color(1f, 0.92f, 0.75f, 1f),
             lightIntensity = 1.5f,
             pointSize = 0.6f,
-            gateSize = 1f,
+            gateSize = 1.5f,
             peakSize = 40f,
             whiteout = 1f,
-            resolve = false,
-            dollyZoom = 1f,
-            photonShrink = 0.5f,
-            peakVignette = 0.3f,
-            targetFieldOfView = 20f,
-            peakBloom = 2f,
-            peakChromaticAberration = 0f
+            resolve = true,
+            memberCount = 900,
+            crowdRadius = 10f,
+            memberSize = 0.3f,
+            resolveZoom = 40f,
+            memberGrowth = 0.4f,
+            streak = 2f,
+            crowdFlatten = 0.12f,
+            memberCore = 0.6f,
+            approachCrowd = 0f,
+            diveCrowd = 0.7f,
+            memberWarm = new Color(1f, 0.93f, 0.86f, 1f),
+            memberCool = new Color(0.72f, 0.82f, 1f, 1f),
+            coolShare = 0.45f,
+            dollyZoom = 2.5f,
+            photonShrink = 0.35f,
+            peakVignette = 0.4f,
+            targetFieldOfView = 0f,
+            peakBloom = 2.5f,
+            peakChromaticAberration = 0.1f
         };
     }
 
