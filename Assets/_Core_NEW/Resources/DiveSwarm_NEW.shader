@@ -5,7 +5,8 @@ Shader "Custom/DiveSwarm_NEW"
     // vertices all sit at its centre, and the vertex shader spreads them into a small
     // camera-facing glow there, stretched along the way it moves on screen — along its line
     // through the crowd's centre, away from it while the dive opens the crowd up, towards
-    // it while a cluster being left shrinks away — so the ones streaming past read as streaks.
+    // it while a cluster being left shrinks away, and slanting round it while the crowd turns
+    // as it opens — so the ones streaming past read as streaks.
     //
     // Additive, queue 2990: after the cosmic web's volumes, before the photon trail —
     // the members sit inside the web and behind the light, like the dive's own glow.
@@ -21,6 +22,9 @@ Shader "Custom/DiveSwarm_NEW"
         _Resolve  ("Resolve from the point", Range(0, 1)) = 1
         // The bright middle of each member: 1 a point of light, lower a soft smudge.
         _Core     ("Core", Range(0, 1)) = 1
+        // Turning round the crowd's up axis as it opens (a spiral): how far it turns, in
+        // radians, for every factor of e it opens by. 0: straight out.
+        _Spin     ("Spin", Float) = 0
     }
 
     SubShader
@@ -37,7 +41,7 @@ Shader "Custom/DiveSwarm_NEW"
             #pragma fragment frag
             #include "UnityCG.cginc"
 
-            float  _Alpha, _Streak, _SizeScale, _Resolve, _Core;
+            float  _Alpha, _Streak, _SizeScale, _Resolve, _Core, _Spin;
             float4 _NearFade;
 
             struct appdata
@@ -69,9 +73,12 @@ Shader "Custom/DiveSwarm_NEW"
                 // through the crowd's centre, one way or the other; that line's direction on
                 // screen, where the member is, is the derivative of its projection. Unlike the
                 // difference of the two projections, it holds when the centre is behind the
-                // camera, as a cluster being left is.
-                float3 line3 = centre - origin;
-                float2 flow  = line3.xy * (-centre.z) + centre.xy * line3.z;
+                // camera, as a cluster being left is. Turning as well, it also moves round the
+                // crowd's up axis, _Spin as far for every bit it moves out.
+                float3 line3  = centre - origin;
+                float3 around = mul((float3x3)UNITY_MATRIX_MV, cross(float3(0, 1, 0), v.vertex.xyz));
+                float3 motion = line3 + _Spin * around;
+                float2 flow   = motion.xy * (-centre.z) + centre.xy * motion.z;
                 float  flen  = length(flow);
                 float2 dir   = flen > 1e-6 ? flow / flen : float2(0, 1);
 

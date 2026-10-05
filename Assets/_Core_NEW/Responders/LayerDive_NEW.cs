@@ -292,6 +292,17 @@ public class LayerDive_NEW : MonoBehaviour
                  "goes back to the zone camera's.")]
         [Min(0.1f)] public float watchRelease = 2f;
 
+        [Tooltip("Brightness of the star's diffraction spikes. They come up as the old world thins " +
+                 "round it, flare as the real star comes out from under it, and draw back into " +
+                 "it. 0 = a plain point.")]
+        [Range(0f, 2f)] public float starSpikes = 0f;
+
+        [Tooltip("Brightness of the planets' orbits, drawn round the new world's star as it opens " +
+                 "up, each unrolling from its planet the way the planet goes, innermost first; " +
+                 "they fade as the camera turns back. Its planets are the new world's children " +
+                 "that draw something, the star apart. 0 = none.")]
+        [Range(0f, 1f)] public float orbits = 0f;
+
         [Header("Light")]
         public Color lightColor = new Color(1f, 0.88f, 0.62f, 1f);
 
@@ -427,6 +438,24 @@ public class LayerDive_NEW : MonoBehaviour
         [Tooltip("Share of the members in the cool colour.")]
         [Range(0f, 1f)] public float coolShare = 0.3f;
 
+        [Tooltip("A third colour for some of the members — the Milky Way's own pink, say.")]
+        public Color memberAccent = new Color(0.96f, 0.69f, 0.92f, 1f);
+
+        [Tooltip("Share of the members in the accent colour. 0 = none.")]
+        [Range(0f, 1f)] public float accentShare = 0f;
+
+        [Header("Spiral (going in)")]
+        [Tooltip("How far, in degrees, the old world turns round the point by the peak, about its " +
+                 "own up, at the rate it opens: its stars stream out of the frame along curves, and " +
+                 "the crowd with them, as if the camera were spiralling down into the point. " +
+                 "Continuous, the new world turns on at that rate, slowing to rest in its own " +
+                 "place by the end. Positive turns clockwise seen from above. 0 = straight in.")]
+        [Range(-360f, 360f)] public float spin = 0f;
+
+        [Tooltip("How far, in degrees, the camera rolls with the turn, at most — it leans in over " +
+                 "the first half of the dive and is level again by the peak. 0 = level.")]
+        [Range(0f, 20f)] public float bank = 0f;
+
         [Header("Shrink (the photon becomes small against its world)")]
         [Tooltip("Dolly zoom. The lens narrows while the camera backs away just enough to keep " +
                  "the photon the same size on screen, so everything behind it swells up around " +
@@ -494,18 +523,39 @@ public class LayerDive_NEW : MonoBehaviour
     {
         public Transform root;
         public Vector3 position;
+        public Quaternion rotation;
         public Vector3 localScale;
         public bool particlesPrepared;
         public readonly List<ParticleState> particles = new List<ParticleState>();
 
-        // World-space systems, whose particles are carried along by hand, and the scale and
-        // pivot they were last carried to. One pivot per scale, as every caller uses.
+        // World-space systems, whose particles are carried along by hand, and where the world
+        // was last carried to (see Placement).
         public readonly List<WorldParticles> world = new List<WorldParticles>();
-        public float carried = 1f;
-        public Vector3 pivot;
+        public Placement carried = Placement.AsBuilt;
 
         // Point and spot lights, with the range each was built with.
         public readonly List<LightRange> lights = new List<LightRange>();
+    }
+
+    /// <summary>
+    /// Where a world is put, relative to where it was built: the point `anchor` of it, as
+    /// built, is moved to `at`, and the world is scaled by `scale` and turned by `turn` about
+    /// that point. Scaling round a pivot is the anchor and `at` on the pivot.
+    /// </summary>
+    struct Placement
+    {
+        public Vector3 anchor;
+        public Vector3 at;
+        public Quaternion turn;
+        public float scale;
+
+        public static Placement AsBuilt => new Placement { turn = Quaternion.identity, scale = 1f };
+
+        /// <summary>Where a point of the world as built is now.</summary>
+        public Vector3 Place(Vector3 built) => at + turn * (built - anchor) * scale;
+
+        /// <summary>Where a point of the world now was as built.</summary>
+        public Vector3 Unplace(Vector3 now) => anchor + Quaternion.Inverse(turn) * (now - at) / scale;
     }
 
     struct LightRange
@@ -612,6 +662,35 @@ public class LayerDive_NEW : MonoBehaviour
     float _lightScreenSize;
     const int GrowthSteps = 256;
 
+    // The camera's roll into the spin, in degrees.
+    float _roll;
+
+    // As a star, the light's quad is this many times the size of its glow, so the spikes fit.
+    const float StarQuad = 8f;
+
+    // Continuous: the planets' orbits, and when they started to be drawn (-1: not yet).
+    class Orbit
+    {
+        public LineRenderer line;
+        public Vector3 offset;   // the planet from the star, flat, as built
+    }
+
+    readonly List<Orbit> _orbits = new List<Orbit>();
+    Material _orbitMaterial;
+    MaterialPropertyBlock _orbitBlock;
+    float _orbitsFrom = -1f;
+    bool _warnedNoOrbitShader;
+    static readonly int DrawId = Shader.PropertyToID("_Draw");
+    static readonly int HeadId = Shader.PropertyToID("_Head");
+    static readonly int GlowScaleId = Shader.PropertyToID("_GlowScale");
+    static readonly int SpikesId = Shader.PropertyToID("_Spikes");
+    static readonly int SpikeLengthId = Shader.PropertyToID("_SpikeLength");
+    static readonly int SpikeAngleId = Shader.PropertyToID("_SpikeAngle");
+    static readonly int SpikeTintId = Shader.PropertyToID("_SpikeTint");
+    static readonly int SpinId = Shader.PropertyToID("_Spin");
+    const int OrbitPoints = 128;
+    static readonly Vector3[] _orbitBuffer = new Vector3[OrbitPoints + 1];
+
     // How much faster the new world grows once the old one is gone than during the dive.
     const float EmergeRate = 2.5f;
 
@@ -653,6 +732,9 @@ public class LayerDive_NEW : MonoBehaviour
         DestroyLight();
         DestroyCrowd();
         DestroyHalo();
+        DestroyOrbits();
+        if (_orbitMaterial != null) Destroy(_orbitMaterial);
+        _orbitMaterial = null;
     }
 
     /// <summary>
@@ -818,15 +900,17 @@ public class LayerDive_NEW : MonoBehaviour
         if (worlds != null) worlds.SetGroupLook(_toId, 0f);
         if (Crossfading) ScaleAround(_enter, _emergeFocus, _dive.enterScale);
 
-        // Continuous, it starts as small as it gets, at the point, and grows on one clock.
+        // Continuous, it starts as small as it gets, at the point, and grows on one clock
+        // (TickDive puts it there, below). Its star and planets are measured first, as built.
         _watch = 0f;
+        _roll = 0f;
         _enterNow = 1f;
         if (Continuous)
         {
             BuildGrowth();
             _subjectRadius = MeasureRadius(dive.emergeOverride);
+            BuildOrbits(dive);
             _enterNow = dive.enterScale;
-            ScaleAround(_enter, _focus, _enterNow);
         }
 
         BuildOverlay();
@@ -853,9 +937,19 @@ public class LayerDive_NEW : MonoBehaviour
         // instead of stopping at speed.
         float p = Crossfading ? LandingRamp(u) : SteadyRamp(u);
 
-        // The old world grows around the point ahead going in. Coming out it shrinks into
-        // its own middle, behind the photon, with the rest of its cluster.
-        ScaleAround(_leave, _focus, Mathf.Pow(outward ? 1f / _dive.diveZoom : _dive.diveZoom, p));
+        // The old world grows around the point ahead going in, turning about its up as it does
+        // for a spiral. Coming out it shrinks into its own middle, behind the photon, with the
+        // rest of its cluster.
+        Place(_leave, new Placement
+        {
+            anchor = _focus,
+            at = _focus,
+            turn = outward ? Quaternion.identity : Quaternion.AngleAxis(_dive.spin * p, Vector3.up),
+            scale = Mathf.Pow(outward ? 1f / _dive.diveZoom : _dive.diveZoom, p)
+        });
+
+        // The camera leans in with the turn over the first half of the dive, level by the peak.
+        _roll = outward ? 0f : _dive.bank * Mathf.Sign(_dive.spin) * Smooth(0.1f, 0.5f, u) * (1f - Smooth(0.6f, 1f, u));
 
         // The lens pushes in on the point at the dive's own rate.
         _fovPush = _dive.targetFieldOfView > 0f ? p : 0f;
@@ -923,16 +1017,22 @@ public class LayerDive_NEW : MonoBehaviour
 
     /// <summary>
     /// Going in, the crowd opens at the dive's own constant rate (<paramref name="p"/>), only
-    /// much further, out of the point and past the camera; it is gone by the peak. With no
-    /// approach crowd nothing has shown it yet: it resolves over the first half of the dive,
-    /// the way detail comes up as you close in, instead of being there at the gate.
+    /// much further, out of the point and past the camera, turning with the old world; it is
+    /// gone by the peak. With no approach crowd nothing has shown it yet: it resolves over the
+    /// first half of the dive, the way detail comes up as you close in, instead of being there
+    /// at the gate.
     /// </summary>
     void TickCrowd(float u, float p)
     {
         float rise = _dive.approachCrowd > 0f ? Smooth(0f, 0.2f, u) : Smooth(0.05f, 0.5f, u);
         float crowd = Mathf.Lerp(_dive.approachCrowd, _dive.diveCrowd, rise) * (1f - Smooth(0.8f, 1f, u));
         float streak = _dive.streak * Smooth(0f, 0.25f, u) * (1f - Smooth(0.85f, 1f, u));
-        SetCrowd(_dive, _focus, _crowdAim, Mathf.Pow(_dive.resolveZoom, p), crowd, streak);
+
+        // It turns as far as the old world, while opening further: its streaks slant by that
+        // much less.
+        Quaternion turn = Quaternion.AngleAxis(_dive.spin * p, Vector3.up);
+        float spin = _dive.resolveZoom > 1f ? _dive.spin * Mathf.Deg2Rad / Mathf.Log(_dive.resolveZoom) : 0f;
+        SetCrowd(_dive, _focus, turn * _crowdAim, Mathf.Pow(_dive.resolveZoom, p), crowd, streak, spin);
     }
 
     /// <summary>
@@ -1166,9 +1266,13 @@ public class LayerDive_NEW : MonoBehaviour
         float letGo = 1f - Smooth(total - release, total, t);
 
         // The new world grows out of the point at the pace the growth table sets, in log
-        // space, and is shown from early on, while it is still far too small to see.
+        // space, and is shown from early on, while it is still far too small to see. It turns
+        // round its star with the old world, and on after it, slowing to rest in its own place:
+        // its planets sweep round the star as it opens.
         _enterNow = Mathf.Pow(_dive.enterScale, 1f - Growth(t / total));
-        ScaleAround(_enter, _focus, _enterNow);
+        float turned = SpinAt(t, out float turns);
+        Quaternion turn = Quaternion.AngleAxis(turned - turns, Vector3.up);
+        Place(_enter, new Placement { anchor = _emergeFocus, at = Subject(), turn = turn, scale = _enterNow });
         if (worlds != null) worlds.SetGroupLook(_toId, Smooth(0.5f, 2f, t));
 
         // The lens pushes in over the dive and lands, holds while the new world grows into
@@ -1185,17 +1289,181 @@ public class LayerDive_NEW : MonoBehaviour
 
         // The star: one of the old world's, there from the gate and a little brighter as the
         // dive closes in, until the real one is bigger on screen than it and takes over. With
-        // nothing to measure the real one by, it goes as the new world grows into place.
+        // nothing to measure the real one by, it goes as the new world grows into place. Its
+        // spikes come up as the old world thins round it. As the real star comes out from
+        // under it, it flares — brighter, the spikes longer — then fades into that star with
+        // its spikes drawn back in.
         Vector3 star = Subject();
         float handover = _subjectRadius > 0f
             ? Smooth(0.25f, 0.8f, SubjectScreenSize(star) / Mathf.Max(1e-4f, _dive.starSize))
             : Smooth(dive, total - release, t);
-        float bright = Smooth(0f, 1.5f, t) * Mathf.Lerp(0.6f, 1f, Smooth(0f, dive, t)) * (1f - handover);
+        float flare = Smooth(0f, 0.3f, handover) * (1f - Smooth(0.3f, 0.8f, handover));
+        float bright = Smooth(0f, 1.5f, t) * Mathf.Lerp(0.6f, 1f, Smooth(0f, dive, t))
+                     * (1f + 0.8f * flare) * (1f - Smooth(0.35f, 1f, handover));
         SetLight(_dive, star, 0f, bright, _dive.starSize);
+
+        float spikesIn = Smooth(_dive.dissolveFrom * dive, dive, t);
+        SetSpikes(_dive.starSpikes * spikesIn * (1f + flare) * (1f - Smooth(0.35f, 0.95f, handover)),
+                  Mathf.Min(1f, Mathf.Lerp(0.3f, 0.85f, spikesIn) * (1f + 0.15f * flare)),
+                  (15f + 6f * t) * Mathf.Deg2Rad);
+
+        // Once the real star has taken over, its planets' orbits are drawn round it.
+        if (_orbitsFrom < 0f && handover >= 0.6f) _orbitsFrom = t;
+        TickOrbits(t, total - release, turn);
+    }
+
+    /// <summary>
+    /// Continuous: how far, in degrees, the turn has gone <paramref name="t"/> seconds from the
+    /// gate — with the old world through the dive, at its rate (SteadyRamp), then on at the
+    /// rate it had at the peak, slowing steadily to rest at the end — and how far it goes in
+    /// all (<paramref name="total"/>).
+    /// </summary>
+    float SpinAt(float t, out float total)
+    {
+        float dive = _dive.diveSeconds;
+        float rest = Mathf.Max(1e-3f, _dive.peakHoldSeconds + _dive.emergeSeconds);
+        float rate = _dive.spin * SteadyRate / dive;
+        total = _dive.spin + 0.5f * rate * rest;
+        if (t <= dive) return _dive.spin * SteadyRamp(t / dive);
+
+        float after = Mathf.Min(t - dive, rest);
+        return _dive.spin + rate * (after - after * after / (2f * rest));
     }
 
     /// <summary>Continuous: where the new world's star is now, as that world grows out of the point.</summary>
     Vector3 Subject() => _focus + (_emergeFocus - _focus) * _enterNow;
+
+    // ── Continuous: the orbits ───────────────────────────────────────────────
+
+    const float OrbitWidth = 0.0016f;     // of the screen's height: about a pixel and a half
+    const float OrbitDrawSeconds = 1.6f;
+    const float OrbitStagger = 0.14f;
+
+    /// <summary>
+    /// The new world's planets — its star's siblings that draw something — innermost first,
+    /// with a line each to draw its orbit with. Measured as built, before the dive moves it.
+    /// </summary>
+    void BuildOrbits(Dive d)
+    {
+        DestroyOrbits();
+        _orbitsFrom = -1f;
+
+        Transform star = d.emergeOverride;
+        if (d.orbits <= 0f || star == null || star.parent == null) return;
+
+        if (_orbitMaterial == null)
+        {
+            Shader shader = Resources.Load<Shader>("DiveOrbit_NEW");
+            if (shader == null)
+            {
+                if (!_warnedNoOrbitShader)
+                    Debug.LogWarning("[LayerDive_NEW] Resources/DiveOrbit_NEW.shader is missing; the planets' " +
+                                     "orbits are not drawn.", this);
+                _warnedNoOrbitShader = true;
+                return;
+            }
+
+            _orbitMaterial = new Material(shader) { name = "DiveOrbit (runtime)" };
+            _orbitBlock = new MaterialPropertyBlock();
+        }
+
+        foreach (Transform planet in star.parent)
+        {
+            if (planet == star || planet.GetComponent<Renderer>() == null) continue;
+
+            // In the plane through the star square to the world's up, as the planets are.
+            Vector3 offset = planet.position - star.position;
+            offset.y = 0f;
+            if (offset.sqrMagnitude > 1e-6f) _orbits.Add(new Orbit { line = MakeOrbitLine(), offset = offset });
+        }
+
+        _orbits.Sort((a, b) => a.offset.sqrMagnitude.CompareTo(b.offset.sqrMagnitude));
+    }
+
+    LineRenderer MakeOrbitLine()
+    {
+        var go = new GameObject("DiveOrbit (temporary)");
+        if (player != null) go.layer = player.gameObject.layer;
+
+        LineRenderer line = go.AddComponent<LineRenderer>();
+        line.useWorldSpace = true;
+        line.loop = false;
+        line.positionCount = OrbitPoints + 1;
+        line.alignment = LineAlignment.View;
+        line.textureMode = LineTextureMode.Stretch;
+        line.numCapVertices = 0;
+        line.numCornerVertices = 0;
+        line.sharedMaterial = _orbitMaterial;
+        line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        line.receiveShadows = false;
+        line.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+        line.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+
+        go.SetActive(false);
+        return line;
+    }
+
+    /// <summary>
+    /// Continuous: the planets' orbits round the star as the new world opens up. Each is drawn
+    /// from its planet round the way the planets turn, over OrbitDrawSeconds — innermost
+    /// first, the next OrbitStagger later — with a brighter head where it is being drawn, and
+    /// all fade as the camera turns back to the photon (<paramref name="releaseFrom"/>). Made
+    /// afresh every frame round where the star is, as big as the new world is and turned as it
+    /// is (<paramref name="turn"/>), and about a pixel and a half wide however far off.
+    /// </summary>
+    void TickOrbits(float t, float releaseFrom, Quaternion turn)
+    {
+        if (_orbits.Count == 0) return;
+
+        float shown = _orbitsFrom < 0f ? 0f : _dive.orbits * (1f - Smooth(releaseFrom - 0.6f, releaseFrom + 1f, t));
+        if (shown <= 0.001f || _camera == null)
+        {
+            HideOrbits();
+            return;
+        }
+
+        Vector3 centre = Subject();
+        float width = OrbitWidth * 2f * Mathf.Tan(_camera.fieldOfView * 0.5f * Mathf.Deg2Rad)
+                    * Vector3.Distance(_camera.transform.position, centre);
+        float way = _dive.spin > 0f ? 1f : -1f;
+        Color c = _dive.memberCool;
+
+        for (int i = 0; i < _orbits.Count; i++)
+        {
+            Orbit o = _orbits[i];
+            if (o.line == null) continue;
+
+            float draw = Smooth(0f, 1f, (t - _orbitsFrom - i * OrbitStagger) / OrbitDrawSeconds);
+            bool on = draw > 0f;
+            if (o.line.gameObject.activeSelf != on) o.line.gameObject.SetActive(on);
+            if (!on) continue;
+
+            Vector3 planet = turn * o.offset * _enterNow;
+            for (int j = 0; j <= OrbitPoints; j++)
+                _orbitBuffer[j] = centre + Quaternion.AngleAxis(way * 360f * j / OrbitPoints, Vector3.up) * planet;
+            o.line.SetPositions(_orbitBuffer);
+            o.line.widthMultiplier = width;
+
+            _orbitBlock.SetColor(ColorId, new Color(c.r, c.g, c.b, shown));
+            _orbitBlock.SetFloat(DrawId, draw);
+            _orbitBlock.SetFloat(HeadId, 1f - Smooth(0.85f, 1f, draw));
+            o.line.SetPropertyBlock(_orbitBlock);
+        }
+    }
+
+    void HideOrbits()
+    {
+        for (int i = 0; i < _orbits.Count; i++)
+            if (_orbits[i].line != null && _orbits[i].line.gameObject.activeSelf)
+                _orbits[i].line.gameObject.SetActive(false);
+    }
+
+    void DestroyOrbits()
+    {
+        for (int i = 0; i < _orbits.Count; i++)
+            if (_orbits[i].line != null) Destroy(_orbits[i].line.gameObject);
+        _orbits.Clear();
+    }
 
     /// <summary>
     /// Continuous: the real star's diameter on screen as a fraction of the screen's height, at
@@ -1301,10 +1569,13 @@ public class LayerDive_NEW : MonoBehaviour
         _fovPush = 0f;
         _lookBack = 0f;
         _watch = 0f;
+        _roll = 0f;
         _enterNow = 1f;
         _lightScreenSize = 0f;
         _clock = 0f;
         SetTrailWidth(1f);
+        DestroyOrbits();
+        _orbitsFrom = -1f;
         _trails = Array.Empty<TrailRenderer>();
         _trailWidths = Array.Empty<float>();
 
@@ -1443,29 +1714,41 @@ public class LayerDive_NEW : MonoBehaviour
     static Scaled Capture(Transform root)
     {
         if (root == null) return null;
-        return new Scaled { root = root, position = root.position, localScale = root.localScale };
+        return new Scaled { root = root, position = root.position, rotation = root.rotation, localScale = root.localScale };
     }
 
-    static void ScaleAround(Scaled s, Vector3 pivot, float k)
+    static void ScaleAround(Scaled s, Vector3 pivot, float k) =>
+        Place(s, new Placement { anchor = pivot, at = pivot, turn = Quaternion.identity, scale = k });
+
+    /// <summary>Puts a world where <paramref name="to"/> says, relative to where it was built.</summary>
+    static void Place(Scaled s, Placement to)
     {
         if (s == null || s.root == null) return;
 
-        // Prepared on the first real scale, while the root is still where it was built —
+        // Prepared on the first real move, while the root is still where it was built —
         // the parents' scale has to be measured at 1.
-        if (!s.particlesPrepared && !Mathf.Approximately(k, 1f)) PrepareScaling(s);
+        if (!s.particlesPrepared && !SamePlacement(to, Placement.AsBuilt)) PrepareScaling(s);
 
-        s.root.position = pivot + (s.position - pivot) * k;
-        s.root.localScale = s.localScale * k;
+        s.root.position = to.Place(s.position);
+        s.root.rotation = to.turn * s.rotation;
+        s.root.localScale = s.localScale * to.scale;
 
         for (int i = 0; i < s.lights.Count; i++)
-            if (s.lights[i].light != null) s.lights[i].light.range = s.lights[i].range * k;
+            if (s.lights[i].light != null) s.lights[i].light.range = s.lights[i].range * to.scale;
 
-        if (s.world.Count > 0 && !Mathf.Approximately(k, s.carried))
+        if (s.world.Count > 0 && !SamePlacement(s.carried, to))
         {
-            CarryWorldParticles(s.world, pivot, k / s.carried);
-            s.carried = k;
-            s.pivot = pivot;
+            CarryWorldParticles(s.world, s.carried, to);
+            s.carried = to;
         }
+    }
+
+    /// <summary>True if the two put every point of a world in the same place.</summary>
+    static bool SamePlacement(Placement a, Placement b)
+    {
+        if (!Mathf.Approximately(a.scale, b.scale) || Quaternion.Angle(a.turn, b.turn) > 1e-3f) return false;
+        // Both send the point `a.anchor` to the same place, and turn and scale alike round it.
+        return (b.Place(a.anchor) - a.at).sqrMagnitude < 1e-8f;
     }
 
     /// <summary>
@@ -1520,12 +1803,16 @@ public class LayerDive_NEW : MonoBehaviour
 
     /// <summary>
     /// A world-space system keeps its particles where they were emitted, whatever its root
-    /// does, so a scale moves them by hand: every particle, around the same pivot, by the
-    /// change since the last call — position, velocity and size. The Micro galaxy's spiral
-    /// arms are such systems, a few hundred particles a frame for a few seconds.
+    /// does, so a move carries them by hand: every particle from where the world was last put
+    /// (<paramref name="from"/>) to where it is put now — position, velocity and size. The
+    /// Micro galaxy's spiral arms are such systems, a few hundred particles a frame for a few
+    /// seconds.
     /// </summary>
-    static void CarryWorldParticles(List<WorldParticles> systems, Vector3 pivot, float ratio)
+    static void CarryWorldParticles(List<WorldParticles> systems, Placement from, Placement to)
     {
+        Quaternion turn = to.turn * Quaternion.Inverse(from.turn);
+        float ratio = to.scale / from.scale;
+
         for (int i = 0; i < systems.Count; i++)
         {
             WorldParticles w = systems[i];
@@ -1538,8 +1825,8 @@ public class LayerDive_NEW : MonoBehaviour
             count = w.system.GetParticles(_particleBuffer);
             for (int j = 0; j < count; j++)
             {
-                _particleBuffer[j].position = pivot + (_particleBuffer[j].position - pivot) * ratio;
-                _particleBuffer[j].velocity *= ratio;
+                _particleBuffer[j].position = to.Place(from.Unplace(_particleBuffer[j].position));
+                _particleBuffer[j].velocity = turn * _particleBuffer[j].velocity * ratio;
 
                 if (!w.resize) continue;
                 if (w.size3D) _particleBuffer[j].startSize3D *= ratio;
@@ -1554,6 +1841,7 @@ public class LayerDive_NEW : MonoBehaviour
         if (s == null || s.root == null) return;
 
         s.root.position = s.position;
+        s.root.rotation = s.rotation;
         s.root.localScale = s.localScale;
 
         for (int i = 0; i < s.particles.Count; i++)
@@ -1566,9 +1854,9 @@ public class LayerDive_NEW : MonoBehaviour
             p.system.transform.localScale = p.localScale;
         }
 
-        // Back to where and how big they would be had nothing been scaled — the world may be
+        // Back to where and how big they would be had nothing been moved — the world may be
         // shown again — and emitting as before.
-        if (!Mathf.Approximately(s.carried, 1f)) CarryWorldParticles(s.world, s.pivot, 1f / s.carried);
+        if (!SamePlacement(s.carried, Placement.AsBuilt)) CarryWorldParticles(s.world, s.carried, Placement.AsBuilt);
 
         for (int i = 0; i < s.world.Count; i++)
         {
@@ -1583,7 +1871,7 @@ public class LayerDive_NEW : MonoBehaviour
         s.particles.Clear();
         s.world.Clear();
         s.lights.Clear();
-        s.carried = 1f;
+        s.carried = Placement.AsBuilt;
         s.particlesPrepared = false;
     }
 
@@ -1606,7 +1894,25 @@ public class LayerDive_NEW : MonoBehaviour
         _lightSize = size;
         _lightScreenSize = screenSize;
         _lightMaterial.SetColor(ColorId, new Color(d.lightColor.r, d.lightColor.g, d.lightColor.b, intensity));
+
+        // A star's glow takes the middle of a bigger quad, leaving room for its spikes
+        // (SetSpikes); any other light is a plain glow filling its quad.
+        _lightMaterial.SetFloat(GlowScaleId, screenSize > 0f ? StarQuad : 1f);
+        if (screenSize <= 0f) _lightMaterial.SetFloat(SpikesId, 0f);
         PlaceLight();
+    }
+
+    /// <summary>
+    /// The light as a star: its diffraction spikes' brightness, their length as a fraction of
+    /// the room round the glow, and their turn, in radians. Their tips take the cool colour.
+    /// </summary>
+    void SetSpikes(float brightness, float length, float angle)
+    {
+        if (_lightMaterial == null) return;
+        _lightMaterial.SetFloat(SpikesId, brightness);
+        _lightMaterial.SetFloat(SpikeLengthId, length);
+        _lightMaterial.SetFloat(SpikeAngleId, angle);
+        if (_dive != null) _lightMaterial.SetColor(SpikeTintId, _dive.memberCool);
     }
 
     void HideLight()
@@ -1620,10 +1926,10 @@ public class LayerDive_NEW : MonoBehaviour
         Camera cam = _camera != null ? _camera : (brain != null ? brain.OutputCamera : Camera.main);
 
         // A star keeps its size on screen: a point stays a point however close it gets and
-        // however far the lens pushes in.
+        // however far the lens pushes in. Its quad is StarQuad times its glow, for the spikes.
         float size = _lightSize;
         if (_lightScreenSize > 0f && cam != null)
-            size = _lightScreenSize * 2f * Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad)
+            size = _lightScreenSize * StarQuad * 2f * Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad)
                  * Vector3.Distance(cam.transform.position, _lightPosition);
 
         Transform t = _light.transform;
@@ -1688,7 +1994,9 @@ public class LayerDive_NEW : MonoBehaviour
     /// <param name="aim">Coming out, which way the cluster's cone points (CrowdAim).</param>
     /// <param name="zoom">How far the crowd has opened around the point — or shrunk into it,
     /// coming out. 1 = as built.</param>
-    void SetCrowd(Dive d, Vector3 at, Quaternion aim, float zoom, float alpha, float streak)
+    /// <param name="spin">Turning as it opens: radians round its up for every factor of e it
+    /// opens by, which slants the streaks (DiveSwarm_NEW's _Spin).</param>
+    void SetCrowd(Dive d, Vector3 at, Quaternion aim, float zoom, float alpha, float streak, float spin = 0f)
     {
         if (!d.resolve || d.memberCount <= 0 || alpha <= 0.001f)
         {
@@ -1710,6 +2018,7 @@ public class LayerDive_NEW : MonoBehaviour
 
         _crowdMaterial.SetFloat(AlphaId, alpha);
         _crowdMaterial.SetFloat(StreakId, streak);
+        _crowdMaterial.SetFloat(SpinId, spin);
         // The shader scales members with the crowd; this takes back all but memberGrowth of it.
         _crowdMaterial.SetFloat(SizeScaleId, Mathf.Pow(zoom, d.memberGrowth - 1f));
         // Going in, members come out of the point's glow; coming out there is no point to see.
@@ -1781,6 +2090,8 @@ public class LayerDive_NEW : MonoBehaviour
             h = h * 31 + d.memberWarm.GetHashCode();
             h = h * 31 + d.memberCool.GetHashCode();
             h = h * 31 + d.coolShare.GetHashCode();
+            h = h * 31 + d.memberAccent.GetHashCode();
+            h = h * 31 + d.accentShare.GetHashCode();
             return h;
         }
     }
@@ -1840,7 +2151,11 @@ public class LayerDive_NEW : MonoBehaviour
                        * Mathf.Lerp(0.6f, 1.4f, (float)rng.NextDouble());
             }
 
-            Color c = rng.NextDouble() < d.coolShare ? d.memberCool : d.memberWarm;
+            // One draw for the colour, so a crowd with no accent is the one it always was.
+            double pick = rng.NextDouble();
+            Color c = pick < d.coolShare ? d.memberCool
+                    : pick < d.coolShare + d.accentShare ? d.memberAccent
+                    : d.memberWarm;
             c.a = Mathf.Lerp(0.25f, 1f, (float)rng.NextDouble());   // brightness
 
             int v = i * 4;
@@ -2047,6 +2362,7 @@ public class LayerDive_NEW : MonoBehaviour
 
         if (_lookBack > 1e-4f && player != null) LookBack(cam.transform);
         if (_watch > 1e-4f) Watch(cam.transform);
+        if (Mathf.Abs(_roll) > 1e-3f) cam.transform.rotation *= Quaternion.AngleAxis(_roll, Vector3.forward);
 
         if (_fovPush > 1e-4f && _dive != null && _dive.targetFieldOfView > 0f)
         {

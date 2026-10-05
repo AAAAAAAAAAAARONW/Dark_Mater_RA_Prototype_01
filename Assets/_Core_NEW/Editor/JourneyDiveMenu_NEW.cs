@@ -157,19 +157,29 @@ static class JourneyDiveMenu_NEW
     ///              flight line and 20 past the gate — where, from the camera, it sits beside
     ///              the photon, not behind it — is where the Sun is: a point the size of the
     ///              galaxy's own stars (starSize), warm white like them, from the gate on.
-    ///   dive       5.5 seconds. The galaxy grows twelve times round it, its stars streaming
-    ///              out of the frame, and dissolves from 45%; the disc's stars resolve out of
-    ///              it as before, fainter; the lens pushes in from 40 to 30; the camera turns
-    ///              half way towards the star, which stays put a fifth of the frame left of
-    ///              the middle while the photon sits as far right.
-    ///   resolve    The Solar System has been growing out of the point since the gate, from
-    ///              1/400 of its size. As the galaxy goes, the star is all that is left, and it
-    ///              opens: the Sun comes out from under it (6 to 20 pixels, 4.5 to 7 seconds)
-    ///              and its planets come away from it, seen from above at an angle.
-    ///   landing    Faster once the galaxy is gone, it grows on into its own place and size
-    ///              by 11.3 seconds — the Sun 100 pixels across in the upper half, the photon
-    ///              below — and over the last two the camera turns back to the photon and the
-    ///              lens goes to the Solar camera's 20, the Sun rising out of the top.
+    ///   spiral     5.5 seconds. The galaxy grows twelve times round it while turning 90
+    ///              degrees anticlockwise seen from above — the way the planets go — so its
+    ///              stars stream out of the frame along curves, as if the camera spiralled
+    ///              down into the disc; it dissolves from 45%. Its stars resolve out of it in
+    ///              its own white, blue and pink, streaking along the same curves; the camera
+    ///              leans 4 degrees into the turn and levels out by the peak; the lens pushes
+    ///              in from 40 to 30, with a touch of colour fringing at the fastest; the
+    ///              camera turns half way towards the star, which stays a fifth of the frame
+    ///              left of the middle while the photon sits as far right.
+    ///   the flare  As the galaxy thins, the star grows diffraction spikes — four long, four
+    ///              short, cooling to blue at their tips, turning slowly — until it is the one
+    ///              thing left. The Solar System has been growing out of it since the gate,
+    ///              from 1/400 of its size; at 6.5 seconds the Sun comes out from under it, and
+    ///              it flares, spikes longest, then fades into the Sun with them drawn back in.
+    ///   orbits     The planets come away from the Sun, the system still turning — another 60
+    ///              degrees, slowing — and from 6.8 seconds each draws its orbit, from itself
+    ///              round the way it goes, innermost first, a thin blue line with a bright
+    ///              head; seen from above at an angle while the system is small and close.
+    ///   landing    Faster once the galaxy is gone, it grows on into its own place, size and
+    ///              turn by 12.3 seconds — the Sun 100 pixels across in the upper half, the
+    ///              photon below. The orbits fade as, over the last 2.2, the camera turns back
+    ///              to the photon and the lens goes to the Solar camera's 20, the Sun rising
+    ///              out of the top.
     /// </summary>
     /// <param name="placePoint">Put SolarDivePoint back where these values were tuned for, if
     /// it has been moved. Resetting the row does; adding a missing one leaves it be.</param>
@@ -191,7 +201,7 @@ static class JourneyDiveMenu_NEW
             approachDistance = 0f,
             diveSeconds = 5.5f,
             peakHoldSeconds = 0.3f,
-            emergeSeconds = 5.5f,
+            emergeSeconds = 6.5f,
             diveZoom = 12f,
             leaveGlow = 1f,
             dissolveFrom = 0.45f,
@@ -200,28 +210,34 @@ static class JourneyDiveMenu_NEW
             lightIntensity = 0.7f,
             whiteout = 0f,
             starSize = 0.024f,
+            starSpikes = 0.6f,
+            orbits = 0.35f,
             watch = 0.5f,
-            watchRelease = 2f,
+            watchRelease = 2.2f,
+            spin = -90f,
+            bank = 4f,
             resolve = true,
-            memberCount = 700,
+            memberCount = 900,
             crowdRadius = 10f,
             memberSize = 0.25f,
             resolveZoom = 40f,
             memberGrowth = 0.4f,
-            streak = 1.5f,
+            streak = 2f,
             crowdFlatten = 0.12f,
             memberCore = 0.5f,
             approachCrowd = 0f,
-            diveCrowd = 0.6f,
+            diveCrowd = 0.7f,
             memberWarm = new Color(1f, 0.93f, 0.86f, 1f),
             memberCool = new Color(0.72f, 0.82f, 1f, 1f),
-            coolShare = 0.45f,
+            coolShare = 0.4f,
+            memberAccent = new Color(0.96f, 0.69f, 0.92f, 1f),
+            accentShare = 0.2f,
             dollyZoom = 1f,
             photonShrink = 0.5f,
             peakVignette = 0.3f,
             targetFieldOfView = 30f,
             peakBloom = 0f,
-            peakChromaticAberration = 0f
+            peakChromaticAberration = 0.1f
         };
     }
 
