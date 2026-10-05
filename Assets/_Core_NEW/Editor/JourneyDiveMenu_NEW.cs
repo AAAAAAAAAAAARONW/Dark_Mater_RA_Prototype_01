@@ -154,15 +154,20 @@ static class JourneyDiveMenu_NEW
     ///              the photon (one down in three, from 3 behind and 1 above) meets the disc
     ///              midway through the dive: from the camera the photon sits in front of it the
     ///              whole way, so it is seen plunging into it. Move it to dive elsewhere.
-    ///   dive       No marker beforehand. From the gate, four and a half seconds, the Micro
-    ///              dive's moves: the galaxy swells six times round the point and brightens as
-    ///              it goes; the photon shrinks against it (dolly zoom 2.5, trail to 0.35); a
-    ///              vignette closes in on the point; a warm light rises out of it and swells
-    ///              into sunlight. And the galaxy resolves into its stars: soft, in its own
-    ///              colours (the arms' warm white and blue), lying flat in its plane, they come
-    ///              up out of the glow over the first half of the dive — about 200 in frame —
-    ///              and stream past under the photon at an even pace, the small scale racing
-    ///              by while the galaxy itself hardly grows: that is the drop in scale.
+    ///   dive       No marker beforehand. From the gate, five and a half seconds, the Micro
+    ///              dive's moves: the galaxy swells six times round the point; the photon
+    ///              shrinks against it (dolly zoom 2.2, trail to 0.35); a vignette closes in on
+    ///              the point. And the galaxy resolves into its stars: soft, in its own colours
+    ///              (the arms' warm white and blue), lying flat in its plane, they come up out of
+    ///              the glow over the first half of the dive — about 200 in frame — and stream
+    ///              past under the photon at an even pace, the small scale racing by while the
+    ///              galaxy itself hardly grows: that is the drop in scale.
+    ///   the light  A small white star at the point, rising out of the disc, that stays small
+    ///              (lightHold): under 8% of the frame until half way, 29% at 70%, filling it
+    ///              only at 90%, with the whiteout from 85%. Grown steadily from the gate, as
+    ///              the dive into Micro's does, it covered the frame a third of the way in so
+    ///              close to the camera — the dolly magnifying it too — and all that showed
+    ///              was a yellow light swelling into a yellow screen. Whiter now, too.
     ///   emerge     Under the light the Solar camera takes over and the light moves to the Sun
     ///              (emergeOverride); the Solar System grows out of it from 0.15 of its size,
     ///              the planets moving out to their orbits — one star of all those, with its
@@ -183,21 +188,23 @@ static class JourneyDiveMenu_NEW
             focusOverride = SolarDivePoint(worlds),
             emergeOverride = sun,
             approachDistance = 0f,
-            diveSeconds = 4.5f,
+            diveSeconds = 5.5f,
             peakHoldSeconds = 0.3f,
             emergeSeconds = 4.5f,
             diveZoom = 6f,
-            leaveGlow = 1.8f,
-            dissolveFrom = 0.55f,
+            leaveGlow = 1f,
+            dissolveFrom = 0.6f,
             enterScale = 0.15f,
-            lightColor = new Color(1f, 0.92f, 0.75f, 1f),
-            lightIntensity = 1.5f,
+            lightColor = new Color(1f, 0.97f, 0.9f, 1f),
+            lightIntensity = 1.2f,
             pointSize = 0.6f,
-            gateSize = 1.5f,
-            peakSize = 40f,
+            gateSize = 0.3f,
+            peakSize = 25f,
+            lightHold = 0.5f,
             whiteout = 1f,
+            whiteoutFrom = 0.85f,
             resolve = true,
-            memberCount = 900,
+            memberCount = 1100,
             crowdRadius = 10f,
             memberSize = 0.3f,
             resolveZoom = 40f,
@@ -206,16 +213,16 @@ static class JourneyDiveMenu_NEW
             crowdFlatten = 0.12f,
             memberCore = 0.6f,
             approachCrowd = 0f,
-            diveCrowd = 0.7f,
+            diveCrowd = 0.9f,
             memberWarm = new Color(1f, 0.93f, 0.86f, 1f),
             memberCool = new Color(0.72f, 0.82f, 1f, 1f),
             coolShare = 0.45f,
-            dollyZoom = 2.5f,
+            dollyZoom = 2.2f,
             photonShrink = 0.35f,
-            peakVignette = 0.4f,
+            peakVignette = 0.35f,
             targetFieldOfView = 0f,
-            peakBloom = 2.5f,
-            peakChromaticAberration = 0.1f
+            peakBloom = 1.6f,
+            peakChromaticAberration = 0f
         };
     }
 

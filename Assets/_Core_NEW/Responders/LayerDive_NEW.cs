@@ -261,6 +261,16 @@ public class LayerDive_NEW : MonoBehaviour
         [Tooltip("Opacity of the full-screen light at the peak. 1 hides the swap completely.")]
         [Range(0f, 1f)] public float whiteout = 1f;
 
+        [Tooltip("Fraction of the dive at which the full-screen light starts to come up.")]
+        [Range(0f, 0.98f)] public float whiteoutFrom = 0.7f;
+
+        [Tooltip("Going in: how long the light stays a point. 0 grows it steadily from the gate. " +
+                 "Higher keeps it small for most of the dive — a destination, not a wash over " +
+                 "everything — and swells it only at the end: 0.5 grows it by the square of the " +
+                 "progress, 1 by the cube. Close to the camera, a light growing from the start " +
+                 "fills the frame within a third of the dive and hides all the rest.")]
+        [Range(0f, 1f)] public float lightHold = 0f;
+
         [Header("Resolve (what the point turns out to be made of)")]
         [Tooltip("The point turns out to be a crowd — here, the galaxies of the cluster. Before " +
                  "the gate they are one glow; in the dive they open up and stream past the camera " +
@@ -771,7 +781,7 @@ public class LayerDive_NEW : MonoBehaviour
         float glow = Mathf.Lerp(1f, _dive.leaveGlow, Smooth(0f, 0.85f, u));
         if (worlds != null) worlds.SetGroupLook(_fromId, 1f - dissolve, glow);
 
-        SetVeil(_dive.whiteout * Smooth(0.7f, 1f, u));
+        SetVeil(_dive.whiteout * Smooth(_dive.whiteoutFrom, 1f, u));
         _fovMultiplier = Mathf.Lerp(1f, _dive.fieldOfViewScale, Smooth(0f, 1f, u));
 
         // The photon's trail narrows at the same constant rate: small against its world.
@@ -787,11 +797,19 @@ public class LayerDive_NEW : MonoBehaviour
 
         // Going in, the light swells steadily from its size at the gate, and hands over to
         // the whiteout as the camera arrives at it: a quad at the camera would cut through
-        // the near plane. Crossfading, it grows as the dive magnifies — by the same factor
-        // each second — into what it is about to become.
-        float size = Crossfading
-            ? _dive.gateSize * Mathf.Pow(_dive.peakSize / Mathf.Max(1e-3f, _dive.gateSize), p)
-            : Mathf.Lerp(_dive.gateSize, _dive.peakSize, p);
+        // the near plane. Crossfading, or holding (lightHold), it grows as the dive magnifies
+        // — by the same factor each second — and holding, by a power of the progress too, so
+        // it stays a point for most of the dive and swells at the end.
+        float size;
+        if (Crossfading || _dive.lightHold > 0f)
+        {
+            float k = Mathf.Pow(p, 1f + 2f * _dive.lightHold);
+            size = _dive.gateSize * Mathf.Pow(_dive.peakSize / Mathf.Max(1e-3f, _dive.gateSize), k);
+        }
+        else
+        {
+            size = Mathf.Lerp(_dive.gateSize, _dive.peakSize, p);
+        }
         float arriving = _camera != null ? Smooth(1.5f, 6f, Vector3.Distance(_camera.transform.position, _focus)) : 1f;
         // With no approach nothing has shown the light yet: it rises out of the point as the
         // dive begins, rather than popping in at the gate.
