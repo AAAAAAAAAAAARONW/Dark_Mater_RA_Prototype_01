@@ -178,8 +178,15 @@ static class JourneyDiveMenu_NEW
     ///   landing    Faster once the galaxy is gone, it grows on into its own place, size and
     ///              turn by 12.3 seconds — the Sun 100 pixels across in the upper half, the
     ///              photon below. The orbits fade as, over the last 2.2, the camera turns back
-    ///              to the photon and the lens goes to the Solar camera's 20, the Sun rising
-    ///              out of the top.
+    ///              to the photon and the lens goes to the Solar camera's 20.
+    ///   settle     The Solar camera as authored sits 1 above the photon and looks down at it,
+    ///              with the Sun above the top of the frame: the transition used to end with
+    ///              the system sliding out of view. So over the last 3 seconds it comes down
+    ///              its orbit (Y axis 0.5 to about 0.39, from 1 above the photon to 0.2) and
+    ///              looks ahead instead: the Sun stays in the upper half all the way down and
+    ///              ends a fifth of the way up from the middle, the planets in a band across
+    ///              the frame, the photon just below the middle. It is left there for the
+    ///              player — until they look elsewhere or recentre.
     /// </summary>
     /// <param name="placePoint">Put SolarDivePoint back where these values were tuned for, if
     /// it has been moved. Resetting the row does; adding a missing one leaves it be.</param>
@@ -237,7 +244,10 @@ static class JourneyDiveMenu_NEW
             peakVignette = 0.3f,
             targetFieldOfView = 30f,
             peakBloom = 0f,
-            peakChromaticAberration = 0.1f
+            peakChromaticAberration = 0.1f,
+            endFacingStar = true,
+            endStarHeight = 0.2f,
+            endSettleSeconds = 3f
         };
     }
 

@@ -97,7 +97,10 @@ using UnityEngine.UI;
 ///              planets come away from it and spread — seen from above at an angle while the
 ///              system is still small and close.
 ///   landing    It grows on into its own place and size, faster now, and lands there as the
-///              camera turns back to the photon and the lens goes back to the zone camera's.
+///              camera turns back to the photon and the lens goes back to the zone camera's —
+///              and, ending facing the star (endFacingStar), the zone camera comes down
+///              behind the photon until the new world is in the middle of the frame, and is
+///              left there for the player.
 ///
 /// THE LIGHT is a camera-facing glow in the world, drawn after the web and before the
 /// photon trail, so it sits inside the cluster and behind the photon. Only the full-screen
@@ -302,6 +305,21 @@ public class LayerDive_NEW : MonoBehaviour
                  "they fade as the camera turns back. Its planets are the new world's children " +
                  "that draw something, the star apart. 0 = none.")]
         [Range(0f, 1f)] public float orbits = 0f;
+
+        [Tooltip("Continuous: leave the zone camera facing the new world. Over the last " +
+                 "endSettleSeconds it comes down its orbit, behind the photon, until the star is " +
+                 "endStarHeight above the middle of the frame, and stays there after the " +
+                 "transition, until the player looks elsewhere or recentres. The Solar camera as " +
+                 "authored looks down at the photon, with the Sun above the top of the frame. " +
+                 "Off: the zone camera is left as it was.")]
+        public bool endFacingStar = false;
+
+        [Tooltip("Where the star ends up, as a fraction of the frame's half-height above its " +
+                 "middle. The photon stays where the zone camera's composer puts it, just below.")]
+        [Range(-0.8f, 0.8f)] public float endStarHeight = 0.2f;
+
+        [Tooltip("Seconds at the end over which the zone camera settles onto the new world.")]
+        [Min(0.1f)] public float endSettleSeconds = 3f;
 
         [Header("Light")]
         public Color lightColor = new Color(1f, 0.88f, 0.62f, 1f);
@@ -665,6 +683,11 @@ public class LayerDive_NEW : MonoBehaviour
     // The camera's roll into the spin, in degrees.
     float _roll;
 
+    // Continuous, ending facing the star: the zone camera being settled, and its Y axis when
+    // the settling began.
+    CinemachineFreeLook _settleCamera;
+    float _settleFromY;
+
     // As a star, the light's quad is this many times the size of its glow, so the spikes fit.
     const float StarQuad = 8f;
 
@@ -905,6 +928,7 @@ public class LayerDive_NEW : MonoBehaviour
         _watch = 0f;
         _roll = 0f;
         _enterNow = 1f;
+        _settleCamera = null;
         if (Continuous)
         {
             BuildGrowth();
@@ -1310,6 +1334,92 @@ public class LayerDive_NEW : MonoBehaviour
         // Once the real star has taken over, its planets' orbits are drawn round it.
         if (_orbitsFrom < 0f && handover >= 0.6f) _orbitsFrom = t;
         TickOrbits(t, total - release, turn);
+
+        // And at the end the zone camera settles onto the new world.
+        if (_dive.endFacingStar) TickSettle(t, total);
+    }
+
+    /// <summary>
+    /// Continuous, ending facing the star: over the last endSettleSeconds, the zone camera
+    /// comes down its orbit until the star, where it lands, is endStarHeight above the middle
+    /// of the frame. Its Y axis is all that is moved, so the photon stays where its composer
+    /// puts it and the player picks up from there. Look input is locked for the transition
+    /// (LayerProfile_NEW.lockLookInput), so nothing else is moving it meanwhile.
+    /// </summary>
+    void TickSettle(float t, float total)
+    {
+        float from = total - Mathf.Min(_dive.endSettleSeconds, total - _dive.diveSeconds);
+        if (t < from) return;
+
+        if (_settleCamera == null)
+        {
+            _settleCamera = brain != null ? brain.ActiveVirtualCamera as CinemachineFreeLook : null;
+            if (_settleCamera == null) return;
+            _settleFromY = _settleCamera.m_YAxis.Value;
+        }
+
+        float y = LookYFor(_settleCamera, _emergeFocus, _dive.endStarHeight);
+        _settleCamera.m_YAxis.Value = Mathf.Lerp(_settleFromY, y, Smooth(from, total, t));
+    }
+
+    /// <summary>
+    /// The Y-axis value at which <paramref name="vcam"/>, looking at its target the way its
+    /// rigs' composers do, has <paramref name="target"/> <paramref name="height"/> of the
+    /// frame's half-height above the middle. Only how high the camera sits on its orbits,
+    /// and so how far down it looks, is solved for; its heading is left as it is. Higher on
+    /// the orbits looks further down and puts the target higher in the frame, so halving
+    /// the range finds it.
+    /// </summary>
+    static float LookYFor(CinemachineFreeLook vcam, Vector3 target, float height)
+    {
+        Transform follow = vcam.Follow, lookAt = vcam.LookAt;
+        if (follow == null || lookAt == null) return vcam.m_YAxis.Value;
+
+        // Which way, flat, the camera sits from what it follows.
+        Vector3 back = vcam.State.RawPosition - follow.position;
+        back.y = 0f;
+        if (back.sqrMagnitude < 1e-6f) back = -follow.forward;
+        back.y = 0f;
+        if (back.sqrMagnitude < 1e-6f) return vcam.m_YAxis.Value;
+        back.Normalize();
+
+        float tanHalf = Mathf.Tan(vcam.m_Lens.FieldOfView * 0.5f * Mathf.Deg2Rad);
+        float min = vcam.m_YAxis.m_MinValue, max = vcam.m_YAxis.m_MaxValue;
+        float lo = min, hi = max;
+        for (int i = 0; i < 24; i++)
+        {
+            float y = 0.5f * (lo + hi);
+            float t = max > min ? (y - min) / (max - min) : 0.5f;
+
+            Vector3 offset = vcam.GetLocalPositionForCameraFromInput(t);
+            Vector3 camera = follow.position + Vector3.up * offset.y - back * offset.z;
+            float middle = Pitch(lookAt.position - camera) + Mathf.Atan((2f * ComposerScreenY(vcam, t) - 1f) * tanHalf);
+            float seen = Mathf.Tan(Mathf.Clamp(Pitch(target - camera) - middle, -1.5f, 1.5f)) / tanHalf;
+
+            if (seen > height) hi = y;
+            else lo = y;
+        }
+        return 0.5f * (lo + hi);
+    }
+
+    static float Pitch(Vector3 v) => Mathf.Atan2(v.y, new Vector2(v.x, v.z).magnitude);
+
+    /// <summary>
+    /// How far down the screen the FreeLook's composers put its target at a normalised Y,
+    /// blending the rigs the way the FreeLook blends their states: bottom to middle below
+    /// one half, middle to top above it.
+    /// </summary>
+    static float ComposerScreenY(CinemachineFreeLook vcam, float t)
+    {
+        float top = RigScreenY(vcam, 0), middle = RigScreenY(vcam, 1), bottom = RigScreenY(vcam, 2);
+        return t <= 0.5f ? Mathf.Lerp(bottom, middle, t * 2f) : Mathf.Lerp(middle, top, (t - 0.5f) * 2f);
+    }
+
+    static float RigScreenY(CinemachineFreeLook vcam, int rig)
+    {
+        CinemachineVirtualCamera r = vcam.GetRig(rig);
+        CinemachineComposer composer = r != null ? r.GetCinemachineComponent<CinemachineComposer>() : null;
+        return composer != null ? composer.m_ScreenY : 0.5f;
     }
 
     /// <summary>
@@ -1570,6 +1680,7 @@ public class LayerDive_NEW : MonoBehaviour
         _lookBack = 0f;
         _watch = 0f;
         _roll = 0f;
+        _settleCamera = null;
         _enterNow = 1f;
         _lightScreenSize = 0f;
         _clock = 0f;
