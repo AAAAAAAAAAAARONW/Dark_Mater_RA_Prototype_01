@@ -78,6 +78,27 @@ using UnityEngine.UI;
 ///              cluster sits where the photon comes out, so it is still inside that yellow
 ///              then, and flies out of it in the next few seconds.
 ///
+/// CONTINUOUS (Dive.continuous), for a gate into a world that is one point of the world being
+/// left — the Milky Way down to one star's system. Nothing swells and nothing is hidden. The
+/// first Solar dives swelled a light into a whiteout and grew the Solar System under it round
+/// the Sun, which the Solar camera, looking down at the photon, has above the top of the frame:
+/// all that showed was a yellow light. Instead one zoom runs from the gate to the end on one
+/// clock, and everything it does is in frame:
+///
+///   the star   The point is the new world's star (emergeOverride), a point the size of the
+///              old world's own stars, there from the gate, beside the photon rather than
+///              behind it, so the photon never covers it.
+///   dive       The old world grows round it, its stars streaming out of the frame, and
+///              dissolves; the lens pushes in and the camera turns part way towards the star.
+///              The new world has been growing out of the point since the gate, from
+///              enterScale, still too small to see.
+///   resolve    As the old world goes, the star is the one thing that stays, and it opens up:
+///              the real star grows out from under the point standing in for it, and its
+///              planets come away from it and spread — seen from above at an angle while the
+///              system is still small and close.
+///   landing    It grows on into its own place and size, faster now, and lands there as the
+///              camera turns back to the photon and the lens goes back to the zone camera's.
+///
 /// THE LIGHT is a camera-facing glow in the world, drawn after the web and before the
 /// photon trail, so it sits inside the cluster and behind the photon. Only the full-screen
 /// whiteout at the peak is an overlay.
@@ -93,7 +114,10 @@ using UnityEngine.UI;
 /// "Hierarchy" with the parents divided back out. Systems that simulate in world space
 /// leave their particles where they were emitted whatever the root does — the Micro
 /// galaxy's spiral arms are eight of them — so for the length of a scale they stop
-/// emitting and their particles are carried along by hand, and put back after.
+/// emitting and their particles are carried along by hand, and put back after. A light's
+/// range is in world units whatever its parents' scale, so it is scaled with the world: the
+/// Solar System lights each planet with its own point light, and at a hundredth of its size
+/// every light would reach every planet.
 /// </summary>
 [DisallowMultipleComponent]
 [HierarchyBadge_NEW("DIVE", "#E07A5F")]
@@ -228,8 +252,9 @@ public class LayerDive_NEW : MonoBehaviour
         [Header("The world being entered")]
         [Tooltip("Scale the new world starts at around where it appears, settling to 1. " +
                  "1 = fade in only. Below 1 the new world grows out of the light — the planets " +
-                 "of a solar system moving out to their orbits round its star.")]
-        [Min(0.01f)] public float enterScale = 1f;
+                 "of a solar system moving out to their orbits round its star. Continuous, it " +
+                 "grows out of the point from this, so far below 1 that it starts as a speck.")]
+        [Min(0.0001f)] public float enterScale = 1f;
 
         [Tooltip("Optional. Where the light settles and the new world appears from, instead of " +
                  "the middle of the new world — its star, for a solar system.")]
@@ -242,6 +267,30 @@ public class LayerDive_NEW : MonoBehaviour
                  "emergeOverride on the same object, so the light never has to move. 0 = the " +
                  "whiteout swap.")]
         [Range(0f, 1f)] public float crossfade = 0f;
+
+        [Header("Continuous (going in: one zoom, nothing hidden)")]
+        [Tooltip("Going in: one zoom from the gate to the end, on one clock (see CONTINUOUS on " +
+                 "the class). The old world grows round the point while the new one grows out " +
+                 "of it from enterScale — slowly through the dive, so it stays at the point while " +
+                 "the old world opens round it, then faster, landing at the end. The point is the " +
+                 "new world's star all along: until that star is big enough to see, the light is a " +
+                 "point the size of the old world's own stars. The lens pushes in to " +
+                 "targetFieldOfView and holds it, the camera turns towards the star (watch), and " +
+                 "both let go at the end. No whiteout, nothing snapped back. Use it with the focus " +
+                 "inside the old world, emergeOverride on the new world's star, and dollyZoom 1.")]
+        public bool continuous = false;
+
+        [Tooltip("The star's size on screen, as a fraction of the screen's height: about that of " +
+                 "the old world's own stars, so it is one of them until the zoom leaves it alone.")]
+        [Range(0.005f, 0.1f)] public float starSize = 0.024f;
+
+        [Tooltip("How far the camera turns from the photon towards the star, 0 to 1, keeping it " +
+                 "in frame as the new world grows into place. 0 = the zone camera as it is.")]
+        [Range(0f, 1f)] public float watch = 0f;
+
+        [Tooltip("Seconds at the end over which the camera turns back to the photon and the lens " +
+                 "goes back to the zone camera's.")]
+        [Min(0.1f)] public float watchRelease = 2f;
 
         [Header("Light")]
         public Color lightColor = new Color(1f, 0.88f, 0.62f, 1f);
@@ -454,6 +503,15 @@ public class LayerDive_NEW : MonoBehaviour
         public readonly List<WorldParticles> world = new List<WorldParticles>();
         public float carried = 1f;
         public Vector3 pivot;
+
+        // Point and spot lights, with the range each was built with.
+        public readonly List<LightRange> lights = new List<LightRange>();
+    }
+
+    struct LightRange
+    {
+        public Light light;
+        public float range;
     }
 
     struct ParticleState
@@ -542,6 +600,20 @@ public class LayerDive_NEW : MonoBehaviour
     float _crowdAtBegin;
     const float ClusterFadeSeconds = 3f;
     const float BrightenSeconds = 2f;
+
+    // Continuous: the new world's growth over the clock (cumulative, 0 to 1), the scale it is
+    // at, how far the camera has turned towards its star, and that star's radius as built — to
+    // tell when the real star is bigger on screen than the light standing in for it. And the
+    // light's size as a fraction of the screen's height while it is a star (0: in world units).
+    float[] _growth = Array.Empty<float>();
+    float _enterNow = 1f;
+    float _watch;
+    float _subjectRadius;
+    float _lightScreenSize;
+    const int GrowthSteps = 256;
+
+    // How much faster the new world grows once the old one is gone than during the dive.
+    const float EmergeRate = 2.5f;
 
     TrailRenderer[] _trails = Array.Empty<TrailRenderer>();
     float[] _trailWidths = Array.Empty<float>();
@@ -746,6 +818,17 @@ public class LayerDive_NEW : MonoBehaviour
         if (worlds != null) worlds.SetGroupLook(_toId, 0f);
         if (Crossfading) ScaleAround(_enter, _emergeFocus, _dive.enterScale);
 
+        // Continuous, it starts as small as it gets, at the point, and grows on one clock.
+        _watch = 0f;
+        _enterNow = 1f;
+        if (Continuous)
+        {
+            BuildGrowth();
+            _subjectRadius = MeasureRadius(dive.emergeOverride);
+            _enterNow = dive.enterScale;
+            ScaleAround(_enter, _focus, _enterNow);
+        }
+
         BuildOverlay();
         BuildEffects();
         CaptureTrails();
@@ -781,7 +864,7 @@ public class LayerDive_NEW : MonoBehaviour
         float glow = Mathf.Lerp(1f, _dive.leaveGlow, Smooth(0f, 0.85f, u));
         if (worlds != null) worlds.SetGroupLook(_fromId, 1f - dissolve, glow);
 
-        SetVeil(_dive.whiteout * Smooth(_dive.whiteoutFrom, 1f, u));
+        SetVeil(Continuous ? 0f : _dive.whiteout * Smooth(_dive.whiteoutFrom, 1f, u));
         _fovMultiplier = Mathf.Lerp(1f, _dive.fieldOfViewScale, Smooth(0f, 1f, u));
 
         // The photon's trail narrows at the same constant rate: small against its world.
@@ -792,6 +875,17 @@ public class LayerDive_NEW : MonoBehaviour
         {
             _clock = u * _dive.diveSeconds;
             TickComingOut();
+            return;
+        }
+
+        if (Continuous)
+        {
+            // The old world and the crowd as below; the new world, its star, the lens and the
+            // camera run on the clock, straight through the peak.
+            TickCrowd(u, p);
+            _dolly = 1f;
+            _clock = u * _dive.diveSeconds;
+            TickContinuous();
             return;
         }
 
@@ -816,14 +910,7 @@ public class LayerDive_NEW : MonoBehaviour
         float rising = _dive.approachDistance > 0f ? 1f : Smooth(0f, 0.4f, u);
         SetLight(_dive, _focus, size, arriving * rising);
 
-        // The crowd opens at the dive's own constant rate, only much further, out of the
-        // point and past the camera; it has handed over to the whiteout by the peak. With no
-        // approach crowd nothing has shown it yet: it resolves over the first half of the
-        // dive, the way detail comes up as you close in, instead of being there at the gate.
-        float rise = _dive.approachCrowd > 0f ? Smooth(0f, 0.2f, u) : Smooth(0.05f, 0.5f, u);
-        float crowd = Mathf.Lerp(_dive.approachCrowd, _dive.diveCrowd, rise) * (1f - Smooth(0.8f, 1f, u));
-        float streak = _dive.streak * Smooth(0f, 0.25f, u) * (1f - Smooth(0.85f, 1f, u));
-        SetCrowd(_dive, _focus, _crowdAim, Mathf.Pow(_dive.resolveZoom, p), crowd, streak);
+        TickCrowd(u, p);
 
         SetEffects(Smooth(0.2f, 1f, u));
 
@@ -835,15 +922,38 @@ public class LayerDive_NEW : MonoBehaviour
     }
 
     /// <summary>
+    /// Going in, the crowd opens at the dive's own constant rate (<paramref name="p"/>), only
+    /// much further, out of the point and past the camera; it is gone by the peak. With no
+    /// approach crowd nothing has shown it yet: it resolves over the first half of the dive,
+    /// the way detail comes up as you close in, instead of being there at the gate.
+    /// </summary>
+    void TickCrowd(float u, float p)
+    {
+        float rise = _dive.approachCrowd > 0f ? Smooth(0f, 0.2f, u) : Smooth(0.05f, 0.5f, u);
+        float crowd = Mathf.Lerp(_dive.approachCrowd, _dive.diveCrowd, rise) * (1f - Smooth(0.8f, 1f, u));
+        float streak = _dive.streak * Smooth(0f, 0.25f, u) * (1f - Smooth(0.85f, 1f, u));
+        SetCrowd(_dive, _focus, _crowdAim, Mathf.Pow(_dive.resolveZoom, p), crowd, streak);
+    }
+
+    /// <summary>
     /// The hold at the peak. <paramref name="h"/> runs 0 to 1. Going in the whiteout just
-    /// holds; coming out, the cluster keeps collapsing and the camera keeps looking back.
+    /// holds; coming out, the cluster keeps collapsing and the camera keeps looking back;
+    /// continuous, the new world keeps growing.
     /// </summary>
     public void TickHold(float h)
     {
-        if (!IsActive || _dive.direction != Direction.Out) return;
+        if (!IsActive) return;
 
-        _clock = _dive.diveSeconds + Mathf.Clamp01(h) * _dive.peakHoldSeconds;
-        TickComingOut();
+        if (_dive.direction == Direction.Out)
+        {
+            _clock = _dive.diveSeconds + Mathf.Clamp01(h) * _dive.peakHoldSeconds;
+            TickComingOut();
+        }
+        else if (Continuous)
+        {
+            _clock = _dive.diveSeconds + Mathf.Clamp01(h) * _dive.peakHoldSeconds;
+            TickContinuous();
+        }
     }
 
     /// <summary>The peak: the old world goes back where it was, out of sight, and the new one is readied.</summary>
@@ -857,8 +967,19 @@ public class LayerDive_NEW : MonoBehaviour
 
         // The sky changes as soon as this returns (CoverReached), and every sky snaps — fine
         // under a whiteout, but coming out or crossfading nothing hides it: blend it instead.
-        if ((Crossfading || _dive.direction == Direction.Out) && nebula != null)
+        if ((Crossfading || Continuous || _dive.direction == Direction.Out) && nebula != null)
             nebula.BlendNextOver(Mathf.Max(0.5f, 0.8f * (_dive.peakHoldSeconds + _dive.emergeSeconds)));
+
+        if (Continuous)
+        {
+            // Nothing to hide and nothing to snap back: the new world goes on growing out of
+            // the point, and its star and the camera with it.
+            HideCrowd();
+            _dolly = 1f;
+            _clock = _dive.diveSeconds;
+            TickContinuous();
+            return;
+        }
 
         ScaleAround(_enter, _emergeFocus, _dive.enterScale);
         SetVeil(_dive.whiteout);
@@ -899,6 +1020,14 @@ public class LayerDive_NEW : MonoBehaviour
         if (!IsActive) return;
         v = Mathf.Clamp01(v);
 
+        if (Continuous)
+        {
+            _clock = _dive.diveSeconds + _dive.peakHoldSeconds + v * _dive.emergeSeconds;
+            TickContinuous();
+            HandClusterIn(v);
+            return;
+        }
+
         // Crossfading, the new world's growing eases in as well as out: the dive has just
         // landed, and nothing should set off at speed.
         float settle = Crossfading ? Smooth(0f, 1f, v) : EaseOut(v);
@@ -934,8 +1063,15 @@ public class LayerDive_NEW : MonoBehaviour
         }
         SetEffects(1f - Smooth(0f, 0.9f, v));
 
-        // If the way on out of the world just entered leaves a cluster, that cluster comes in
-        // with the world, rather than its galaxies appearing on their own afterwards.
+        HandClusterIn(v);
+    }
+
+    /// <summary>
+    /// If the way on out of the world just entered leaves a cluster, that cluster comes in
+    /// with the world, rather than its galaxies appearing on their own afterwards.
+    /// </summary>
+    void HandClusterIn(float v)
+    {
         if (TryNextDive(out Dive next, out LayerGate_NEW gate, out float ahead) && next.direction == Direction.Out)
             TickCluster(next, gate, ahead, Mathf.Max(_presence, Smooth(0.2f, 1f, v)));
     }
@@ -1014,6 +1150,121 @@ public class LayerDive_NEW : MonoBehaviour
         return Mathf.Exp(-logZoom - further * EaseOut((t - dive) / rest));
     }
 
+    // ── Continuous: one zoom, on one clock ──────────────────────────────────
+
+    /// <summary>
+    /// Continuous, the new world, its star, the lens and the camera run straight through the
+    /// peak, so they are drawn from one clock (_clock, seconds since the gate) rather than from
+    /// the dive's and the emerge's own progress. See CONTINUOUS on the class.
+    /// </summary>
+    void TickContinuous()
+    {
+        float dive = _dive.diveSeconds;
+        float total = dive + _dive.peakHoldSeconds + _dive.emergeSeconds;
+        float t = _clock;
+        float release = Mathf.Min(_dive.watchRelease, total - dive);
+        float letGo = 1f - Smooth(total - release, total, t);
+
+        // The new world grows out of the point at the pace the growth table sets, in log
+        // space, and is shown from early on, while it is still far too small to see.
+        _enterNow = Mathf.Pow(_dive.enterScale, 1f - Growth(t / total));
+        ScaleAround(_enter, _focus, _enterNow);
+        if (worlds != null) worlds.SetGroupLook(_toId, Smooth(0.5f, 2f, t));
+
+        // The lens pushes in over the dive and lands, holds while the new world grows into
+        // place, and gives way to the zone camera's at the end. The camera turns towards the
+        // star from the gate, and back with the lens.
+        _fovPush = _dive.targetFieldOfView > 0f ? (t < dive ? LandingRamp(t / dive) : 1f) * letGo : 0f;
+        _watch = _dive.watch * Smooth(0f, 1.5f, t) * letGo;
+
+        // The photon's trail narrows through the dive and is back to its width by the end.
+        float narrow = t < dive ? SteadyRamp(t / dive) : 1f - Smooth(dive, total, t);
+        SetTrailWidth(Mathf.Pow(_dive.photonShrink, narrow));
+
+        SetEffects(t < dive ? Smooth(0.2f, 1f, t / dive) : 1f - Smooth(dive, total - release, t));
+
+        // The star: one of the old world's, there from the gate and a little brighter as the
+        // dive closes in, until the real one is bigger on screen than it and takes over. With
+        // nothing to measure the real one by, it goes as the new world grows into place.
+        Vector3 star = Subject();
+        float handover = _subjectRadius > 0f
+            ? Smooth(0.25f, 0.8f, SubjectScreenSize(star) / Mathf.Max(1e-4f, _dive.starSize))
+            : Smooth(dive, total - release, t);
+        float bright = Smooth(0f, 1.5f, t) * Mathf.Lerp(0.6f, 1f, Smooth(0f, dive, t)) * (1f - handover);
+        SetLight(_dive, star, 0f, bright, _dive.starSize);
+    }
+
+    /// <summary>Continuous: where the new world's star is now, as that world grows out of the point.</summary>
+    Vector3 Subject() => _focus + (_emergeFocus - _focus) * _enterNow;
+
+    /// <summary>
+    /// Continuous: the real star's diameter on screen as a fraction of the screen's height, at
+    /// the size the new world has grown to.
+    /// </summary>
+    float SubjectScreenSize(Vector3 at)
+    {
+        if (_camera == null) return 0f;
+        float distance = Vector3.Distance(_camera.transform.position, at);
+        float halfTan = Mathf.Tan(_camera.fieldOfView * 0.5f * Mathf.Deg2Rad);
+        return distance > 1e-3f ? _subjectRadius * _enterNow / (distance * halfTan) : 1f;
+    }
+
+    /// <summary>
+    /// The radius of what <paramref name="t"/> draws, as built: from its mesh, which a hidden
+    /// renderer still has, else from its renderer. 0 if it draws nothing.
+    /// </summary>
+    static float MeasureRadius(Transform t)
+    {
+        if (t == null) return 0f;
+
+        Vector3 e;
+        MeshFilter mf = t.GetComponent<MeshFilter>();
+        Renderer r = t.GetComponent<Renderer>();
+        if (mf != null && mf.sharedMesh != null) e = Vector3.Scale(mf.sharedMesh.bounds.extents, t.lossyScale);
+        else if (r != null) e = r.bounds.extents;
+        else return 0f;
+
+        return Mathf.Max(Mathf.Abs(e.x), Mathf.Max(Mathf.Abs(e.y), Mathf.Abs(e.z)));
+    }
+
+    /// <summary>
+    /// Continuous: how the new world's growth is spread over the clock, tabulated once per
+    /// dive. A rate (in log scale) of 1 through the dive, eased in over its first second;
+    /// rising to EmergeRate over the second and a half after the peak; easing to nothing over
+    /// the last third of the emerge. So it stays at the point while the old world opens round
+    /// it, opens up itself once that world is gone, and lands. Normalised to run 0 to 1.
+    /// </summary>
+    void BuildGrowth()
+    {
+        float dive = _dive.diveSeconds;
+        float total = dive + _dive.peakHoldSeconds + _dive.emergeSeconds;
+        float landFrom = total - _dive.emergeSeconds / 3f - 0.5f;
+        if (_growth.Length != GrowthSteps + 1) _growth = new float[GrowthSteps + 1];
+
+        float previous = 0f;
+        for (int i = 0; i <= GrowthSteps; i++)
+        {
+            float t = total * i / GrowthSteps;
+            float rate = t <= dive ? Smooth(0f, 1f, t) : 1f + (EmergeRate - 1f) * Smooth(dive, dive + 1.5f, t);
+            rate *= 1f - Smooth(landFrom, total, t);
+            _growth[i] = i == 0 ? 0f : _growth[i - 1] + 0.5f * (previous + rate);
+            previous = rate;
+        }
+
+        float sum = _growth[GrowthSteps];
+        for (int i = 0; i <= GrowthSteps; i++)
+            _growth[i] = sum > 0f ? _growth[i] / sum : (float)i / GrowthSteps;
+    }
+
+    /// <summary>Continuous: how far the new world has grown, 0 to 1, <paramref name="x"/> of the way through.</summary>
+    float Growth(float x)
+    {
+        if (_growth.Length < 2) return Mathf.Clamp01(x);
+        float f = Mathf.Clamp01(x) * (_growth.Length - 1);
+        int i = Mathf.Min((int)f, _growth.Length - 2);
+        return Mathf.Lerp(_growth[i], _growth[i + 1], f - i);
+    }
+
     /// <summary>Finished: hand the worlds back and remove everything the dive made.</summary>
     public void End()
     {
@@ -1049,6 +1300,9 @@ public class LayerDive_NEW : MonoBehaviour
         _dolly = 1f;
         _fovPush = 0f;
         _lookBack = 0f;
+        _watch = 0f;
+        _enterNow = 1f;
+        _lightScreenSize = 0f;
         _clock = 0f;
         SetTrailWidth(1f);
         _trails = Array.Empty<TrailRenderer>();
@@ -1198,10 +1452,13 @@ public class LayerDive_NEW : MonoBehaviour
 
         // Prepared on the first real scale, while the root is still where it was built —
         // the parents' scale has to be measured at 1.
-        if (!s.particlesPrepared && !Mathf.Approximately(k, 1f)) PrepareParticles(s);
+        if (!s.particlesPrepared && !Mathf.Approximately(k, 1f)) PrepareScaling(s);
 
         s.root.position = pivot + (s.position - pivot) * k;
         s.root.localScale = s.localScale * k;
+
+        for (int i = 0; i < s.lights.Count; i++)
+            if (s.lights[i].light != null) s.lights[i].light.range = s.lights[i].range * k;
 
         if (s.world.Count > 0 && !Mathf.Approximately(k, s.carried))
         {
@@ -1213,11 +1470,16 @@ public class LayerDive_NEW : MonoBehaviour
 
     /// <summary>
     /// See the class summary: Local-scaling systems follow the root for the length of a
-    /// scale, and world-space systems stop emitting and are listed to be carried by hand.
+    /// scale, world-space systems stop emitting and are listed to be carried by hand, and
+    /// lights are listed to have their range scaled with the world.
     /// </summary>
-    static void PrepareParticles(Scaled s)
+    static void PrepareScaling(Scaled s)
     {
         s.particlesPrepared = true;
+
+        foreach (Light l in s.root.GetComponentsInChildren<Light>(true))
+            if (l.type == LightType.Point || l.type == LightType.Spot)
+                s.lights.Add(new LightRange { light = l, range = l.range });
 
         foreach (ParticleSystem ps in s.root.GetComponentsInChildren<ParticleSystem>(true))
         {
@@ -1315,26 +1577,34 @@ public class LayerDive_NEW : MonoBehaviour
             emission.enabled = s.world[i].emitting;
         }
 
+        for (int i = 0; i < s.lights.Count; i++)
+            if (s.lights[i].light != null) s.lights[i].light.range = s.lights[i].range;
+
         s.particles.Clear();
         s.world.Clear();
+        s.lights.Clear();
         s.carried = 1f;
         s.particlesPrepared = false;
     }
 
     // ── The light ────────────────────────────────────────────────────────────
 
-    void SetLight(Dive d, Vector3 at, float size, float fade)
+    /// <param name="size">World-space diameter.</param>
+    /// <param name="screenSize">Above 0, a star instead: this diameter on screen, as a fraction
+    /// of the screen's height, however near or far, and <paramref name="size"/> is ignored.</param>
+    void SetLight(Dive d, Vector3 at, float size, float fade, float screenSize = 0f)
     {
         EnsureLight();
         if (_light == null) return;
 
         float intensity = d.lightIntensity * Mathf.Clamp01(fade);
-        bool on = intensity > 0.001f && size > 0f;
+        bool on = intensity > 0.001f && (size > 0f || screenSize > 0f);
         if (_light.activeSelf != on) _light.SetActive(on);
         if (!on) return;
 
         _lightPosition = at;
         _lightSize = size;
+        _lightScreenSize = screenSize;
         _lightMaterial.SetColor(ColorId, new Color(d.lightColor.r, d.lightColor.g, d.lightColor.b, intensity));
         PlaceLight();
     }
@@ -1349,9 +1619,16 @@ public class LayerDive_NEW : MonoBehaviour
     {
         Camera cam = _camera != null ? _camera : (brain != null ? brain.OutputCamera : Camera.main);
 
+        // A star keeps its size on screen: a point stays a point however close it gets and
+        // however far the lens pushes in.
+        float size = _lightSize;
+        if (_lightScreenSize > 0f && cam != null)
+            size = _lightScreenSize * 2f * Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad)
+                 * Vector3.Distance(cam.transform.position, _lightPosition);
+
         Transform t = _light.transform;
         t.position = _lightPosition;
-        t.localScale = new Vector3(_lightSize, _lightSize, _lightSize);
+        t.localScale = new Vector3(size, size, size);
         if (cam != null) t.rotation = cam.transform.rotation;
     }
 
@@ -1756,10 +2033,10 @@ public class LayerDive_NEW : MonoBehaviour
     // ── Lens ─────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Swings the camera round to look back, scales the brain's field of view, and plays
-    /// the dolly zoom. Runs right after the brain has written the camera, which it does
-    /// from scratch every time, so none of this accumulates, and it composes with
-    /// JourneyZoom_NEW doing the same.
+    /// Swings the camera round to look back, or turns it towards the star, scales the brain's
+    /// field of view, and plays the dolly zoom. Runs right after the brain has written the
+    /// camera, which it does from scratch every time, so none of this accumulates, and it
+    /// composes with JourneyZoom_NEW doing the same.
     /// </summary>
     void OnCameraUpdated(CinemachineBrain updated)
     {
@@ -1769,6 +2046,7 @@ public class LayerDive_NEW : MonoBehaviour
         if (cam == null || cam.orthographic) return;
 
         if (_lookBack > 1e-4f && player != null) LookBack(cam.transform);
+        if (_watch > 1e-4f) Watch(cam.transform);
 
         if (_fovPush > 1e-4f && _dive != null && _dive.targetFieldOfView > 0f)
         {
@@ -1820,6 +2098,20 @@ public class LayerDive_NEW : MonoBehaviour
             rotation = Quaternion.Slerp(rotation, Quaternion.LookRotation(toAim, Vector3.up), w);
 
         cam.SetPositionAndRotation(position, rotation);
+    }
+
+    /// <summary>
+    /// Continuous: the brain's camera turned part way (_watch) from the photon towards the
+    /// new world's star, so the star stays in frame from the old world's disc all the way up
+    /// into its own place — which the zone camera, looking down at the photon, has above the
+    /// top of the frame. Turned, not moved: the photon stays in frame, lower down. At 0 this
+    /// is the brain's camera exactly.
+    /// </summary>
+    void Watch(Transform cam)
+    {
+        Vector3 toStar = Subject() - cam.position;
+        if (toStar.sqrMagnitude < 1e-6f) return;
+        cam.rotation = Quaternion.Slerp(cam.rotation, Quaternion.LookRotation(toStar, Vector3.up), _watch);
     }
 
     // ── The photon, the sound ────────────────────────────────────────────────
@@ -1920,10 +2212,10 @@ public class LayerDive_NEW : MonoBehaviour
         _volume.weight = Mathf.Clamp01(weight);
 
         // Distort, and close the funnel, around the point being dived into — not the middle
-        // of the screen.
+        // of the screen. Continuous, around the star, wherever it has grown to.
         if ((_lens != null || _vignette != null) && _camera != null)
         {
-            Vector3 vp = _camera.WorldToViewportPoint(_focus);
+            Vector3 vp = _camera.WorldToViewportPoint(Continuous ? Subject() : _focus);
             if (vp.z > 0f)
             {
                 if (_lens != null)
@@ -1981,7 +2273,10 @@ public class LayerDive_NEW : MonoBehaviour
     }
 
     /// <summary>A dive in that crossfades into the next world instead of a whiteout swap.</summary>
-    bool Crossfading => _dive != null && _dive.direction == Direction.In && _dive.crossfade > 0f;
+    bool Crossfading => _dive != null && _dive.direction == Direction.In && !_dive.continuous && _dive.crossfade > 0f;
+
+    /// <summary>A dive in that is one zoom on one clock, with nothing hidden (CONTINUOUS on the class).</summary>
+    bool Continuous => _dive != null && _dive.direction == Direction.In && _dive.continuous;
 
     /// <summary>Smoothstep of x between from and to.</summary>
     static float Smooth(float from, float to, float x)

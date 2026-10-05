@@ -90,8 +90,9 @@ static class JourneyDiveMenu_NEW
     [MenuItem(ResetPath + "Into MilkyWay (dive in)")]
     static void ResetMilkyWayRow() => ResetRow(Presets[2]);
 
+    // Its point back where it was tuned for, too: the values are only right for that.
     [MenuItem(ResetPath + "Into SolarSystem (dive in)")]
-    static void ResetSolarRow() => ResetRow(Presets[3]);
+    static void ResetSolarRow() => ResetRow(new Preset { row = () => SolarDive(true), what = Presets[3].what });
 
     /// <summary>
     /// Puts one gate's row back to its current starting values — for when those have
@@ -136,44 +137,43 @@ static class JourneyDiveMenu_NEW
             what = "dives in (cosmic web to the Milky Way)"
         },
 
-        new Preset { row = SolarDive, what = "dives in (the Milky Way to the Solar System)" }
+        new Preset { row = () => SolarDive(false), what = "dives in (the Milky Way to the Solar System)" }
     };
 
     /// <summary>
-    /// The dive from the Milky Way into the Solar System: down into the galaxy's own disc, with
-    /// the dive into Micro's language, and the galaxy resolving into its stars on the way.
+    /// The dive from the Milky Way into the Solar System: one zoom into one star of the
+    /// galaxy's disc, which turns out to be the Sun (Dive.continuous; CONTINUOUS on
+    /// LayerDive_NEW).
     ///
-    /// Three earlier tries taught the rules. A marker light standing on the galaxy reads as a
-    /// marker, not part of it; a point anywhere but inside the galaxy's particles is a portal
-    /// somewhere else; sharp stars scattered round a point look stuck on; and with nothing
-    /// added at all the galaxy — big soft particles — only blurs as it magnifies, and nothing
-    /// shows the drop in scale. So: into the galaxy itself, and what is added is made of it.
+    /// Five earlier tries taught the rules. A marker light standing on the galaxy reads as a
+    /// marker; a point anywhere but inside the galaxy's particles is a portal somewhere else;
+    /// sharp stars scattered round a point look stuck on. And the last three all swelled a
+    /// light into a whiteout and grew the Solar System under it round the Sun — which the
+    /// Solar camera, 18 degrees down at the photon with a 20-degree lens, has above the top of
+    /// the frame. None of it was ever on screen: a yellow light was all there was to see. So
+    /// nothing swells and nothing is hidden, and the camera keeps the star in frame.
     ///
-    ///   the point  SolarDivePoint, an empty object in the galaxy's disc — inside its particle
-    ///              systems, 9.7 from the centre — where the camera's own sight line through
-    ///              the photon (one down in three, from 3 behind and 1 above) meets the disc
-    ///              midway through the dive: from the camera the photon sits in front of it the
-    ///              whole way, so it is seen plunging into it. Move it to dive elsewhere.
-    ///   dive       No marker beforehand. From the gate, five and a half seconds, the Micro
-    ///              dive's moves: the galaxy swells six times round the point; the photon
-    ///              shrinks against it (dolly zoom 2.2, trail to 0.35); a vignette closes in on
-    ///              the point. And the galaxy resolves into its stars: soft, in its own colours
-    ///              (the arms' warm white and blue), lying flat in its plane, they come up out of
-    ///              the glow over the first half of the dive — about 200 in frame — and stream
-    ///              past under the photon at an even pace, the small scale racing by while the
-    ///              galaxy itself hardly grows: that is the drop in scale.
-    ///   the light  A small white star at the point, rising out of the disc, that stays small
-    ///              (lightHold): under 8% of the frame until half way, 29% at 70%, filling it
-    ///              only at 90%, with the whiteout from 85%. Grown steadily from the gate, as
-    ///              the dive into Micro's does, it covered the frame a third of the way in so
-    ///              close to the camera — the dolly magnifying it too — and all that showed
-    ///              was a yellow light swelling into a yellow screen. Whiter now, too.
-    ///   emerge     Under the light the Solar camera takes over and the light moves to the Sun
-    ///              (emergeOverride); the Solar System grows out of it from 0.15 of its size,
-    ///              the planets moving out to their orbits — one star of all those, with its
-    ///              planets — the Earth ending almost dead ahead.
+    ///   the star   SolarDivePoint, in the galaxy's disc 15 out from its middle, 4 left of the
+    ///              flight line and 20 past the gate — where, from the camera, it sits beside
+    ///              the photon, not behind it — is where the Sun is: a point the size of the
+    ///              galaxy's own stars (starSize), warm white like them, from the gate on.
+    ///   dive       5.5 seconds. The galaxy grows twelve times round it, its stars streaming
+    ///              out of the frame, and dissolves from 45%; the disc's stars resolve out of
+    ///              it as before, fainter; the lens pushes in from 40 to 30; the camera turns
+    ///              half way towards the star, which stays put a fifth of the frame left of
+    ///              the middle while the photon sits as far right.
+    ///   resolve    The Solar System has been growing out of the point since the gate, from
+    ///              1/400 of its size. As the galaxy goes, the star is all that is left, and it
+    ///              opens: the Sun comes out from under it (6 to 20 pixels, 4.5 to 7 seconds)
+    ///              and its planets come away from it, seen from above at an angle.
+    ///   landing    Faster once the galaxy is gone, it grows on into its own place and size
+    ///              by 11.3 seconds — the Sun 100 pixels across in the upper half, the photon
+    ///              below — and over the last two the camera turns back to the photon and the
+    ///              lens goes to the Solar camera's 20, the Sun rising out of the top.
     /// </summary>
-    static LayerDive_NEW.Dive SolarDive()
+    /// <param name="placePoint">Put SolarDivePoint back where these values were tuned for, if
+    /// it has been moved. Resetting the row does; adding a missing one leaves it be.</param>
+    static LayerDive_NEW.Dive SolarDive(bool placePoint)
     {
         WorldSwitcher_NEW worlds = Object.FindObjectOfType<WorldSwitcher_NEW>();
         Transform system = worlds != null ? worlds.GroupRoot("SolarSystem") : null;
@@ -185,43 +185,42 @@ static class JourneyDiveMenu_NEW
         return new LayerDive_NEW.Dive
         {
             toLayerId = "SolarSystem",
-            focusOverride = SolarDivePoint(worlds),
+            continuous = true,
+            focusOverride = SolarDivePoint(worlds, placePoint),
             emergeOverride = sun,
             approachDistance = 0f,
             diveSeconds = 5.5f,
             peakHoldSeconds = 0.3f,
-            emergeSeconds = 4.5f,
-            diveZoom = 6f,
+            emergeSeconds = 5.5f,
+            diveZoom = 12f,
             leaveGlow = 1f,
-            dissolveFrom = 0.6f,
-            enterScale = 0.15f,
-            lightColor = new Color(1f, 0.97f, 0.9f, 1f),
-            lightIntensity = 1.2f,
-            pointSize = 0.6f,
-            gateSize = 0.3f,
-            peakSize = 25f,
-            lightHold = 0.5f,
-            whiteout = 1f,
-            whiteoutFrom = 0.85f,
+            dissolveFrom = 0.45f,
+            enterScale = 0.0025f,
+            lightColor = new Color(1f, 0.95f, 0.84f, 1f),
+            lightIntensity = 0.7f,
+            whiteout = 0f,
+            starSize = 0.024f,
+            watch = 0.5f,
+            watchRelease = 2f,
             resolve = true,
-            memberCount = 1100,
+            memberCount = 700,
             crowdRadius = 10f,
-            memberSize = 0.3f,
+            memberSize = 0.25f,
             resolveZoom = 40f,
             memberGrowth = 0.4f,
-            streak = 2f,
+            streak = 1.5f,
             crowdFlatten = 0.12f,
-            memberCore = 0.6f,
+            memberCore = 0.5f,
             approachCrowd = 0f,
-            diveCrowd = 0.9f,
+            diveCrowd = 0.6f,
             memberWarm = new Color(1f, 0.93f, 0.86f, 1f),
             memberCool = new Color(0.72f, 0.82f, 1f, 1f),
             coolShare = 0.45f,
-            dollyZoom = 2.2f,
-            photonShrink = 0.35f,
-            peakVignette = 0.35f,
-            targetFieldOfView = 0f,
-            peakBloom = 1.6f,
+            dollyZoom = 1f,
+            photonShrink = 0.5f,
+            peakVignette = 0.3f,
+            targetFieldOfView = 30f,
+            peakBloom = 0f,
             peakChromaticAberration = 0f
         };
     }
@@ -229,12 +228,12 @@ static class JourneyDiveMenu_NEW
     const string SolarDivePointName = "SolarDivePoint";
 
     /// <summary>
-    /// The point in the Milky Way's disc the Solar dive goes into: found under the MilkyWay
-    /// group if it is there — it may have been moved — or made. Made, it sits in the plane of
-    /// the galaxy's Disk particle system, under the flight line, where the camera's sight
-    /// line through the photon meets that plane midway through the dive (see SolarDive).
+    /// The point in the Milky Way's disc the Solar dive goes into, under the MilkyWay group:
+    /// found there if it is there, and made if not. Made — or, with <paramref name="place"/>,
+    /// moved back — it sits in the plane of the galaxy's Disk particle system, 4 left of the
+    /// flight line and 20 past the gate's centre (see SolarDive).
     /// </summary>
-    static Transform SolarDivePoint(WorldSwitcher_NEW worlds)
+    static Transform SolarDivePoint(WorldSwitcher_NEW worlds, bool place)
     {
         Transform galaxy = worlds != null ? worlds.GroupRoot("MilkyWay") : null;
         if (galaxy == null)
@@ -243,8 +242,10 @@ static class JourneyDiveMenu_NEW
             return null;
         }
 
+        Transform point = null;
         foreach (Transform t in galaxy.GetComponentsInChildren<Transform>(true))
-            if (t.name == SolarDivePointName) return t;
+            if (t.name == SolarDivePointName) { point = t; break; }
+        if (point != null && !place) return point;
 
         LayerGate_NEW gate = null;
         foreach (LayerGate_NEW g in Object.FindObjectsOfType<LayerGate_NEW>())
@@ -259,26 +260,35 @@ static class JourneyDiveMenu_NEW
             Debug.LogWarning("Journey NEW: no SolarSystem gate or no Disk particle system in the Milky Way, so " +
                              "the Solar dive point was not placed. Make an object named " + SolarDivePointName +
                              " under the MilkyWay group and set it as the row's Focus Override.");
-            return null;
+            return point;
         }
 
         Collider c = gate.GetComponent<Collider>();
         Vector3 at = c != null ? c.bounds.center : gate.transform.position;
-        float plane = disk.transform.position.y;
+        Vector3 spot = new Vector3(at.x - 4f, disk.transform.position.y, at.z + 20f);
 
-        // The photon enters the trigger half its depth early and flies about three units in
-        // the first half of the dive; from there the camera's sight line drops one in three
-        // to the disc.
-        float half = c != null ? c.bounds.extents.z : 0f;
-        Vector3 point = new Vector3(at.x, plane, at.z - half + 3f + 3f * (at.y - plane));
+        if (point == null)
+        {
+            var go = new GameObject(SolarDivePointName);
+            Undo.RegisterCreatedObjectUndo(go, "Place Solar dive point");
+            go.transform.SetParent(galaxy, true);
+            point = go.transform;
+        }
+        else if ((point.position - spot).sqrMagnitude < 1e-4f)
+        {
+            return point;
+        }
+        else
+        {
+            Undo.RecordObject(point, "Place Solar dive point");
+            Debug.Log("Journey NEW: " + SolarDivePointName + " was at " + point.position + ". From there the " +
+                      "camera could not see the dive: it has to be in the disc and in frame, beside the photon.", point);
+        }
 
-        var go = new GameObject(SolarDivePointName);
-        Undo.RegisterCreatedObjectUndo(go, "Place Solar dive point");
-        go.transform.SetParent(galaxy, true);
-        go.transform.position = point;
-        Debug.Log("Journey NEW: placed " + SolarDivePointName + " in the Milky Way's disc at " + point +
-                  " — the Solar dive goes into it. Move it to dive elsewhere.", go);
-        return go.transform;
+        point.position = spot;
+        Debug.Log("Journey NEW: " + SolarDivePointName + " is in the Milky Way's disc at " + spot + " — the Solar " +
+                  "dive goes into it. Move it within the disc to dive elsewhere; keep it in frame and off the photon.", point);
+        return point;
     }
 
     static int AddRowIfMissing(LayerDive_NEW dive, LayerDive_NEW.Dive row, string what)
