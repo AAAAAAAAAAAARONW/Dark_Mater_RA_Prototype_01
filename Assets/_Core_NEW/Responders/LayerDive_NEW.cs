@@ -784,7 +784,10 @@ public class LayerDive_NEW : MonoBehaviour
             ? _dive.gateSize * Mathf.Pow(_dive.peakSize / Mathf.Max(1e-3f, _dive.gateSize), p)
             : Mathf.Lerp(_dive.gateSize, _dive.peakSize, p);
         float arriving = _camera != null ? Smooth(1.5f, 6f, Vector3.Distance(_camera.transform.position, _focus)) : 1f;
-        SetLight(_dive, _focus, size, arriving);
+        // With no approach nothing has shown the light yet: it rises out of the point as the
+        // dive begins, rather than popping in at the gate.
+        float rising = _dive.approachDistance > 0f ? 1f : Smooth(0f, 0.4f, u);
+        SetLight(_dive, _focus, size, arriving * rising);
 
         // The crowd opens at the dive's own constant rate, only much further, out of the
         // point and past the camera; it has handed over to the whiteout by the peak.
