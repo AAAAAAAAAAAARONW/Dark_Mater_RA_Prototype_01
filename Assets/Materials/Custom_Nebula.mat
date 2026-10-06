@@ -22,19 +22,19 @@ Material:
     m_Floats:
     - _Animate: 1
     - _Density: 0.8
-    - _Octaves: 5
+    - _Octaves: 4
     - _Persistence: 0.5
-    - _Scale: 2
+    - _Scale: 1.2
     - _Sharpness: 1.5
     - _Speed: 0.05
-    - _StarBrightness: 3
-    - _StarScale: 120
-    - _StarThreshold: 0.95
+    - _StarBrightness: 1.2
+    - _StarScale: 80
+    - _StarThreshold: 0.992
     - _StarTwinkle: 32.95
     - _StarTwinkleAmount: 0.591
     - _StarTwinkleSpeed: 1.5
     m_Colors:
-    - _ColorBright: {r: 0.3301887, g: 0.252314, b: 0.28487977, a: 1}
-    - _ColorDark: {r: 0.26415092, g: 0.028657887, b: 0.17856164, a: 1}
-    - _ColorMid: {r: 0.1801353, g: 0.20754719, b: 0.19840989, a: 1}
-    - _ColorStar: {r: 1, g: 1, b: 1, a: 1}
+    - _ColorBright: {r: 0.6, g: 0.4, b: 0.9, a: 1}
+    - _ColorDark: {r: 0.08, g: 0.02, b: 0.18, a: 1}
+    - _ColorMid: {r: 0.3, g: 0.15, b: 0.5, a: 1}
+    - _ColorStar: {r: 1, g: 0.95, b: 1, a: 1}

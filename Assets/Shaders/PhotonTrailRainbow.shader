@@ -68,6 +68,7 @@ Shader "Custom/PhotonTrail"
         // line black over the background before the ribbon is added. 0 (the default) draws
         // nothing, so existing materials look the same.
         _AbsorptionBlack ("Absorption Line Black", Range(0, 1)) = 0
+        _AbsorbThroughGlow ("Absorption Cuts Glow", Range(0, 1)) = 0
     }
 
     SubShader
@@ -254,6 +255,7 @@ Shader "Custom/PhotonTrail"
             float  _AbsorptionLineWidth;
             float  _AbsorptionLineSpread;
             float  _AbsorptionLineHardness;
+            float  _AbsorbThroughGlow;
 
             struct appdata
             {
@@ -451,8 +453,13 @@ Shader "Custom/PhotonTrail"
 
                 // ── 9. Assemble ───────────────────────────────────────────
                 float4 col = absorbedColor;
-                col.rgb   += emission;
-                col.rgb   *= (1.0 + glow * 0.5);
+                // _AbsorbThroughGlow 0 (default, every existing material): emission and glow are
+                // added on top of the absorbed colour, which fills lines back in wherever the
+                // ribbon is bright. 1: they are cut by the absorption too, so an absorbed
+                // wavelength stays dark however bright the ribbon is there.
+                float keep = 1.0 - absorp * _AbsorbThroughGlow;
+                col.rgb   += emission * keep;
+                col.rgb   *= (1.0 + glow * 0.5 * keep);
                 col.rgb   += _HeadColor.rgb * headGlow;
 
                 // Visible band highlight. ADDITIVE and at EQUAL BRIGHTNESS per hue, and

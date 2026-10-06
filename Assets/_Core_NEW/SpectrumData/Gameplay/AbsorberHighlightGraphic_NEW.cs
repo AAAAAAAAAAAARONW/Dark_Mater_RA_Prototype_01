@@ -23,7 +23,6 @@ public class AbsorberHighlightGraphic_NEW : MaskableGraphic
     // bar from there to the line — "how far it has travelled".
     [HideInInspector] public float anchorX = float.NaN;
     [HideInInspector] public float spanAlpha;
-    [HideInInspector] public Color anchorColor = new Color(1f, 1f, 1f, 0.85f);
 
     // Trail arrow: its tip, in local space.
     [HideInInspector] public Vector2 tip;
@@ -59,11 +58,8 @@ public class AbsorberHighlightGraphic_NEW : MaskableGraphic
 
         if (spanAlpha > 0.001f && !float.IsNaN(anchorX))
         {
-            // The anchor: a thin tick over the curve and a small triangle under the bar.
-            Color32 a = Fade(anchorColor, spanAlpha);
-            Quad(vh, new Vector2(anchorX - 1f, band.yMin), new Vector2(anchorX + 1f, band.yMax), Fade(anchorColor, spanAlpha * 0.5f));
-            Vector2 ap = new Vector2(anchorX, band.yMin - arrowGap);
-            Triangle(vh, ap, ap + new Vector2(5f, -8f), ap + new Vector2(-5f, -8f), a);
+            // No anchor of its own: RedshiftMarks_NEW's arrow already marks the birth point
+            // at this exact x, and a second tick and triangle on top of it only doubled it.
 
             // The bracket: from the anchor to the line, under both arrows, with end ticks.
             float y = band.yMin - arrowGap - arrowSize.y - 5f;

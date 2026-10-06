@@ -52,7 +52,11 @@ public static class TrailSpectrumColours_NEW
         if (tex == null || tex.width != width)
         {
             if (tex != null) UnityEngine.Object.Destroy(tex);
-            tex = new Texture2D(width, 1, TextureFormat.RGBA32, false, true)
+            // sRGB (the default), like PhotonSpectrumTrail's own texture. The project is in LINEAR
+            // colour space: a texture marked linear skips the sRGB decode, and every colour came out
+            // far brighter than written — dim UV/IR looked bright, and the visible band sat so close
+            // to saturation that the D2 flash had no room to show.
+            tex = new Texture2D(width, 1, TextureFormat.RGBA32, false)
             {
                 name = name,
                 wrapMode = TextureWrapMode.Clamp,
@@ -61,5 +65,29 @@ public static class TrailSpectrumColours_NEW
             pixels = new Color32[width];
         }
         return tex;
+    }
+
+    // PhotonSpectrumTrail's own seven colours — violet, blue, cyan, green, yellow, orange, red —
+    // so the journey's rainbow is the trail the piece always had.
+    static readonly Color[] Seven =
+    {
+        new Color(0.58f, 0.00f, 1.00f), new Color(0.00f, 0.10f, 1.00f), new Color(0.00f, 0.60f, 0.80f),
+        new Color(0.00f, 1.00f, 0.00f), new Color(0.90f, 0.80f, 0.00f), new Color(1.00f, 0.35f, 0.00f),
+        new Color(1.00f, 0.05f, 0.00f)
+    };
+
+    /// <summary>The seven-colour rainbow, evenly spread: t = 0 violet … 1 red.</summary>
+    public static Color Rainbow(float t)
+    {
+        float f = Mathf.Clamp01(t) * (Seven.Length - 1);
+        int lo = Mathf.Min((int)f, Seven.Length - 2);
+        return Color.Lerp(Seven[lo], Seven[lo + 1], f - lo);
+    }
+
+    /// <summary>Fill one row with the evenly spread rainbow, full alpha.</summary>
+    public static void FillRainbow(Color32[] pixels)
+    {
+        int w = pixels.Length;
+        for (int x = 0; x < w; x++) pixels[x] = Rainbow((x + 0.5f) / w);
     }
 }

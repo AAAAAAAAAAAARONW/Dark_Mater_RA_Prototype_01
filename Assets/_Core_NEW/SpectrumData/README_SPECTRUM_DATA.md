@@ -91,6 +91,8 @@ Output: a 1024 × 384 grid of flux (for the HUD) and absorption (for the trail),
 
 ### At runtime (`BakedSpectrumSource_NEW`)
 
+**Smooth motion (2026-10-06).** With a format-4+ bake, the journey draws from the path record at the exact redshift, at exactly the HUD's sample count (`SpectrumHUD_NEW.SampleCount`). It used to blend two stored rows and point-sample 1024 → 512. That made lines fade out in one place and in at the next, and flicker as they moved, which read as the lines jumping.
+
 ```
 UniverseJourneyTracker.RemainingDistanceLy  (ly still to travel)
       ÷ 1e9  → lookback time, Gyr
@@ -168,7 +170,7 @@ The tutorial bar is drawn from the **same baked file** as the journey. It plays 
 
 **Checked offline (2026-10-04):** a replay of the beat timeline with these constants gave separate lines for every atom and an end frame within 0.0035 (mean) of the journey's own row. `Tools~/BakeCheck` re-checks the data side on every bake.
 
-**File format 4** adds what this needs: the **path record** and the **intrinsic spectrum**. The path record is the Lyα transmission each 37 km/s cell of gas imprinted, 12,256 cells, 24 KB. Lyα touches a photon only once, so this one array *is* every row of the journey grid. `SampleView` draws any moment on any axis from it, and the harness checks it reproduces the grid to within 1%. The intrinsic spectrum is the quasar's emitted spectrum, 8,192 samples. Format 3 files still load in the journey, but the tutorial needs format 4.
+**File format 4** adds what this needs: the **path record** and the **intrinsic spectrum**. The path record is the Lyα transmission each 37 km/s cell of gas imprinted, 12,256 cells, 24 KB. Lyα touches a photon only once, so this one array *is* every row of the journey grid. `SampleView` draws any moment on any axis from it, and the harness checks it reproduces the grid to within 1%. The intrinsic spectrum is the quasar's emitted spectrum, 8,192 samples. Format 3 files still load in the journey, but the tutorial needs format 4. **Format 5** adds the Lyman-break table (OPEN_QUESTIONS §11).
 
 ---
 
@@ -252,3 +254,22 @@ This runs the **same model files** the Unity baker uses, then checks the result:
 It writes `out/` (bytes, preview, report) and exits 0 if every check passes. It compiles as C# 7.3, Unity 2019.4's language version, so anything that builds here builds in Unity.
 
 Needs the .NET SDK. Unity does not.
+
+## 7. Changes 2026-10-06
+
+- **Lines jumping, second fix.** Drawing the 1024-column view straight at the HUD's 512 points (box average) made it worse, not better. A line narrower than one HUD point changes shape as it slides: one deep spike when it sits on a point, two half spikes between points. At the journey's pace lines cross about ten points a second, so they pulse. The curve now goes 1024 → HUD points through a Gaussian (`hudSmoothing`, 1.5 points; same in the tutorial). Measured: frame-to-frame wobble is 3–5× lower than the original drawing.
+- **Less purple on the trail.** Both trails use a fixed piecewise axis. Every colour is still its real wavelength, but each band gets its own share of the ribbon:
+  - **Journey:** far UV 12%, UV 28%, visible 42%, IR 18%.
+  - **Tutorial:** far UV 12%, line region 25%, rest of the UV 5%, visible 40%, IR 18%.
+  - The fields were renamed (`…Fraction`) so the new defaults replace values already saved in the scenes.
+- **Trail direction and arrow.** The trail arrow now reads the ribbon's real edges from the mesh Unity draws (`TrailRibbon_NEW`, `TrailRenderer.BakeMesh`) instead of guessing which edge is UV. `AbsorberHighlight_NEW.autoOrientTrail` mirrors the ribbon when needed, so on screen UV is on the left like the bar and lines move left to right on both.
+- **Trail highlight width.** The highlighted line is now cut ±1.5% of the ribbon wide (`trailEmphasisHalfWidth`). The old width was a fraction of the bar and came out under a pixel on the ribbon.
+
+### Later the same day (supersedes the smoothing and trail notes above)
+
+- **Bar: sample points that ride with the lines.** Smoothing stopped the jumping but also smoothed the forest away. Now the HUD's points move with the redshift by the fraction of a step the lines have travelled, and `LineGraphRenderer_NEW.SetXShift` draws the curve shifted by the same fraction. Each line is measured identically every frame: offline wobble is exactly 0, and forest contrast is 1.1–1.8× the original.
+  - `hudBinWidth` (0.5) sets how sharp the lines are.
+  - Same in the tutorial, except while its bar is zooming.
+- **Journey trail is the seven-colour rainbow again** (`trailLook = Rainbow`), evenly spread. UV and IR stay in the tutorial's demonstration only. Lines sit across it in step with the bar, after a 10% edge margin.
+- **Trail arrow:** its position comes from smooth geometry. The drawn mesh is read only for which side is UV and how wide the ribbon is, and the arrow is eased on screen. It used to snap to mesh vertices and shake.
+- **Trail highlight:** blinks the line's own footprint on the trail instead of painting a wide band.

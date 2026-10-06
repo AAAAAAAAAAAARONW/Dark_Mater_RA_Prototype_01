@@ -53,7 +53,7 @@ public sealed class BakedSpectrumData_NEW
     /// 2 — adds the arrival frame (the zoom into the reference forest figure at Earth).
     /// 3 — adds the arrival frame's displayed spectrum (quasar × displayed absorption).
     /// </summary>
-    public const int FormatVersion = 4;
+    public const int FormatVersion = 5;
 
     /// <summary>Oldest version this build still reads (no tutorial data: HasRecord is false).</summary>
     public const int OldestReadableVersion = 3;
@@ -263,7 +263,7 @@ public sealed class BakedSpectrumData_NEW
                 d._finalLnWidth = Math.Log(d.FinalLambdaMax / (double)d.FinalLambdaMin);
 
                 ms.Position = finalOffset + finalBytes;
-                if (version >= 4 && !d.ReadTutorialBlock(r, bytes.Length - ms.Position, out error)) return null;
+                if (version >= 4 && !d.ReadTutorialBlock(r, version, bytes.Length - ms.Position, out error)) return null;
 
                 d._lnMin = Math.Log(d.LambdaMin);
                 d._lnWidth = Math.Log(d.LambdaMax / (double)d.LambdaMin);
@@ -441,6 +441,7 @@ public sealed class BakedSpectrumData_NEW
     double _recordSTop;
     double _recordDelta;
     float[] _intrinsic;
+    float[] _lycT;      // v5: Lyman-continuum transmission on the intrinsic grid (null in v4)
     double _intrinsicLnMin;
     double _intrinsicLnWidth;
 
@@ -472,6 +473,31 @@ public sealed class BakedSpectrumData_NEW
         return _record[cell] * (1f / 65535f);
     }
 
+    /// <summary>True when the file carries the Lyman-break table (format 5 or later).</summary>
+    public bool HasLymanBreak { get { return _lycT != null; } }
+
+    /// <summary>
+    /// What photoionisation left of light EMITTED at lambdaEmitted (Å): 1 above 912 Å, falling
+    /// to ~0 below it. Final for anything on the bar — it has all been stretched past 912 Å.
+    /// </summary>
+    public float LymanBreakAt(double lambdaEmitted)
+    {
+        if (_lycT == null || lambdaEmitted >= LymanLimitA) return 1f;
+        int n = _lycT.Length;
+        double f = (Math.Log(lambdaEmitted) - _intrinsicLnMin) / _intrinsicLnWidth * (n - 1);
+        if (f <= 0.0) return _lycT[0];
+        if (f >= n - 1) return _lycT[n - 1];
+        int lo = (int)f;
+        float k = (float)(f - lo);
+        return _lycT[lo] + (_lycT[lo + 1] - _lycT[lo]) * k;
+    }
+
+    /// <summary>The Lyman break as a display multiplier that never goes below floor (0–1).</summary>
+    public float LymanBreakFactor(double lambdaEmitted, float floor)
+    {
+        float t = LymanBreakAt(lambdaEmitted);
+        return t > floor ? t : floor;
+    }
     /// <summary>
     /// The quasar's own spectrum at emitted wavelength lambdaEmitted, in the HUD's
     /// normalisation (the same units as the flux grid). Outside the stored range the end
@@ -489,7 +515,7 @@ public sealed class BakedSpectrumData_NEW
         return _intrinsic[lo] + (_intrinsic[lo + 1] - _intrinsic[lo]) * k;
     }
 
-    bool ReadTutorialBlock(BinaryReader r, long available, out string error)
+    bool ReadTutorialBlock(BinaryReader r, int version, long available, out string error)
     {
         error = null;
         const int HeaderBytes = sizeof(int) + 2 * sizeof(double);
@@ -506,13 +532,18 @@ public sealed class BakedSpectrumData_NEW
         int n = r.ReadInt32();
         double lo = r.ReadDouble(), hi = r.ReadDouble();
         if (n < 2 || n > 1 << 20 || !(lo > 0.0) || !(hi > lo)) { error = "intrinsic spectrum header is out of range"; return false; }
-        if (available != 2 * HeaderBytes + (long)cells * sizeof(ushort) + (long)n * sizeof(float))
+        if (available != 2 * HeaderBytes + (long)cells * sizeof(ushort) + (long)n * sizeof(float) * (version >= 5 ? 2 : 1))
         {
             error = "tutorial block has the wrong length — the file is truncated or from another version";
             return false;
         }
         _intrinsic = new float[n];
         for (int i = 0; i < n; i++) _intrinsic[i] = r.ReadSingle();
+        if (version >= 5)
+        {
+            _lycT = new float[n];
+            for (int i = 0; i < n; i++) _lycT[i] = r.ReadSingle();
+        }
         _intrinsicLnMin = Math.Log(lo);
         _intrinsicLnWidth = Math.Log(hi / lo);
         return true;
@@ -535,7 +566,7 @@ public sealed class BakedSpectrumData_NEW
     /// than 1216 Å × the stretch so far left the quasar redward of Ly-alpha and never will be.
     /// </summary>
     public void SampleView(float zNow, double lambdaMin, double lambdaMax, float[] fluxOut, float[] transmissionOut,
-                           Func<int, float> cellWeight = null)
+                           Func<int, float> cellWeight = null, float lymanBreakFloor = 1f, float binFraction = 1f)
     {
         float[] any = fluxOut ?? transmissionOut;
         if (any == null || !HasRecord) return;
@@ -555,8 +586,9 @@ public sealed class BakedSpectrumData_NEW
 
             // Column edges → record cells. Cell index FALLS as wavelength rises (redder light
             // met its gas earlier, nearer the quasar).
-            double cA = CellAt(lnL + 0.5 * colLn, lnBirth, onePlusNow);
-            double cFull = CellAt(lnL - 0.5 * colLn, lnBirth, onePlusNow);
+            double half = 0.5 * colLn * (binFraction > 0f ? binFraction : 1f);   // each point averages this much around it
+            double cA = CellAt(lnL + half, lnBirth, onePlusNow);
+            double cFull = CellAt(lnL - half, lnBirth, onePlusNow);
             double cB = cFull;
             if (cB > cellNow) cB = cellNow;              // not crossed yet: no absorption
 
@@ -581,7 +613,9 @@ public sealed class BakedSpectrumData_NEW
             if (transmissionOut != null) transmissionOut[c] = (float)t;
             if (fluxOut != null)
             {
-                double f = IntrinsicAt(Math.Exp(lnL) * toEmitted) * t;
+                double lamE = Math.Exp(lnL) * toEmitted;
+                double f = IntrinsicAt(lamE) * t;
+                if (lymanBreakFloor < 1f) f *= LymanBreakFactor(lamE, lymanBreakFloor);
                 fluxOut[c] = f <= 0.0 ? 0f : f >= 1.0 ? 1f : (float)f;
             }
         }
@@ -591,5 +625,40 @@ public sealed class BakedSpectrumData_NEW
     {
         // 1 + z_abs = (λ / 1216)(1 + z_now)  →  cell = (sTop − ln(1 + z_abs)) / δ
         return (_recordSTop - (lnLambda - lnBirth + Math.Log(onePlusNow))) / _recordDelta;
+    }
+
+    /// <summary>
+    /// Resample src onto dst (fewer points) through a Gaussian of sigma dst-samples.
+    ///
+    /// Why not just pick points: the HUD draws a polyline at fixed x, so a line narrower than
+    /// one point changes SHAPE as it slides — a single deep spike when it sits on a point, two
+    /// half-depth ones between — and at the journey's pace lines cross ~10 points a second, so
+    /// they pulse. That reads as the lines jumping. With sigma ≈ 1 the drawn shape barely
+    /// changes as it moves (≤12% in depth), at the cost of a little softening.
+    /// sigma 0 = plain box average of the src points under each dst point.
+    /// </summary>
+    public static void Downsample(float[] src, float[] dst, float sigma)
+    {
+        int n = src.Length, m = dst.Length;
+        if (m < 2 || n < 2) return;
+        float ratio = (n - 1) / (float)(m - 1);
+        float sSrc = Math.Max(0.5f * ratio, sigma * ratio);
+        int reach = (int)Math.Ceiling(3f * sSrc);
+        float inv2s2 = 1f / (2f * sSrc * sSrc);
+
+        for (int i = 0; i < m; i++)
+        {
+            float centre = i * ratio;
+            int c0 = Math.Max(0, (int)Math.Floor(centre) - reach), c1 = Math.Min(n - 1, (int)Math.Ceiling(centre) + reach);
+            float sum = 0f, wsum = 0f;
+            for (int c = c0; c <= c1; c++)
+            {
+                float d = c - centre;
+                float w = sigma <= 0f ? (Math.Abs(d) <= 0.5f * ratio ? 1f : 0f) : (float)Math.Exp(-d * d * inv2s2);
+                sum += src[c] * w;
+                wsum += w;
+            }
+            dst[i] = wsum > 0f ? sum / wsum : src[Math.Min(n - 1, (int)Math.Round(centre))];
+        }
     }
 }

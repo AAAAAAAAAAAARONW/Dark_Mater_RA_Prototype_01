@@ -351,6 +351,7 @@ public static class SpectrumModel_NEW
         // EMITTED wavelength [IntrinsicLambdaMin, IntrinsicLambdaMax] — every emitted λ the bar
         // ever shows. Flux on the bar = Intrinsic(λ_now · (1+z_now)/(1+z_q)) × displayed T.
         public float[] Intrinsic;
+        public float[] IntrinsicLycT;   // v5: Lyman-continuum transmission of light emitted at that wavelength (final)
         public double IntrinsicLambdaMin;
         public double IntrinsicLambdaMax;
         public readonly List<string> Report = new List<string>();
@@ -678,9 +679,44 @@ public static class SpectrumModel_NEW
         for (int c = 0; c < res.Intrinsic.Length; c++)
             res.Intrinsic[c] = (float)(template.At(Math.Exp(lnIMin + (lnIMax - lnIMin) * c / (res.Intrinsic.Length - 1))) / norm);
 
+        // Lyman break: what photoionisation left of light EMITTED bluer than 912 Å. Every photon
+        // the bar ever shows has already been stretched past 912 Å (the bar starts at 1216), so
+        // its loss is final and depends only on its emitted wavelength: integrate the same
+        // opacity the simulation applies (path / mean free path × (λ_local/912)^slope) from the
+        // quasar until the photon crosses 912 Å locally.
+        res.IntrinsicLycT = new float[res.Intrinsic.Length];
+        {
+            const int Steps = 4000;
+            double[] stepKappa = new double[Steps];
+            double[] stepS = new double[Steps];
+            for (int st = 0; st < Steps; st++)
+            {
+                double s0 = sQ * (1.0 - st / (double)Steps), s1 = sQ * (1.0 - (st + 1) / (double)Steps);
+                double z0 = Math.Exp(s0) - 1.0, z1 = Math.Exp(s1) - 1.0;
+                stepS[st] = 0.5 * (s0 + s1);
+                stepKappa[st] = cosmo.LightTravelMpc(z0, z1) / Math.Exp(InterpLog(input.MeanFreePath, 0.5 * (z0 + z1)));
+            }
+            double lnLLc = Math.Log(BakedSpectrumData_NEW.LymanLimitA);
+            for (int c = 0; c < res.IntrinsicLycT.Length; c++)
+            {
+                double lnE = lnIMin + (lnIMax - lnIMin) * c / (res.IntrinsicLycT.Length - 1);
+                double tau = 0.0;
+                for (int st = 0; st < Steps; st++)
+                {
+                    double lnLocal = lnE + (sQ - stepS[st]);   // stretched so far
+                    if (lnLocal >= lnLLc) break;              // past 912 Å: no more loss
+                    tau += stepKappa[st] * Math.Exp(s.LymanContinuumSlope * (lnLocal - lnLLc));
+                    if (tau > 50.0) break;
+                }
+                res.IntrinsicLycT[c] = (float)Math.Exp(-tau);
+            }
+        }
+
         rep.Add("TUTORIAL DATA  (path record + intrinsic spectrum)");
         rep.Add(F("  {0} path cells of {1:0} km/s, z {2:0.000} -> {3:0.000}", segT.Count, cellKms, zQ, segZ.Count > 0 ? segZ[segZ.Count - 1] : zQ));
         rep.Add(F("  intrinsic spectrum: {0} samples, emitted {1:0}-{2:0} A", res.Intrinsic.Length, res.IntrinsicLambdaMin, res.IntrinsicLambdaMax));
+        rep.Add(F("  Lyman break (emitted < 912 A): transmission at 900 A {0:0.000}, 850 A {1:0.000}, 700 A {2:0.000}",
+            LycAtReport(res, 900.0), LycAtReport(res, 850.0), LycAtReport(res, 700.0)));
         rep.Add("");
 
         // -- Notable absorbers --------------------------------------------------------------
@@ -808,6 +844,9 @@ public static class SpectrumModel_NEW
             w.Write(r.IntrinsicLambdaMin);
             w.Write(r.IntrinsicLambdaMax);
             for (int i = 0; i < r.Intrinsic.Length; i++) w.Write(r.Intrinsic[i]);
+
+            // Version 5: the Lyman break — photoionisation transmission on the same emitted grid.
+            for (int i = 0; i < r.IntrinsicLycT.Length; i++) w.Write(r.IntrinsicLycT[i]);
 
             w.Flush();
             return ms.ToArray();
@@ -1044,6 +1083,14 @@ public static class SpectrumModel_NEW
     }
 
     /// <summary>ln of a table's values, interpolated linearly in z. Used for the mean free path, which spans decades.</summary>
+    static double LycAtReport(Result r, double lambdaEmitted)
+    {
+        int n = r.IntrinsicLycT.Length;
+        double f = (Math.Log(lambdaEmitted) - Math.Log(r.IntrinsicLambdaMin)) / Math.Log(r.IntrinsicLambdaMax / r.IntrinsicLambdaMin) * (n - 1);
+        int i = (int)Math.Max(0, Math.Min(n - 1, Math.Round(f)));
+        return r.IntrinsicLycT[i];
+    }
+
     static double InterpLog(Point[] table, double z)
     {
         double[] ln = new double[table.Length];

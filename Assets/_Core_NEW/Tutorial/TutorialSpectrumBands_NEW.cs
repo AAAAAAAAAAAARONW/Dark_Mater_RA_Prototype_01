@@ -48,6 +48,12 @@ public class TutorialSpectrumBands_NEW : MonoBehaviour
     [SerializeField] RectTransform lineMarker;
     [SerializeField] Image lineMarkerImage;
 
+    [Tooltip("Optional. An arrow under the bar at the birth wavelength, where every line " +
+             "is cut — the same green arrow the journey's LAF bar uses, so the reference " +
+             "point is drawn the same way on both sides of the handoff. Only its x is set " +
+             "here; its size, rotation and gap are its own.")]
+    [SerializeField] RectTransform birthArrow;
+
     [Header("Look")]
     [Range(0f, 1f)]
     [SerializeField] float visibleTintAlpha = 0.06f;
@@ -151,6 +157,13 @@ public class TutorialSpectrumBands_NEW : MonoBehaviour
             float x = Mathf.Clamp01(spectrum.RestFramePosition);
             lineMarker.anchorMin = new Vector2(x, 0f);
             lineMarker.anchorMax = new Vector2(x, 1f);
+        }
+
+        if (birthArrow != null && spectrum != null)
+        {
+            float x = Mathf.Clamp01(spectrum.RestFramePosition);
+            birthArrow.anchorMin = new Vector2(x, 0f);
+            birthArrow.anchorMax = new Vector2(x, 0f);
         }
 
         if (lineMarkerImage != null)

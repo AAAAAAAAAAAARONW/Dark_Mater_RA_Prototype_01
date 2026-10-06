@@ -66,6 +66,11 @@ public class TutorialLineIndicator_NEW : MonoBehaviour
              "line. See the class summary.")]
     [SerializeField] bool flipAcross = false;
 
+    [Tooltip("Degrees to turn the arrow sprite so it points UP. 0 for a sprite drawn " +
+             "pointing up (the generated TutorialArrow); 90 for one drawn pointing right " +
+             "(the LAF art's LAF_Arrow).")]
+    [SerializeField] float arrowSpriteAngle = 0f;
+
     [Header("Timing")]
     [SerializeField] float fadeSeconds = 0.35f;
 
@@ -111,6 +116,24 @@ public class TutorialLineIndicator_NEW : MonoBehaviour
         ApplyAlpha(barOk, trailOk);
     }
 
+    /// <summary>
+    /// Where the sprite's tip is in its own rect, so the arrow pivots on its point however
+    /// it is drawn: the top-centre of an up-pointing sprite, turned back by arrowSpriteAngle.
+    /// </summary>
+    Vector2 ArrowTipPivot()
+    {
+        return TipPivot(arrowSpriteAngle);
+    }
+
+    /// <summary>The tip, in rect space, of a sprite that points up once turned by angle.</summary>
+    public static Vector2 TipPivot(float angle)
+    {
+        float r = -angle * Mathf.Deg2Rad;
+        Vector2 up = new Vector2(0f, 0.5f);
+        return new Vector2(0.5f + up.x * Mathf.Cos(r) - up.y * Mathf.Sin(r),
+                           0.5f + up.x * Mathf.Sin(r) + up.y * Mathf.Cos(r));
+    }
+
     bool PlaceBarArrow()
     {
         if (barArrow == null) return false;
@@ -119,9 +142,9 @@ public class TutorialLineIndicator_NEW : MonoBehaviour
 
         barArrow.anchorMin = new Vector2(x, 0f);
         barArrow.anchorMax = new Vector2(x, 0f);
-        barArrow.pivot = new Vector2(0.5f, 1f);
+        barArrow.pivot = ArrowTipPivot();
         barArrow.anchoredPosition = new Vector2(0f, -barArrowGap);
-        barArrow.localEulerAngles = Vector3.zero;
+        barArrow.localEulerAngles = new Vector3(0f, 0f, arrowSpriteAngle);
 
         return true;
     }
@@ -162,9 +185,9 @@ public class TutorialLineIndicator_NEW : MonoBehaviour
         // The sprite's apex is its top edge. Pivoting there and turning it half round
         // leaves the apex in place pointing down, with the body above it — so the gap is
         // measured to the tip.
-        trailArrow.pivot = new Vector2(0.5f, 1f);
+        trailArrow.pivot = ArrowTipPivot();
         trailArrow.anchoredPosition = local + new Vector2(0f, trailArrowGap);
-        trailArrow.localEulerAngles = new Vector3(0f, 0f, 180f);
+        trailArrow.localEulerAngles = new Vector3(0f, 0f, 180f + arrowSpriteAngle);
 
         return true;
     }

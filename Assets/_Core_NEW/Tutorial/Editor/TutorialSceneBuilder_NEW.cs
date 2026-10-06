@@ -362,6 +362,12 @@ public static class TutorialSceneBuilder_NEW
         TutorialLineIndicator_NEW lineIndicator = BuildLineIndicator(canvas.transform, spectrum, trailBands,
                                                                      photonTrail, travel, camera);
 
+        // The LAF art on the bar, shared with the journey's panel. Styled once, on the run
+        // that adds the background; after that it only fills in what is missing.
+        GameObject spectrumBar = FindChild(canvas.transform, "SpectrumBar");
+        if (spectrumBar != null)
+            LAFArtSetup_NEW.ApplyTutorial((RectTransform)spectrumBar.transform, spectrumBands, lineIndicator, false);
+
         Phase3Rig phase3 = new Phase3Rig
         {
             trailBands = trailBands,
@@ -1822,7 +1828,15 @@ public static class TutorialSceneBuilder_NEW
 
         GameObject title = UIObject("Title", card.transform, new Vector2(0.5f, 0.5f),
                                     new Vector2(0f, 34f), new Vector2(900f, 90f));
-        AddText(title, "PAUSED", 64, TextAlignmentOptions.Center);
+        TMP_Text pausedText = AddText(title, "PAUSED", 64, TextAlignmentOptions.Center);
+
+        // The drawn frame, PAUSED included. First child, so the resume plate draws on top.
+        GameObject frameArt = AddArt(card, "FrameArt", Vector2.zero,
+                                     TutorialWorldAssets_NEW.HintSprite("TutorialHint_PauseFrame"),
+                                     PauseFrameHeight);
+
+        bool frameIsNew = IsFresh(frameArt.GetComponent<Image>());
+        if (frameIsNew) frameArt.transform.SetSiblingIndex(0);
 
         GameObject resume = UIObject("Resume", card.transform, new Vector2(0.5f, 0.5f),
                                      new Vector2(0f, -40f), new Vector2(900f, 50f));
@@ -1834,6 +1848,17 @@ public static class TutorialSceneBuilder_NEW
         GameObject resumeArt = AddArt(card, "ResumeArt", new Vector2(0f, -70f),
                                       TutorialWorldAssets_NEW.HintSprite("TutorialHint_Resume"),
                                       ResumeArtHeight);
+
+        // The plate sits inside the frame, under its PAUSED rule. Only on the run that
+        // adds the frame: an existing plate was placed for the card without one, and
+        // after that the position is whoever last moved it.
+        if (frameIsNew)
+        {
+            RectTransform resumeRect = resumeArt.GetComponent<RectTransform>();
+            Undo.RecordObject(resumeRect, "Move the resume plate into the pause frame");
+            resumeRect.anchoredPosition = new Vector2(0f, -PauseFrameHeight * ResumeInFrameDrop);
+            EditorUtility.SetDirty(resumeRect);
+        }
 
         // Every run, not only when fresh: canvas elements the builder adds later in the
         // same build (the zoom gauge, anything new) would otherwise land on top of it,
@@ -1847,6 +1872,8 @@ public static class TutorialSceneBuilder_NEW
             .Ref("group", group)
             .Ref("resumeLabel", resumeText)
             .Ref("resumeImage", resumeArt.GetComponent<Image>())
+            .Ref("frameImage", frameArt.GetComponent<Image>())
+            .Ref("pausedLabel", pausedText)
             .Apply();
 
         return component;
@@ -1854,6 +1881,14 @@ public static class TutorialSceneBuilder_NEW
 
     /// <summary>Height of the drawn PRESS B · RESUME plate on the pause card.</summary>
     const float ResumeArtHeight = 110f;
+
+    /// <summary>Height of the drawn pause frame. The resume plate is about a sixth of it,
+    /// which is the proportion in the mock.</summary>
+    const float PauseFrameHeight = 600f;
+
+    /// <summary>How far below the frame's centre the resume plate sits, as a fraction of
+    /// the frame's height: just under the rule beneath PAUSED, as in the mock.</summary>
+    const float ResumeInFrameDrop = 0.23f;
 
     /// <summary>
     /// The drawn handover title for the ending. Lives with the other ArtV2 titles rather

@@ -189,6 +189,8 @@ public class SpectrumHUD_NEW : MonoBehaviour
     {
         _external = null;
         _externalCount = 0;
+        if (graph != null) graph.SetXShift(0f);
+        if (graph != null) graph.ClearWavelengthAxis();
         Redraw();
     }
 
@@ -200,6 +202,28 @@ public class SpectrumHUD_NEW : MonoBehaviour
 
     /// <summary>True while an external curve is being drawn.</summary>
     public bool HasExternalCurve { get { return _external != null; } }
+
+    /// <summary>How many points the curve is drawn with. A supplier that fills exactly this many
+    /// (box-averaged) avoids the point-resampling here, which makes narrow lines flicker as they move.</summary>
+    public int SampleCount { get { return sampleCount; } }
+
+    /// <summary>
+    /// Draw the external curve shifted right by this many sample-steps (0–1). For a supplier
+    /// whose sample points ride with the data, so a line keeps one shape and still moves smoothly.
+    /// </summary>
+    public void SetExternalCurveShift(float samples)
+    {
+        if (graph != null) graph.SetXShift(samples);
+    }
+
+    /// <summary>
+    /// The real wavelengths at the bar's two ends, in Å, for a supplier that knows them, so
+    /// the line can be coloured by wavelength like the trail. See LineGraphRenderer_NEW.
+    /// </summary>
+    public void SetWavelengthAxis(double lambdaMin, double lambdaMax)
+    {
+        if (graph != null) graph.SetWavelengthAxis(lambdaMin, lambdaMax);
+    }
 
     /// <summary>
     /// Wind the redshift forward (or back) by hand, in bar widths.

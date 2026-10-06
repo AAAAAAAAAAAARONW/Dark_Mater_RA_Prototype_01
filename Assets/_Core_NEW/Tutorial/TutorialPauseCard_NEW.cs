@@ -40,6 +40,13 @@ public class TutorialPauseCard_NEW : MonoBehaviour
              "the text off; leaving it empty is the card exactly as it was.")]
     [SerializeField] Image resumeImage;
 
+    [Tooltip("Drawn frame with PAUSED in it, behind the resume plate. Assigning one " +
+             "switches the PAUSED text off, since the frame already says it.")]
+    [SerializeField] Image frameImage;
+
+    [Tooltip("The PAUSED words. Only switched off when the frame is there to say it.")]
+    [SerializeField] TMP_Text pausedLabel;
+
     [Header("Timing")]
     [Tooltip("Seconds to fade in and out. Short: a pause should feel immediate.")]
     [SerializeField] float fadeSeconds = 0.2f;
@@ -57,6 +64,9 @@ public class TutorialPauseCard_NEW : MonoBehaviour
         // arrangement as the attract card and the hint line.
         if (resumeImage != null && resumeImage.sprite != null && resumeLabel != null)
             resumeLabel.gameObject.SetActive(false);
+
+        if (frameImage != null && frameImage.sprite != null && pausedLabel != null)
+            pausedLabel.gameObject.SetActive(false);
 
         Apply(0f);
     }

@@ -51,6 +51,7 @@ ARRIVAL FRAME  (what the HUD zooms into at Earth)
 TUTORIAL DATA  (path record + intrinsic spectrum)
   12256 path cells of 37 km/s, z 3.616 -> 0.000
   intrinsic spectrum: 8192 samples, emitted 263-9000 A
+  Lyman break (emitted < 912 A): transmission at 900 A 0.849, 850 A 0.470, 700 A 0.181
 
 NOTABLE ABSORBERS  (for RedshiftMarks_NEW; [0] is the first line)
   [ 0]  z = 3.6152   transmission 0.016   <- first
