@@ -84,6 +84,11 @@ public class AbsorberHighlight_NEW : MonoBehaviour
              "tutorial's flipAcross).")]
     [SerializeField] bool flipAcross = false;
 
+    [Tooltip("Mirror the trail if needed so that, on screen, its UV edge is on the LEFT like the bar and " +
+             "lines move left to right. Read from the mesh Unity draws; decided early in the flight and " +
+             "again at each highlight.")]
+    [SerializeField] bool autoOrientTrail = true;
+
     [Header("Look")]
     [SerializeField] Color color = new Color(1f, 0.91f, 0.63f, 1f);
 
@@ -111,6 +116,13 @@ public class AbsorberHighlight_NEW : MonoBehaviour
     Vector3 _prevLightPos;
     Vector3 _travelDir;
     readonly Vector3[] _corners = new Vector3[4];
+    Mesh _ribbonMesh;
+    float _ribbonSign = 1f;
+    float _ribbonWidth = -1f;
+    float _nextRibbonRead;
+    Vector2 _arrowTip;
+    bool _arrowValid;
+    bool _oriented;
 
     /// <summary>
     /// Highlight the first line — the one the player's own atom cut in the tutorial (mark [0]).
@@ -200,6 +212,11 @@ public class AbsorberHighlight_NEW : MonoBehaviour
         return g;
     }
 
+    void OnDestroy()
+    {
+        if (_ribbonMesh != null) Destroy(_ribbonMesh);
+    }
+
     void OnEnable()
     {
         if (sequence != null) sequence.OnStepEntered += HandleStep;
@@ -238,6 +255,7 @@ public class AbsorberHighlight_NEW : MonoBehaviour
         if (!highlightEnabled || source == null || !source.IsActive) { Stop(); _prevZ = float.NaN; return; }
 
         TrackLight();
+        if (!_oriented && source.IsActive && source.Trail != null && source.Trail.positionCount > 8) OrientTrail("start of flight");
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         if (debugKey != KeyCode.None && Input.GetKeyDown(debugKey)) HighlightNow();
@@ -273,6 +291,8 @@ public class AbsorberHighlight_NEW : MonoBehaviour
             if (debugLog) Debug.Log("[AbsorberHighlight_NEW] Skipped " + why + " (z " + zLine.ToString("0.0000") + "): the last highlight is still on.", this);
             return;
         }
+
+        OrientTrail("highlight");
 
         _running = true;
         _manual = manual;
@@ -334,7 +354,14 @@ public class AbsorberHighlight_NEW : MonoBehaviour
             Vector2 tip = Vector2.zero;
             bool ok = !float.IsNaN(barT) && arrowAlpha > 0f && TrailPoint(out tip);
             _trailArrow.arrowAlpha = ok ? arrowAlpha : 0f;
-            if (ok) _trailArrow.tip = tip;
+            if (ok)
+            {
+                // Eased on screen (~12/s), so frame-to-frame noise in the light's heading does not shake it.
+                _arrowTip = _arrowValid ? Vector2.Lerp(_arrowTip, tip, 1f - Mathf.Exp(-12f * Time.unscaledDeltaTime)) : tip;
+                _arrowValid = true;
+                _trailArrow.tip = _arrowTip;
+            }
+            else _arrowValid = false;
             _trailArrow.Refresh();
         }
     }
@@ -377,18 +404,37 @@ public class AbsorberHighlight_NEW : MonoBehaviour
         TrailRenderer trail = source.Trail;
         if (trail == null || viewCamera == null || _canvasRect == null || !trail.gameObject.activeInHierarchy) return false;
 
-        Vector3 behind = _travelDir.sqrMagnitude > 1e-4f ? -_travelDir.normalized : -trail.transform.forward;
-        Vector3 point = trail.transform.position + behind * pointBehindLight;
-
-        Vector3 across = Vector3.Cross(behind, viewCamera.transform.position - point).normalized;
-        if (across.sqrMagnitude < 1e-4f) return false;
-        if (flipAcross) across = -across;
-
         float u = source.TrailLineT(_lineZ);
         if (float.IsNaN(u)) return false;
-        float width = trail.widthMultiplier * trail.widthCurve.Evaluate(0f);
-        // The shader reads wavelength off (1 − uv.y), so the line sits at 1 − u across the ribbon.
-        point += across * ((1f - u) - 0.5f) * width;
+
+        // Smooth geometry for the position: a point a little behind the light, across the ribbon.
+        Vector3 behind = _travelDir.sqrMagnitude > 1e-4f ? -_travelDir.normalized : -trail.transform.forward;
+        Vector3 target = trail.transform.position + behind * pointBehindLight;
+        Vector3 across = Vector3.Cross(behind, viewCamera.transform.position - target).normalized;
+        if (across.sqrMagnitude < 1e-4f) return false;
+
+        // The drawn mesh only says WHICH SIDE is uv.y = 0 and how wide the ribbon is — read a few
+        // times a second and smoothed. Snapping to its vertices made the arrow shake, because the
+        // nearest vertex jumps every time the trail adds a point.
+        if (Time.unscaledTime >= _nextRibbonRead)
+        {
+            _nextRibbonRead = Time.unscaledTime + 0.25f;
+            Vector3 e0, e1;
+            if (RibbonEdges(trail, out e0, out e1))
+            {
+                Vector3 d = e1 - e0;
+                float s = Vector3.Dot(d, across);
+                if (Mathf.Abs(s) > 1e-4f) _ribbonSign = Mathf.Sign(s);
+                float w = d.magnitude;
+                _ribbonWidth = _ribbonWidth < 0f ? w : Mathf.Lerp(_ribbonWidth, w, 0.3f);
+            }
+        }
+        float width = _ribbonWidth > 0f ? _ribbonWidth : trail.widthMultiplier * trail.widthCurve.Evaluate(0f);
+
+        // specT = 1 − uv.y, or uv.y when the ribbon is mirrored.
+        float v = source.TrailMirrored ? u : 1f - u;
+        if (flipAcross) v = 1f - v;
+        Vector3 point = target + across * (_ribbonSign * (v - 0.5f) * width);
 
         Vector3 screen = viewCamera.WorldToScreenPoint(point);
         if (screen.z <= 0f) return false;
@@ -399,6 +445,38 @@ public class AbsorberHighlight_NEW : MonoBehaviour
         // The graphic fills the canvas rect, so its local space is the canvas's.
         local += new Vector2(0f, trailArrowGap);
         return true;
+    }
+
+    /// <summary>The ribbon's two edges a little behind the light, from the mesh Unity draws.</summary>
+    bool RibbonEdges(TrailRenderer trail, out Vector3 e0, out Vector3 e1)
+    {
+        if (_ribbonMesh == null) _ribbonMesh = new Mesh { name = "AbsorberHighlight_TrailBake" };
+        Vector3 behind = _travelDir.sqrMagnitude > 1e-4f ? -_travelDir.normalized : -trail.transform.forward;
+        Vector3 target = trail.transform.position + behind * pointBehindLight;
+        return TrailRibbon_NEW.Edges(trail, viewCamera, _ribbonMesh, target, out e0, out e1);
+    }
+
+    /// <summary>
+    /// Mirror the ribbon if needed so that on screen its UV edge is on the LEFT, like the bar, and
+    /// a line moves left to right on both. Decided from the drawn mesh.
+    /// </summary>
+    void OrientTrail(string why)
+    {
+        if (!autoOrientTrail || source == null || source.Trail == null || viewCamera == null) return;
+        Vector3 e0, e1;
+        if (!RibbonEdges(source.Trail, out e0, out e1)) return;
+
+        // Unmirrored, wavelength grows from the uv.y = 1 edge towards the uv.y = 0 edge.
+        float dx = viewCamera.WorldToScreenPoint(e0).x - viewCamera.WorldToScreenPoint(e1).x;
+        if (Mathf.Abs(dx) < 3f) return;   // ribbon edge-on to the screen: no clear left/right
+        bool mirror = dx < 0f;
+        _oriented = true;
+        if (mirror != source.TrailMirrored)
+        {
+            source.SetTrailMirrored(mirror);
+            if (debugLog) Debug.Log("[AbsorberHighlight_NEW] Trail " + (mirror ? "mirrored" : "unmirrored") +
+                                    " so UV is on screen-left like the bar (" + why + ").", this);
+        }
     }
 
     static float Pulse(float elapsed, float seconds, int count)

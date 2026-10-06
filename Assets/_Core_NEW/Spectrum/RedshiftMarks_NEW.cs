@@ -123,6 +123,11 @@ public class RedshiftMarks_NEW : MaskableGraphic
     [Range(3f, 40f)]
     [SerializeField] float anchorTriangleHeight = 9f;
 
+    [Tooltip("How far the back edge is cut in towards the tip, as a fraction of the height. " +
+             "0 is a plain triangle; about 0.3 is the arrowhead in the LAF art.")]
+    [Range(0f, 0.8f)]
+    [SerializeField] float anchorTriangleNotch = 0f;
+
     [Tooltip("Gap between the bottom of the curve band and the triangle's tip, pixels.")]
     [Range(0f, 30f)]
     [SerializeField] float anchorTriangleGap = 3f;
@@ -648,12 +653,16 @@ public class RedshiftMarks_NEW : MaskableGraphic
                     if (anchorStyle == AnchorStyle.Triangle)
                     {
                         // Under the bar, tip up, pointing at the birth wavelength.
+                        // Two halves meeting at a point on the back edge; pulled in by
+                        // anchorTriangleNotch, that point makes it the LAF art's arrowhead.
                         float tipY = r.yMin - anchorTriangleGap;
-                        AddTriangle(vh,
-                                    new Vector2(restX, tipY),
-                                    new Vector2(restX - anchorTriangleWidth * 0.5f, tipY - anchorTriangleHeight),
-                                    new Vector2(restX + anchorTriangleWidth * 0.5f, tipY - anchorTriangleHeight),
-                                    Fade(anchorTriangleColor, alpha));
+                        float backY = tipY - anchorTriangleHeight;
+                        var tip = new Vector2(restX, tipY);
+                        var notch = new Vector2(restX, backY + anchorTriangleHeight * anchorTriangleNotch);
+                        Color32 c = Fade(anchorTriangleColor, alpha);
+
+                        AddTriangle(vh, tip, new Vector2(restX - anchorTriangleWidth * 0.5f, backY), notch, c);
+                        AddTriangle(vh, tip, notch, new Vector2(restX + anchorTriangleWidth * 0.5f, backY), c);
                     }
                     else
                     {

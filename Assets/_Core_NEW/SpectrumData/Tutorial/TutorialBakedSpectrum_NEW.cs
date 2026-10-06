@@ -79,6 +79,12 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
     [Range(128, 2048)]
     [SerializeField] int columns = 1024;
 
+    [Tooltip("How much of the gap between two HUD points each point averages (0.1–1). The points ride " +
+             "with the lines, so a line is measured the same way every frame (no jumping, nothing " +
+             "smoothed away) — same as the journey's hudBinWidth.")]
+    [Range(0.1f, 1f)]
+    [SerializeField] float hudBinWidth = 0.5f;
+
     [Header("Time compression")]
     [Tooltip("Gyr of the journey per second of tutorial (scaled time: D5's slow motion slows " +
              "it, the pause stops it). 0.003 ≈ 0.18 Gyr over Phase 3's ~60 s ≈ 1.5% of the " +
@@ -159,29 +165,42 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
 
     [Tooltip("Light BLUER than the birth tick, 1000 Å to the line region: real light, never absorbed by Ly-alpha. It is there to push the line region away from the ribbon's outer edge, where the trail shader fades everything — black lines included — to nothing.")]
     [Range(0f, 0.4f)]
-    [SerializeField] float farUvShare = 0.20f;
+    [SerializeField] float farUvFraction = 0.12f;
 
     [Tooltip("Right end of the line region on the ribbon, Å. The tutorial's lines reach ~1310 Å.")]
     [Range(1250f, 3000f)]
     [SerializeField] float lineRegionEndA = 1400f;
 
     [Range(0.05f, 0.6f)]
-    [SerializeField] float lineRegionShare = 0.25f;
+    [SerializeField] float lineRegionFraction = 0.25f;
 
     [Tooltip("The rest of the UV, lineRegionEndA to 4000 Å.")]
     [Range(0.02f, 0.5f)]
-    [SerializeField] float uvRestShare = 0.10f;
+    [SerializeField] float uvRestFraction = 0.05f;
 
     [Tooltip("Visible, 4000–7000 Å. IR gets whatever is left.")]
     [Range(0.1f, 0.8f)]
-    [SerializeField] float visibleShare = 0.30f;
+    [SerializeField] float visibleFraction = 0.40f;
 
     [SerializeField] bool driveBands = true;
     [SerializeField] bool driveTrailColours = true;
 
-    [Tooltip("Opacity of the UV part of the ribbon. PhotonSpectrumTrail's own UV is faint (its uvBrightness, ~0.3) because it was an edge; here the lines live in the UV, and a black line needs something bright behind it to read.")]
+    [Header("Invisible light (UV and IR)")]
+    [Tooltip("Brightness of UV and IR right next to the visible band (0–1, of full). From there each " +
+             "fades outwards to nothing at the ribbon's edge, so the eye reads it as light that is " +
+             "leaving what can be seen.")]
     [Range(0f, 1f)]
-    [SerializeField] float uvAlpha = 0.65f;
+    [SerializeField] float invisibleBrightness = 0.55f;
+
+    [Tooltip("Brightness held through the UV region where the tutorial's lines are, so their black " +
+             "stripes still read against it.")]
+    [Range(0f, 1f)]
+    [SerializeField] float lineRegionBrightness = 0.42f;
+
+    [Tooltip("How much of its colour UV and IR keep (0 = grey, 1 = full violet / red). Low: only the " +
+             "visible band is a rainbow, so colour itself says 'this you can see'.")]
+    [Range(0f, 1f)]
+    [SerializeField] float invisibleSaturation = 0.3f;
 
     [Range(32, 1024)]
     [SerializeField] int trailTextureWidth = 256;
@@ -435,7 +454,7 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
 
         _flux = new float[columns];
         _transmission = new float[columns];
-        _curve = new float[columns];
+        _curve = new float[hud != null ? Mathf.Max(2, hud.SampleCount) : columns];
         _absorption = new float[columns];
         _weight = new float[_data.RecordCells];
 
@@ -550,12 +569,24 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
         double zMin = LnBirth - zoomLeftShare * zoomWidthLn, zMax = LnBirth + (1.0 - zoomLeftShare) * zoomWidthLn;
         _lnMin = fullMin + (zMin - fullMin) * _zoom;
         _lnMax = fullMax + (zMax - fullMax) * _zoom;
+        if (hud != null) hud.SetWavelengthAxis(Math.Exp(_lnMin), Math.Exp(_lnMax));
 
         bool flux = curve == Curve.Flux;
-        _data.SampleView(_zNow, Math.Exp(_lnMin), Math.Exp(_lnMax), flux ? _flux : null, _transmission,
+        _data.SampleView(_zNow, Math.Exp(_lnMin), Math.Exp(_lnMax), null, _transmission,
                          _revealAll >= 1f ? null : _weightFn);
 
-        for (int c = 0; c < columns; c++) _curve[c] = flux ? _flux[c] : _transmission[c];
+        // The bar curve on points that ride with the lines (see BakedSpectrumSource_NEW.DrawHudRiding).
+        // While the bar is zooming the step itself changes, so the points stay put for those seconds.
+        {
+            int n = _curve.Length;
+            double step = (_lnMax - _lnMin) / (n - 1);
+            double moved = (Math.Log(1.0 + _data.ZQuasar) - Math.Log(1.0 + _zNow)) / step;
+            float phase = _zoomTime >= 0f ? 0f : (float)(moved - Math.Floor(moved));
+            _data.SampleView(_zNow, Math.Exp(_lnMin + phase * step), Math.Exp(_lnMax + phase * step),
+                             flux ? _curve : null, flux ? null : _curve,
+                             _revealAll >= 1f ? null : _weightFn, 1f, hudBinWidth);
+            if (hud != null) hud.SetExternalCurveShift(phase);
+        }
 
         if (hud != null) hud.MarkExternalCurveDirty();
 
@@ -590,7 +621,7 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
     /// <summary>Fill the piecewise axis: ln λ break points and where they sit on the ribbon.</summary>
     void BuildTrailAxis()
     {
-        float s0 = farUvShare, s1 = lineRegionShare, s2 = uvRestShare, s3 = visibleShare;
+        float s0 = farUvFraction, s1 = lineRegionFraction, s2 = uvRestFraction, s3 = visibleFraction;
         float sum = s0 + s1 + s2 + s3;
         if (sum > 0.95f) { float k = 0.95f / sum; s0 *= k; s1 *= k; s2 *= k; s3 *= k; }
 
@@ -690,12 +721,41 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
 
         TrailSpectrumColours_NEW.Ensure(ref _trailTex, ref _trailPixels, trailTextureWidth, "TutorialBakedSpectrum_Trail");
 
-        Color uv = spectrumTrail.uvColor * Mathf.Max(spectrumTrail.uvBrightness, uvAlpha);
-        uv.a = uvAlpha;
-        Color ir = spectrumTrail.irColor * spectrumTrail.irBrightness;
-        ir.a = spectrumTrail.irBrightness;
+        // UV and IR: desaturated (only the visible band is a rainbow) and dimmer than the visible,
+        // fading outwards from the visible band's edge to nothing at the ribbon's edge.
+        Color grey = new Color(0.62f, 0.62f, 0.66f, 1f);
+        Color uv = Color.Lerp(grey, spectrumTrail.uvColor, invisibleSaturation) * invisibleBrightness;
+        Color ir = Color.Lerp(grey, spectrumTrail.irColor, invisibleSaturation) * invisibleBrightness;
+        uv.a = ir.a = 1f;
 
         TrailSpectrumColours_NEW.Fill(_trailPixels, t => Math.Exp(TrailLn(t)), uv, ir);
+
+        BuildTrailAxis();
+        int w = _trailPixels.Length;
+        float lineStart = _segT[1], visStart = _segT[3], visEnd = _segT[4];
+        float keepAtLines = invisibleBrightness > 0f ? lineRegionBrightness / invisibleBrightness : 1f;
+        for (int x = 0; x < w; x++)
+        {
+            float t = (x + 0.5f) / w;
+            double lambda = Math.Exp(TrailLn(t));
+            if (lambda >= 3850.0 && lambda <= 7150.0) continue;   // the visible band and its blends
+
+            float k;
+            if (lambda < 3850.0)
+            {
+                // UV: from the visible edge down to the line region, then out to the edge.
+                if (t >= lineStart) k = Mathf.Lerp(keepAtLines, 1f, Mathf.InverseLerp(lineStart, visStart, t));
+                else k = keepAtLines * Mathf.SmoothStep(0f, 1f, lineStart > 0f ? t / lineStart : 1f);
+            }
+            else
+            {
+                // IR: from the visible edge out to the edge.
+                k = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(visEnd, 1f, t));
+            }
+
+            Color32 p = _trailPixels[x];
+            _trailPixels[x] = new Color32((byte)(p.r * k), (byte)(p.g * k), (byte)(p.b * k), (byte)(255f * Mathf.Clamp01(k * 1.5f)));
+        }
         _trailTex.SetPixels32(_trailPixels);
         _trailTex.Apply(false);
 

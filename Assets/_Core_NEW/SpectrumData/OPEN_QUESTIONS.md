@@ -213,3 +213,12 @@ These follow from putting the tutorial on the same physics as the journey (READM
 4. **The proximity zone is effectively off at z = 3.62.** The bake report says R_ion = 0.00. The zone is defined the way papers measure it (where transmission falls to 10%), but at z = 3.6 the *mean* transmission is ~0.54, so that definition gives no zone. In reality the quasar still thins the gas over a few Mpc. The first line therefore sits right at the quasar (z 3.6152, saturated). It is harmless for the piece. A z-appropriate definition (flux-ratio based) would fix it; flag for the science meeting.
 5. **UV on the trail.** The tutorial's trail colours now follow real wavelengths, on a piecewise axis (`trailAxis = AllBands`): UV 55% of the ribbon (20% far UV as an edge margin, 25% the 1202–1400 Å line region, 10% the rest), visible 30%, IR 15%. The ribbon does not follow the bar's zoom. UV is drawn at a constant `uvBrightness`, not faded towards the edge, so the black line stripes stay visible. **Check how the ribbon reads in the room.** If it is too dim, raise `uvBrightness` on the tutorial's `PhotonSpectrumTrail`, or switch `driveTrailColours` off to keep the old artistic ribbon (lines then sit under colours that are not their wavelength).
 6. **Pace.** The tutorial covers ~1.5% of the journey in ~60 s; the journey's quasar phase covers the next ~7% in ~8–14 s. The black hides the change of pace, and the HUD holds for ~2 s at the start of the journey until the tracker catches up.
+
+## 11. Decided (2026-10-06): the Lyman break is shown, dimmed not black
+
+The left of the bar (light that left the quasar bluer than 912 Å) used to stay bright and flat, brighter than the forest, because only Lyα is drawn. In reality that light is photoionised away.
+
+The HUD now dims it by the real photoionisation transmission, but never below `lymanBreakFloor` (0.3), so it reads as fainter light, not black. This amends §7: Lyα is still the only thing drawn as **lines**, and the trail still shows Lyα lines only.
+
+- **Data:** bake format 5 adds the transmission against emitted wavelength, from the same mean-free-path table and slope the simulation uses. It is gradual: 0.85 at 900 Å, 0.47 at 850 Å, 0.18 at 700 Å.
+- **Settings:** `BakedSpectrumSource_NEW.lymanBreakFloor`: 1 = off, 0 = the real, black break.
