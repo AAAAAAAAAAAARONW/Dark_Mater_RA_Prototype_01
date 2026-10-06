@@ -828,6 +828,10 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
         }
     }
 
+    // Shift+F11's test pattern. Declared for every build — the trail's own update reads it —
+    // and only ever switched on where the key is read, in the editor and development builds.
+    bool _trailTestPattern;
+
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
     /// <summary>
     /// F11 readout. Every value here is what drives the HUD this frame, so "the HUD is not
@@ -874,7 +878,6 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
     Texture2D _debugStrip;
     Texture2D _debugActual;
     Color32[] _debugActualPixels;
-    bool _trailTestPattern;
     Color32[] _debugPixels;
 
     /// <summary>
