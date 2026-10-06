@@ -74,6 +74,9 @@ static class JourneyDiveMenu_NEW
         {
             foreach (Preset preset in Presets)
                 added += AddRowIfMissing(dive, preset.row(), preset.what);
+
+            // The way out of the quasar keeps the camera it opens on (see QuasarDive).
+            if (dive.HasRow("Macro")) QuasarUsesWebCamera();
         }
 
         if (added > 0)
@@ -93,6 +96,14 @@ static class JourneyDiveMenu_NEW
     // Its point back where it was tuned for, too: the values are only right for that.
     [MenuItem(ResetPath + "Into SolarSystem (dive in)")]
     static void ResetSolarRow() => ResetRow(new Preset { row = () => SolarDive(true), what = Presets[3].what });
+
+    // And the camera it needs: the quasar on the web's camera.
+    [MenuItem(ResetPath + "Into Macro (leave the quasar)")]
+    static void ResetQuasarRow()
+    {
+        ResetRow(Presets[4]);
+        QuasarUsesWebCamera();
+    }
 
     /// <summary>
     /// Puts one gate's row back to its current starting values — for when those have
@@ -137,8 +148,114 @@ static class JourneyDiveMenu_NEW
             what = "dives in (cosmic web to the Milky Way)"
         },
 
-        new Preset { row = () => SolarDive(false), what = "dives in (the Milky Way to the Solar System)" }
+        new Preset { row = () => SolarDive(false), what = "dives in (the Milky Way to the Solar System)" },
+
+        new Preset { row = QuasarDive, what = "leaves the quasar (out into the early cosmic web)" }
     };
+
+    /// <summary>
+    /// The journey's first gate: out of the quasar into the early cosmic web — the layer
+    /// called 'Macro'.
+    ///
+    /// It played the cover. The journey opens on the tutorial's last frame and pushes in
+    /// behind the light (JourneyIntroCamera_NEW); two seconds later the light reached this
+    /// gate and the camera turned to look straight down for twelve seconds while the web was
+    /// swapped in out of sight, then looked up somewhere else. Right after the tutorial's
+    /// pull-back that read as the piece losing its place. Now it is ComingOut — the way out
+    /// of the galaxy into the web — without the look back:
+    ///
+    ///   cluster   The quasar's cluster: its galaxies are there from the first frame, dim
+    ///             soft smudges round the light, so the journey opens on the tutorial's
+    ///             last composition — the light small, things drifting round it — a scale
+    ///             up: galaxies where the tutorial had dust. About 180 in the wide opening
+    ///             shot, a dozen in the web's framing; over the last two seconds before the
+    ///             gate they brighten a little.
+    ///   through   The light flies on through them — they only drift by as it passes, and
+    ///             fade out between 3.5 and 6.7 seconds after the gate. Not collapsed into
+    ///             the quasar, as leaving the galaxy collapses its cluster: that is only
+    ///             seen looking back, and facing forward the whole cluster went from the
+    ///             frame in about half a second. The quasar, behind, shrinks as it goes.
+    ///   web       The early web comes in round the light over six seconds, the sky goes
+    ///             from the quasar's to the web's, and the light speeds up into it.
+    ///   camera    Forward the whole time. The tutorial's last beat was the look back at the
+    ///             quasar, already a point; looking back again here would undo it. And the
+    ///             Quasar layer uses the web's camera (QuasarUsesWebCamera), so the opening
+    ///             push lands on the framing the web keeps, and nothing about the camera
+    ///             changes at the gate.
+    /// </summary>
+    static LayerDive_NEW.Dive QuasarDive()
+    {
+        LayerDive_NEW.Dive d = LayerDive_NEW.Dive.ComingOut("Macro");
+        d.approachDistance = 5f;
+        d.diveSeconds = 2.5f;
+        d.peakHoldSeconds = 0.2f;
+        d.emergeSeconds = 5f;
+        d.diveZoom = 8f;
+        d.dissolveFrom = 0.3f;
+        d.memberCount = 2000;
+        d.crowdRadius = 180f;
+        d.memberSize = 1.3f;
+        d.resolveZoom = 1f;
+        d.streak = 0f;
+        d.spread = 180f;
+        d.ambientCrowd = 0.3f;
+        d.approachCrowd = 0.45f;
+        d.diveCrowd = 0.45f;
+        d.coolShare = 0.4f;
+        d.haloRadius = 0f;
+        d.lookBackYaw = 0f;
+        d.peakBloom = 0f;
+        return d;
+    }
+
+    /// <summary>
+    /// The quasar is the journey's first few seconds, and its camera is what the opening
+    /// shot pushes in to. Give it the early web's camera, so the push lands on the framing
+    /// the web keeps and the gate out of the quasar changes nothing about the camera: a
+    /// Quasar entry in CameraDirector_NEW's zone cameras, with the Macro entry's camera.
+    /// Left alone if it is already so.
+    /// </summary>
+    static void QuasarUsesWebCamera()
+    {
+        CameraDirector_NEW director = Object.FindObjectOfType<CameraDirector_NEW>();
+        if (director == null) return;
+
+        var so = new SerializedObject(director);
+        SerializedProperty list = so.FindProperty("zoneCameras");
+        if (list == null || !list.isArray) return;
+
+        Object webCamera = null;
+        int quasar = -1;
+        for (int i = 0; i < list.arraySize; i++)
+        {
+            SerializedProperty entry = list.GetArrayElementAtIndex(i);
+            string id = entry.FindPropertyRelative("layerId").stringValue;
+            if (id == "Macro") webCamera = entry.FindPropertyRelative("vcam").objectReferenceValue;
+            if (id == "Quasar") quasar = i;
+        }
+
+        if (webCamera == null)
+        {
+            Debug.LogWarning("Journey NEW: CameraDirector_NEW has no camera for the Macro layer, so the Quasar " +
+                             "layer keeps its own; the camera will change at the first gate.", director);
+            return;
+        }
+
+        if (quasar < 0)
+        {
+            list.arraySize++;
+            quasar = list.arraySize - 1;
+            list.GetArrayElementAtIndex(quasar).FindPropertyRelative("layerId").stringValue = "Quasar";
+        }
+
+        SerializedProperty vcam = list.GetArrayElementAtIndex(quasar).FindPropertyRelative("vcam");
+        if (vcam.objectReferenceValue == webCamera) return;
+
+        vcam.objectReferenceValue = webCamera;
+        so.ApplyModifiedProperties();
+        Debug.Log("Journey NEW: the Quasar layer now uses the early web's camera ('" + webCamera.name + "'), so the " +
+                  "opening shot pushes in to the framing the web keeps.", director);
+    }
 
     /// <summary>
     /// The dive from the Milky Way into the Solar System: one zoom into one star of the
@@ -336,5 +453,6 @@ static class JourneyDiveMenu_NEW
     [MenuItem(ResetPath + "Into CosmicWeb (leave the cluster)", true)]
     [MenuItem(ResetPath + "Into MilkyWay (dive in)", true)]
     [MenuItem(ResetPath + "Into SolarSystem (dive in)", true)]
+    [MenuItem(ResetPath + "Into Macro (leave the quasar)", true)]
     static bool ResetRowValidate() => !Application.isPlaying;
 }
