@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.15536879, g: 0.057539426, b: 0.40602666, a: 1}
+  m_IndirectSpecularColor: {r: 0.003786092, g: 0, b: 0.015731832, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -5362,6 +5362,17 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+      - m_Target: {fileID: 1860496580}
+        m_MethodName: WindUp
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: 
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
   onSatisfied:
     m_PersistentCalls:
       m_Calls: []
@@ -5944,7 +5955,24 @@ MonoBehaviour:
   emissionFlashColor: {r: 1, g: 1, b: 1, a: 1}
   emissionFlashHold: 0.06
   emissionFlashDecay: 1.4
+  throughFlashColor: {r: 1, g: 0.98, b: 0.94, a: 1}
+  throughFlashHold: 0.08
+  throughFlashDecay: 1.2
   onEmitted:
+    m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 1860496580}
+        m_MethodName: Erupt
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: 
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+  onThrough:
     m_PersistentCalls:
       m_Calls: []
   debugLog: 0
@@ -9891,7 +9919,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   handoffEnabled: 1
   outro: {fileID: 0}
-  journeyScenePath: Assets/_Core_NEW/Gameplay_Scene_Aaron.unity
+  journeyScenePath: Assets/_Core_NEW/Gameplay_Scene_Ana.unity
   titleHoldSeconds: 4
   fadeToBlackSeconds: 1
   settleSeconds: 0.75
@@ -17662,7 +17690,8 @@ Transform:
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 4375}
   m_LocalScale: {x: 900, y: 900, z: 900}
-  m_Children: []
+  m_Children:
+  - {fileID: 1860496579}
   m_Father: {fileID: 1048522346}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -17673,7 +17702,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1383825946}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 0
   m_ReceiveShadows: 0
   m_DynamicOccludee: 1
@@ -19462,6 +19491,17 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+      - m_Target: {fileID: 1860496580}
+        m_MethodName: Calm
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: 
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
   debugLog: 0
 --- !u!114 &1752711751
 MonoBehaviour:
@@ -19585,8 +19625,8 @@ MonoBehaviour:
   m_UiScaleMode: 1
   m_ReferencePixelsPerUnit: 100
   m_ScaleFactor: 1
-  m_ReferenceResolution: {x: 1920, y: 1080}
-  m_ScreenMatchMode: 0
+  m_ReferenceResolution: {x: 1371.4286, y: 1080}
+  m_ScreenMatchMode: 1
   m_MatchWidthOrHeight: 1
   m_PhysicalUnit: 3
   m_FallbackScreenDPI: 96
@@ -19960,6 +20000,123 @@ Transform:
   m_Father: {fileID: 1752711749}
   m_RootOrder: 14
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1860496578
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1860496579}
+  - component: {fileID: 1860496580}
+  m_Layer: 0
+  m_Name: Quasar VFX
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1860496579
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1860496578}
+  m_LocalRotation: {x: -0.7071068, y: -0, z: -0, w: 0.7071068}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 0.5, y: 0.5, z: 0.5}
+  m_Children: []
+  m_Father: {fileID: 1383825947}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1860496580
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1860496578}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6e8d79a60f345b08f19998684c1376b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  innerEdge: 0.07
+  spin: 0.25
+  twist: 2.2
+  rings: 12
+  inflow: 0.05
+  dust: 0.75
+  tendrils: 0.6
+  shimmer: 0.35
+  beaming: 0.5
+  orbitalSpeed: 0.45
+  hot: {r: 2.6, g: 2, b: 1.2, a: 1}
+  middle: {r: 1.7, g: 0.42, b: 0.05, a: 1}
+  rim: {r: 0.5, g: 0.035, b: 0.015, a: 1}
+  dustColour: {r: 0.03, g: 0.01, b: 0.005, a: 1}
+  discBrightness: 0.5
+  gasSheets: 3
+  gasReach: 2.6
+  gasTilt: 14
+  gasInner: {r: 1, g: 0.16, b: 0.04, a: 1}
+  gasOuter: {r: 0.28, g: 0.03, b: 0.2, a: 1}
+  gasBrightness: 0.55
+  gasWisps: 0.85
+  coreSize: 0.35
+  coreHot: {r: 4, g: 3.7, b: 3.2, a: 1}
+  coreGlow: {r: 1.1, g: 0.6, b: 0.25, a: 1}
+  coreHalo: {r: 0.3, g: 0.1, b: 0.03, a: 1}
+  shadow: 0.03
+  photonRing: 1.5
+  spikes: 1
+  spikeLength: 0.3
+  spikeAngle: 45
+  streak: 0.6
+  aimJetAt: {fileID: 275155976}
+  jetLength: 4.06
+  jetWidth: 0.032
+  jetHeart: {r: 2.6, g: 2.9, b: 3.2, a: 1}
+  jetSheath: {r: 0.35, g: 0.55, b: 1.1, a: 1}
+  jetBrightness: 1
+  counterJet: 0.5
+  hollow: 0.6
+  sheathBrightness: 0.35
+  filamentTurns: 1.5
+  filamentSpeed: 0.02
+  knots: 6
+  knotSpeed: 0.05
+  jetCeiling: 5
+  jetQuality: 32
+  embers: 900
+  hotSpots: 24
+  jetClumps: 300
+  clumpSpeed: {x: 0.02, y: 0.06}
+  matterSizes: {x: 0.008, y: 0.015, z: 0.01}
+  matterBrightness: 0.7
+  matterStreak: 0.6
+  emberDrift: 0.3
+  flicker: 0.15
+  flickerRate: 0.7
+  eruptEvery: 12
+  eruptJitter: 0.4
+  eruptStrength: 0.5
+  eruptWhenSeen: 0
+  eruptSeenDelay: 0.7
+  waveSpeed: 0.35
+  waveFade: 1.6
+  blobSpeed: 0.06
+  blobFade: 2.5
+  windUpSeconds: 12
+  windUpPace: 3
+  windUpBrightness: 1.6
+  windUpFlicker: 0.35
+  windUpStreak: 3
+  releaseSeconds: 3
+  windUpHold: 45
+  seed: 0
 --- !u!1 &1865719569
 GameObject:
   m_ObjectHideFlags: 0
