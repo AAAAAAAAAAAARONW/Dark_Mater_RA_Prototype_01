@@ -161,50 +161,52 @@ static class JourneyDiveMenu_NEW
     /// behind the light (JourneyIntroCamera_NEW); two seconds later the light reached this
     /// gate and the camera turned to look straight down for twelve seconds while the web was
     /// swapped in out of sight, then looked up somewhere else. Right after the tutorial's
-    /// pull-back that read as the piece losing its place. Now it is ComingOut — the way out
-    /// of the galaxy into the web — without the look back:
+    /// pull-back that read as the piece losing its place. Then it was ComingOut facing
+    /// forward, with the quasar's cluster round the light as soft dots — which read as wrong
+    /// for the scale: nothing like galaxies sits round a quasar's disc. Now it is ComingOut
+    /// with the look back, and what the camera finds is the quasar (QuasarVFX_NEW, put in by
+    /// Tools > Journey NEW > Add Quasar VFX to Open Scene):
     ///
-    ///   cluster   The quasar's cluster: its galaxies are there from the first frame, dim
-    ///             soft smudges round the light, so the journey opens on the tutorial's
-    ///             last composition — the light small, things drifting round it — a scale
-    ///             up: galaxies where the tutorial had dust. About 180 in the wide opening
-    ///             shot, a dozen in the web's framing; over the last two seconds before the
-    ///             gate they brighten a little.
-    ///   through   The light flies on through them — they only drift by as it passes, and
-    ///             fade out between 3.5 and 6.7 seconds after the gate. Not collapsed into
-    ///             the quasar, as leaving the galaxy collapses its cluster: that is only
-    ///             seen looking back, and facing forward the whole cluster went from the
-    ///             frame in about half a second. The quasar, behind, shrinks as it goes.
-    ///   web       The early web comes in round the light over six seconds, the sky goes
-    ///             from the quasar's to the web's, and the light speeds up into it.
-    ///   camera    Forward the whole time. The tutorial's last beat was the look back at the
-    ///             quasar, already a point; looking back again here would undo it. And the
-    ///             Quasar layer uses the web's camera (QuasarUsesWebCamera), so the opening
-    ///             push lands on the framing the web keeps, and nothing about the camera
-    ///             changes at the gate.
+    ///   opening   Nothing round the light. It has just left the quasar, which is behind the
+    ///             camera, under the quasar's sky; the journey opens on the tutorial's last
+    ///             frame and pushes in, facing forward, as before.
+    ///   look back Past the gate the camera swings round the light, 0.8 to 2.2 seconds, and
+    ///             finds the quasar beyond it: the disc, its dust, the gas, the jets, about
+    ///             half the frame's height across, upper right, with the light lower
+    ///             left and its trail running back to it. Further round, lower and aimed
+    ///             closer to the light than leaving the galaxy (ComingOut's 150°, 2 up, 0.45
+    ///             of the way): the quasar is 70 behind, not 12 below, and aimed that far
+    ///             back the light would be out of the frame.
+    ///   collapse  The quasar shrinks into its core as the light pulls away — 6 times over
+    ///             the dive, and twice more by the dolly zoom facing back — to a point among
+    ///             the early web's filaments fading in round it, and fades out from 3.9
+    ///             seconds to 6.5.
+    ///   forward   From 6.2 seconds the camera swings forward into the web, the sky going
+    ///             from the quasar's to the web's and the light speeding up.
+    ///
+    /// The tutorial's last beat looked back at its quasar, already a point, and that was the
+    /// reason this one faced forward. But facing forward the journey's quasar is never on
+    /// screen at all: it is behind the camera from the first frame. A lookBackYaw of 0 puts
+    /// the forward-facing way back (without the dots). And the Quasar layer uses the web's
+    /// camera (QuasarUsesWebCamera), so the opening push lands on the framing the web keeps.
     /// </summary>
     static LayerDive_NEW.Dive QuasarDive()
     {
         LayerDive_NEW.Dive d = LayerDive_NEW.Dive.ComingOut("Macro");
         d.approachDistance = 5f;
-        d.diveSeconds = 2.5f;
+        d.diveSeconds = 6.5f;
         d.peakHoldSeconds = 0.2f;
         d.emergeSeconds = 5f;
-        d.diveZoom = 8f;
-        d.dissolveFrom = 0.3f;
-        d.memberCount = 2000;
-        d.crowdRadius = 180f;
-        d.memberSize = 1.3f;
-        d.resolveZoom = 1f;
-        d.streak = 0f;
-        d.spread = 180f;
-        d.ambientCrowd = 0.3f;
-        d.approachCrowd = 0.45f;
-        d.diveCrowd = 0.45f;
-        d.coolShare = 0.4f;
+        d.diveZoom = 6f;
+        d.dissolveFrom = 0.6f;
+        d.resolve = false;
+        d.memberCount = 0;
         d.haloRadius = 0f;
-        d.lookBackYaw = 0f;
-        d.peakBloom = 0f;
+        d.lookBackYaw = 165f;
+        d.lookBackLift = 0.5f;
+        d.lookBackFrame = 0.06f;
+        d.lookBackUntil = 7.6f;
+        d.peakBloom = 1.2f;
         return d;
     }
 
