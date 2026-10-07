@@ -89,13 +89,12 @@ public class TutorialSpeedStreaks_NEW : MonoBehaviour
         // transform never rotates, travel only ever writes position. So local -Z is
         // world -Z for the whole piece, no matter which way the light is actually going.
         //
-        // That held until C3. The emission reverses the course, and from that moment the
-        // streaks were running the same way as the light instead of past it — matter
-        // streaming forwards alongside a photon, which reads as the whole medium having
-        // been thrown into reverse at the one moment the player is meant to feel launched.
+        // That held until C3, which used to reverse the course: from that moment the
+        // streaks ran the same way as the light instead of past it — matter streaming
+        // forwards alongside a photon, which read as the whole medium having been thrown
+        // into reverse at the one moment the player is meant to feel launched.
         //
-        // Taken from the direction of travel it is right on both sides of the reversal,
-        // and stays right if the course is ever changed again.
+        // Taken from the direction of travel it is right whatever the course does.
         Vector3 course = travel != null && travel.Direction.sqrMagnitude > 0.0001f
             ? travel.Direction.normalized
             : Vector3.forward;

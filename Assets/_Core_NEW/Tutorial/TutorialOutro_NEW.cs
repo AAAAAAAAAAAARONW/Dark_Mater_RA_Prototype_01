@@ -175,7 +175,7 @@ public class TutorialOutro_NEW : MonoBehaviour
         // The pose it is starting from, expressed against the light so the blend holds
         // while the light keeps flying. The light's transform never rotates — travel only
         // ever writes position — so an offset in world axes is also an offset in its
-        // local ones, and this stays correct through C3's course reversal.
+        // local ones, and this stays correct whichever way the course goes.
         Transform light = LightTransform();
 
         _startOffset = light != null

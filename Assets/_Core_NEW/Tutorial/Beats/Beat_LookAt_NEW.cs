@@ -94,7 +94,7 @@ public class Beat_LookAt_NEW : TutorialBeat_NEW
     ///
     /// Direction is a bearing in degrees rather than a projection, so a target BEHIND
     /// the player still reads correctly: C4 reuses this beat for the quasar after C3 has
-    /// reversed the course, and a projected direction would collapse to nearly nothing
+    /// sent the light on through it, and a projected direction would collapse to nearly nothing
     /// at the moment the answer matters most. Yaw of ±180 leans the knob hard sideways,
     /// which is the right instruction — turn first, then look up or down.
     /// </summary>

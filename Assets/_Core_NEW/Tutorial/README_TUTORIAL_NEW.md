@@ -80,7 +80,7 @@ Tutorial/
 ├─ TutorialZoom_NEW           左摇杆缩放 FOV，并按视场缩放视角灵敏度
 ├─ TutorialRangeMap_NEW       右上角小地图：固定世界框，玩家在里面移动
 ├─ TutorialZoomGauge_NEW      右侧缩放刻度条 —— 让 FOV 这个控制变得看得见
-├─ TutorialEmission_NEW       Phase 2 时序：加速 → 阈值 → 发射（反转航向、开拖尾）
+├─ TutorialEmission_NEW       Phase 2 时序：加速 → 阈值 → 发射（穿过类星体、开拖尾）
 ├─ TutorialFlash_NEW          全屏闪白，颜色和时长由调用方给
 ├─ TutorialCameraShake_NEW    相机位移抖动，幅度由外部驱动
 ├─ TutorialVoiceOver_NEW     配音：一条一条说，不抢话，随暂停停，随重置停
@@ -143,9 +143,10 @@ Journey 场景的配音在 `Assets/VoiceOver/Journey/`（J1–J9），由 `Journ
 
 类星体现在由 `QuasarVFX_NEW` 画（和主旅程是同一个组件）：吸积盘、外围气体丝、核心、两道体积光喷流、盘里的余烬和亮斑，还会周期性爆发。几处和这一段体验直接相关：
 
-- **喷流就是航线。** `aimJetAt` 指向 Photon，喷流轴始终穿过光子，和飞行路线完全重合。Phase 0–1 光子顺着喷流飞向核心，所以看到的是正对着的吸积盘漩涡；C1 到站时光子就在喷流里；C3 发射把光子沿喷流甩出去 —— 分镜里的「hard speed tunnel」就是喷流内部。
+- **喷流就是航线。** `aimJetAt` 指向 Photon，喷流轴始终沿着「类星体—光子」这条线，和飞行路线完全重合（对准的是这条线，不是方向，所以光子穿过核心时类星体不会翻过来）。Phase 0–1 光子顺着一侧喷流飞向核心，所以看到的是正对着的吸积盘漩涡；C1 到站时光子就在喷流里；C3 发射后光子继续向前，穿过核心，从另一侧喷流射出去 —— 分镜里的「hard speed tunnel」就是两侧喷流的内部。
 - **C1 = `WindUp`，发射 = `Erupt`，attract 重置 = `Calm`。** 三条都是 builder 接在 UnityEvent 上的（C1 的 onEnter、`TutorialEmission_NEW.onEmitted`、attract 的 onReset），Inspector 里看得见。蓄力时盘转得更快、更亮、闪得更厉害、余烬拉成长丝；发射那一刻核心闪光、光环扫过盘面、光团沿喷流射出。
-- **教程版的数值和主旅程不同**（builder 只在新建时写）：喷流长 5 个盘半径，喷流里的纹理和物质比隧道速度慢（这样从里面看是向后掠过，而不是往前跑），盘更暗一些（近看时不至于整片白），不在「被看见时」爆发（开场就看得见），改成每 12 秒一次小爆发。
+- **教程版的数值和主旅程不同**（builder 只在新建时写）：喷流长度和主旅程一样（2.6 个盘半径，C5 之后不久光子就飞出喷流，Phase 3 是「empty dark」而不是在喷流里）；喷流里的纹理、物质和爆发光团都比隧道速度慢（从里面看是向后掠过；光团慢到光子穿过核心后会追上并穿过它）；两侧喷流一样亮（进来一侧、出去一侧）；没有黑洞阴影（光子要从核心穿过去，阴影会变成一整帧黑）；盘更暗一些（近看时不至于整片白）；不在「被看见时」爆发（开场就看得见），改成每 12 秒一次小爆发。
+- **如果你之前已经跑过一次 Build or Update**（上一版的数值：喷流 5 倍长等），builder 不会改已有组件的数值。删掉 `Quasar` 下的 `Quasar VFX` 再跑一次即可拿到这一版。
 - **B2「抬头看到喷流通道」不再字面成立** —— 喷流现在沿航线，不在头顶。B2 的门控是光点，不受影响。
 
 ### 后处理：和 PlaytestBuild 同一套接法
@@ -378,8 +379,8 @@ RIGHT STICK = LOOK    LEFT STICK = ZOOM    A = CONFIRM / RECENTRE
 | B4 | `Beat_Confirm_NEW` | 按下 A | 底板换成 `A TO RECENTRE`，下方是 A 图标 + `RECENTRE` |
 | C1 | `Beat_Cinematic_NEW` | 无，12 秒 | 加速 + 抖动渐起。`onEnter` → `TutorialEmission_NEW.BeginSpinUp` |
 | C2 | `Beat_Confirm_NEW` | 按下 A | **A 在这里是「发射」不是「复位」** —— `recentreOnPress = false`，拍子期间把 rig 的 A 绑定关掉，退出时交还 |
-| C3 | `Beat_Cinematic_NEW` | 无，8 秒 | 闪白 + **反转航向** + 打开光子拖尾。**相机绝不锁** |
-| C4 | `Beat_LookAt_NEW` | 类星体进入画面 | 目标就是那颗类星体。C3 之后玩家在远离它，所以「转身看到它已经只是一个亮点」是字面成立的 |
+| C3 | `Beat_Cinematic_NEW` | 无，8 秒 | 闪白 + **继续向前穿过类星体**（穿出核心时再闪一次）+ 打开光子拖尾。**相机绝不锁** |
+| C4 | `Beat_LookAt_NEW` | 类星体进入画面 | 目标就是那颗类星体。C3 之后光已经穿过它、正在远离它，类星体在身后，所以「转身」找到的就是它 |
 | C5 | `Beat_Confirm_NEW` | **回正完成** | 唯一一个 `waitForRecentre = true` 的拍子 —— 分镜的门控是「视角已回到前向轴」，不是「按下了 A」 |
 
 **B3 为什么两个条件都要**：只判角度的话，一个低头发呆、摇杆漂移的玩家也能过。而 B3 是空间定位落地的地方，GDD 给它的批注是 “Protect it.”。一条能在没看见东西的情况下通过的门，什么都没保护到。
@@ -568,7 +569,7 @@ GDD §4 写的是 “Stick — Look. **The only stick.**”。加左摇杆是偏
 
 于是类星体放在 **2600**：冲过去的观众从约 2100 外开始最后一段，慢慢逛的从 900 外开始，两个人都在 C2 打开时到站。
 
-停住这件事是 `travel.Halt()` 做的 —— C2 全程速度为 0，直到 `Emit()` 反转航向并给出隧道速度。拉丝层读的是 `CurrentSpeed` 而不是 `Speed`，所以减速、静止、隧道它都跟得上；否则玩家会停在类星体前面而介质还在狂飙。
+停住这件事是 `travel.Halt()` 做的 —— C2 全程速度为 0，直到 `Emit()` 让光继续向前穿过类星体并给出隧道速度。拉丝层读的是 `CurrentSpeed` 而不是 `Speed`，所以减速、静止、隧道它都跟得上；否则玩家会停在类星体前面而介质还在狂飙。
 
 **停多远是算出来的**，不是写死的数字。半径 R 的球在距离 d 处张开的半角是 `asin(R/d)`，所以想让它张开某个半角 a，距离就是 `R / sin(a)`。`arrivalScreenFill = 2.2` 表示「张开 2.2 倍的垂直视场」—— 类星体从每个边缘溢出去，按下 A 的那一刻画面里没有别的东西。
 
@@ -582,13 +583,20 @@ R 从类星体的 Renderer bounds 读，视场从相机读，都不是手填的�
 
 | 组件 | 职责 |
 |---|---|
-| `TutorialEmission_NEW` | 时序：加速 → 阈值 → 发射。速度斜坡、抖动幅度、航向反转、开拖尾 |
+| `TutorialEmission_NEW` | 时序：加速 → 阈值 → 发射。速度斜坡、抖动幅度、穿过类星体、开拖尾 |
 | `TutorialFlash_NEW` | 全屏闪色，颜色和时长由调用方给（Phase 3 的 D2 吸收还会用） |
 | `TutorialCameraShake_NEW` | 相机**位移**抖动 |
 
 **为什么抖动是位移不是旋转**：`FirstPersonLookRig_NEW` 每帧写 `transform.rotation`，任何别的东西写旋转都是在跟它抢 —— 而且会输，因为 rig 在 Update 里直接覆盖。位移没人占，所以可以在 LateUpdate 里独占，不用协调任何事。顺带它效果也更对：位移抖动读起来是「画面本身不稳」，正是分镜说的 “double outline = frame jitter, not a second UI layer”。
 
-**航向反转是 Phase 2 的关键**。Phase 0–1 朝类星体飞；C4 要求玩家转身看到「类星体已经只是一个亮点」，这只有在光此刻正在**远离**它时才成立。所以发射会翻转航向，`TutorialTravel_NEW` 同时把 rig 的前向轴带过去 —— 否则 A 会一直把视角复位到玩家刚刚花八秒离开的那个方向。
+**穿过类星体是 Phase 2 的关键**。光是被类星体发射出来的，所以按下 A 之后光**不掉头**，而是继续向前：穿过类星体的核心，从另一侧沿喷流射出去，用隧道速度。进去时核心把画面填成一片白，穿出核心的那一帧 `TutorialEmission_NEW` 再闪一次白（`throughFlash*`，还有一个 `onThrough` 事件可以挂音效），把白色过渡到另一侧的隧道里，而不是硬切。
+
+这样 C4 也是字面成立的：光已经穿过类星体、正在远离它，类星体就在身后，「转身」找到的就是它。航向始终不变，所以 A 复位到的一直是光前进的方向。
+
+相关的几处：
+- **900 的「保持距离」只管巡航。** `SetCourse` 一调用就结束这条规则（`TutorialTravel_NEW._holdReleased`），否则光会在穿过去之前被推回 900 外。重置时恢复。
+- **到站点永远在起点这一侧**（`TutorialTravel_NEW.HomeDirection`）。调试跳转会在同一帧里重放 C1 和 C3，到站来不及发生，所以 `Emit()` 会先把光放到到站点（`TutorialTravel_NEW.MoveTo`），再让它穿过去；正常流程里光本来就在那里，这一步什么都不做。
+- **类星体的喷流对准的是线不是方向**，光子穿过核心时类星体不会翻转；核心的黑洞阴影在相机进入光晕时淡掉（教程版直接关掉阴影），穿过时不会黑屏。
 
 `TutorialTravel_NEW` 因此开了一个口子：`SetCourse` 和 `SetSpeed`。GDD 在意的区分保住了 —— **没有任何输入路径通到它们**，唯一的调用者是 `TutorialEmission_NEW`。「发生在玩家身上的事」和「玩家操纵」是两回事。
 

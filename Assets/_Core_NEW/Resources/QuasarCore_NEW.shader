@@ -62,7 +62,7 @@ Shader "Custom/QuasarCore_NEW"
                 float4 pos    : SV_POSITION;
                 float2 core   : TEXCOORD0;   // in glow sizes from the middle
                 float2 screen : TEXCOORD1;   // in half screen heights from the middle
-                float2 flare  : TEXCOORD2;   // x: the flash, y: the spikes' length
+                float3 flare  : TEXCOORD2;   // x: the flash, y: the spikes' length, z: how far off the camera is
             };
 
             v2f vert(float4 vertex : POSITION)
@@ -84,7 +84,8 @@ Shader "Custom/QuasarCore_NEW"
                 o.pos = mul(UNITY_MATRIX_P, float4(view, 1.0));
                 o.core = vertex.xy * extent / max(glow, 1e-6);
                 o.screen = vertex.xy * extent / halfScreen;
-                o.flare = float2(flash, spikeLength);
+                // 0 with the camera inside the glow, 1 from twice its size out. See the shadow.
+                o.flare = float3(flash, spikeLength, saturate(-view.z / max(glow, 1e-6) - 1.0));
                 return o;
             }
 
@@ -120,8 +121,10 @@ Shader "Custom/QuasarCore_NEW"
 
                 light *= _Pulse * (1.0 + flash * 3.0) * _Bright;
 
-                // The shadow: black, and blocking what is behind it.
-                float shadow = _Shadow > 0.0 ? 1.0 - smoothstep(_Shadow * 0.75, _Shadow, r) : 0.0;
+                // The shadow: black, and blocking what is behind it. Not with the camera in
+                // the glow — flying through the core (the tutorial does), the shadow would grow
+                // to black out the whole frame just before the light came out the other side.
+                float shadow = _Shadow > 0.0 ? (1.0 - smoothstep(_Shadow * 0.75, _Shadow, r)) * i.flare.z : 0.0;
                 light *= 1.0 - shadow;
 
                 // WorldSwitcher_NEW fades by scaling all four channels of _Color: the light

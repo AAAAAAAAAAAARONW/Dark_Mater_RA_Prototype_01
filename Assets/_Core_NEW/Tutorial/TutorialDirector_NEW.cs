@@ -77,10 +77,10 @@ public class TutorialDirector_NEW : MonoBehaviour
 
     [Tooltip("On a jump, open and close every beat before the target first, so the world " +
              "arrives in the state the skipped frames would have left it in.\n\n" +
-             "Leave this on. Without it, jumping to D1 lands you in Phase 3 still flying " +
-             "towards the quasar with the photon trail switched off, because C3's " +
-             "emission — which reverses the course, lights the trail and settles the " +
-             "speed — never ran.\n\n" +
+             "Leave this on. Without it, jumping to D1 lands you in Phase 3 still short " +
+             "of the quasar with the photon trail switched off, because C3's emission — " +
+             "which sends the light on through the quasar, lights the trail and settles " +
+             "the speed — never ran.\n\n" +
              "It reproduces what beats do at their edges, not over their durations, so " +
              "ramps land at their final value and a jump can blink as it passes any " +
              "full-screen flash. Play through before judging how a frame feels.")]
@@ -197,11 +197,12 @@ public class TutorialDirector_NEW : MonoBehaviour
     /// the sum of five onEnter and onSatisfied invocations, and a jump that skips them
     /// arrives somewhere that never occurs in a real playthrough.
     ///
-    /// Jumping to D1 was the case that made this necessary. C3's Emit reverses the
-    /// course, switches the photon trail on and settles the speed — so before this,
-    /// pressing 4 dropped you into Phase 3 still flying at the quasar, with no trail,
+    /// Jumping to D1 was the case that made this necessary. C3's Emit sends the light on
+    /// through the quasar, switches the photon trail on and settles the speed — so before
+    /// this, pressing 4 dropped you into Phase 3 still short of the quasar, with no trail,
     /// at the wrong speed. Not a Phase 3 bug; a jump that skipped the frame that sets
-    /// all three.
+    /// all three. (The replay gives C1's arrival no frames to run, so the emission puts
+    /// the light where the arrival would have before sending it through.)
     ///
     /// Enter then Exit, with no Tick between, is the whole trick: Enter fires onEnter,
     /// Exit fires onSatisfied, and nothing advances a clock or waits on a gate. It costs
@@ -349,8 +350,8 @@ public class TutorialDirector_NEW : MonoBehaviour
     ///
     /// THE CAVEAT IS THE SAME ONE THE JOURNEY'S JUMP TOOL CARRIES, and it matters more
     /// here. Jumping to D1 does not run the beats before it, so nothing their onEnter
-    /// events would have done has happened: the emission has not fired, the course has
-    /// not reversed, the trail is off and the HUD is in whatever state it started in.
+    /// events would have done has happened: the emission has not fired, the light has not
+    /// been through the quasar, the trail is off and the HUD is in whatever state it started in.
     /// That is fine for iterating on one frame and wrong for judging how a frame reads
     /// after the one before it. Play through for anything that is a question about pacing.
     /// </summary>

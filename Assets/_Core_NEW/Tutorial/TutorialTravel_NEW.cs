@@ -13,10 +13,10 @@ using UnityEngine;
 /// "allow player control" flag to find later and switch on. The heading is set by
 /// pointing `destination` at the thing the light is travelling towards.
 ///
-/// SetCourse and SetSpeed exist for scripted events — the emission at C3 turns the
-/// light around, and C1 winds the speed up first. Those are things happening TO the
-/// player, which is a different claim from the player steering, and the distinction
-/// survives as long as nothing wires a control to them.
+/// SetCourse and SetSpeed exist for scripted events — the emission at C3 sends the light
+/// on through the quasar at tunnel speed, and the tunnel settles after it. Those are
+/// things happening TO the player, which is a different claim from the player steering,
+/// and the distinction survives as long as nothing wires a control to them.
 ///
 /// It replaces an earlier TutorialDrift_NEW that orbited the quasar. That was written
 /// for a staging where the player starts inside the accretion disc; the experience is an
@@ -59,6 +59,7 @@ public class TutorialTravel_NEW : MonoBehaviour
     [SerializeField] bool drawGizmo = true;
 
     Vector3 _direction;
+    Vector3 _homeDirection;
     Vector3 _startPosition;
     float _startSpeed;
     float _currentSpeed;
@@ -73,6 +74,12 @@ public class TutorialTravel_NEW : MonoBehaviour
 
     /// <summary>The current world heading. Also the axis A recentres to.</summary>
     public Vector3 Direction { get { return _direction; } }
+
+    /// <summary>
+    /// The heading the run starts with: from the start towards the destination. The whole
+    /// piece is flown on this line — in to the quasar, and on through it.
+    /// </summary>
+    public Vector3 HomeDirection { get { return _homeDirection; } }
 
     /// <summary>What the light is travelling towards. The quasar, in the tutorial.</summary>
     public Transform Destination { get { return destination; } }
@@ -107,10 +114,12 @@ public class TutorialTravel_NEW : MonoBehaviour
         // The next visitor's cruise gets the hold back. Without this, a restart taken
         // after C1 would leave the light free to fly straight through the quasar.
         _insideHold = false;
+        _holdReleased = false;
 
         transform.position = _startPosition;
 
         _direction = ResolveDirection();
+        _homeDirection = _direction;
         speed = _startSpeed;
 
         if (lookRig != null) lookRig.SetForwardAxis(_direction);
@@ -120,8 +129,8 @@ public class TutorialTravel_NEW : MonoBehaviour
     /// Change the heading and the speed.
     ///
     /// This is the one crack in "the heading never changes", and it is deliberate: the
-    /// emission at C3 turns the light around and flings it away from the quasar, and
-    /// that is a scripted event, not the player steering. The distinction the GDD cares
+    /// emission at C3 sends the light on through the quasar at tunnel speed, and that is
+    /// a scripted event, not the player steering. The distinction the GDD cares
     /// about is preserved — nothing here reads input, and there is no path from a stick
     /// or a button to this method. TutorialEmission_NEW is the only caller.
     ///
@@ -136,16 +145,21 @@ public class TutorialTravel_NEW : MonoBehaviour
         // light is now going a particular way at a particular rate. The two cannot both
         // be true, and until this line the approach quietly won.
         //
-        // C3's emission is the case that matters: it reverses the course while C1's
+        // C3's emission is the case that matters: it sets the course while C1's
         // arrival approach may still be running. In an unbroken playthrough C1's twelve
         // seconds always outlast the approach, so the approach has already halted and
         // nothing goes wrong. Replay C1 and C3 in the same frame — which is what a debug
-        // jump into Phase 3 does — and the approach is still live, so the reversal was
-        // discarded and the light was dragged back towards the quasar and then halted
-        // on arrival. It read as being bounced off the atom.
+        // jump into Phase 3 does — and the approach is still live, so the new course was
+        // discarded and the light was dragged towards the arrival point and halted
+        // there. It read as being bounced off the atom.
         //
         // Not a jump bug. The jump only removed the twelve seconds that were hiding it.
         CancelApproach();
+
+        // And the hold is over. It keeps the cruise off the destination until C1 brings
+        // the light in; a scripted course after that is the light going on through it,
+        // which is the one thing the hold must not stop.
+        _holdReleased = true;
 
         if (direction.sqrMagnitude > 0.0001f)
         {
@@ -207,6 +221,17 @@ public class TutorialTravel_NEW : MonoBehaviour
         _approaching = true;
     }
 
+    /// <summary>
+    /// Put the light at a point, for a scripted event. The emission uses it when a debug
+    /// jump has opened C3 without C1's arrival having happened, so the light goes through
+    /// the quasar from where it would have arrived rather than from wherever it was.
+    /// </summary>
+    public void MoveTo(Vector3 position)
+    {
+        CancelApproach();
+        transform.position = position;
+    }
+
     /// <summary>Stop where you are. The arrival ends in this state and C2 holds it.</summary>
     public void Halt()
     {
@@ -219,6 +244,7 @@ public class TutorialTravel_NEW : MonoBehaviour
         _startPosition = transform.position;
         _startSpeed = speed;
         _direction = ResolveDirection();
+        _homeDirection = _direction;
 
         if (lookRig == null) lookRig = GetComponentInChildren<FirstPersonLookRig_NEW>();
     }
@@ -290,9 +316,12 @@ public class TutorialTravel_NEW : MonoBehaviour
     /// </summary>
     bool _insideHold;
 
+    /// <summary>True once a scripted course has taken over from the cruise. See SetCourse.</summary>
+    bool _holdReleased;
+
     void HoldOffTheDestination()
     {
-        if (_approaching || destination == null || holdDistance <= 0f) return;
+        if (_approaching || _holdReleased || destination == null || holdDistance <= 0f) return;
 
         Vector3 toDestination = destination.position - transform.position;
         float distance = toDestination.magnitude;
@@ -315,9 +344,10 @@ public class TutorialTravel_NEW : MonoBehaviour
         // The prompt looked like it belonged to an earlier moment because the picture
         // behind it had been thrown back to one.
         //
-        // The same jump waited at the other end: C3 reverses the course from inside the
+        // The same jump waited at the other end: C3 sends the light on from inside the
         // hold, and the first frames of the launch would have been spent being shoved
-        // back out to 900.
+        // back out to 900. (SetCourse now ends the hold outright, which also covers a
+        // debug jump, where no approach frame ever ran to set _insideHold.)
         if (_insideHold) return;
 
         transform.position = destination.position - toDestination.normalized * holdDistance;
@@ -345,8 +375,9 @@ public class TutorialTravel_NEW : MonoBehaviour
     /// "Is the player still moving forward?" is a question you cannot answer by looking
     /// at a starfield — everything is far away and nothing has a known size. The angle
     /// between the heading and the direction to the quasar is the answer: 0 means dead
-    /// on, and through Phase 0-1 it should stay at 0. Phase 2's emission reverses the
-    /// course on purpose, so from C3 onwards this reads about 180.
+    /// on, and through Phase 0-1 it should stay at 0. Phase 2's emission sends the light
+    /// on through the quasar, so it stays 0 until the light is through and reads about 180
+    /// once the quasar is behind it.
     /// </summary>
     void OnGUI()
     {

@@ -700,11 +700,12 @@ public static class TutorialSceneBuilder_NEW
     }
 
     /// <summary>
-    /// What the quasar looks like: QuasarVFX_NEW on a child of the Quasar, with its jets
-    /// aimed down the line from the quasar to the light (aimJetAt), so the jet IS the course.
-    /// The light flies down one through Phase 0–1, arrives inside it at C1, and C3 throws it
-    /// back out along it — C3's "hard speed tunnel" is the inside of the jet. Seen down that
-    /// line the disc is face on, a whirlpool round the core.
+    /// What the quasar looks like: QuasarVFX_NEW on a child of the Quasar, with its jets laid
+    /// along the line through the quasar and the light (aimJetAt), so the jets ARE the course.
+    /// The light flies in down one through Phase 0–1, arrives inside it at C1, and C3 sends
+    /// it on through the core and out along the other — C3's "hard speed tunnel" is the
+    /// inside of the jets. Seen down that line the disc is face on, a whirlpool round the
+    /// core.
     ///
     /// The child is half the sphere's scale, so the disc's radius is the sphere's, and what
     /// reads the quasar's size (the arrival standoff, through TutorialEmission_NEW) keeps
@@ -712,12 +713,18 @@ public static class TutorialSceneBuilder_NEW
     /// at it.
     ///
     /// The values here are the tutorial's, written on the run that adds it — the journey's
-    /// quasar is seen from far off and from the side, this one up close and down its jet:
-    ///   jets 5 radii long      the light is inside one from where Phase 1 holds it until
-    ///                          well after the tunnel
-    ///   slow flow              the jet's filaments, knots, plasma and eruption blob slower
+    /// quasar is seen from far off and from the side, this one up close and down its jets:
+    ///   jets as the journey's  2.6 radii: the light is in the first from where Phase 1
+    ///                          holds it, and out of the second soon after C5, so Phase 3
+    ///                          opens on C5's "empty dark" rather than inside a jet
+    ///   slow flow              the jets' filaments, knots, plasma and eruption blob slower
     ///                          than the light at tunnel speed, so from inside they stream
-    ///                          past it rather than pulling away ahead
+    ///                          past it rather than pulling away ahead; the blob slow enough
+    ///                          that the light, out through the core, catches it and flies
+    ///                          through it before the tunnel settles
+    ///   both jets as bright    the light goes in down one and out along the other
+    ///   no shadow              the light flies through the core; a black hole's shadow
+    ///                          there would be a black frame
     ///   dimmer disc and jets   up close the inner disc fills the frame, and at the
     ///                          journey's brightness all of it is white
     ///   no eruption when seen  it is seen from the first frame, under the title card;
@@ -744,11 +751,13 @@ public static class TutorialSceneBuilder_NEW
         QuasarVFX_NEW vfx = AddIfMissing<QuasarVFX_NEW>(go);
         Wire(vfx)
             .Ref("aimJetAt", player)
-            .Num("jetLength", 5f)
             .Num("filamentSpeed", 0.02f)
             .Num("knotSpeed", 0.05f)
-            .Num("blobSpeed", 0.06f)
+            .Num("blobSpeed", 0.05f)
+            .Num("blobFade", 5f)
             .Vec2("clumpSpeed", new Vector2(0.02f, 0.06f))
+            .Num("counterJet", 1f)
+            .Num("shadow", 0f)
             .Num("discBrightness", 0.5f)
             .Num("sheathBrightness", 0.35f)
             .Flag("eruptWhenSeen", false)
@@ -983,13 +992,14 @@ public static class TutorialSceneBuilder_NEW
     /// AN EARLIER VERSION PUT IT 2.6 UNITS FORWARD to make it visible while flying
     /// forward, and that is the bug. The player transform never rotates — travel only
     /// ever writes position — so a local +Z offset is a fixed WORLD offset that does not
-    /// follow the course. C3 reverses the heading and the same offset silently becomes
-    /// 2.6 units behind, so which side of you the ribbon starts on depends on the phase.
+    /// follow the course. C3 used to reverse the heading, and the same offset silently
+    /// became 2.6 units behind, so which side of you the ribbon started on depended on
+    /// the phase.
     /// It also put the newest segment 2.6 units from a camera with a 0.1 near plane,
     /// where turning towards it made it flicker.
     ///
     /// The drop on Y stays, and Y is the only axis this can safely use: the travel is
-    /// horizontal, so a vertical offset keeps its meaning through a course reversal
+    /// horizontal, so a vertical offset keeps its meaning whichever way the course goes,
     /// where an X or Z one does not. It lifts the newest quad off the eye rather than
     /// letting it degenerate exactly at the camera.
     /// </summary>
@@ -1069,7 +1079,7 @@ public static class TutorialSceneBuilder_NEW
 
         Debug.LogWarning("[TutorialSceneBuilder_NEW] Moved the photon trail from 2.6 units " +
                          "ahead onto the light itself. The forward offset was a fixed world " +
-                         "offset — the player never rotates — so C3's course reversal silently " +
+                         "offset — the player never rotates — so a change of course (C3 used to reverse it) silently " +
                          "put it behind instead, and the ribbon changed sides mid-piece.", trail);
     }
 
@@ -1277,12 +1287,12 @@ public static class TutorialSceneBuilder_NEW
     /// No new beat types. C1 and C3 are cinematic runs, C2 and C5 are confirm beats and
     /// C4 is a look-at with the quasar as its target — the same four components Phase 1
     /// uses. What is new is TutorialEmission_NEW, wired to the beats' UnityEvents, which
-    /// owns the things a gate cannot express: the speed ramp, the jitter, the course
-    /// reversal and the trail switching on.
+    /// owns the things a gate cannot express: the speed ramp, the jitter, the launch on
+    /// through the quasar and the trail switching on.
     ///
-    /// The quasar is the C4 target, and by then the player has been flying away from it
-    /// since C3, so "turning around, the quasar is already a single bright point" is
-    /// literally what is on screen.
+    /// The quasar is the C4 target, and by then the light has gone through it and has been
+    /// flying away from it since, so it is behind the player and "turning around" is what
+    /// finds it.
     /// </summary>
     static void BuildPhase2(Transform parent, FirstPersonLookRig_NEW lookRig,
                             GameObject quasar, TutorialEmission_NEW emission, QuasarVFX_NEW quasarVfx)

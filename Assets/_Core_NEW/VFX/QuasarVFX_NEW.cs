@@ -130,8 +130,8 @@ public class QuasarVFX_NEW : MonoBehaviour
     [Min(0f)] [SerializeField] float streak = 0.6f;
 
     [Header("Jets")]
-    [Tooltip("Point the jets along the line from here to this — the light, in the tutorial, so it " +
-             "flies down one, and is emitted along it. Empty: the object's own ±Y.")]
+    [Tooltip("Lay the jets along the line through here and this — the light, in the tutorial, so it " +
+             "flies in down one jet and is emitted out along the other. Empty: the object's own ±Y.")]
     [SerializeField] Transform aimJetAt;
 
     [Tooltip("Their length, in disc radii. 0 = none.")]
@@ -378,16 +378,23 @@ public class QuasarVFX_NEW : MonoBehaviour
 
     void LateUpdate() => Aim();
 
-    /// <summary>Points the jets down the line to aimJetAt, turning as little as it can.</summary>
+    /// <summary>
+    /// Lays the jets' axis along the line through here and aimJetAt, turning as little as it
+    /// can. The line, not the direction: the jets go both ways, so when the light passes
+    /// through the core and out the other side the quasar must not flip over to keep
+    /// pointing its +Y at it. And not right at the core, where the line is undefined.
+    /// </summary>
     void Aim()
     {
         if (aimJetAt == null) return;
         Vector3 to = aimJetAt.position - transform.position;
-        if (to.sqrMagnitude < 1e-8f) return;
+        float near = 0.02f * Mathf.Max(Radius, 1e-3f);
+        if (to.sqrMagnitude < near * near) return;
 
-        Vector3 up = to.normalized;
-        if (Vector3.Angle(transform.up, up) > 0.01f)
-            transform.rotation = Quaternion.FromToRotation(transform.up, up) * transform.rotation;
+        Vector3 axis = to.normalized;
+        if (Vector3.Dot(axis, transform.up) < 0f) axis = -axis;
+        if (Vector3.Angle(transform.up, axis) > 0.01f)
+            transform.rotation = Quaternion.FromToRotation(transform.up, axis) * transform.rotation;
     }
 
     /// <summary>

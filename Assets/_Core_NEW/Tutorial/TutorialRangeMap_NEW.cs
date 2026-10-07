@@ -286,14 +286,14 @@ public class TutorialRangeMap_NEW : MonoBehaviour
     ///
     /// THE COURSE IS TAKEN FROM THE HEADING, NOT FROM THE DESTINATION, and the
     /// difference is not academic. This used to read "towards the quasar" — which is the
-    /// direction of travel for Phase 0 to Phase 2 and the exact opposite of it
-    /// afterwards, because C3's emission reverses the heading and leaves `destination`
-    /// pointing at the quasar the light is now leaving. The check then declared the
+    /// direction of travel for Phase 0 to Phase 2 and the exact opposite of it once C3
+    /// has taken the light through the quasar, because `destination` is left pointing at
+    /// the quasar the light is now leaving. The check then declared the
     /// arrow 180 degrees out at the precise moment it had become right.
     ///
     /// It went unseen because the check is a one-shot, and in an unbroken playthrough it
     /// spends itself during Phase 1 while the two still agree. Jumping straight into
-    /// Phase 3 runs it for the first time after the reversal, and it fired immediately.
+    /// Phase 3 runs it for the first time with the quasar behind, and it fired immediately.
     /// A guard that is only correct before the one event it is not looking at is worse
     /// than no guard: it cries wolf on the case it exists to catch.
     /// </summary>

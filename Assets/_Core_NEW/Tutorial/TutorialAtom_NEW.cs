@@ -18,8 +18,9 @@ using UnityEngine.Serialization;
 ///
 /// IT CLOSES ON THE PLAYER RATHER THAN THE PLAYER FLYING INTO IT. Those look identical
 /// on screen and are very different to build. The light's course is set by
-/// TutorialTravel_NEW and changes twice before Phase 3 — C3 reverses it — so an atom
-/// parked at a world position would need to know where the course ended up. Closing on
+/// TutorialTravel_NEW, and where it has got to by Phase 3 depends on all of Phase 2 — the
+/// arrival, how long C2 is held, C3 sending it on through the quasar — so an atom parked
+/// at a world position would need to know where the course ended up. Closing on
 /// the player works from wherever the light actually is, which also means D1 survives
 /// somebody retuning Phase 2.
 ///
@@ -201,8 +202,8 @@ public class TutorialAtom_NEW : MonoBehaviour
         _rumbled = false;
         _lastDistance = spawnDistance;
 
-        // Across the course, not in world axes, so a spread stays a spread after C3
-        // reverses the heading. Cached, so it cannot rotate under the atom mid-flight.
+        // Across the course, not in world axes, so a spread stays a spread whichever way
+        // the course goes. Cached, so it cannot rotate under the atom mid-flight.
         _heading = Heading();
         _right = Vector3.Cross(Vector3.up, _heading).normalized;
         if (_right.sqrMagnitude < 0.0001f) _right = Vector3.right;

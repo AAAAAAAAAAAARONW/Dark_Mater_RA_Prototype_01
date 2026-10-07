@@ -6,17 +6,20 @@ using UnityEngine.Events;
 ///
 /// C1 winds up, C2 waits on A, C3 fires, C4 and C5 are the aftermath. The beats own the
 /// gating and the prompts, exactly as in Phase 1 — this owns only what the beats cannot
-/// express as a gate: a speed that ramps, a jitter that rises, a course that reverses,
-/// and a trail that switches on. Beats call into it from their UnityEvents, so the order
-/// of events is visible in the Inspector next to the beat it belongs to.
+/// express as a gate: a speed that ramps, a jitter that rises, a launch on through the
+/// quasar, and a trail that switches on. Beats call into it from their UnityEvents, so
+/// the order of events is visible in the Inspector next to the beat it belongs to.
 ///
-/// THE COURSE REVERSAL is the important part and the reason this component exists.
-/// Phase 0–1 flies the light towards the quasar; C4 asks the player to turn around and
-/// see "the quasar is already a single bright point", which is only true if the light is
-/// now travelling away from it. So the emission flips the heading, and TutorialTravel_NEW
-/// takes the look rig's forward axis with it — otherwise A would keep recentring on the
-/// direction the player came from, which is the one direction the piece has just spent
-/// eight seconds saying they are leaving.
+/// THROUGH THE QUASAR is the important part and the reason this component exists. Phase
+/// 0–1 flies the light towards the quasar, down its jet; C1 brings it in to the edge of
+/// the core and C2 holds it there; A emits it — on, through the quasar's heart, and out
+/// along the jet on the far side at tunnel speed. Not back the way it came: the light is
+/// emitted by the quasar, so it comes out of it. The core fills the frame white on the
+/// way in, and a second flash fades that white into the tunnel as the light comes out.
+///
+/// It also makes C4 literal: by then the quasar is behind the player, and "turn around"
+/// finds it. And the heading never turns, so A goes on recentring on the direction the
+/// light is going.
 ///
 /// FOR WHOEVER PICKS THIS UP: the three phases are three public methods, in order.
 /// Wire them to C1.onEnter, C2.onSatisfied and C3.onEnter respectively — the builder
@@ -89,15 +92,32 @@ public class TutorialEmission_NEW : MonoBehaviour
     [SerializeField] float emissionFlashHold = 0.06f;
     [SerializeField] float emissionFlashDecay = 1.4f;
 
+    [Tooltip("The second flash, as the light comes out through the quasar's core. The core " +
+             "fills the frame white on the way in, and on the far side there is only the " +
+             "tunnel: this fades one into the other instead of cutting.")]
+    [SerializeField] Color throughFlashColor = new Color(1f, 0.98f, 0.94f, 1f);
+    [SerializeField] float throughFlashHold = 0.08f;
+    [SerializeField] float throughFlashDecay = 1.2f;
+
     [Header("Events")]
-    [Tooltip("Fires the frame the course reverses. Audio goes here.")]
+    [Tooltip("Fires the frame the light is emitted. Audio goes here, and the quasar's " +
+             "eruption (QuasarVFX_NEW.Erupt).")]
     [SerializeField] UnityEvent onEmitted = new UnityEvent();
+
+    [Tooltip("Fires the frame the light comes out through the quasar's core.")]
+    [SerializeField] UnityEvent onThrough = new UnityEvent();
 
     [Header("Debug")]
     [SerializeField] bool debugLog = false;
 
     float _cruiseSpeed;
     Vector3 _cruiseDirection;
+
+    // Where C1 lands the light, and the line C3 sends it through the quasar on.
+    Vector3 _arrivalPoint;
+    bool _hasArrival;
+    Vector3 _throughCentre, _throughCourse;
+    bool _through;
 
     // Ramp state. One float and one phase enum rather than coroutines, so a reset from
     // attract cannot leave half a sequence running — the same reasoning as the director.
@@ -172,15 +192,19 @@ public class TutorialEmission_NEW : MonoBehaviour
         if (travel != null && quasar != null)
         {
             Vector3 fromQuasar = travel.transform.position - quasar.position;
+            Vector3 home = -travel.HomeDirection;
 
-            // Straight in along the line the light is already on, so the arrival does
-            // not slide the view sideways at the moment the player is watching it.
-            Vector3 standoffDirection = fromQuasar.sqrMagnitude > 0.0001f
+            // Straight in along the line the light is already on, so the arrival does not
+            // slide the view sideways at the moment the player is watching it — on the
+            // start's side of the quasar, always. A debug jump can find the light already
+            // past it, and arriving from there would send it through the quasar backwards.
+            Vector3 standoffDirection = fromQuasar.sqrMagnitude > 0.0001f && Vector3.Dot(fromQuasar, home) > 0f
                 ? fromQuasar.normalized
-                : -travel.Direction;
+                : home.sqrMagnitude > 0.0001f ? home : -travel.Direction;
 
-            travel.ApproachTo(quasar.position + standoffDirection * ArrivalStandoff(),
-                              spinUpSeconds, approachShape);
+            _arrivalPoint = quasar.position + standoffDirection * ArrivalStandoff();
+            _hasArrival = true;
+            travel.ApproachTo(_arrivalPoint, spinUpSeconds, approachShape);
         }
         else
         {
@@ -204,26 +228,35 @@ public class TutorialEmission_NEW : MonoBehaviour
     }
 
     /// <summary>
-    /// C3. One white frame, the course reverses, the tunnel opens, the trail lights up.
-    /// Wire to C3.onEnter.
+    /// C3. One white frame, and the light goes on: through the quasar's core at tunnel
+    /// speed and out along the jet on its far side, with a second flash as it comes out.
+    /// The trail lights up. Wire to C3.onEnter.
     /// </summary>
     public void Emit()
     {
         _phase = Phase.Tunnel;
         _elapsed = 0f;
+        _through = false;
 
         if (flash != null) flash.Flash(emissionFlashColor, emissionFlashHold, emissionFlashDecay);
 
-        // Away from the quasar, at tunnel speed. The look rig's forward axis follows.
-        // Taken from where the light actually is rather than from the cruise heading,
-        // because the arrival may have come in on a slightly different line.
         if (travel != null)
         {
-            Vector3 outward = quasar != null
-                ? (travel.transform.position - quasar.position).normalized
-                : -_cruiseDirection;
+            // A debug jump opens C3 in the same frame as C1, so the arrival has not run and
+            // the light is wherever the jump found it: put it where the arrival would have.
+            // In a playthrough it is already there and this does nothing.
+            if (_hasArrival && Vector3.Distance(travel.transform.position, _arrivalPoint) > 1f)
+                travel.MoveTo(_arrivalPoint);
 
-            travel.SetCourse(outward, _cruiseSpeed * tunnelSpeedMultiplier);
+            // On, through the quasar, at tunnel speed. Aimed from where the light actually is
+            // at the quasar itself, so it goes through the core whatever line it came in on.
+            // The look rig's forward axis follows — the way it was already facing.
+            Vector3 through = quasar != null ? quasar.position - travel.transform.position : _cruiseDirection;
+            Vector3 course = through.sqrMagnitude > 0.0001f ? through.normalized : _cruiseDirection;
+
+            _throughCentre = quasar != null ? quasar.position : travel.transform.position;
+            _throughCourse = course;
+            travel.SetCourse(course, _cruiseSpeed * tunnelSpeedMultiplier);
         }
 
         // The player is the light and now it has somewhere to have been.
@@ -235,7 +268,7 @@ public class TutorialEmission_NEW : MonoBehaviour
 
         onEmitted.Invoke();
 
-        if (debugLog) Debug.Log("[TutorialEmission_NEW] Emitted. Course reversed.", this);
+        if (debugLog) Debug.Log("[TutorialEmission_NEW] Emitted, on through the quasar.", this);
     }
 
     /// <summary>Back to the pre-emission state. The attract return calls this.</summary>
@@ -243,6 +276,8 @@ public class TutorialEmission_NEW : MonoBehaviour
     {
         _phase = Phase.Idle;
         _elapsed = 0f;
+        _through = false;
+        _hasArrival = false;
 
         if (shake != null) shake.Amplitude = 0f;
         if (flash != null) flash.Clear();
@@ -316,6 +351,10 @@ public class TutorialEmission_NEW : MonoBehaviour
 
     void Update()
     {
+        // Settled is not quite done: if the tunnel ever settles before the light is
+        // through the core, coming out of it still flashes.
+        if ((_phase == Phase.Tunnel || _phase == Phase.Settled) && !_through) TickThrough();
+
         if (_phase == Phase.Idle || _phase == Phase.Settled) return;
 
         float dt = TutorialClock_NEW.DeltaTime;
@@ -323,6 +362,22 @@ public class TutorialEmission_NEW : MonoBehaviour
 
         if (_phase == Phase.SpinUp) TickSpinUp();
         else if (_phase == Phase.Tunnel) TickTunnel();
+    }
+
+    /// <summary>
+    /// Out through the core: the frame the light passes the quasar's centre gets the second
+    /// flash, which fades the white the core filled the frame with into the tunnel beyond.
+    /// </summary>
+    void TickThrough()
+    {
+        if (travel == null) return;
+        if (Vector3.Dot(travel.transform.position - _throughCentre, _throughCourse) < 0f) return;
+
+        _through = true;
+        if (flash != null) flash.Flash(throughFlashColor, throughFlashHold, throughFlashDecay);
+        onThrough.Invoke();
+
+        if (debugLog) Debug.Log("[TutorialEmission_NEW] Through the quasar.", this);
     }
 
     void TickSpinUp()
