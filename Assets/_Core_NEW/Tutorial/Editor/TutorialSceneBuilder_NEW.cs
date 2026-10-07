@@ -3451,12 +3451,15 @@ public static class TutorialSceneBuilder_NEW
         if (IsFresh(scaler))
         {
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1080f);
 
-            // The Observatories display is curved and very wide. Matching height keeps
-            // the legend a constant physical size as the aspect changes.
-            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            scaler.matchWidthOrHeight = 1f;
+            // 1080 high, in the wall's shape, and Expand: on the wall the HUD is laid out
+            // on 1080 units of height, as it was designed; on any other screen it fits the
+            // largest wall-shaped rectangle, so it is the same share of the picture there
+            // as on the wall — matched on height on a wider screen, on width on a narrower
+            // one. See VizlabHudScaleMenu_NEW, which does the same to an existing scene.
+            float wallAspect = VizlabDisplay_NEW.CanvasWidthPx / (float)VizlabDisplay_NEW.CanvasHeightPx;
+            scaler.referenceResolution = new Vector2(1080f * wallAspect, 1080f);
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
         }
 
         AddIfMissing<GraphicRaycaster>(go);
