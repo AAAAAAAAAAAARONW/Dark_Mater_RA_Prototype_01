@@ -286,10 +286,15 @@ public class TutorialEmission_NEW : MonoBehaviour
         return standoff;
     }
 
-    /// <summary>The quasar's world radius, from its renderer rather than its scale.</summary>
+    /// <summary>The quasar's world radius, from what draws it rather than its scale.</summary>
     float QuasarRadius()
     {
         if (quasar == null) return 0f;
+
+        // Drawn by a QuasarVFX_NEW, the quasar is its disc, and the sphere's renderer — if
+        // it is still there — is switched off and no longer the quasar's size.
+        QuasarVFX_NEW vfx = quasar.GetComponentInChildren<QuasarVFX_NEW>();
+        if (vfx != null && vfx.isActiveAndEnabled) return vfx.Radius;
 
         Renderer renderer = quasar.GetComponent<Renderer>();
         if (renderer != null) return renderer.bounds.extents.magnitude / Mathf.Sqrt(3f);

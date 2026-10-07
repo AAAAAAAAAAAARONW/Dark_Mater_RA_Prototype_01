@@ -257,6 +257,9 @@ public static class TutorialSceneBuilder_NEW
 
         GameObject quasar = BuildQuasar(world.transform);
 
+        // What the quasar looks like, its jets down the light's line. See BuildQuasarVfx.
+        QuasarVFX_NEW quasarVfx = BuildQuasarVfx(quasar, player.transform);
+
         BuildTravel(player, quasar.transform, lookRig);
         BuildDust(player.transform);
         BuildSpeedStreaks(player.transform);
@@ -384,7 +387,7 @@ public static class TutorialSceneBuilder_NEW
 
         BuildPhase0(beats.transform, moteA);
         BuildPhase1(beats.transform, lookRig, moteA, moteB, moteC);
-        BuildPhase2(beats.transform, lookRig, quasar, emission);
+        BuildPhase2(beats.transform, lookRig, quasar, emission, quasarVfx);
         BuildPhase3(beats.transform, phase3);
 
         // ── HUD and attract components ───────────────────────────────────────
@@ -417,6 +420,10 @@ public static class TutorialSceneBuilder_NEW
         AddCall(attract, "onReset", spectrumBands, "ResetForAttract");
         AddCall(attract, "onReset", forestAtom, "ResetForAttract");
         AddCall(attract, "onReset", lineIndicator, "ResetForAttract");
+
+        // A visitor who walks away during C1 must not leave the next one a quasar still
+        // winding up for an emission that is never coming.
+        AddCall(attract, "onReset", quasarVfx, "Calm");
 
         // ── The absorption, felt ─────────────────────────────────────────────
         // Every absorption goes through TutorialSpectrum_NEW.AbsorbAtRestFrame — D5's
@@ -690,6 +697,78 @@ public static class TutorialSceneBuilder_NEW
         }
 
         return go;
+    }
+
+    /// <summary>
+    /// What the quasar looks like: QuasarVFX_NEW on a child of the Quasar, with its jets
+    /// aimed down the line from the quasar to the light (aimJetAt), so the jet IS the course.
+    /// The light flies down one through Phase 0–1, arrives inside it at C1, and C3 throws it
+    /// back out along it — C3's "hard speed tunnel" is the inside of the jet. Seen down that
+    /// line the disc is face on, a whirlpool round the core.
+    ///
+    /// The child is half the sphere's scale, so the disc's radius is the sphere's, and what
+    /// reads the quasar's size (the arrival standoff, through TutorialEmission_NEW) keeps
+    /// its meaning. The Quasar object itself stays: the travel, the emission and C4 all point
+    /// at it.
+    ///
+    /// The values here are the tutorial's, written on the run that adds it — the journey's
+    /// quasar is seen from far off and from the side, this one up close and down its jet:
+    ///   jets 5 radii long      the light is inside one from where Phase 1 holds it until
+    ///                          well after the tunnel
+    ///   slow flow              the jet's filaments, knots, plasma and eruption blob slower
+    ///                          than the light at tunnel speed, so from inside they stream
+    ///                          past it rather than pulling away ahead
+    ///   dimmer disc and jets   up close the inner disc fills the frame, and at the
+    ///                          journey's brightness all of it is white
+    ///   no eruption when seen  it is seen from the first frame, under the title card;
+    ///                          smaller ones of its own every twelve seconds instead, and
+    ///                          the whole one at the emission
+    ///
+    /// The sphere's renderer is switched off on that run too — the two drawn together are
+    /// neither design — and left alone after: switching it back on is somebody's decision.
+    /// </summary>
+    static QuasarVFX_NEW BuildQuasarVfx(GameObject quasar, Transform player)
+    {
+        GameObject go = FindOrCreate("Quasar VFX", quasar.transform, quasar.transform.position);
+        if (IsFresh(go))
+        {
+            go.layer = quasar.layer;
+            go.transform.localScale = Vector3.one * 0.5f;
+
+            // Down the line in the Scene view already; aimJetAt keeps it there in play.
+            Vector3 toLight = player.position - quasar.transform.position;
+            if (toLight.sqrMagnitude > 1e-6f)
+                go.transform.rotation = Quaternion.FromToRotation(Vector3.up, toLight.normalized);
+        }
+
+        QuasarVFX_NEW vfx = AddIfMissing<QuasarVFX_NEW>(go);
+        Wire(vfx)
+            .Ref("aimJetAt", player)
+            .Num("jetLength", 5f)
+            .Num("filamentSpeed", 0.02f)
+            .Num("knotSpeed", 0.05f)
+            .Num("blobSpeed", 0.06f)
+            .Vec2("clumpSpeed", new Vector2(0.02f, 0.06f))
+            .Num("discBrightness", 0.5f)
+            .Num("sheathBrightness", 0.35f)
+            .Flag("eruptWhenSeen", false)
+            .Num("eruptEvery", 12f)
+            .Num("eruptStrength", 0.5f)
+            .Apply();
+
+        if (IsFresh(vfx))
+        {
+            MeshRenderer sphere = quasar.GetComponent<MeshRenderer>();
+            if (sphere != null && sphere.enabled)
+            {
+                Undo.RecordObject(sphere, "Hide the quasar sphere");
+                sphere.enabled = false;
+                Debug.Log("[TutorialSceneBuilder_NEW] Switched off the quasar sphere's renderer: " +
+                          "QuasarVFX_NEW on 'Quasar VFX' draws the quasar now. Switch it back on to compare.", sphere);
+            }
+        }
+
+        return vfx;
     }
 
     /// <summary>
@@ -1206,7 +1285,7 @@ public static class TutorialSceneBuilder_NEW
     /// literally what is on screen.
     /// </summary>
     static void BuildPhase2(Transform parent, FirstPersonLookRig_NEW lookRig,
-                            GameObject quasar, TutorialEmission_NEW emission)
+                            GameObject quasar, TutorialEmission_NEW emission, QuasarVFX_NEW quasarVfx)
     {
         Beat_Cinematic_NEW c1 = Beat<Beat_Cinematic_NEW>(parent, "C1");
         Wire(c1)
@@ -1279,6 +1358,12 @@ public static class TutorialSceneBuilder_NEW
             // for the lerp rather than being satisfied on the press.
             .Flag("waitForRecentre", true)
             .Apply();
+
+        // C1's "the disc accelerates, matter stretches into streaks, brightness rises" is the
+        // quasar winding up, and the emission is it erupting — down the jet the light is
+        // thrown out along.
+        AddCall(c1, "onEnter", quasarVfx, "WindUp");
+        if (emission != null) AddCall(emission, "onEmitted", quasarVfx, "Erupt");
 
         if (emission == null) return;
 

@@ -135,13 +135,18 @@ Journey 场景的配音在 `Assets/VoiceOver/Journey/`（J1–J9），由 `Journ
 | 元素 | 资产 | 负责哪几帧 |
 |---|---|---|
 | 后处理 | `Scenes/Test Level_Profiles/Main Camera Profile.asset` | 全程。和 PlaytestBuild **共用同一份 profile**，不会分家 |
-| 类星体 | `Materials/BlazingQuasar.mat` | 远处的目标，也是 C1 到站、C3 发射的地方 |
+| 类星体 | `VFX/QuasarVFX_NEW`（程序化，挂在 `Quasar` 的子物体 `Quasar VFX` 上；球体的渲染器关掉了） | 远处的目标，也是 C1 到站、C3 发射的地方 |
 | HUD 字体 | `Fonts/Gontserrat-Regular SDF.asset` | 全程。PlaytestBuild 的 UI 用的就是它 |
 | 光子拖尾 | `Shaders/Custom_PhotonTrail.mat` + `Scripts/PhotonSpectrumTrail.cs` | **Phase 0–1 关闭**，C3 发射之后才亮。位置在眼睛前方 2.6 单位、略偏下 |
 | 星际尘埃 | 生成的 `TutorialDiscDust.mat` + `TutorialSoftDot.png` | A1「缓慢旋转的暗红物质」，同时提供飞行的速度感 |
 | 光点 | 生成的 `TutorialMote.mat` | A3 B1 B2 B3 |
 
-`BlazingQuasar.shader` 值得单独说一句：它的 Properties 里直接有 `_AccretionDisk`、`_JetColor / _JetWidth / _JetLength`、`_SpinSpeed`、`_CoreRadius`，**吸积盘、双极喷流、核心亮斑在一个 shader 里**。喷流沿物体局部 Y 轴，所以类星体保持直立，B2「抬头看到喷流通道」就是字面发生的事。
+类星体现在由 `QuasarVFX_NEW` 画（和主旅程是同一个组件）：吸积盘、外围气体丝、核心、两道体积光喷流、盘里的余烬和亮斑，还会周期性爆发。几处和这一段体验直接相关：
+
+- **喷流就是航线。** `aimJetAt` 指向 Photon，喷流轴始终穿过光子，和飞行路线完全重合。Phase 0–1 光子顺着喷流飞向核心，所以看到的是正对着的吸积盘漩涡；C1 到站时光子就在喷流里；C3 发射把光子沿喷流甩出去 —— 分镜里的「hard speed tunnel」就是喷流内部。
+- **C1 = `WindUp`，发射 = `Erupt`，attract 重置 = `Calm`。** 三条都是 builder 接在 UnityEvent 上的（C1 的 onEnter、`TutorialEmission_NEW.onEmitted`、attract 的 onReset），Inspector 里看得见。蓄力时盘转得更快、更亮、闪得更厉害、余烬拉成长丝；发射那一刻核心闪光、光环扫过盘面、光团沿喷流射出。
+- **教程版的数值和主旅程不同**（builder 只在新建时写）：喷流长 5 个盘半径，喷流里的纹理和物质比隧道速度慢（这样从里面看是向后掠过，而不是往前跑），盘更暗一些（近看时不至于整片白），不在「被看见时」爆发（开场就看得见），改成每 12 秒一次小爆发。
+- **B2「抬头看到喷流通道」不再字面成立** —— 喷流现在沿航线，不在头顶。B2 的门控是光点，不受影响。
 
 ### 后处理：和 PlaytestBuild 同一套接法
 
@@ -429,7 +434,8 @@ GDD §6 把 Phase 0–1 写成「已经在吸积盘内部」。当前实现的�
 │           ├── Mote_B2            头顶约 52°，B2 出现
 │           └── Mote_B3            正后方，B3 出现
 ├── World
-│     └── Quasar                   BlazingQuasar.mat，正前方 6000 单位，直立
+│     └── Quasar                   正前方，渲染器关掉，位置和大小仍是类星体的
+│           └── Quasar VFX         QuasarVFX_NEW，喷流对准 Photon
 ├── HUD                            Canvas + TutorialHUD_NEW + TutorialAttract_NEW
 │     ├── Reticle / Legend / Hint / ConfirmPrompt / AttractCard
 └── Director                       TutorialDirector_NEW
