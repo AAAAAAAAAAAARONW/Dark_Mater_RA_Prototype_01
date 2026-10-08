@@ -18,16 +18,24 @@ using UnityEngine;
 /// out, between Sagittarius just inside it and Perseus outside — 26,000 of the 65,000 light
 /// years the reference maps run to.
 ///
-/// WHAT MOVES. The gas and dust stream through the arms along their orbits; star-forming
-/// regions and young clusters flicker; the core breathes; stars are born on the arms with a
-/// flash. The arms themselves are a density wave, and the frame here turns with the Sun, which is
+/// IT HAS DEPTH. Around the gas sheet, the light of the old stars as a volume: the bulge boxy
+/// and peanut-shaped (the bar seen from its side, as the infrared maps show it), the thick old
+/// disc flaring outward, a dim halo with its globular clusters. The outer disc is warped — up on
+/// one side, down on the other, an S seen edge-on — and the sheet, the volume and every star
+/// bend together. The Sun's side is flat: the warp's line of nodes runs close to it.
+///
+/// WHAT MOVES. The gas and dust stream through the arms along their orbits; waves of star
+/// formation run out along the arms; star-forming regions and young clusters flicker; the core
+/// breathes; stars are born on the arms with a flash; now and then a supernova flares far
+/// brighter than the galaxy round it and fades to gold. The arms themselves are a density wave, and the frame here turns with the Sun, which is
 /// close to their corotation, so in it they hardly move and the Sun stays on SolarDivePoint.
 /// The stars move: born on the arms, they orbit on a flat rotation curve, inside the Sun's
 /// orbit pulling ahead of the arms and outside falling behind, fading and being born again.
 ///
-/// CHEAP. The disc is one quad worked out per pixel in one pass, with a handful of reads of
-/// the shared noise texture (QuasarNoise_NEW) — no volume, no ray march. The bulge is one
-/// quad; the stars are one mesh moved on the GPU. Nothing runs per frame on the CPU.
+/// CHEAP. The disc is one sheet worked out per pixel in one pass, with a handful of reads of
+/// the shared noise texture (QuasarNoise_NEW). The volume is smooth maths, ten samples a ray
+/// for each half, no texture. The bulge is one quad; the stars are one mesh moved on the GPU.
+/// Nothing runs per frame on the CPU.
 ///
 /// It builds what it draws as hidden children that are never saved, in the editor too, and
 /// fades with its world through _Color, built before WorldSwitcher_NEW gathers renderers.
@@ -57,29 +65,42 @@ public class GalaxyVFX_NEW : MonoBehaviour
     [Tooltip("The old disc's exponential scale length, of the radius.")]
     [Range(0.05f, 0.4f)] [SerializeField] float scaleLength = 0.16f;
 
+    [Tooltip("How far the outer disc bends out of the plane at the rim, of the radius.")]
+    [Range(0f, 0.25f)] [SerializeField] float warp = 0.15f;
+
+    [Tooltip("The old disc's scale height at the centre, and how much it grows to the rim (its flare).")]
+    [SerializeField] Vector2 thickness = new Vector2(0.028f, 0.04f);
+
     [Header("Look")]
-    [Range(0f, 2f)] [SerializeField] float dust = 0.85f;
+    [Range(0f, 2f)] [SerializeField] float dust = 1.1f;
     [Tooltip("The pink star-forming regions along the arms.")]
-    [Range(0f, 3f)] [SerializeField] float starFormation = 1.3f;
+    [Range(0f, 3f)] [SerializeField] float starFormation = 2.2f;
     [Tooltip("Young star clusters, as specks.")]
     [Range(0f, 2f)] [SerializeField] float clusters = 0.7f;
     [Tooltip("Light between the arms.")]
-    [Range(0f, 1f)] [SerializeField] float haze = 0.32f;
-    [Range(0f, 3f)] [SerializeField] float brightness = 0.6f;
+    [Range(0f, 1f)] [SerializeField] float haze = 0.22f;
+    [Range(0f, 3f)] [SerializeField] float brightness = 0.7f;
+    [Tooltip("The volume's light: the peanut bulge, the thick disc, the halo.")]
+    [Range(0f, 4f)] [SerializeField] float depthGlow = 1f;
+    [Tooltip("How much of the bulge the flat sheet draws; the volume gives it its depth.")]
+    [Range(0f, 1f)] [SerializeField] float sheetBulge = 0.55f;
 
     [Header("Motion")]
     [Tooltip("How fast the gas and dust stream along their orbits through the arms. The arms " +
              "themselves hold still: they are a density wave.")]
-    [SerializeField] float gasFlow = 0.012f;
+    [SerializeField] float gasFlow = 0.02f;
     [Tooltip("Star-forming regions and young clusters flickering.")]
     [Range(0f, 1f)] [SerializeField] float twinkle = 0.6f;
+    [Tooltip("Waves of star formation running out along the arms.")]
+    [Range(0f, 1f)] [SerializeField] float pulse = 0.6f;
 
     [ColorUsage(false, true)] [SerializeField] Color bulgeColour = new Color(1.6f, 1.25f, 0.85f, 1f);
     [ColorUsage(false, true)] [SerializeField] Color oldDisc = new Color(1f, 0.78f, 0.52f, 1f);
-    [ColorUsage(false, true)] [SerializeField] Color youngStars = new Color(0.55f, 0.70f, 1.05f, 1f);
-    [ColorUsage(false, true)] [SerializeField] Color outerDisc = new Color(0.30f, 0.38f, 0.62f, 1f);
-    [ColorUsage(false, true)] [SerializeField] Color hiiRegions = new Color(1.7f, 0.42f, 0.75f, 1f);
+    [ColorUsage(false, true)] [SerializeField] Color youngStars = new Color(0.4f, 0.62f, 1.3f, 1f);
+    [ColorUsage(false, true)] [SerializeField] Color outerDisc = new Color(0.25f, 0.35f, 0.75f, 1f);
+    [ColorUsage(false, true)] [SerializeField] Color hiiRegions = new Color(2f, 0.35f, 0.8f, 1f);
     [SerializeField] Color dustColour = new Color(0.05f, 0.03f, 0.025f, 1f);
+    [ColorUsage(false, true)] [SerializeField] Color haloColour = new Color(0.35f, 0.38f, 0.5f, 1f);
 
     [Header("Bulge, seen at a slant")]
     [Tooltip("The round glow that keeps the bulge standing out of the disc at a slant.")]
@@ -90,13 +111,22 @@ public class GalaxyVFX_NEW : MonoBehaviour
     [Tooltip("Young stars, born on the arms.")]
     [Range(0, 20000)] [SerializeField] int youngStarCount = 5000;
     [Tooltip("Old stars in the bulge.")]
-    [Range(0, 10000)] [SerializeField] int bulgeStarCount = 600;
+    [Range(0, 10000)] [SerializeField] int bulgeStarCount = 1500;
+    [Tooltip("Old stars through the thick disc.")]
+    [Range(0, 30000)] [SerializeField] int discStarCount = 8000;
+    [Tooltip("Globular clusters in the halo. The Milky Way has about 150.")]
+    [Range(0, 500)] [SerializeField] int globularCount = 150;
+    [Tooltip("Supernovae, each flaring now and then.")]
+    [Range(0, 200)] [SerializeField] int supernovaCount = 24;
     [Tooltip("Their size, as a fraction of the radius. Never less than a pixel and a half on screen.")]
     [Min(0f)] [SerializeField] float starSize = 0.0035f;
     [Tooltip("Orbital speed on the flat rotation curve, radii a second. Slow: it is a galaxy.")]
-    [SerializeField] float orbitalSpeed = 0.01f;
-    [ColorUsage(false, true)] [SerializeField] Color youngStarColour = new Color(1.2f, 1.4f, 2f, 1f);
+    [SerializeField] float orbitalSpeed = 0.02f;
+    [ColorUsage(false, true)] [SerializeField] Color youngStarColour = new Color(0.72f, 0.84f, 1.2f, 1f);
     [ColorUsage(false, true)] [SerializeField] Color bulgeStarColour = new Color(1.6f, 1.2f, 0.75f, 1f);
+    [ColorUsage(false, true)] [SerializeField] Color discStarColour = new Color(0.27f, 0.22f, 0.16f, 1f);
+    [ColorUsage(false, true)] [SerializeField] Color globularColour = new Color(0.42f, 0.37f, 0.3f, 1f);
+    [ColorUsage(false, true)] [SerializeField] Color supernovaColour = new Color(6f, 7f, 10f, 1f);
 
     [SerializeField] int seed = 0;
 
@@ -105,7 +135,7 @@ public class GalaxyVFX_NEW : MonoBehaviour
     readonly List<GameObject> _parts = new List<GameObject>();
     readonly List<Material> _materials = new List<Material>();
     readonly List<Mesh> _meshes = new List<Mesh>();
-    Material _disc, _bulge, _stars;
+    Material _disc, _bulge, _stars, _depthFar, _depthNear;
     Mesh _starMesh;
     int _builtStars = -1;
     bool _rebuild, _dirty;
@@ -119,13 +149,15 @@ public class GalaxyVFX_NEW : MonoBehaviour
     /// <summary>The Sun's distance from the centre, as a fraction of the radius.</summary>
     public float SunRadius => sunRadius;
 
+    int StarTotal => youngStarCount + bulgeStarCount + discStarCount + globularCount + supernovaCount;
+
     void OnEnable() => Build();
 
     void OnDisable() => Clear();
 
     void OnValidate()
     {
-        _rebuild |= _builtStars >= 0 && _builtStars != youngStarCount + bulgeStarCount;
+        _rebuild |= _builtStars >= 0 && _builtStars != StarTotal;
         _dirty = true;
 #if UNITY_EDITOR
         if (!Application.isPlaying) UnityEditor.EditorApplication.QueuePlayerLoopUpdate();
@@ -156,16 +188,26 @@ public class GalaxyVFX_NEW : MonoBehaviour
         Shader discShader = Resources.Load<Shader>("GalaxyDisc_NEW");
         Shader bulgeShader = Resources.Load<Shader>("GalaxyBulge_NEW");
         Shader starShader = Resources.Load<Shader>("GalaxyStars_NEW");
-        if (discShader == null || bulgeShader == null || starShader == null)
+        Shader depthShader = Resources.Load<Shader>("GalaxyVolume_NEW");
+        if (discShader == null || bulgeShader == null || starShader == null || depthShader == null)
         {
             Debug.LogWarning("[GalaxyVFX_NEW] Its shaders (Resources/Galaxy*_NEW.shader) are missing; nothing drawn.", this);
             return;
         }
 
+        // The volume's far half under the gas sheet, its near half over it (render queues).
+        Mesh box = Keep(Box());
+        _depthFar = Part("Depth (far half)", box, depthShader);
+        _depthFar.renderQueue = 2989;
+        _depthFar.SetFloat("_Side", -1f);
         _disc = Part("Disc", Keep(Plane()), discShader);
         _bulge = Part("Bulge", Keep(Quad()), bulgeShader);
-        _builtStars = youngStarCount + bulgeStarCount;
-        _starMesh = Keep(Stars(youngStarCount, bulgeStarCount, seed));
+        _bulge.renderQueue = 2988;   // under the sheet, so the dust lanes cross the bulge
+        _depthNear = Part("Depth (near half)", box, depthShader);
+        _depthNear.renderQueue = 2993;
+        _depthNear.SetFloat("_Side", 1f);
+        _builtStars = StarTotal;
+        _starMesh = Keep(Stars(new[] { youngStarCount, bulgeStarCount, discStarCount, globularCount, supernovaCount }, seed));
         _stars = Part("Stars", _starMesh, starShader);
 
         Apply();
@@ -206,7 +248,7 @@ public class GalaxyVFX_NEW : MonoBehaviour
         _parts.Clear();
         _materials.Clear();
         _meshes.Clear();
-        _disc = _bulge = _stars = null;
+        _disc = _bulge = _stars = _depthFar = _depthNear = null;
         _starMesh = null;
         _builtStars = -1;
     }
@@ -237,6 +279,9 @@ public class GalaxyVFX_NEW : MonoBehaviour
         _disc.SetFloat("_Brightness", brightness);
         _disc.SetFloat("_Flow", gasFlow);
         _disc.SetFloat("_Twinkle", twinkle);
+        _disc.SetFloat("_Pulse", pulse);
+        _disc.SetFloat("_Warp", warp);
+        _disc.SetFloat("_SheetBulge", sheetBulge);
         _disc.SetColor("_Core", bulgeColour);
         _disc.SetColor("_Old", oldDisc);
         _disc.SetColor("_Young", youngStars);
@@ -244,13 +289,32 @@ public class GalaxyVFX_NEW : MonoBehaviour
         _disc.SetColor("_Pink", hiiRegions);
         _disc.SetColor("_DustColor", dustColour);
 
+        foreach (Material depth in new[] { _depthFar, _depthNear })
+        {
+            depth.SetVector("_Box", new Vector4(1.1f, 0.45f, 1.1f, 0f));
+            depth.SetVector("_Bar", bar);
+            depth.SetFloat("_Warp", warp);
+            depth.SetVector("_Thickness", thickness);
+            depth.SetFloat("_Volume", depthGlow * brightness / 0.6f);
+            depth.SetColor("_Core", bulgeColour);
+            depth.SetColor("_Old", oldDisc);
+            depth.SetColor("_Young", youngStars);
+            depth.SetColor("_Halo", haloColour);
+        }
+
         _bulge.SetFloat("_Size", bulgeSize);
-        _bulge.SetColor("_Glow", bulgeGlow * brightness / 0.6f);
-        _bulge.SetColor("_Hot", bulgeColour * 0.55f * brightness / 0.6f);
+        _bulge.SetColor("_Glow", bulgeGlow * sheetBulge * brightness / 0.6f);
+        _bulge.SetColor("_Hot", bulgeColour * 0.55f * sheetBulge * brightness / 0.6f);
 
         _stars.SetTexture("_Noise", noise);
         _stars.SetFloat("_SunRadius", sunRadius);
         _stars.SetFloat("_Pitch", pitch);
+        _stars.SetVector("_Bar", bar);
+        _stars.SetFloat("_Warp", warp);
+        _stars.SetVector("_OldThickness", thickness);
+        _stars.SetColor("_DiscStars", discStarColour);
+        _stars.SetColor("_Globular", globularColour);
+        _stars.SetColor("_Supernova", supernovaColour);
         _stars.SetFloat("_Speed", orbitalSpeed);
         _stars.SetFloat("_Size", starSize);
         _stars.SetColor("_Young", youngStarColour);
@@ -259,14 +323,47 @@ public class GalaxyVFX_NEW : MonoBehaviour
 
     // ── Meshes ──────────────────────────────────────────────────────────────
 
-    /// <summary>A square in XZ just larger than the disc; the shader draws nothing outside radius 1.05.</summary>
+    /// <summary>A square grid in XZ just larger than the disc, fine enough for the shader to bend
+    /// it with the warp; the shader draws nothing outside radius 1.05.</summary>
     static Mesh Plane()
     {
         const float e = 1.06f;
-        var mesh = new Mesh { name = "Milky Way disc" };
-        mesh.vertices = new[] { new Vector3(-e, 0f, -e), new Vector3(e, 0f, -e), new Vector3(e, 0f, e), new Vector3(-e, 0f, e) };
-        mesh.triangles = new[] { 0, 2, 1, 0, 3, 2 };
-        mesh.RecalculateBounds();
+        const int cells = 96;
+        int stride = cells + 1;
+        var vertices = new Vector3[stride * stride];
+        for (int z = 0; z <= cells; z++)
+        for (int x = 0; x <= cells; x++)
+            vertices[z * stride + x] = new Vector3(Mathf.Lerp(-e, e, x / (float)cells), 0f, Mathf.Lerp(-e, e, z / (float)cells));
+        var triangles = new int[cells * cells * 6];
+        int t = 0;
+        for (int z = 0; z < cells; z++)
+        for (int x = 0; x < cells; x++)
+        {
+            int i = z * stride + x;
+            triangles[t++] = i; triangles[t++] = i + stride; triangles[t++] = i + 1;
+            triangles[t++] = i + 1; triangles[t++] = i + stride; triangles[t++] = i + stride + 1;
+        }
+        var mesh = new Mesh { name = "Milky Way disc", vertices = vertices, triangles = triangles };
+        mesh.bounds = new Bounds(Vector3.zero, new Vector3(2.2f, 0.6f, 2.2f));
+        return mesh;
+    }
+
+    /// <summary>The box the volume is worked out in; its shader matches _Box to it.</summary>
+    static Mesh Box()
+    {
+        var b = new Vector3(1.1f, 0.45f, 1.1f);
+        var vertices = new Vector3[8];
+        for (int i = 0; i < 8; i++)
+            vertices[i] = new Vector3((i & 1) != 0 ? b.x : -b.x, (i & 2) != 0 ? b.y : -b.y, (i & 4) != 0 ? b.z : -b.z);
+        // Outward-facing; the shader draws the back faces.
+        int[] triangles =
+        {
+            0, 2, 3, 0, 3, 1,   4, 5, 7, 4, 7, 6,   // -z, +z
+            0, 1, 5, 0, 5, 4,   2, 6, 7, 2, 7, 3,   // -y, +y
+            0, 4, 6, 0, 6, 2,   1, 3, 7, 1, 7, 5,   // -x, +x
+        };
+        var mesh = new Mesh { name = "Milky Way depth", vertices = vertices, triangles = triangles };
+        mesh.bounds = new Bounds(Vector3.zero, b * 2f);
         return mesh;
     }
 
@@ -280,10 +377,12 @@ public class GalaxyVFX_NEW : MonoBehaviour
         return mesh;
     }
 
-    /// <summary>One quad per star, all at the origin: the shader moves them. Seeds and kind in UV1.</summary>
-    static Mesh Stars(int young, int bulge, int starSeed)
+    /// <summary>One quad per star, all at the origin: the shader moves them. Seeds and kind in UV1.
+    /// counts: young, bulge, old disc, globular clusters, supernovae (kinds 0..4).</summary>
+    static Mesh Stars(int[] counts, int starSeed)
     {
-        int count = young + bulge;
+        int count = 0;
+        foreach (int c in counts) count += c;
         var vertices = new Vector3[count * 4];
         var corners = new List<Vector2>(count * 4);
         var seeds = new List<Vector4>(count * 4);
@@ -292,7 +391,9 @@ public class GalaxyVFX_NEW : MonoBehaviour
 
         for (int i = 0; i < count; i++)
         {
-            var s = new Vector4((float)random.NextDouble(), (float)random.NextDouble(), (float)random.NextDouble(), i < young ? 0f : 1f);
+            int kind = 0;
+            for (int k = 0, end = counts[0]; i >= end && k < counts.Length - 1; end += counts[++k]) kind = k + 1;
+            var s = new Vector4((float)random.NextDouble(), (float)random.NextDouble(), (float)random.NextDouble(), kind);
             corners.Add(new Vector2(-1f, -1f)); corners.Add(new Vector2(1f, -1f));
             corners.Add(new Vector2(1f, 1f)); corners.Add(new Vector2(-1f, 1f));
             for (int c = 0; c < 4; c++) seeds.Add(s);
@@ -308,7 +409,7 @@ public class GalaxyVFX_NEW : MonoBehaviour
         mesh.SetUVs(0, corners);
         mesh.SetUVs(1, seeds);
         mesh.triangles = triangles;
-        mesh.bounds = new Bounds(Vector3.zero, new Vector3(2.2f, 0.4f, 2.2f));
+        mesh.bounds = new Bounds(Vector3.zero, new Vector3(2.2f, 1.7f, 2.2f));
         return mesh;
     }
 }

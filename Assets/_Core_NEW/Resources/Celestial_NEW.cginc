@@ -1,6 +1,6 @@
-// Shared by CelestialSurface_NEW and CelestialClouds_NEW: noise on a sphere without seams or
-// pole pinching (triplanar), and Earth's cloud cover, so the ground's cloud shadows and the
-// clouds themselves are the same clouds.
+// Used by CelestialSurface_NEW: noise on a sphere without seams or pole pinching (triplanar),
+// and Earth's cloud cover, read both for the clouds and for their shadows on the ground, so
+// they are the same clouds.
 
 #ifndef CELESTIAL_NEW_INCLUDED
 #define CELESTIAL_NEW_INCLUDED

@@ -79,11 +79,10 @@ public class CelestialBody_NEW : MonoBehaviour
     [Range(0f, 4f)] [SerializeField] float airStrength = 0.7f;
 
     const HideFlags Built = HideFlags.HideAndDontSave;
-    const float CloudHeight = 1.006f;
 
     readonly List<GameObject> _parts = new List<GameObject>();
     readonly List<Material> _materials = new List<Material>();
-    Material _surface, _clouds, _air;
+    Material _surface, _air;
     Renderer _original;
     float _meshRadius = 0.5f;
     bool _rebuild, _dirty;
@@ -157,7 +156,7 @@ public class CelestialBody_NEW : MonoBehaviour
 
     void OnValidate()
     {
-        _rebuild |= _surface != null && ((clouds != (_clouds != null)) || (atmosphere != (_air != null)));
+        _rebuild |= _surface != null && atmosphere != (_air != null);
         _dirty = true;
 #if UNITY_EDITOR
         if (!Application.isPlaying) UnityEditor.EditorApplication.QueuePlayerLoopUpdate();
@@ -258,9 +257,8 @@ public class CelestialBody_NEW : MonoBehaviour
         }
 
         Shader surfaceShader = Resources.Load<Shader>("CelestialSurface_NEW");
-        Shader cloudShader = Resources.Load<Shader>("CelestialClouds_NEW");
         Shader airShader = Resources.Load<Shader>("CelestialAtmosphere_NEW");
-        if (surfaceShader == null || cloudShader == null || airShader == null)
+        if (surfaceShader == null || airShader == null)
         {
             Debug.LogWarning("[CelestialBody_NEW] Its shaders (Resources/Celestial*_NEW.shader) are missing; leaving the original.", this);
             return;
@@ -272,7 +270,6 @@ public class CelestialBody_NEW : MonoBehaviour
         _meshRadius = Mathf.Max(mesh.bounds.extents.x, 1e-4f);
 
         _surface = Part("Surface", mesh, surfaceShader, 1f, 2000);
-        if (clouds) _clouds = Part("Clouds", mesh, cloudShader, CloudHeight, 2999);
         if (atmosphere) _air = Part("Air", mesh, airShader, 1f + airDepth * 1.05f, 3000);
 
         _original.forceRenderingOff = true;
@@ -309,7 +306,7 @@ public class CelestialBody_NEW : MonoBehaviour
         foreach (Material m in _materials) Kill(m);
         _parts.Clear();
         _materials.Clear();
-        _surface = _clouds = _air = null;
+        _surface = _air = null;
     }
 
     static void Kill(Object o)
@@ -340,15 +337,9 @@ public class CelestialBody_NEW : MonoBehaviour
         _surface.SetFloat("_CloudSpin", cloudDrift);
         _surface.SetFloat("_LimbDarkening", limbDarkening);
         _surface.SetFloat("_BandFlow", bandFlow);
-
-        if (_clouds != null)
-        {
-            _clouds.SetTexture("_Noise", noise);
-            _clouds.SetFloat("_CloudCover", cloudCover);
-            _clouds.SetFloat("_CloudSpin", cloudDrift);
-            _clouds.SetFloat("_Brightness", cloudBrightness);
-            _clouds.SetColor("_Terminator", terminatorColour);
-        }
+        _surface.SetFloat("_CloudAmount", clouds ? 1f : 0f);
+        _surface.SetFloat("_CloudBrightness", cloudBrightness);
+        _surface.SetColor("_CloudTerminator", terminatorColour);
 
         if (_air != null)
         {

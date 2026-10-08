@@ -11,6 +11,12 @@ Shader "Custom/CelestialAtmosphere_NEW"
     // so the shell's mesh only has to cover it. Drawn from whichever side faces the camera —
     // the outside, or the inside when the camera is in the air.
     //
+    // The shell is so close above the ground that at the journey's distances the depth buffer
+    // cannot tell them apart, and the two would flicker. So each vertex is slid along its own
+    // line of sight towards the camera by the planet's radius: it lands on the same pixel, but
+    // always in front of its own planet. (Only something within a radius in front of the
+    // planet could be drawn over, and the air there is faint.)
+    //
     // Premultiplied: it adds light, and dims the stars behind the limb a little. _Color fades it.
 
     Properties
@@ -53,8 +59,12 @@ Shader "Custom/CelestialAtmosphere_NEW"
             v2f vert(appdata_base v)
             {
                 v2f o;
-                o.pos = UnityObjectToClipPos(v.vertex);
-                o.world = mul(unity_ObjectToWorld, v.vertex).xyz;
+                float3 world = mul(unity_ObjectToWorld, v.vertex).xyz;
+                float3 fromCamera = world - _WorldSpaceCameraPos;
+                float distance = max(length(fromCamera), 1e-5);
+                float pulled = max(distance - _Radii.x, _ProjectionParams.y * 2.0);
+                o.pos = mul(UNITY_MATRIX_VP, float4(_WorldSpaceCameraPos + fromCamera * (min(pulled, distance) / distance), 1.0));
+                o.world = world;
                 return o;
             }
 

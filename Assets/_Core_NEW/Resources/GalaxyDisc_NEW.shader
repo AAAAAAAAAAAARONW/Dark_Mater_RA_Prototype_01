@@ -1,8 +1,9 @@
 Shader "Custom/GalaxyDisc_NEW"
 {
-    // The Milky Way's disc, seen from outside (GalaxyVFX_NEW). One flat quad in the object's XZ
-    // plane, radius 1 at the visible edge, and everything on it worked out per pixel in one
-    // pass — no volume, no ray march — from the galaxy's own structure:
+    // The Milky Way's disc, seen from outside (GalaxyVFX_NEW). A sheet in the object's XZ plane,
+    // radius 1 at the visible edge, bent by the galaxy's warp (Galaxy_NEW.cginc), and everything
+    // on it worked out per pixel in one pass from the galaxy's own structure. Its depth — the
+    // bulge's peanut, the thick disc, the halo — is GalaxyVolume_NEW, drawn either side of it:
     //
     //   bar and bulge  old stars, warm: a bar 27° off the Sun's line, a third of the way to it
     //   the old disc   an exponential, brightest inside
@@ -20,6 +21,10 @@ Shader "Custom/GalaxyDisc_NEW"
     //
     // Structure comes from QuasarNoise_NEW's texture in log-polar coordinates (stretched along
     // the spiral, as sheared gas is), with gradients that ignore atan2's seam.
+    //
+    // It is a thin layer seen through: at a slant the eye looks through more of it, so the
+    // dust grows more opaque and the light brighter towards edge-on (tuned at the 33° the
+    // journey sees it from). Bright knots of star formation run out along the arms.
     //
     // Premultiplied alpha: the stars glow, the dust darkens what is behind. _Color fades it.
     // In Resources so a build always has it.
@@ -41,6 +46,9 @@ Shader "Custom/GalaxyDisc_NEW"
         _Brightness ("Brightness", Range(0, 3)) = 0.6
         _Flow ("Gas flow along the orbits, radii a second", Float) = 0.012
         _Twinkle ("Star-forming regions and clusters flickering", Range(0, 1)) = 0.6
+        _Pulse ("Waves of star formation running out along the arms", Range(0, 1)) = 0.6
+        _Warp ("Warp at the rim (of the radius)", Float) = 0.15
+        _SheetBulge ("Bulge on the sheet (the volume adds its depth)", Range(0, 1)) = 0.55
         [HDR] _Core ("Bulge and bar", Color) = (1.6, 1.25, 0.85, 1)
         [HDR] _Old ("Old disc", Color) = (1.0, 0.78, 0.52, 1)
         [HDR] _Young ("Young stars", Color) = (0.55, 0.70, 1.05, 1)
@@ -63,12 +71,13 @@ Shader "Custom/GalaxyDisc_NEW"
             #pragma fragment frag
             #pragma target 3.0
             #include "UnityCG.cginc"
+            #include "Galaxy_NEW.cginc"
 
             #define TAU 6.2831853
 
             sampler2D _Noise;
             fixed4 _Color;
-            float _SunRadius, _Pitch, _ScaleLength, _Dust, _HII, _Sparkle, _Haze, _Brightness, _Flow, _Twinkle;
+            float _SunRadius, _Pitch, _ScaleLength, _Dust, _HII, _Sparkle, _Haze, _Brightness, _Flow, _Twinkle, _Pulse, _SheetBulge;
             float4 _ArmWidth, _ArmStrength, _Bar;
             float4 _Core, _Old, _Young, _OuterColor, _Pink;
             fixed4 _DustColor;
@@ -77,17 +86,19 @@ Shader "Custom/GalaxyDisc_NEW"
             {
                 float4 pos   : SV_POSITION;
                 float2 plane : TEXCOORD0;
+                float  slant : TEXCOORD1;   // 1 / how squarely the camera looks at the sheet
             };
 
             v2f vert(float4 vertex : POSITION)
             {
                 v2f o;
+                vertex.y += GalaxyWarp(vertex.xz);
                 o.pos = UnityObjectToClipPos(vertex);
                 o.plane = vertex.xz;
+                float3 camera = mul(unity_WorldToObject, float4(_WorldSpaceCameraPos, 1.0)).xyz;
+                o.slant = length(camera - vertex.xyz) / max(abs(camera.y - vertex.y), 1e-4);
                 return o;
             }
-
-            float Sq(float x) { return x * x; }
             float Wrap(float a) { return a - TAU * floor(a / TAU + 0.5); }
 
             // The four arms, each a Gaussian across a log spiral; `shift` moves the lane across.
@@ -151,9 +162,11 @@ Shader "Custom/GalaxyDisc_NEW"
                 float4 nf = Look(p * 3.1 + float2(0.2, 0.7), dpx * 3.1 * 1.2, dpy * 3.1 * 1.2);
                 float4 ng = Look(p * 9.0 + float2(0.5, 0.3), dpx * 9.0, dpy * 9.0);
 
-                // The arms, clumpy and broken.
+                // The arms, clumpy and broken; waves of star formation running out along them.
                 float clump = (0.35 + 1.3 * m.r * (0.6 + 0.8 * n.r)) * (0.35 + 0.9 * smoothstep(0.3, 0.65, big.g));
-                float arm = Arms(r, az, lnr, tanP, sinP, 1.0, 0.0) * clump;
+                float wave = pow(0.5 + 0.5 * sin(lnr * 6.0 + az0 - _Time.y * 0.45 + big.b * 3.0), 3.0);
+                float pulse = 1.0 + _Pulse * (wave * 1.6 - 0.4);
+                float arm = Arms(r, az, lnr, tanP, sinP, 1.0, 0.0) * clump * pulse;
 
                 // The Orion spur, through the Sun.
                 float tanS = 0.4040262, sinS = 0.3746066;   // 22°
@@ -181,7 +194,7 @@ Shader "Custom/GalaxyDisc_NEW"
                             * (1.0 + 0.1 * sin(_Time.y * 0.55));   // the core breathing, slowly
 
                 // Star formation, and the stars.
-                float hii = smoothstep(0.56, 0.74, nf.r) * smoothstep(0.45, 0.8, m.b) * saturate(arm * 1.2) * _HII;
+                float hii = smoothstep(0.56, 0.74, nf.r) * smoothstep(0.45, 0.8, m.b) * saturate(arm * 1.2) * _HII * (0.7 + 0.6 * wave * _Pulse);
                 // Each region and cluster flickering on its own clock.
                 hii *= lerp(1.0, 0.55 + 0.9 * (0.5 + 0.5 * sin(_Time.y * (0.8 + 2.0 * nf.g) + nf.b * 40.0)), _Twinkle);
                 float grain = 0.75 + 0.5 * ng.a;
@@ -189,14 +202,19 @@ Shader "Custom/GalaxyDisc_NEW"
                 sparkle *= lerp(1.0, 0.4 + 1.2 * (0.5 + 0.5 * sin(_Time.y * (2.0 + 5.0 * ng.r) + ng.g * 60.0)), _Twinkle);
 
                 float3 young = lerp(_OuterColor.rgb, _Young.rgb, lerp(1.0, 0.55, smoothstep(0.5, 1.0, r)));
-                float3 light = (_Core.rgb * (bulge * 1.4 + bar * 0.9)
+                float3 light = (_Core.rgb * (bulge * 1.4 + bar * 0.9) * _SheetBulge
                               + _Old.rgb * disc * (1.0 - 0.5 * smoothstep(0.2, 0.6, r))
                               + young * (arm * 0.9 + _Haze * exp(-r / 0.3) * edge)) * grain
                              + _Pink.rgb * hii * 1.1
                              + _Young.rgb * sparkle * 1.4;
 
-                float hide = saturate(dust * 0.85);
-                float3 premultiplied = (light * (1.0 - dust * 0.85) + _DustColor.rgb * hide) * _Brightness;
+                // Seen at a slant, through more of the layer: the light builds up and the dust
+                // closes (as 1 / cos, gently, and the same as before at the journey's 33°).
+                float slant = min(i.slant, 8.0) / 1.84;
+                float through = pow(1.0 - saturate(dust * 0.85), slant);
+                float hide = 1.0 - through;
+                light *= sqrt(slant);
+                float3 premultiplied = (light * through + _DustColor.rgb * hide) * _Brightness;
                 float alpha = hide * 0.8;
 
                 // Outside the disc, nothing. (After the derivatives, so they are taken everywhere.)

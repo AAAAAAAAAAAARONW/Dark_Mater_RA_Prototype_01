@@ -7,7 +7,10 @@ Shader "Custom/CelestialSurface_NEW"
     //             up along the terminator instead of the ball reading as a flat disc
     //   oceans    picked out of the map by colour (Earth): darker, with the Sun's glint on them
     //   cities    at night, on land, warm specks in clusters (Earth)
-    //   clouds    their shadows on the ground (Earth; the clouds are CelestialClouds_NEW)
+    //   clouds    drifting weather over the ground, lit by the Sun, casting shadows (Earth).
+    //             Drawn here, not on a shell above: a shell a few thousandths of the radius
+    //             up fights the ground in the depth buffer at the journey's distances and
+    //             flickers. At that height parallax is invisible anyway.
     //   haze      the atmosphere seen over the ground towards the limb, blue on the day side
     //   gas       giants: limb darkening, and the bands flowing, faster at the equator
     //
@@ -34,8 +37,11 @@ Shader "Custom/CelestialSurface_NEW"
         [HDR] _City ("City lights", Color) = (1.0, 0.68, 0.32, 1)
         _CityAmount ("City lights amount", Range(0, 3)) = 0
         _CloudShadow ("Cloud shadows", Range(0, 1)) = 0
-        _CloudCover ("Cloud cover (as CelestialClouds_NEW)", Range(0, 1)) = 0.55
+        _CloudCover ("Cloud cover", Range(0, 1)) = 0.55
         _CloudSpin ("Cloud drift, radians a second", Float) = 0.01
+        _CloudAmount ("Clouds", Range(0, 1)) = 0
+        _CloudBrightness ("Cloud brightness", Range(0, 3)) = 1.1
+        _CloudTerminator ("Clouds at the terminator", Color) = (1.0, 0.55, 0.3, 1)
         _LimbDarkening ("Limb darkening (giants)", Range(0, 1)) = 0
         _BandFlow ("Band flow, map widths a second (giants)", Float) = 0
     }
@@ -58,7 +64,8 @@ Shader "Custom/CelestialSurface_NEW"
             fixed4 _Color;
             float4 _SunPosition, _Night, _Terminator, _Haze, _City;
             float _Exposure, _Bump, _Regolith, _TerminatorAmount, _HazeAmount, _Ocean, _CityAmount;
-            float _CloudShadow, _LimbDarkening, _BandFlow;
+            float _CloudShadow, _LimbDarkening, _BandFlow, _CloudAmount, _CloudBrightness;
+            float4 _CloudTerminator;
 
             struct v2f
             {
@@ -147,6 +154,19 @@ Shader "Custom/CelestialSurface_NEW"
                     float clusters = smoothstep(0.58, 0.8, Triplanar(nObj * 6.0).r) * smoothstep(0.5, 0.9, Triplanar(nObj * 23.0).a);
                     float night = smoothstep(0.02, -0.18, nlSmooth);
                     lit += _City.rgb * clusters * land * night * _CityAmount;
+                }
+
+                // The clouds themselves: white by day, warm at the terminator, dark at night,
+                // thinning at a glance near the limb so the edge of the world stays soft.
+                if (_CloudAmount > 0.0)
+                {
+                    float cover = CloudCover(nObj) * _CloudAmount;
+                    float cloudDay = smoothstep(-0.12, 0.25, nlSmooth);
+                    float3 cloudSun = lerp(float3(1, 1, 1), _CloudTerminator.rgb, exp(-abs(nlSmooth) * 7.0));
+                    float cloudLit = saturate(nlSmooth * 0.7 + 0.35);
+                    float a = cover * smoothstep(0.0, 0.25, mu) * 0.92;
+                    float3 cloud = cloudSun * cloudLit * cloudDay * _CloudBrightness + _Night.rgb;
+                    lit = lerp(lit, cloud, a);
                 }
 
                 // The air seen over the ground towards the limb.
