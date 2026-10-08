@@ -157,7 +157,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5064956}
   m_LocalRotation: {x: 0.0002098, y: 0.70710677, z: 0.0002098, w: 0.70710677}
-  m_LocalPosition: {x: -68.31288, y: 0, z: -3.5382833}
+  m_LocalPosition: {x: 57.3919, y: 0, z: 37.2202}
   m_LocalScale: {x: 1.2680641, y: 1.2680641, z: 1.2680641}
   m_Children:
   - {fileID: 1239583982}
@@ -255,7 +255,7 @@ MonoBehaviour:
   kind: 0
   sun: {fileID: 1137653274}
   dayMap: {fileID: 2800000, guid: 1d3bf06271e5b69408a551115530eb1a, type: 3}
-  exposure: 1.35
+  exposure: 1.6
   relief: 3
   regolith: 0.85
   nightSide: {r: 0.004, g: 0.005, b: 0.009, a: 1}
@@ -117244,7 +117244,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 607276727}
   m_LocalRotation: {x: 0.1729799, y: 0.68562233, z: 0.1729799, w: 0.68562233}
-  m_LocalPosition: {x: 235.34369, y: 0, z: 311.915}
+  m_LocalPosition: {x: 284.6327, y: 0, z: -267.6973}
   m_LocalScale: {x: 5.7197785, y: 5.7197785, z: 5.7197785}
   m_Children:
   - {fileID: 1512666043}
@@ -117342,7 +117342,7 @@ MonoBehaviour:
   kind: 5
   sun: {fileID: 1137653274}
   dayMap: {fileID: 2800000, guid: 946a270d92a384c4a9e55c3bf743efbd, type: 3}
-  exposure: 1.25
+  exposure: 1.5
   relief: 0
   regolith: 0
   nightSide: {r: 0.004, g: 0.005, b: 0.009, a: 1}
@@ -173556,7 +173556,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 962492591}
   m_LocalRotation: {x: 0.5327281, y: 0.464974, z: 0.5327281, w: 0.464974}
-  m_LocalPosition: {x: 311.576, y: 0, z: -95.4665}
+  m_LocalPosition: {x: 229.5233, y: 0, z: -231.3277}
   m_LocalScale: {x: 5.838472, y: 5.838472, z: 5.838472}
   m_Children:
   - {fileID: 152715050}
@@ -173654,7 +173654,7 @@ MonoBehaviour:
   kind: 5
   sun: {fileID: 1137653274}
   dayMap: {fileID: 2800000, guid: 4b13a0227e1a24a4e9bbb13d3b734b76, type: 3}
-  exposure: 1.25
+  exposure: 1.5
   relief: 0
   regolith: 0
   nightSide: {r: 0.004, g: 0.005, b: 0.009, a: 1}
@@ -279352,7 +279352,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1585973278}
   m_LocalRotation: {x: 0.7069248, y: 0.01604237, z: 0.7069248, w: 0.01604237}
-  m_LocalPosition: {x: -10.650835, y: 0, z: 87.18435}
+  m_LocalPosition: {x: 87.7165, y: 0, z: -4.5136}
   m_LocalScale: {x: 2.2889168, y: 2.2889168, z: 2.2889168}
   m_Children:
   - {fileID: 2073440190}
@@ -279450,7 +279450,7 @@ MonoBehaviour:
   kind: 1
   sun: {fileID: 1137653274}
   dayMap: {fileID: 2800000, guid: d68096f12c9799747a7695af01586ca8, type: 3}
-  exposure: 1.1
+  exposure: 1.3
   relief: 0.3
   regolith: 0
   nightSide: {r: 0.004, g: 0.005, b: 0.009, a: 1}
@@ -279597,7 +279597,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1593210868}
   m_LocalRotation: {x: 0.14363396, y: 0.692365, z: 0.14363396, w: 0.692365}
-  m_LocalPosition: {x: 100, y: 0, z: 0}
+  m_LocalPosition: {x: 34.4735, y: 0, z: 93.87}
   m_LocalScale: {x: 2.3683214, y: 2.3683214, z: 2.3683214}
   m_Children:
   - {fileID: 1635182879}
@@ -279698,7 +279698,7 @@ MonoBehaviour:
   kind: 2
   sun: {fileID: 1137653274}
   dayMap: {fileID: 2800000, guid: 6033033c6b9bad5488dc0b8997fed78e, type: 3}
-  exposure: 1.3
+  exposure: 1.55
   relief: 1.2
   regolith: 0
   nightSide: {r: 0.004, g: 0.005, b: 0.009, a: 1}
@@ -304589,6 +304589,11 @@ MonoBehaviour:
   spikeLength: 0.3
   spikeAngle: 45
   streak: 0.6
+  hole: 0.35
+  holeRing: 1
+  lensing: 1
+  holeHaze: 0.06
+  jetOverHole: 0.12
   aimJetAt: {fileID: 0}
   jetLength: 2.6
   jetWidth: 0.035
@@ -304661,7 +304666,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1736098598}
   m_LocalRotation: {x: 0.0193118, y: 0.706843, z: 0.0193118, w: 0.706843}
-  m_LocalPosition: {x: 87.89585, y: 0, z: 172.24513}
+  m_LocalPosition: {x: 150.2066, y: 0, z: -121.7869}
   m_LocalScale: {x: 11.393655, y: 11.393655, z: 11.393655}
   m_Children:
   - {fileID: 584851559}
@@ -304759,7 +304764,7 @@ MonoBehaviour:
   kind: 4
   sun: {fileID: 1137653274}
   dayMap: {fileID: 2800000, guid: 6d41225b698436a439659a60c899f03d, type: 3}
-  exposure: 1.25
+  exposure: 1.5
   relief: 0
   regolith: 0
   nightSide: {r: 0.004, g: 0.005, b: 0.009, a: 1}
@@ -340569,7 +340574,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2035511617}
   m_LocalRotation: {x: 0.1634503, y: 0.6879564, z: 0.1634503, w: 0.6879564}
-  m_LocalPosition: {x: -244.95303, y: 0, z: 30.228352}
+  m_LocalPosition: {x: 205.9265, y: 0, z: -136.0515}
   m_LocalScale: {x: 10.196523, y: 10.196523, z: 10.196523}
   m_Children:
   - {fileID: 1063783172}
@@ -340668,7 +340673,7 @@ MonoBehaviour:
   kind: 4
   sun: {fileID: 1137653274}
   dayMap: {fileID: 2800000, guid: 88cbf88901209c34096f0bf23ddab387, type: 3}
-  exposure: 1.25
+  exposure: 1.5
   relief: 0
   regolith: 0
   nightSide: {r: 0.004, g: 0.005, b: 0.009, a: 1}
@@ -345598,9 +345603,19 @@ MonoBehaviour:
   m_GameObject: {fileID: 2059859076}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d3b3f8b3969044f89aa5416998a04014, type: 3}
+  m_Script: {fileID: 11500000, guid: 413068c56945489bb26cb514cd688315, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  photon: {fileID: 800000001}
+  sun: {fileID: 1137653274}
+  earth: {fileID: 1593210869}
+  earthLayerId: Earth
+  layerId: SolarSystem
+  earthPastGate: 1.8643
+  sunAside: 0.8
+  passClearance: 0.6
+  followPhoton: 1
+  pathDirection: {x: 0, y: 0, z: 1}
 --- !u!4 &2059859077
 Transform:
   m_ObjectHideFlags: 0
@@ -345609,7 +345624,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2059859076}
   m_LocalRotation: {x: -0, y: 0.28371835, z: -0, w: 0.95890766}
-  m_LocalPosition: {x: -8.4, y: 0.51, z: 751}
+  m_LocalPosition: {x: -8, y: 0, z: 739.5588}
   m_LocalScale: {x: 0.09999999, y: 0.099999994, z: 0.09999999}
   m_Children:
   - {fileID: 1137653274}
@@ -350996,7 +351011,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2107001000}
   m_LocalRotation: {x: 0.15419035, y: 0.69009084, z: 0.15419035, w: 0.69009084}
-  m_LocalPosition: {x: 112.46823, y: 0, z: 36.4672}
+  m_LocalPosition: {x: 116.7892, y: 0, z: -18.4183}
   m_LocalScale: {x: 1.5722612, y: 1.5722612, z: 1.5722612}
   m_Children:
   - {fileID: 2107001011}
@@ -351094,7 +351109,7 @@ MonoBehaviour:
   kind: 3
   sun: {fileID: 1137653274}
   dayMap: {fileID: 2800000, guid: 99723fe1a6c952c4e942aee29c6132be, type: 3}
-  exposure: 1.3
+  exposure: 1.55
   relief: 2.5
   regolith: 0.5
   nightSide: {r: 0.004, g: 0.005, b: 0.009, a: 1}
@@ -351305,7 +351320,7 @@ MonoBehaviour:
   kind: 0
   sun: {fileID: 1137653274}
   dayMap: {fileID: 2800000, guid: 1d3bf06271e5b69408a551115530eb1a, type: 3}
-  exposure: 1.35
+  exposure: 1.6
   relief: 3
   regolith: 0.85
   nightSide: {r: 0.004, g: 0.005, b: 0.009, a: 1}

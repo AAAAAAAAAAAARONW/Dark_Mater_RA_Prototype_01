@@ -30,6 +30,11 @@ using UnityEngine;
 /// stars (scale 80) going to the Solar System's (20) over the five seconds of that dive did
 /// exactly that. When two profiles' fields differ, the old field stays as it is and fades
 /// out while the new one, drawn in the shader's second star layer, fades in.
+///
+/// LATER: STAR BY STAR. Faded as a whole, the old field's stars all dimmed together — on the
+/// way into the Solar System, the Milky Way's starry sky simply went. Now each star goes out
+/// at its own moment over the crossfade (the shader's _StarFade), and the new field's come
+/// in the same way (_StarFade2): the sky thins out star by star.
 /// </summary>
 [DisallowMultipleComponent]
 [HierarchyBadge_NEW("NEBULA", "#4A94F2")]
@@ -61,6 +66,9 @@ public class NebulaResponder_NEW : LayerResponder_NEW
     bool _hasCurrent;
     float _nextBlend = -1f;
 
+    // How much of the old field is left, star by star, while crossfading; 1 otherwise.
+    float _outgoing = 1f;
+
     // Property ids, identical to the originals.
     static readonly int ColorDarkId = Shader.PropertyToID("_ColorDark");
     static readonly int ColorMidId = Shader.PropertyToID("_ColorMid");
@@ -80,6 +88,8 @@ public class NebulaResponder_NEW : LayerResponder_NEW
     static readonly int StarScale2Id = Shader.PropertyToID("_StarScale2");
     static readonly int StarThreshold2Id = Shader.PropertyToID("_StarThreshold2");
     static readonly int StarBrightness2Id = Shader.PropertyToID("_StarBrightness2");
+    static readonly int StarFadeId = Shader.PropertyToID("_StarFade");
+    static readonly int StarFade2Id = Shader.PropertyToID("_StarFade2");
     static readonly int AnimateId = Shader.PropertyToID("_Animate");
     static readonly int SpeedId = Shader.PropertyToID("_Speed");
 
@@ -98,7 +108,12 @@ public class NebulaResponder_NEW : LayerResponder_NEW
         BuildTargets();
     }
 
-    void OnDestroy() => RestoreSkybox();
+    void OnDestroy()
+    {
+        // The materials other than the skybox are the assets themselves: leave every star there.
+        WriteStarFades(1f, 1f);
+        RestoreSkybox();
+    }
 
     protected override TimedChannel_NEW SelectChannel(LayerProfile_NEW profile) => profile.timing.nebula;
 
@@ -126,6 +141,13 @@ public class NebulaResponder_NEW : LayerResponder_NEW
         if (_targets.Count == 0) return;
 
         if (_tween != null) { StopCoroutine(_tween); _tween = null; }
+        // Cut off mid-crossfade: what was left of the old field, all its stars dimmed by that much.
+        if (_outgoing < 1f)
+        {
+            _current.starBrightness *= _outgoing;
+            Write(_current);
+        }
+        WriteStarFades(1f, 1f);
         WriteIncomingStars(_current, 0f);
 
         NebulaState goal = FromProfile(np);
@@ -311,11 +333,35 @@ public class NebulaResponder_NEW : LayerResponder_NEW
         }
     }
 
+    /// <summary>
+    /// How far each field is through a crossfade, star by star (the shader's _StarFade and
+    /// _StarFade2): 1 every star there. Materials whose shader has no such fade are left alone.
+    /// </summary>
+    void WriteStarFades(float outgoing, float incoming)
+    {
+        _outgoing = outgoing;
+        for (int i = 0; i < _targets.Count; i++)
+        {
+            Material m = _targets[i];
+            if (m == null) continue;
+            if (m.HasProperty(StarFadeId)) m.SetFloat(StarFadeId, outgoing);
+            if (m.HasProperty(StarFade2Id)) m.SetFloat(StarFade2Id, incoming);
+        }
+    }
+
     /// <summary>True if every target can draw a second star layer to crossfade into.</summary>
     bool CanCrossfadeStars()
     {
         for (int i = 0; i < _targets.Count; i++)
             if (_targets[i] != null && !_targets[i].HasProperty(StarBrightness2Id)) return false;
+        return _targets.Count > 0;
+    }
+
+    /// <summary>True if every target's stars can go out one by one.</summary>
+    bool CanFadeStarByStar()
+    {
+        for (int i = 0; i < _targets.Count; i++)
+            if (_targets[i] != null && !(_targets[i].HasProperty(StarFadeId) && _targets[i].HasProperty(StarFade2Id))) return false;
         return _targets.Count > 0;
     }
 
@@ -329,9 +375,11 @@ public class NebulaResponder_NEW : LayerResponder_NEW
         float d = Mathf.Max(0.01f, duration);
         float elapsed = 0f;
 
-        // Different fields: the old one keeps its stars where they are and fades, the new
-        // one fades in on the second layer. See STARS ARE CROSSFADED on the class.
+        // Different fields: the old one keeps its stars where they are and they go out one by
+        // one, the new one's come in on the second layer. See STARS ARE CROSSFADED, and STAR
+        // BY STAR, on the class. A shader without the star-by-star fade dims them together.
         bool crossfade = !SameStarField(from, goal) && CanCrossfadeStars();
+        bool byStar = crossfade && CanFadeStarByStar();
 
         while (elapsed < d)
         {
@@ -340,7 +388,16 @@ public class NebulaResponder_NEW : LayerResponder_NEW
             float e = t * t * (3f - 2f * t);
 
             NebulaState now = Lerp(from, goal, e);
-            if (crossfade)
+            if (byStar)
+            {
+                now.starScale = from.starScale;
+                now.starThreshold = from.starThreshold;
+                now.starBrightness = from.starBrightness;
+                Write(now);
+                WriteStarFades(1f - e, e);
+                WriteIncomingStars(goal, goal.starBrightness);
+            }
+            else if (crossfade)
             {
                 now.starScale = from.starScale;
                 now.starThreshold = from.starThreshold;
@@ -356,6 +413,7 @@ public class NebulaResponder_NEW : LayerResponder_NEW
         }
 
         Write(goal);
+        WriteStarFades(1f, 1f);
         if (crossfade) WriteIncomingStars(goal, 0f);
         _tween = null;
     }

@@ -18,6 +18,13 @@ Shader "Custom/CelestialAtmosphere_NEW"
     // planet could be drawn over, and the air there is faint.)
     //
     // Premultiplied: it adds light, and dims the stars behind the limb a little. _Color fades it.
+    //
+    // LATER: NOT WHILE THE PLANET IS A FEW PIXELS. Growing out of a speck in the dive from the
+    // Milky Way, a planet is a ten-thousandth of its size, hundreds of units from the origin:
+    // the air is then thinner than a float can place a point by, and its density — exponential
+    // in the height — came out as noise, a different speck of light every frame. The air comes
+    // up as the planet grows from 6 to 16 pixels in radius (a band that thin is not seen
+    // before), and every point is worked out from the planet's centre, not the origin.
 
     Properties
     {
@@ -80,6 +87,11 @@ Shader "Custom/CelestialAtmosphere_NEW"
                 bool inside = dot(oc, oc) < ra * ra;
                 if ((face > 0) == inside) return 0;
 
+                // Nothing while the planet is a few pixels across (see LATER, above).
+                float pixels = rg / max(length(oc), 1e-6) * abs(unity_CameraProjection._m11) * _ScreenParams.y * 0.5;
+                float show = smoothstep(6.0, 16.0, pixels);
+                if (show <= 0.0) return 0;
+
                 // The ray through the air, stopping at the ground.
                 float b = dot(oc, d);
                 float disc = b * b - (dot(oc, oc) - ra * ra);
@@ -106,7 +118,7 @@ Shader "Custom/CelestialAtmosphere_NEW"
                 [unroll]
                 for (int k = 0; k < Samples; k++)
                 {
-                    float3 p = o + d * (t0 + (k + 0.5) * dt) - c;
+                    float3 p = oc + d * (t0 + (k + 0.5) * dt);
                     float r = length(p);
                     float density = exp(-(r - rg) / h);
                     float sunUp = dot(p / r, l);
@@ -121,7 +133,7 @@ Shader "Custom/CelestialAtmosphere_NEW"
                 float norm = 1.0 / (h * 12.0);
                 float3 rgb = light * norm * phase * _Strength;
                 float alpha = saturate(depth * norm * 0.25 * _Strength);
-                return fixed4(rgb * _Color.rgb, alpha * _Color.a);
+                return fixed4(rgb * _Color.rgb * show, alpha * _Color.a * show);
             }
             ENDCG
         }

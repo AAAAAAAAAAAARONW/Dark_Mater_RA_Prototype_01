@@ -20075,6 +20075,11 @@ MonoBehaviour:
   spikeLength: 0.3
   spikeAngle: 45
   streak: 0.6
+  hole: 0.35
+  holeRing: 1
+  lensing: 1
+  holeHaze: 0.06
+  jetOverHole: 0.12
   aimJetAt: {fileID: 275155976}
   jetLength: 4.06
   jetWidth: 0.032

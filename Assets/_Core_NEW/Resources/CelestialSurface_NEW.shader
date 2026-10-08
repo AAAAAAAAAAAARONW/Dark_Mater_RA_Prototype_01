@@ -20,6 +20,11 @@ Shader "Custom/CelestialSurface_NEW"
     // seen from its night side, as the journey mostly sees them with the Sun ahead, is a dim
     // disc with its markings and not a black hole in the stars.
     //
+    // LATER: BRIGHTER ALL ROUND. The fill was most of the night side's light and little of the
+    // day side's, and the sunlight stopped dead at the terminator: the planets read as dark,
+    // with black backs. The fill is now stronger and reaches the day side too, the sunlight
+    // wraps a little past the terminator, and the exposures went up a fifth.
+    //
     // Opaque. _Color fades it as WorldSwitcher_NEW fades a world. In Resources so a build has it.
 
     Properties
@@ -32,7 +37,7 @@ Shader "Custom/CelestialSurface_NEW"
         _Bump ("Relief", Range(0, 6)) = 2
         _Regolith ("Dusty-surface lighting (0 Lambert, 1 Lommel-Seeliger)", Range(0, 1)) = 0
         _Night ("Night side", Color) = (0.004, 0.005, 0.009, 1)
-        _Fill ("Fill from the camera's side", Color) = (0.07, 0.08, 0.11, 1)
+        _Fill ("Fill from the camera's side", Color) = (0.14, 0.15, 0.19, 1)
         _Terminator ("Terminator reddening", Color) = (1.0, 0.45, 0.2, 1)
         _TerminatorAmount ("Terminator reddening amount", Range(0, 1)) = 0
         [HDR] _Haze ("Air over the ground", Color) = (0.25, 0.5, 1.0, 1)
@@ -124,8 +129,8 @@ Shader "Custom/CelestialSurface_NEW"
                 float mu = saturate(dot(nSmooth, v));
                 float mu0 = saturate(nl);
 
-                // Lambert, or Lommel-Seeliger for dust.
-                float lambert = mu0;
+                // Lambert, wrapped a little past the terminator, or Lommel-Seeliger for dust.
+                float lambert = saturate((nl + 0.12) / 1.12);
                 float lommel = mu0 / (mu0 + mu + 1e-3) * 2.0;
                 float diffuse = lerp(lambert, lommel, _Regolith);
 
@@ -148,9 +153,9 @@ Shader "Custom/CelestialSurface_NEW"
                 float glint = pow(saturate(dot(nSmooth, h)), 140.0) * 2.5 + pow(saturate(dot(nSmooth, h)), 18.0) * 0.12;
                 float3 specular = sun * glint * ocean * (0.35 + fresnel) * day;
 
-                // The fill: brightest face on, falling off towards the limb, on the night side
-                // mostly (the day side has the Sun).
-                float fill = (0.35 + 0.65 * mu) * (1.0 - 0.7 * day);
+                // The fill: brightest face on, falling off towards the limb; on the night side
+                // most, but on the day side too, a little.
+                float fill = (0.45 + 0.55 * mu) * (1.0 - 0.45 * day);
                 float3 lit = albedo * sun * diffuse * _Exposure * (1.0 - shadow) + (_Night.rgb + _Fill.rgb * fill) * albedo;
                 lit += specular * (1.0 - shadow);
 

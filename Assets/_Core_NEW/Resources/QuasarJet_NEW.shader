@@ -49,6 +49,9 @@ Shader "Custom/QuasarJet_NEW"
         _EruptDecay ("Eruption blob fade, seconds", Float) = 2.5
         _MaxBright ("Brightest it gets", Float) = 5
         _Steps ("Slabs along a jet", Range(8, 48)) = 32
+        _HoleRadius ("Black hole radius (disc radii); 0 = none", Float) = 0
+        _HoleNear ("Hole gone within this far, x2 (disc radii)", Float) = 0.45
+        _HoleJet ("How much of the jet shows over the hole", Range(0, 1)) = 0.12
 
         // Set every frame by QuasarVFX_NEW.
         _Pace ("Clock rate", Float) = 1
@@ -82,7 +85,7 @@ Shader "Custom/QuasarJet_NEW"
             float4 _Extent;
             float _Length, _Width, _Side, _CounterJet, _Hollow, _SheathBright, _HeartCut, _StrandFloor;
             float _TwistTurns, _StrandFreq, _StrandFlow, _KnotCount, _KnotFlow, _EruptSpeed, _EruptDecay;
-            float _MaxBright, _Steps;
+            float _MaxBright, _Steps, _HoleRadius, _HoleNear, _HoleJet;
             float _Pace, _PaceOffset, _Bright, _FlareAge, _FlareGain;
             float4 _Core, _Sheath;
 
@@ -251,6 +254,17 @@ Shader "Custom/QuasarJet_NEW"
 
                 // Softly to a ceiling: end on, the heart adds up along the whole jet.
                 float3 light = _MaxBright * (1.0 - exp(-sum / _MaxBright)) * _Bright;
+
+                // Over the black hole's shadow the jet is held to a glimmer: looking down it, as
+                // the tutorial does, the whole jet adds up over the core and would fill the hole.
+                // The ray passes through the shadow where it comes within its radius of the middle.
+                if (_HoleRadius > 0.0)
+                {
+                    float miss = length(cross(ro, rd));
+                    float seen = saturate(length(ro) / max(_HoleNear, 1e-4) - 1.0) * step(0.0, -dot(ro, rd));
+                    float over = 1.0 - smoothstep(_HoleRadius * 0.95, _HoleRadius * 1.1, miss);
+                    light *= lerp(1.0, _HoleJet, over * seen);
+                }
 
                 // WorldSwitcher_NEW fades by scaling all four channels of _Color; additive, so
                 // rgb alone is the fade.

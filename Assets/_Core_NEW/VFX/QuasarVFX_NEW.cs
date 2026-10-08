@@ -140,9 +140,9 @@ public class QuasarVFX_NEW : MonoBehaviour
     [Header("Black hole")]
     [Tooltip("The black hole at the middle: its shadow's radius, as a fraction of the disc's. The " +
              "disc's inner edge is kept outside it (at 1.25 times this at least), as the gas's last " +
-             "orbit is. It is gone with the camera inside the core's glow, so the light can fly " +
-             "through. 0 = none: the core is a white-hot point, as before.")]
-    [Range(0f, 0.3f)] [SerializeField] float hole = 0.1f;
+             "orbit is. It goes as the camera comes within three of its radii, so the light can fly " +
+             "through without the frame going black. 0 = none: the core is a white-hot point, as before.")]
+    [Range(0f, 0.45f)] [SerializeField] float hole = 0.35f;
 
     [Tooltip("The thin ring of light round the hole's shadow.")]
     [Min(0f)] [SerializeField] float holeRing = 1f;
@@ -154,6 +154,10 @@ public class QuasarVFX_NEW : MonoBehaviour
     [Tooltip("How much of the core's glow lies over the hole, which is in front of it: a little, so " +
              "it reads as a hole in the light rather than a cut-out.")]
     [Range(0f, 1f)] [SerializeField] float holeHaze = 0.06f;
+
+    [Tooltip("How much of the jet nearer the camera shows over the hole. Looking down a jet, as the " +
+             "tutorial does, its whole length adds up over the core and would fill the hole with light.")]
+    [Range(0f, 1f)] [SerializeField] float jetOverHole = 0.12f;
 
     [Header("Jets")]
     [Tooltip("Lay the jets along the line through here and this — the light, in the tutorial, so it " +
@@ -322,6 +326,13 @@ public class QuasarVFX_NEW : MonoBehaviour
 
     /// <summary>The disc's inner edge, kept outside the hole's shadow.</summary>
     float InnerEdge => hole > 0f ? Mathf.Max(innerEdge, hole * 1.25f) : innerEdge;
+
+    /// <summary>
+    /// The hole is all there from twice this far from the middle (disc radii) and gone at this
+    /// far: one and a half of its radii, so it is gone before it fills the frame, and never
+    /// sooner than the core's glow, which the light flies through.
+    /// </summary>
+    float HoleNear => Mathf.Max(coreSize, hole * 1.5f);
 
     // ── Scripted ────────────────────────────────────────────────────────────
 
@@ -648,6 +659,7 @@ public class QuasarVFX_NEW : MonoBehaviour
         _core.SetFloat("_Shadow", holeOn ? 0f : shadow);
         _core.SetFloat("_Ring", photonRing);
         _core.SetFloat("_Hole", holeOn ? hole / Mathf.Max(coreSize, 1e-3f) : 0f);
+        _core.SetFloat("_HoleNear", HoleNear / Mathf.Max(coreSize, 1e-3f));
         _core.SetFloat("_HoleHaze", holeHaze);
         _core.SetFloat("_Spikes", spikes);
         _core.SetFloat("_SpikeLength", spikeLength);
@@ -658,7 +670,7 @@ public class QuasarVFX_NEW : MonoBehaviour
         _holePart.SetActive(holeOn);
         _hole.SetTexture("_Noise", noise);
         _hole.SetFloat("_Radius", hole);
-        _hole.SetFloat("_Near", coreSize);
+        _hole.SetFloat("_Near", HoleNear);
         _hole.SetFloat("_Ring", holeRing);
         _hole.SetColor("_RingColor", coreHot * 0.5f);
         _hole.SetFloat("_Lens", lensing);
@@ -675,6 +687,12 @@ public class QuasarVFX_NEW : MonoBehaviour
         bool jets = jetLength > 0f && jetBrightness > 0f;
         SetJet(_farJet, -1f, extent, jets, noise);
         SetJet(_nearJet, 1f, extent, jets, noise);
+        foreach (Material jet in new[] { _farJet, _nearJet })
+        {
+            jet.SetFloat("_HoleRadius", holeOn ? hole : 0f);
+            jet.SetFloat("_HoleNear", HoleNear);
+            jet.SetFloat("_HoleJet", jetOverHole);
+        }
         _farJetPart.localScale = extent;
         _nearJetPart.localScale = extent;
         _farJetPart.gameObject.SetActive(jets);
@@ -682,7 +700,7 @@ public class QuasarVFX_NEW : MonoBehaviour
 
         _matter.SetFloat("_Inner", inner);
         _matter.SetFloat("_HoleRadius", holeOn ? hole : 0f);
-        _matter.SetFloat("_HoleNear", coreSize);
+        _matter.SetFloat("_HoleNear", HoleNear);
         _matter.SetFloat("_Spin", spin);
         _matter.SetFloat("_Drift", emberDrift);
         _matter.SetColor("_Hot", hot * discBrightness);
