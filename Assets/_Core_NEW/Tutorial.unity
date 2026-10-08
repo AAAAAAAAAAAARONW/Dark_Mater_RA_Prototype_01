@@ -20053,18 +20053,18 @@ MonoBehaviour:
   shimmer: 0.35
   beaming: 0.5
   orbitalSpeed: 0.45
-  hot: {r: 2.6, g: 2, b: 1.2, a: 1}
-  middle: {r: 1.7, g: 0.42, b: 0.05, a: 1}
-  rim: {r: 0.5, g: 0.035, b: 0.015, a: 1}
+  hot: {r: 2, g: 2.1, b: 2.5, a: 1}
+  middle: {r: 2.2, g: 1.25, b: 0.4, a: 1}
+  rim: {r: 0.75, g: 0.14, b: 0.05, a: 1}
   dustColour: {r: 0.03, g: 0.01, b: 0.005, a: 1}
   discBrightness: 0.5
   gasSheets: 3
   gasReach: 2.6
   gasTilt: 14
-  gasInner: {r: 1, g: 0.16, b: 0.04, a: 1}
-  gasOuter: {r: 0.28, g: 0.03, b: 0.2, a: 1}
-  gasBrightness: 0.55
-  gasWisps: 0.85
+  gasInner: {r: 1, g: 0.3, b: 0.08, a: 1}
+  gasOuter: {r: 0.22, g: 0.07, b: 0.32, a: 1}
+  gasBrightness: 0.35
+  gasWisps: 0.7
   coreSize: 0.35
   coreHot: {r: 4, g: 3.7, b: 3.2, a: 1}
   coreGlow: {r: 1.1, g: 0.6, b: 0.25, a: 1}
@@ -20075,7 +20075,7 @@ MonoBehaviour:
   spikeLength: 0.3
   spikeAngle: 45
   streak: 0.6
-  hole: 0.35
+  hole: 0.2
   holeRing: 1
   lensing: 1
   holeHaze: 0.06
@@ -20083,24 +20083,24 @@ MonoBehaviour:
   aimJetAt: {fileID: 275155976}
   jetLength: 4.06
   jetWidth: 0.032
-  jetHeart: {r: 2.6, g: 2.9, b: 3.2, a: 1}
-  jetSheath: {r: 0.35, g: 0.55, b: 1.1, a: 1}
+  jetHeart: {r: 0.75, g: 0.9, b: 1.25, a: 1}
+  jetSheath: {r: 0.35, g: 0.55, b: 1.25, a: 1}
   jetBrightness: 1
   counterJet: 0.5
   hollow: 0.6
-  sheathBrightness: 0.35
+  sheathBrightness: 0.7
   filamentTurns: 1.5
   filamentSpeed: 0.02
   knots: 6
   knotSpeed: 0.05
-  jetCeiling: 5
+  jetCeiling: 3
   jetQuality: 32
   embers: 900
   hotSpots: 24
   jetClumps: 300
   clumpSpeed: {x: 0.02, y: 0.06}
   matterSizes: {x: 0.008, y: 0.015, z: 0.01}
-  matterBrightness: 0.7
+  matterBrightness: 0.5
   matterStreak: 0.6
   emberDrift: 0.3
   flicker: 0.15

@@ -190,7 +190,9 @@ Shader "Custom/QuasarSparks_NEW"
                 // On the screen plane, in units of depth (tangent of the angle off the axis).
                 float tanHalf = 1.0 / unity_CameraProjection._m11;
                 float2 motion = (viewVelocity.xy * depth + view.xy * viewVelocity.z) / max(depth * depth, 1e-6);
-                float streak = length(motion) * _Stretch;
+                // However fast it crosses the screen, no longer than a quarter of its height: one
+                // passing right by the camera was drawn as a line across the whole frame.
+                float streak = min(length(motion) * _Stretch, 0.5 * tanHalf);
                 float2 along = streak > 1e-7 ? motion / length(motion) : float2(1.0, 0.0);
                 float half_ = min(size * scale / max(depth, 1e-4), _MaxSize * tanHalf);
 
@@ -200,9 +202,14 @@ Shader "Custom/QuasarSparks_NEW"
                 float wide = max(half_, 1.5 * pixel);
                 colour *= half_ / wide;
                 float halfLength = wide + streak * 0.5;
+                // Its light spread along the streak, a little: a long streak is fainter.
+                colour *= sqrt(wide / halfLength);
 
                 float2 offset = (along * v.corner.x * halfLength + float2(-along.y, along.x) * v.corner.y * wide) * depth;
                 view.xy += offset;
+
+                // Right by the camera, faded out before it fills the frame.
+                colour *= smoothstep(0.004, 0.02, depth / max(scale, 1e-6));
 
                 // Behind the camera, or right on it: nothing.
                 if (depth < 1e-3) view = float3(0.0, 0.0, 1.0);

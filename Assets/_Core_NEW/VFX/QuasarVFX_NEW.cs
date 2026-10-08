@@ -4,7 +4,7 @@ using UnityEngine;
 /// <summary>
 /// A quasar, as the artists' impressions draw one, and alive: a black hole at its heart, its
 /// shadow edged by a thin ring of light with the far side of the disc bent round it; an accretion
-/// disc round it, yellow inside, orange, deep red at the rim, in rings of gas with dark lanes
+/// disc round it, blue-white inside, gold, orange-red at the rim, in rings of gas with dark lanes
 /// of dust between them, turning fast inside and slowly outside and drifting in, embers of
 /// hot gas orbiting in it and hot spots flaring near its inner edge; sheets of red and purple
 /// gas swirling round it in filaments; and two jets out along its axis, white at the heart,
@@ -40,6 +40,16 @@ using UnityEngine;
 /// SCRIPTED. WindUp() winds it up over windUpSeconds: everything turns and flows faster,
 /// brightens and flickers harder, the embers stretch into streaks. Erupt() erupts it, and
 /// lets a wind-up go. Calm() puts it back. The tutorial's C1, emission and reset call them.
+///
+/// LATER: AS A HOT DISC REALLY GLOWS. The disc was yellow at its inner edge and red outside it,
+/// one warm hue throughout, and the hole a third of the disc across: an opaque black ball with
+/// the core's diffraction spikes drawn over it. Now the colours follow the disc's temperature,
+/// hottest inside: blue-white at the inner edge, gold, orange-red at the rim (and beamed bluer
+/// on the side coming at the camera); the hole is a fifth of the disc, its inner edge just
+/// outside it as the last stable orbit is; the spikes go once the hole is big enough on screen
+/// to be seen as one; the lensed far side of the disc arches over the shadow as a band; the
+/// jets are brightest at their base and fade along their length; and the gas round it is
+/// dimmer, from orange inside to violet outside, with more haze between its filaments.
 ///
 /// IT FADES WITH ITS WORLD. Every shader takes _Color, which WorldSwitcher_NEW and the dives
 /// fade a world by, and it is built before WorldSwitcher_NEW gathers its groups' renderers
@@ -84,9 +94,9 @@ public class QuasarVFX_NEW : MonoBehaviour
     [Tooltip("The gas's speed at the inner edge, as a fraction of light's. Drives the beaming.")]
     [Range(0f, 0.9f)] [SerializeField] float orbitalSpeed = 0.45f;
 
-    [ColorUsage(false, true)] [SerializeField] Color hot = new Color(2.6f, 2f, 1.2f, 1f);
-    [ColorUsage(false, true)] [SerializeField] Color middle = new Color(1.7f, 0.42f, 0.05f, 1f);
-    [ColorUsage(false, true)] [SerializeField] Color rim = new Color(0.5f, 0.035f, 0.015f, 1f);
+    [ColorUsage(false, true)] [SerializeField] Color hot = new Color(2f, 2.1f, 2.5f, 1f);
+    [ColorUsage(false, true)] [SerializeField] Color middle = new Color(2.2f, 1.25f, 0.4f, 1f);
+    [ColorUsage(false, true)] [SerializeField] Color rim = new Color(0.75f, 0.14f, 0.05f, 1f);
     [SerializeField] Color dustColour = new Color(0.03f, 0.01f, 0.005f, 1f);
 
     [Tooltip("Up close the inner disc fills the frame; lower this there, so it is not all white.")]
@@ -102,13 +112,13 @@ public class QuasarVFX_NEW : MonoBehaviour
     [Tooltip("How much more each sheet is tilted off the disc than the one before, in degrees.")]
     [SerializeField] float gasTilt = 14f;
 
-    [ColorUsage(false, true)] [SerializeField] Color gasInner = new Color(1f, 0.16f, 0.04f, 1f);
-    [ColorUsage(false, true)] [SerializeField] Color gasOuter = new Color(0.28f, 0.03f, 0.2f, 1f);
+    [ColorUsage(false, true)] [SerializeField] Color gasInner = new Color(1f, 0.3f, 0.08f, 1f);
+    [ColorUsage(false, true)] [SerializeField] Color gasOuter = new Color(0.22f, 0.07f, 0.32f, 1f);
 
-    [Range(0f, 2f)] [SerializeField] float gasBrightness = 0.55f;
+    [Range(0f, 2f)] [SerializeField] float gasBrightness = 0.35f;
 
     [Tooltip("1 keeps only the gas's filaments; lower fills in a haze.")]
-    [Range(0f, 1f)] [SerializeField] float gasWisps = 0.85f;
+    [Range(0f, 1f)] [SerializeField] float gasWisps = 0.7f;
 
     [Header("Core")]
     [Tooltip("The core's glow, in disc radii.")]
@@ -142,7 +152,7 @@ public class QuasarVFX_NEW : MonoBehaviour
              "disc's inner edge is kept outside it (at 1.25 times this at least), as the gas's last " +
              "orbit is. It goes as the camera comes within three of its radii, so the light can fly " +
              "through without the frame going black. 0 = none: the core is a white-hot point, as before.")]
-    [Range(0f, 0.45f)] [SerializeField] float hole = 0.35f;
+    [Range(0f, 0.45f)] [SerializeField] float hole = 0.2f;
 
     [Tooltip("The thin ring of light round the hole's shadow.")]
     [Min(0f)] [SerializeField] float holeRing = 1f;
@@ -170,8 +180,8 @@ public class QuasarVFX_NEW : MonoBehaviour
     [Tooltip("Their width at the tip, as a fraction of their length.")]
     [Range(0.005f, 0.2f)] [SerializeField] float jetWidth = 0.035f;
 
-    [ColorUsage(false, true)] [SerializeField] Color jetHeart = new Color(2.6f, 2.9f, 3.2f, 1f);
-    [ColorUsage(false, true)] [SerializeField] Color jetSheath = new Color(0.35f, 0.55f, 1.1f, 1f);
+    [ColorUsage(false, true)] [SerializeField] Color jetHeart = new Color(0.75f, 0.9f, 1.25f, 1f);
+    [ColorUsage(false, true)] [SerializeField] Color jetSheath = new Color(0.35f, 0.55f, 1.25f, 1f);
 
     [Range(0f, 3f)] [SerializeField] float jetBrightness = 1f;
 
@@ -182,7 +192,7 @@ public class QuasarVFX_NEW : MonoBehaviour
              "it is a tunnel rather than a fog.")]
     [Range(0f, 0.95f)] [SerializeField] float hollow = 0.6f;
 
-    [Range(0f, 2f)] [SerializeField] float sheathBrightness = 0.5f;
+    [Range(0f, 2f)] [SerializeField] float sheathBrightness = 0.7f;
 
     [Tooltip("How many turns the filaments wind round a jet along its length.")]
     [SerializeField] float filamentTurns = 1.5f;
@@ -198,7 +208,7 @@ public class QuasarVFX_NEW : MonoBehaviour
     [SerializeField] float knotSpeed = 0.35f;
 
     [Tooltip("The brightest a jet gets, where it adds up end on.")]
-    [Min(0.5f)] [SerializeField] float jetCeiling = 5f;
+    [Min(0.5f)] [SerializeField] float jetCeiling = 3f;
 
     [Tooltip("Slabs a jet is cut into along its length, for adding up its light. More is smoother " +
              "end on, and costs more.")]
@@ -220,7 +230,7 @@ public class QuasarVFX_NEW : MonoBehaviour
     [Tooltip("Sizes in disc radii: ember, hot spot, jet clump.")]
     [SerializeField] Vector3 matterSizes = new Vector3(0.008f, 0.015f, 0.01f);
 
-    [Range(0f, 4f)] [SerializeField] float matterBrightness = 0.7f;
+    [Range(0f, 4f)] [SerializeField] float matterBrightness = 0.5f;
 
     [Tooltip("How long a moving particle's streak is, in seconds of its motion.")]
     [Min(0f)] [SerializeField] float matterStreak = 0.6f;

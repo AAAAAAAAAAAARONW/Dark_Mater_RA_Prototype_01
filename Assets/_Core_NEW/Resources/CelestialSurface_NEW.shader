@@ -25,6 +25,14 @@ Shader "Custom/CelestialSurface_NEW"
     // with black backs. The fill is now stronger and reaches the day side too, the sunlight
     // wraps a little past the terminator, and the exposures went up a fifth.
     //
+    // LATER: STEADY WHEN SMALL. Seen from afar a planet is a few pixels across, and what is
+    // finer than a pixel on it twinkled as it moved across the screen: the Sun's glint on
+    // Earth's oceans, a bright point under the bloom, and the city lights' specks. Both now
+    // follow how big the planet is on screen (TEXCOORD3): the glint widens and dims, keeping
+    // its light, until the planet is big enough to show it sharp, and the cities merge into a
+    // faint glow. And a body under two pixels across — the Moon, from far off — fades out
+    // rather than blink between pixels.
+    //
     // Opaque. _Color fades it as WorldSwitcher_NEW fades a world. In Resources so a build has it.
 
     Properties
@@ -82,6 +90,7 @@ Shader "Custom/CelestialSurface_NEW"
                 float2 uv     : TEXCOORD0;
                 float3 local  : TEXCOORD1;   // object space, on the sphere
                 float3 world  : TEXCOORD2;
+                float  pixels : TEXCOORD3;   // the planet's radius on screen, in pixels
             };
 
             v2f vert(appdata_base v)
@@ -91,6 +100,10 @@ Shader "Custom/CelestialSurface_NEW"
                 o.uv = TRANSFORM_TEX(v.texcoord, _MainTex);
                 o.local = v.vertex.xyz;
                 o.world = mul(unity_ObjectToWorld, v.vertex).xyz;
+                float3 centre = mul(unity_ObjectToWorld, float4(0, 0, 0, 1)).xyz;
+                float radius = length(mul((float3x3)unity_ObjectToWorld, v.vertex.xyz));
+                o.pixels = radius / max(length(centre - _WorldSpaceCameraPos), 1e-6)
+                         * abs(unity_CameraProjection._m11) * _ScreenParams.y * 0.5;
                 return o;
             }
 
@@ -150,7 +163,11 @@ Shader "Custom/CelestialSurface_NEW"
                 albedo = lerp(albedo, albedo * float3(0.55, 0.7, 0.85), ocean * 0.6);
                 float3 h = normalize(l + v);
                 float fresnel = 0.02 + 0.98 * pow(1.0 - saturate(dot(n, v)), 5.0);
-                float glint = pow(saturate(dot(nSmooth, h)), 140.0) * 2.5 + pow(saturate(dot(nSmooth, h)), 18.0) * 0.12;
+                // As sharp as the planet's size on screen lets it be, its light kept.
+                float nh = saturate(dot(nSmooth, h));
+                float sharp = clamp(i.pixels * i.pixels / 2.25, 4.0, 140.0);
+                float broad = min(sharp, 18.0);
+                float glint = pow(nh, sharp) * 2.5 * (sharp / 140.0) + pow(nh, broad) * 0.12 * (broad / 18.0);
                 float3 specular = sun * glint * ocean * (0.35 + fresnel) * day;
 
                 // The fill: brightest face on, falling off towards the limb; on the night side
@@ -164,6 +181,8 @@ Shader "Custom/CelestialSurface_NEW"
                 {
                     float land = saturate(1.0 - ocean * 3.0) * saturate(1.0 - (Luma(albedo) - 0.55) * 6.0);
                     float clusters = smoothstep(0.58, 0.8, Triplanar(nObj * 6.0).r) * smoothstep(0.5, 0.9, Triplanar(nObj * 23.0).a);
+                    // Too small to show them, a faint glow where they would be.
+                    clusters = lerp(0.04, clusters, smoothstep(25.0, 80.0, i.pixels));
                     float night = smoothstep(0.02, -0.18, nlSmooth);
                     lit += _City.rgb * clusters * land * night * _CityAmount;
                 }
@@ -187,6 +206,9 @@ Shader "Custom/CelestialSurface_NEW"
 
                 // Giants: darker towards the limb.
                 lit *= lerp(1.0, pow(max(mu, 0.02), 0.45), _LimbDarkening);
+
+                // Under two pixels across, gone rather than blinking between pixels.
+                lit *= smoothstep(0.6, 1.2, i.pixels);
 
                 return fixed4(lit * _Color.rgb, 1.0);
             }

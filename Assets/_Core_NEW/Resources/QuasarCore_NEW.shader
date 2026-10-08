@@ -19,6 +19,14 @@ Shader "Custom/QuasarCore_NEW"
     // _HoleHaze of itself, so the hole reads as a hole in the light and not as a cut-out. Its
     // own small shadow is then left off (the hole is the shadow).
     //
+    // LATER: A RESOLVED HOLE HAS NO POINT AND NO SPIKES. The white-hot point is the light of
+    // the inner disc and the jets' base unresolved, and the spikes and streak are what a lens
+    // draws round a point that bright. Once the black hole is big enough on screen to be seen
+    // as a hole, neither is there: the point is gone from inside the shadow entirely, and the
+    // spikes and streak fade out as the shadow grows from 3 to 12 pixels in radius — a cross
+    // drawn over a black hole read as a sticker on the picture. Far off, when the quasar is a
+    // point of light again, they are back.
+    //
     // Premultiplied alpha, so the glow adds light and the shadow blocks it. _Color fades it.
     // In Resources so a build always has it.
 
@@ -70,7 +78,7 @@ Shader "Custom/QuasarCore_NEW"
                 float4 pos    : SV_POSITION;
                 float2 core   : TEXCOORD0;   // in glow sizes from the middle
                 float2 screen : TEXCOORD1;   // in half screen heights from the middle
-                float3 flare  : TEXCOORD2;   // x: the flash, y: the spikes' length, z: how far off the camera is
+                float4 flare  : TEXCOORD2;   // x: the flash, y: the spikes' length, z: how far off the camera is, w: the spikes
             };
 
             v2f vert(float4 vertex : POSITION)
@@ -93,7 +101,7 @@ Shader "Custom/QuasarCore_NEW"
                 o.core = vertex.xy * extent / max(glow, 1e-6);
                 o.screen = vertex.xy * extent / halfScreen;
                 // 0 with the camera inside the glow, 1 from twice its size out. See the shadow.
-                o.flare = float3(flash, spikeLength, saturate(-view.z / max(glow, 1e-6) - 1.0));
+                o.flare = float4(flash, spikeLength, saturate(-view.z / max(glow, 1e-6) - 1.0), 1.0);
 
                 // The black hole is gone when it is down to a few pixels, as QuasarHole_NEW's
                 // is: from far off the core is a point of light again, not a ring.
@@ -103,6 +111,9 @@ Shader "Custom/QuasarCore_NEW"
                 {
                     float holePixels = _Hole * glow / halfScreen * _ScreenParams.y * 0.5;
                     o.flare.z = saturate(-view.z / max(glow * _HoleNear, 1e-6) - 1.0) * smoothstep(1.5, 4.0, holePixels);
+                    // Resolved, no spikes (see LATER, above); but the flash of an eruption
+                    // still throws them.
+                    o.flare.w = max(1.0 - smoothstep(3.0, 12.0, holePixels) * o.flare.z, saturate(flash * 2.0));
                 }
                 return o;
             }
@@ -133,7 +144,8 @@ Shader "Custom/QuasarCore_NEW"
                 if (_Hole > 0.0)
                 {
                     float outside = smoothstep(_Hole * 0.9, _Hole * 1.3, r);
-                    light *= lerp(1.0, lerp(_HoleHaze, 1.0, outside), i.flare.z);
+                    light = _Hot.rgb * (hot + ring * 0.6) * lerp(1.0, outside, i.flare.z)
+                          + (_Glow.rgb * glow + _Halo.rgb * halo) * lerp(1.0, lerp(_HoleHaze, 1.0, outside), i.flare.z);
                 }
 
                 float flash = i.flare.x;
@@ -142,8 +154,8 @@ Shader "Custom/QuasarCore_NEW"
                 float spikes = Spike(i.screen, a, spikeLength) + Spike(i.screen, a + 1.5708, spikeLength);
                 float streak = exp(-abs(i.screen.y) / 0.002) * (0.02 / (0.02 + abs(i.screen.x)))
                              * exp(-abs(i.screen.x) / (spikeLength * 1.6));
-                light += _Hot.rgb * spikes * _Spikes * 0.35
-                       + _Hot.rgb * float3(0.75, 0.85, 1.25) * streak * _Streak * 0.25;
+                light += (_Hot.rgb * spikes * _Spikes * 0.35
+                        + _Hot.rgb * float3(0.75, 0.85, 1.25) * streak * _Streak * 0.25) * i.flare.w;
 
                 light *= _Pulse * (1.0 + flash * 3.0) * _Bright;
 
