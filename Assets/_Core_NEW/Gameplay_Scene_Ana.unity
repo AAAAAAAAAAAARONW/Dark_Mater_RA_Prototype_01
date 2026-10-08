@@ -215120,9 +215120,9 @@ MonoBehaviour:
   brightness: 0.6
   depthGlow: 1
   sheetBulge: 0.55
-  gasFlow: 0.012
-  twinkle: 0.6
-  pulse: 0.6
+  gasFlow: 0.01
+  twinkle: 0.3
+  pulse: 0.35
   bulgeColour: {r: 1.6, g: 1.25, b: 0.85, a: 1}
   oldDisc: {r: 1, g: 0.78, b: 0.52, a: 1}
   youngStars: {r: 0.55, g: 0.7, b: 1.05, a: 1}
@@ -215136,9 +215136,9 @@ MonoBehaviour:
   bulgeStarCount: 600
   discStarCount: 8000
   globularCount: 150
-  supernovaCount: 24
+  supernovaCount: 6
   starSize: 0.0035
-  orbitalSpeed: 0.004
+  orbitalSpeed: 0.01
   youngStarColour: {r: 1.2, g: 1.4, b: 2, a: 1}
   bulgeStarColour: {r: 1.6, g: 1.2, b: 0.75, a: 1}
   discStarColour: {r: 0.27, g: 0.22, b: 0.16, a: 1}
@@ -345581,6 +345581,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2059859077}
+  - component: {fileID: 2059859078}
   m_Layer: 13
   m_Name: SolarSystem
   m_TagString: Untagged
@@ -345588,6 +345589,18 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
+--- !u!114 &2059859078
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2059859076}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3b3f8b3969044f89aa5416998a04014, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!4 &2059859077
 Transform:
   m_ObjectHideFlags: 0
@@ -351413,7 +351426,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &2108000011
 Transform:
   m_ObjectHideFlags: 0

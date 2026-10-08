@@ -15,7 +15,10 @@ Shader "Custom/CelestialSurface_NEW"
     //   gas       giants: limb darkening, and the bands flowing, faster at the equator
     //
     // Lighting: Lambert, blended for rocky bodies with Lommel-Seeliger, the law dusty regolith
-    // follows; a soft terminator, reddened on worlds with air.
+    // follows; a soft terminator, reddened on worlds with air. And a faint fill from the
+    // camera's side (_Fill) — the light a photograph would add, or starlight — so that a planet
+    // seen from its night side, as the journey mostly sees them with the Sun ahead, is a dim
+    // disc with its markings and not a black hole in the stars.
     //
     // Opaque. _Color fades it as WorldSwitcher_NEW fades a world. In Resources so a build has it.
 
@@ -29,6 +32,7 @@ Shader "Custom/CelestialSurface_NEW"
         _Bump ("Relief", Range(0, 6)) = 2
         _Regolith ("Dusty-surface lighting (0 Lambert, 1 Lommel-Seeliger)", Range(0, 1)) = 0
         _Night ("Night side", Color) = (0.004, 0.005, 0.009, 1)
+        _Fill ("Fill from the camera's side", Color) = (0.07, 0.08, 0.11, 1)
         _Terminator ("Terminator reddening", Color) = (1.0, 0.45, 0.2, 1)
         _TerminatorAmount ("Terminator reddening amount", Range(0, 1)) = 0
         [HDR] _Haze ("Air over the ground", Color) = (0.25, 0.5, 1.0, 1)
@@ -62,7 +66,7 @@ Shader "Custom/CelestialSurface_NEW"
             sampler2D _MainTex;
             float4 _MainTex_ST, _MainTex_TexelSize;
             fixed4 _Color;
-            float4 _SunPosition, _Night, _Terminator, _Haze, _City;
+            float4 _SunPosition, _Night, _Terminator, _Haze, _City, _Fill;
             float _Exposure, _Bump, _Regolith, _TerminatorAmount, _HazeAmount, _Ocean, _CityAmount;
             float _CloudShadow, _LimbDarkening, _BandFlow, _CloudAmount, _CloudBrightness;
             float4 _CloudTerminator;
@@ -144,7 +148,10 @@ Shader "Custom/CelestialSurface_NEW"
                 float glint = pow(saturate(dot(nSmooth, h)), 140.0) * 2.5 + pow(saturate(dot(nSmooth, h)), 18.0) * 0.12;
                 float3 specular = sun * glint * ocean * (0.35 + fresnel) * day;
 
-                float3 lit = albedo * sun * diffuse * _Exposure * (1.0 - shadow) + _Night.rgb * albedo;
+                // The fill: brightest face on, falling off towards the limb, on the night side
+                // mostly (the day side has the Sun).
+                float fill = (0.35 + 0.65 * mu) * (1.0 - 0.7 * day);
+                float3 lit = albedo * sun * diffuse * _Exposure * (1.0 - shadow) + (_Night.rgb + _Fill.rgb * fill) * albedo;
                 lit += specular * (1.0 - shadow);
 
                 // City lights on the night side, on land, in clusters.
@@ -165,7 +172,7 @@ Shader "Custom/CelestialSurface_NEW"
                     float3 cloudSun = lerp(float3(1, 1, 1), _CloudTerminator.rgb, exp(-abs(nlSmooth) * 7.0));
                     float cloudLit = saturate(nlSmooth * 0.7 + 0.35);
                     float a = cover * smoothstep(0.0, 0.25, mu) * 0.92;
-                    float3 cloud = cloudSun * cloudLit * cloudDay * _CloudBrightness + _Night.rgb;
+                    float3 cloud = cloudSun * cloudLit * cloudDay * _CloudBrightness + _Night.rgb + _Fill.rgb * fill * 0.8;
                     lit = lerp(lit, cloud, a);
                 }
 

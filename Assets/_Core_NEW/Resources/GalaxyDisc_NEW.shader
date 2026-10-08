@@ -16,8 +16,12 @@ Shader "Custom/GalaxyDisc_NEW"
     //                  lanes along the bar
     //
     // The arms are a density wave and are drawn in the frame that turns with the Sun, which is
-    // close to their corotation: in it they hardly move, and the Sun stays where it is. The
-    // stars GalaxyStars_NEW draws are what move.
+    // close to their corotation: in it they hardly move, and the Sun stays where it is. The gas
+    // and the stars GalaxyStars_NEW draws are what move — the same way and at the same rate
+    // when _Flow is GalaxyStars_NEW's _Speed. _FrameSpin adds back the Sun's own turn: at 1
+    // everything streams round one way through the still arms, faster inside, so the galaxy
+    // reads as turning; at 0 it is the Sun's frame, where the inside goes one way and the
+    // outside the other.
     //
     // Structure comes from QuasarNoise_NEW's texture in log-polar coordinates (stretched along
     // the spiral, as sheared gas is), with gradients that ignore atan2's seam.
@@ -47,6 +51,7 @@ Shader "Custom/GalaxyDisc_NEW"
         _Flow ("Gas flow along the orbits, radii a second", Float) = 0.012
         _Twinkle ("Star-forming regions and clusters flickering", Range(0, 1)) = 0.6
         _Pulse ("Waves of star formation running out along the arms", Range(0, 1)) = 0.6
+        _FrameSpin ("The Sun's own turn added back: 0 the Sun's frame, 1 all of it", Range(0, 1)) = 1
         _Warp ("Warp at the rim (of the radius)", Float) = 0.15
         _SheetBulge ("Bulge on the sheet (the volume adds its depth)", Range(0, 1)) = 0.55
         [HDR] _Core ("Bulge and bar", Color) = (1.6, 1.25, 0.85, 1)
@@ -77,7 +82,7 @@ Shader "Custom/GalaxyDisc_NEW"
 
             sampler2D _Noise;
             fixed4 _Color;
-            float _SunRadius, _Pitch, _ScaleLength, _Dust, _HII, _Sparkle, _Haze, _Brightness, _Flow, _Twinkle, _Pulse, _SheetBulge;
+            float _SunRadius, _Pitch, _ScaleLength, _Dust, _HII, _Sparkle, _Haze, _Brightness, _Flow, _Twinkle, _Pulse, _SheetBulge, _FrameSpin;
             float4 _ArmWidth, _ArmStrength, _Bar;
             float4 _Core, _Old, _Young, _OuterColor, _Pink;
             fixed4 _DustColor;
@@ -141,14 +146,15 @@ Shader "Custom/GalaxyDisc_NEW"
                 // so it is read twice, half a cycle apart, and crossfaded.
                 const float cycle = 30.0;
                 float ph = frac(_Time.y / cycle);
-                float drift = _Flow * (1.0 / r - 1.0 / _SunRadius) * cycle;
+                // The way the stars go (towards -az: the arms trail), at their rate.
+                float drift = _Flow * (1.0 / r - (1.0 - _FrameSpin) / _SunRadius) * cycle;
                 float4 n = 0, m = 0, fe = 0;
                 [unroll]
                 for (int k = 0; k < 2; k++)
                 {
                     float phase = k == 0 ? ph : frac(ph + 0.5);
                     float w = 1.0 - abs(phase * 2.0 - 1.0);   // weighted most mid-cycle; the two sum to 1
-                    float azF = az - drift * phase + k * 2.1;
+                    float azF = az + drift * phase + k * 2.1;
                     float2 uv = float2(azF / TAU * 4.0 + lnr * 0.9, lnr * 2.2 + azF / TAU);
                     float2 udx = float2(dAz.x / TAU * 4.0 + dLnr.x * 0.9, dLnr.x * 2.2 + dAz.x / TAU);
                     float2 udy = float2(dAz.y / TAU * 4.0 + dLnr.y * 0.9, dLnr.y * 2.2 + dAz.y / TAU);
@@ -195,11 +201,12 @@ Shader "Custom/GalaxyDisc_NEW"
 
                 // Star formation, and the stars.
                 float hii = smoothstep(0.56, 0.74, nf.r) * smoothstep(0.45, 0.8, m.b) * saturate(arm * 1.2) * _HII * (0.7 + 0.6 * wave * _Pulse);
-                // Each region and cluster flickering on its own clock.
-                hii *= lerp(1.0, 0.55 + 0.9 * (0.5 + 0.5 * sin(_Time.y * (0.8 + 2.0 * nf.g) + nf.b * 40.0)), _Twinkle);
+                // Each region and cluster brightening and dimming on its own slow clock — slow:
+                // at a second or so a cycle, hundreds of them read as the screen flickering.
+                hii *= lerp(1.0, 0.55 + 0.9 * (0.5 + 0.5 * sin(_Time.y * (0.15 + 0.35 * nf.g) + nf.b * 40.0)), _Twinkle);
                 float grain = 0.75 + 0.5 * ng.a;
                 float sparkle = smoothstep(0.64, 0.9, nf.a) * (saturate(arm) + 0.15 * disc) * _Sparkle;
-                sparkle *= lerp(1.0, 0.4 + 1.2 * (0.5 + 0.5 * sin(_Time.y * (2.0 + 5.0 * ng.r) + ng.g * 60.0)), _Twinkle);
+                sparkle *= lerp(1.0, 0.4 + 1.2 * (0.5 + 0.5 * sin(_Time.y * (0.25 + 0.6 * ng.r) + ng.g * 60.0)), _Twinkle);
 
                 float3 young = lerp(_OuterColor.rgb, _Young.rgb, lerp(1.0, 0.55, smoothstep(0.5, 1.0, r)));
                 float3 light = (_Core.rgb * (bulge * 1.4 + bar * 0.9) * _SheetBulge

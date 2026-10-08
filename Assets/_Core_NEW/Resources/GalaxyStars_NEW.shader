@@ -5,10 +5,13 @@ Shader "Custom/GalaxyStars_NEW"
     // the disc's warp (Galaxy_NEW.cginc), as the stars of the real one do.
     //
     //   0 young      born on the arms — where the density wave piles up gas, which is where
-    //                stars form — with a flash, then orbiting on the flat rotation curve (the
-    //                inside turns faster). The frame turns with the Sun, as the disc's arms are
-    //                drawn in: stars inside its orbit pull ahead of the arms, outside fall
-    //                behind. Each lives a while, fades, and is born again on an arm.
+    //                stars form — with a soft brightening, then orbiting on the flat rotation
+    //                curve (the inside turns faster), away from the arm they were born on.
+    //                Each lives a while, fades, and is born again on an arm.
+    //
+    // The arms hold still (the frame turns with the Sun). _FrameSpin adds the Sun's own turn
+    // back to every star, as GalaxyDisc_NEW does to the gas: at 1 everything goes round one way,
+    // faster inside, and the galaxy reads as turning.
     //   1 bulge      old, warm, on orbits stretched along the bar, in the peanut's thickness
     //   2 old disc   faint, warm, everywhere in the thick disc, thicker outward
     //   3 globular   clusters of old stars in the halo, round fuzzy points, slowly orbiting
@@ -26,6 +29,7 @@ Shader "Custom/GalaxyStars_NEW"
         _Bar ("Bar: angle (deg), length, width", Vector) = (27, 0.24, 0.075, 0)
         _Warp ("Warp at the rim (of the radius)", Float) = 0.15
         _Speed ("Orbital speed, radii a second (flat curve)", Float) = 0.02
+        _FrameSpin ("The Sun's own turn added back: 0 the Sun's frame, 1 all of it", Range(0, 1)) = 1
         _Size ("Star size (of the radius)", Float) = 0.0035
         _Thickness ("Young disc thickness (of the radius)", Float) = 0.012
         _OldThickness ("Old disc scale height at the centre, and its flare", Vector) = (0.028, 0.04, 0, 0)
@@ -57,7 +61,7 @@ Shader "Custom/GalaxyStars_NEW"
 
             sampler2D _Noise;
             fixed4 _Color;
-            float _SunRadius, _Pitch, _Speed, _Size, _Thickness, _MaxSize;
+            float _SunRadius, _Pitch, _Speed, _Size, _Thickness, _MaxSize, _FrameSpin;
             float4 _Bar, _OldThickness;
             float4 _Young, _OldStars, _DiscStars, _Globular, _Supernova;
 
@@ -93,7 +97,7 @@ Shader "Custom/GalaxyStars_NEW"
             }
 
             // The flat rotation curve, in the frame turning with the Sun.
-            float Omega(float r) { return _Speed / max(r, 0.04) - _Speed / _SunRadius; }
+            float Omega(float r) { return _Speed / max(r, 0.04) - (1.0 - _FrameSpin) * _Speed / _SunRadius; }
 
             v2f vert(appdata v)
             {
@@ -117,10 +121,11 @@ Shader "Custom/GalaxyStars_NEW"
                     float y = Gauss(frac(s1 * 9.1)) * _Thickness * 0.5;
                     position = float3(cos(angle) * r, y, sin(angle) * r);
 
-                    // Born with a flash, then a steady glow that fades as the star leaves its arm.
-                    float b = smoothstep(0.0, 0.02, age) * smoothstep(1.0, 0.6, age) * (1.0 + 4.0 * exp(-age * life / 0.9));
+                    // Born brightening softly — a flash on thousands of them reads as the screen
+                    // blinking — then a steady glow that fades as the star leaves its arm.
+                    float b = smoothstep(0.0, 0.06, age) * smoothstep(1.0, 0.6, age) * (1.0 + 1.2 * exp(-age * life / 2.5));
                     colour = _Young.rgb * b * (0.5 + 0.8 * frac(s1 * 31.7)) * smoothstep(1.0, 0.7, r);
-                    size *= (0.6 + 0.9 * frac(s0 * 17.3)) * (1.0 + 1.2 * exp(-age * life / 0.6));
+                    size *= (0.6 + 0.9 * frac(s0 * 17.3)) * (1.0 + 0.4 * exp(-age * life / 2.0));
                 }
                 else if (kind < 1.5)
                 {
@@ -166,12 +171,12 @@ Shader "Custom/GalaxyStars_NEW"
                     float y = Gauss(frac(s1 * 9.1)) * _Thickness * 0.3;
                     position = float3(cos(angle) * r, y, sin(angle) * r);
 
-                    float period = lerp(14.0, 40.0, s1);
+                    float period = lerp(45.0, 120.0, s1);   // rare: a supernova is an event
                     float since = frac(T / period + s0) * period;          // seconds since it went off
                     float flare = smoothstep(0.0, 0.12, since) * exp(-since / 1.1) + 0.25 * exp(-since / 4.0) * smoothstep(0.0, 0.12, since);
                     float3 tint = lerp(float3(1.0, 0.75, 0.45), float3(1.0, 1.0, 1.0), exp(-since / 1.5));
                     colour = _Supernova.rgb * tint * flare;
-                    size *= 1.0 + 10.0 * flare;
+                    size *= 1.0 + 6.0 * flare;
                     shape.x = saturate(flare * 3.0);
                 }
 

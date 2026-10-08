@@ -48,6 +48,9 @@ public class CelestialBody_NEW : MonoBehaviour
     [Tooltip("0 Lambert; 1 Lommel-Seeliger, the lighting of dusty regolith.")]
     [Range(0f, 1f)] [SerializeField] float regolith = 0.8f;
     [SerializeField] Color nightSide = new Color(0.004f, 0.005f, 0.009f, 1f);
+    [Tooltip("A faint light from the camera's side, so a planet seen from its night side is a dim " +
+             "disc with its markings rather than a black one. Black = off.")]
+    [SerializeField] Color fill = new Color(0.07f, 0.08f, 0.11f, 1f);
     [Range(0f, 1f)] [SerializeField] float terminatorReddening = 0f;
     [SerializeField] Color terminatorColour = new Color(1f, 0.45f, 0.2f, 1f);
     [Tooltip("The air seen over the ground towards the limb.")]
@@ -326,6 +329,7 @@ public class CelestialBody_NEW : MonoBehaviour
         _surface.SetFloat("_Bump", relief);
         _surface.SetFloat("_Regolith", regolith);
         _surface.SetColor("_Night", nightSide);
+        _surface.SetColor("_Fill", fill);
         _surface.SetColor("_Terminator", terminatorColour);
         _surface.SetFloat("_TerminatorAmount", terminatorReddening);
         _surface.SetColor("_Haze", hazeColour);
