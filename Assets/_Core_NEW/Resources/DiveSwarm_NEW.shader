@@ -8,6 +8,11 @@ Shader "Custom/DiveSwarm_NEW"
     // it while a cluster being left shrinks away, and slanting round it while the crowd turns
     // as it opens — so the ones streaming past read as streaks.
     //
+    // Never smaller on screen than MinPixels in radius: a member that small is drawn that big
+    // and dimmer by as much, the same light over more pixels. A glow under a pixel across
+    // lands on a pixel one frame and between pixels the next, and a crowd of them streaming
+    // past twinkles all over.
+    //
     // Additive, queue 2990: after the cosmic web's volumes, before the photon trail —
     // the members sit inside the web and behind the light, like the dive's own glow.
     // In Resources so a build always has it: LayerDive_NEW loads it by name.
@@ -41,6 +46,10 @@ Shader "Custom/DiveSwarm_NEW"
             #pragma fragment frag
             #include "UnityCG.cginc"
 
+            // The smallest a member is drawn, in pixels of radius. Its glow fades well inside
+            // its quad, so this is about a pixel and a half of light across.
+            #define MinPixels 2.0
+
             float  _Alpha, _Streak, _SizeScale, _Resolve, _Core, _Spin;
             float4 _NearFade;
 
@@ -67,7 +76,12 @@ Shader "Custom/DiveSwarm_NEW"
                 float3 origin = UnityObjectToViewPos(float3(0, 0, 0));
                 float  scale  = length(unity_ObjectToWorld._m00_m10_m20);
 
-                float2 offset = v.uv * v.size.x * scale * _SizeScale;
+                // Its radius, never under MinPixels on screen; dimmer by the area it gained.
+                float radius = v.size.x * scale * _SizeScale;
+                float pixel = 2.0 * max(-centre.z, 1e-3) / (abs(unity_CameraProjection._m11) * _ScreenParams.y);
+                float wide = max(radius, MinPixels * pixel);
+                float spread = (radius * radius) / max(wide * wide, 1e-12);
+                float2 offset = v.uv * wide;
 
                 // Stretch along the way the member moves on screen. It moves along its line
                 // through the crowd's centre, one way or the other; that line's direction on
@@ -98,7 +112,7 @@ Shader "Custom/DiveSwarm_NEW"
                 float resolved = lerp(1.0, saturate((len - 0.01) / 0.04), _Resolve);
 
                 o.color = v.color;
-                o.color.a *= near * resolved * _Alpha;
+                o.color.a *= near * resolved * spread * _Alpha;
                 return o;
             }
 
