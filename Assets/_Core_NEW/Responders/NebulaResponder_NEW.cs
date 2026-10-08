@@ -23,6 +23,13 @@ using UnityEngine;
 ///
 /// Material discovery uses sharedMaterials. The old code used Renderer.materials purely
 /// to read shader names, which clones a material for every renderer in the scene.
+///
+/// STARS ARE CROSSFADED, NOT BLENDED. A star is where a noise sampled at dir * starScale
+/// passes starThreshold. Tweening either samples a different stretch of noise every frame,
+/// so for the length of a blend every star on the sky blinks on and off — the Milky Way's
+/// stars (scale 80) going to the Solar System's (20) over the five seconds of that dive did
+/// exactly that. When two profiles' fields differ, the old field stays as it is and fades
+/// out while the new one, drawn in the shader's second star layer, fades in.
 /// </summary>
 [DisallowMultipleComponent]
 [HierarchyBadge_NEW("NEBULA", "#4A94F2")]
@@ -70,6 +77,9 @@ public class NebulaResponder_NEW : LayerResponder_NEW
     static readonly int StarTwinkleId = Shader.PropertyToID("_StarTwinkle");
     static readonly int StarTwinkleSpeedId = Shader.PropertyToID("_StarTwinkleSpeed");
     static readonly int StarTwinkleAmountId = Shader.PropertyToID("_StarTwinkleAmount");
+    static readonly int StarScale2Id = Shader.PropertyToID("_StarScale2");
+    static readonly int StarThreshold2Id = Shader.PropertyToID("_StarThreshold2");
+    static readonly int StarBrightness2Id = Shader.PropertyToID("_StarBrightness2");
     static readonly int AnimateId = Shader.PropertyToID("_Animate");
     static readonly int SpeedId = Shader.PropertyToID("_Speed");
 
@@ -116,6 +126,7 @@ public class NebulaResponder_NEW : LayerResponder_NEW
         if (_targets.Count == 0) return;
 
         if (_tween != null) { StopCoroutine(_tween); _tween = null; }
+        WriteIncomingStars(_current, 0f);
 
         NebulaState goal = FromProfile(np);
         float blend = requested > 0f ? requested : np.blendDuration;
@@ -283,22 +294,69 @@ public class NebulaResponder_NEW : LayerResponder_NEW
         _hasCurrent = true;
     }
 
+    /// <summary>
+    /// The second star layer: <paramref name="field"/>'s stars at <paramref name="brightness"/>.
+    /// 0 turns it off. Materials whose shader has no second layer are left alone.
+    /// </summary>
+    void WriteIncomingStars(NebulaState field, float brightness)
+    {
+        for (int i = 0; i < _targets.Count; i++)
+        {
+            Material m = _targets[i];
+            if (m == null || !m.HasProperty(StarBrightness2Id)) continue;
+
+            if (m.HasProperty(StarScale2Id)) m.SetFloat(StarScale2Id, field.starScale);
+            if (m.HasProperty(StarThreshold2Id)) m.SetFloat(StarThreshold2Id, field.starThreshold);
+            m.SetFloat(StarBrightness2Id, Mathf.Max(0f, brightness));
+        }
+    }
+
+    /// <summary>True if every target can draw a second star layer to crossfade into.</summary>
+    bool CanCrossfadeStars()
+    {
+        for (int i = 0; i < _targets.Count; i++)
+            if (_targets[i] != null && !_targets[i].HasProperty(StarBrightness2Id)) return false;
+        return _targets.Count > 0;
+    }
+
+    /// <summary>The same stars in the same places: only their brightness and colour may differ.</summary>
+    static bool SameStarField(NebulaState a, NebulaState b) =>
+        Mathf.Approximately(a.starScale, b.starScale) && Mathf.Approximately(a.starThreshold, b.starThreshold);
+
     IEnumerator TweenTo(NebulaState goal, float duration)
     {
         NebulaState from = _current;
         float d = Mathf.Max(0.01f, duration);
         float elapsed = 0f;
 
+        // Different fields: the old one keeps its stars where they are and fades, the new
+        // one fades in on the second layer. See STARS ARE CROSSFADED on the class.
+        bool crossfade = !SameStarField(from, goal) && CanCrossfadeStars();
+
         while (elapsed < d)
         {
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / d);
             float e = t * t * (3f - 2f * t);
-            Write(Lerp(from, goal, e));
+
+            NebulaState now = Lerp(from, goal, e);
+            if (crossfade)
+            {
+                now.starScale = from.starScale;
+                now.starThreshold = from.starThreshold;
+                now.starBrightness = from.starBrightness * (1f - e);
+                Write(now);
+                WriteIncomingStars(goal, goal.starBrightness * e);
+            }
+            else
+            {
+                Write(now);
+            }
             yield return null;
         }
 
         Write(goal);
+        if (crossfade) WriteIncomingStars(goal, 0f);
         _tween = null;
     }
 
