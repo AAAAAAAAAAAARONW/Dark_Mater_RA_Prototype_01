@@ -84,11 +84,11 @@ public class GalaxyVFX_NEW : MonoBehaviour
     [Header("Look")]
     [Range(0f, 2f)] [SerializeField] float dust = 1.1f;
     [Tooltip("The pink star-forming regions along the arms.")]
-    [Range(0f, 3f)] [SerializeField] float starFormation = 2.2f;
+    [Range(0f, 3f)] [SerializeField] float starFormation = 1.8f;
     [Tooltip("Young star clusters, as specks.")]
     [Range(0f, 2f)] [SerializeField] float clusters = 0.7f;
     [Tooltip("Light between the arms.")]
-    [Range(0f, 1f)] [SerializeField] float haze = 0.22f;
+    [Range(0f, 1f)] [SerializeField] float haze = 0.36f;
     [Range(0f, 3f)] [SerializeField] float brightness = 0.7f;
     [Tooltip("The volume's light: the peanut bulge, the thick disc, the halo.")]
     [Range(0f, 4f)] [SerializeField] float depthGlow = 1f;
@@ -108,11 +108,11 @@ public class GalaxyVFX_NEW : MonoBehaviour
              "turning; 0 the Sun's frame, the inside one way and the outside the other.")]
     [Range(0f, 1f)] [SerializeField] float frameSpin = 1f;
 
-    [ColorUsage(false, true)] [SerializeField] Color bulgeColour = new Color(1.6f, 1.25f, 0.85f, 1f);
-    [ColorUsage(false, true)] [SerializeField] Color oldDisc = new Color(1f, 0.78f, 0.52f, 1f);
-    [ColorUsage(false, true)] [SerializeField] Color youngStars = new Color(0.4f, 0.62f, 1.3f, 1f);
-    [ColorUsage(false, true)] [SerializeField] Color outerDisc = new Color(0.25f, 0.35f, 0.75f, 1f);
-    [ColorUsage(false, true)] [SerializeField] Color hiiRegions = new Color(2f, 0.35f, 0.8f, 1f);
+    [ColorUsage(false, true)] [SerializeField] Color bulgeColour = new Color(1.35f, 1f, 0.62f, 1f);
+    [ColorUsage(false, true)] [SerializeField] Color oldDisc = new Color(1f, 0.8f, 0.58f, 1f);
+    [ColorUsage(false, true)] [SerializeField] Color youngStars = new Color(0.7f, 0.8f, 1.05f, 1f);
+    [ColorUsage(false, true)] [SerializeField] Color outerDisc = new Color(0.5f, 0.55f, 0.78f, 1f);
+    [ColorUsage(false, true)] [SerializeField] Color hiiRegions = new Color(1.6f, 0.35f, 0.55f, 1f);
     [SerializeField] Color dustColour = new Color(0.05f, 0.03f, 0.025f, 1f);
     [ColorUsage(false, true)] [SerializeField] Color haloColour = new Color(0.35f, 0.38f, 0.5f, 1f);
 
@@ -133,10 +133,10 @@ public class GalaxyVFX_NEW : MonoBehaviour
     [Tooltip("Supernovae, each flaring now and then.")]
     [Range(0, 200)] [SerializeField] int supernovaCount = 24;
     [Tooltip("Their size, as a fraction of the radius. Never less than a pixel and a half on screen.")]
-    [Min(0f)] [SerializeField] float starSize = 0.0035f;
+    [Min(0f)] [SerializeField] float starSize = 0.0024f;
     [Tooltip("Orbital speed on the flat rotation curve, radii a second. Slow: it is a galaxy.")]
     [SerializeField] float orbitalSpeed = 0.02f;
-    [ColorUsage(false, true)] [SerializeField] Color youngStarColour = new Color(0.72f, 0.84f, 1.2f, 1f);
+    [ColorUsage(false, true)] [SerializeField] Color youngStarColour = new Color(1f, 1.08f, 1.3f, 1f);
     [ColorUsage(false, true)] [SerializeField] Color bulgeStarColour = new Color(1.6f, 1.2f, 0.75f, 1f);
     [ColorUsage(false, true)] [SerializeField] Color discStarColour = new Color(0.27f, 0.22f, 0.16f, 1f);
     [ColorUsage(false, true)] [SerializeField] Color globularColour = new Color(0.42f, 0.37f, 0.3f, 1f);

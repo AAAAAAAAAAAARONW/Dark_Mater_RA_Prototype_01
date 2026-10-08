@@ -23,6 +23,10 @@ Shader "Custom/GalaxyStars_NEW"
     // System dissolves the galaxy round the camera, its stars are left scattered through the
     // space it opens up and wink out one by one, rather than the whole field dimming together.
     //
+    // LATER: FEW BRIGHT, MANY FAINT. The young stars were all much as bright as each other,
+    // a glitter of even dots over the disc; their brightness now falls off steeply, as a
+    // galaxy's does, so a few stand out and most are a fine dust of light along the arms.
+    //
     // LATER: TWO PIXELS, NOT ONE AND A HALF. At a pixel and a half the glow is narrower than a
     // pixel, and a star sliding across the pixel grid — as all of them do while the dive turns
     // and magnifies the galaxy — is brighter on a pixel and dimmer between two: thousands of
@@ -132,7 +136,8 @@ Shader "Custom/GalaxyStars_NEW"
                     // Born brightening softly — a flash on thousands of them reads as the screen
                     // blinking — then a steady glow that fades as the star leaves its arm.
                     float b = smoothstep(0.0, 0.06, age) * smoothstep(1.0, 0.6, age) * (1.0 + 1.2 * exp(-age * life / 2.5));
-                    colour = _Young.rgb * b * (0.5 + 0.8 * frac(s1 * 31.7)) * smoothstep(1.0, 0.7, r);
+                    // Few bright, many faint, as stars are: a steep power of the seed.
+                    colour = _Young.rgb * b * (0.12 + 1.6 * pow(frac(s1 * 31.7), 4.0)) * smoothstep(1.0, 0.7, r);
                     size *= (0.6 + 0.9 * frac(s0 * 17.3)) * (1.0 + 0.4 * exp(-age * life / 2.0));
                 }
                 else if (kind < 1.5)

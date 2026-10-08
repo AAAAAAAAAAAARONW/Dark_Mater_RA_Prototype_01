@@ -222,7 +222,9 @@ Shader "Custom/QuasarJet_NEW"
                           / (sigmaS * SQRT_PI * (1.0 - _Hollow * 0.6)) * _SheathBright
                         : 0.0;
 
-                    float fall = pow(1.0 - s, 1.3) * smoothstep(0.0, 0.015, s);
+                    // Brightest at its base, where it is launched, fading out along it to a
+                    // long faint tail — not a beam of even light from end to end.
+                    float fall = (0.3 + 0.7 * exp(-s / 0.22)) * pow(1.0 - s, 1.2) * smoothstep(0.0, 0.015, s);
 
                     // Filaments wound round the axis, and the knots running out along it,
                     // averaged over the stretch of jet the segment covers so they never alias.

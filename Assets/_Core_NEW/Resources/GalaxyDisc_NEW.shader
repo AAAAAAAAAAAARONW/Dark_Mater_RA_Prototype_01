@@ -42,6 +42,12 @@ Shader "Custom/GalaxyDisc_NEW"
     // pixels had unrelated clocks and a change of mip level, as the zoom went on, reset them
     // all: a field of pixels blinking. It now comes from coarser noise, so a region keeps one
     // clock and the zoom leaves it alone.
+    //
+    // LATER: AS THE PHOTOGRAPHS SHOW ONE. The light between the arms was the young stars'
+    // blue, so the whole disc read as one pale blue: between the arms is mostly the old disc,
+    // warm, with only a little of the young light; now it is, and the arms stand out blue-
+    // white against it. And the star-forming regions were streaks of the sheared gas noise,
+    // scribbles: they are knots now, round, clustered where the gas is thick along the arms.
 
     Properties
     {
@@ -212,7 +218,10 @@ Shader "Custom/GalaxyDisc_NEW"
                             * (1.0 + 0.1 * sin(_Time.y * 0.55));   // the core breathing, slowly
 
                 // Star formation, and the stars.
-                float hii = smoothstep(0.56, 0.74, nf.r) * smoothstep(0.45, 0.8, m.b) * saturate(arm * 1.2) * _HII * (0.7 + 0.6 * wave * _Pulse);
+                // Knots, round, clustered where the arms' gas is thick.
+                float knots = smoothstep(0.56, 0.8, ng.r) * smoothstep(0.5, 0.74, ng.g) * smoothstep(0.42, 0.7, nf.r)
+                            * (0.4 + 0.6 * smoothstep(0.4, 0.7, m.b));
+                float hii = knots * saturate(arm * 1.2) * _HII * 1.4 * (0.7 + 0.6 * wave * _Pulse);
                 // Each region and cluster brightening and dimming on its own slow clock — slow:
                 // at a second or so a cycle, hundreds of them read as the screen flickering.
                 hii *= lerp(1.0, 0.55 + 0.9 * (0.5 + 0.5 * sin(_Time.y * (0.15 + 0.35 * nc.g) + nc.b * 25.0)), _Twinkle);
@@ -223,7 +232,8 @@ Shader "Custom/GalaxyDisc_NEW"
                 float3 young = lerp(_OuterColor.rgb, _Young.rgb, lerp(1.0, 0.55, smoothstep(0.5, 1.0, r)));
                 float3 light = (_Core.rgb * (bulge * 1.4 + bar * 0.9) * _SheetBulge
                               + _Old.rgb * disc * (1.0 - 0.5 * smoothstep(0.2, 0.6, r))
-                              + young * (arm * 0.9 + _Haze * exp(-r / 0.3) * edge)) * grain
+                              + young * arm * 0.9
+                              + lerp(_Old.rgb, young, 0.35) * _Haze * exp(-r / 0.32) * edge) * grain
                              + _Pink.rgb * hii * 1.1
                              + _Young.rgb * sparkle * 1.4;
 
@@ -235,7 +245,7 @@ Shader "Custom/GalaxyDisc_NEW"
                 float slant = min(length(toCamera) / max(abs(toCamera.y), 1e-4), 8.0) / 1.84;
                 float through = pow(1.0 - saturate(dust * 0.85), slant);
                 float hide = 1.0 - through;
-                light *= sqrt(slant);
+                light *= sqrt(min(slant, 2.5));   // not to a hard bright line along the far rim
                 float3 premultiplied = (light * through + _DustColor.rgb * hide) * _Brightness;
                 float alpha = hide * 0.8;
 

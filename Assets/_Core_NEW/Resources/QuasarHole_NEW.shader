@@ -18,6 +18,14 @@ Shader "Custom/QuasarHole_NEW"
     // gas turning at its inner edge, and brighter on the side whose gas comes towards the
     // camera (beaming), as the disc is.
     //
+    // LATER: THE ARC AS THE PICTURES DRAW IT. It was a soft glow fading out from the ring, and
+    // read as a haze round the shadow. Now it is a band with edges: from just outside the
+    // photon ring — where the disc's inner edge is lensed to — out to a little past it face
+    // on, and towards edge on out to half as far again as the shadow over the top, where it
+    // is brightest, and a thinner, dimmer one under the bottom (the image of the disc's
+    // underside); brightest along its inner edge, in the disc's own hot colour, cooling
+    // outward.
+    //
     // Flying into the core (the tutorial does), the hole goes before the camera reaches it, as
     // the core's own shadow does: inside the core's glow there is no hole, just the light. And
     // far off, when it is down to a few pixels — the journey's quasar shrinks into a point as
@@ -143,15 +151,21 @@ Shader "Custom/QuasarHole_NEW"
                 float width = max(0.035, aa * 1.5);
                 float ring = exp(-Sq((r - 1.0) / width)) * _Ring * (0.85 + 0.3 * beam);
 
-                // The arc: the far side of the disc, lifted round the shadow. Edge on it gathers
-                // over the top and under the bottom, across the disc's line; face on it is a
-                // thin even ring. The gas in it turns at the disc's inner edge.
-                float across = abs(dot(dir, i.axis.xy));
+                // The arc: the far side of the disc, lifted round the shadow (see LATER, above).
+                // The gas in it turns at the disc's inner edge.
+                float up = dot(dir, i.axis.xy);            // 1 over the top, -1 under the bottom
+                float across = abs(up);
                 float edgeOn = i.axis.z;
-                float gather = lerp(0.55, 0.25 + 1.1 * across * across, edgeOn);
-                float side = dot(dir, i.axis.xy) > 0.0 ? 1.0 : 0.65;   // the top arc fuller than the bottom
-                float thick = lerp(0.18, 0.42, edgeOn) * lerp(0.6, 1.0, across);
-                float band = smoothstep(1.02, 1.07, r) * exp(-max(r - 1.07, 0.0) / max(thick, 1e-3));
+                float top = up > 0.0 ? 1.0 : 0.0;
+                float lift = edgeOn * across * across;
+                float inner = 1.04 + aa;
+                float outer = 1.0 + lerp(0.14, lerp(0.24, 0.42, top), lift);
+                float place = saturate((r - inner) / max(outer - inner, 1e-3));   // 0 its inner edge, 1 its outer
+                float band = smoothstep(inner - aa, inner + max(aa, 0.02), r)
+                           * (1.0 - smoothstep(outer - (outer - inner) * 0.45, outer + aa, r));
+                float gather = lerp(0.6, lerp(0.45, 1.3, top) * (0.3 + 0.7 * across), edgeOn);
+                float side = 1.0;
+                band *= lerp(1.0, 0.55, place);           // brightest along its inner edge
 
                 float a = atan2(dir.y, dir.x);
                 float u = a / TAU * 3.0 - T * _Spin * 0.5 + _Seed * 0.173;
@@ -160,7 +174,7 @@ Shader "Custom/QuasarHole_NEW"
                 float streak = 0.45 + 0.55 * smoothstep(0.3, 0.75, gas.r);
 
                 float arc = band * gather * side * streak * _Lens * beam;
-                float3 arcColour = lerp(_ArcHot.rgb, _ArcMid.rgb, smoothstep(1.05, 1.6, r));
+                float3 arcColour = lerp(_ArcHot.rgb, _ArcMid.rgb, smoothstep(0.15, 1.0, place));
 
                 float3 light = (_RingColor.rgb * ring + arcColour * arc) * _Pulse * _Bright * (1.0 + 2.0 * flash);
 

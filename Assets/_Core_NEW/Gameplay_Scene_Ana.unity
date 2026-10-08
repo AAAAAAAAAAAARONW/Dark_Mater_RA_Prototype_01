@@ -157,7 +157,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5064956}
   m_LocalRotation: {x: 0.0002098, y: 0.70710677, z: 0.0002098, w: 0.70710677}
-  m_LocalPosition: {x: 57.3919, y: 0, z: 37.2202}
+  m_LocalPosition: {x: -26.3096, y: 0, z: 63.1425}
   m_LocalScale: {x: 1.2680641, y: 1.2680641, z: 1.2680641}
   m_Children:
   - {fileID: 1239583982}
@@ -50554,7 +50554,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 327048402}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 1.12, y: 0.71, z: 743.6}
+  m_LocalPosition: {x: 0, y: 0, z: 743.6}
   m_LocalScale: {x: 87.16527, y: 87.16527, z: 0.5375968}
   m_Children: []
   m_Father: {fileID: 835137349}
@@ -117244,7 +117244,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 607276727}
   m_LocalRotation: {x: 0.1729799, y: 0.68562233, z: 0.1729799, w: 0.68562233}
-  m_LocalPosition: {x: 284.6327, y: 0, z: -267.6973}
+  m_LocalPosition: {x: -371.2106, y: 0, z: -121.9849}
   m_LocalScale: {x: 5.7197785, y: 5.7197785, z: 5.7197785}
   m_Children:
   - {fileID: 1512666043}
@@ -173556,7 +173556,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 962492591}
   m_LocalRotation: {x: 0.5327281, y: 0.464974, z: 0.5327281, w: 0.464974}
-  m_LocalPosition: {x: 229.5233, y: 0, z: -231.3277}
+  m_LocalPosition: {x: -158.1017, y: 0, z: -284.9514}
   m_LocalScale: {x: 5.838472, y: 5.838472, z: 5.838472}
   m_Children:
   - {fileID: 152715050}
@@ -215114,20 +215114,20 @@ MonoBehaviour:
   warp: 0.15
   thickness: {x: 0.028, y: 0.04}
   dust: 0.85
-  starFormation: 1.3
+  starFormation: 1.8
   clusters: 0.7
-  haze: 0.32
+  haze: 0.36
   brightness: 0.6
   depthGlow: 1
   sheetBulge: 0.55
   gasFlow: 0.01
   twinkle: 0.3
   pulse: 0.35
-  bulgeColour: {r: 1.6, g: 1.25, b: 0.85, a: 1}
-  oldDisc: {r: 1, g: 0.78, b: 0.52, a: 1}
-  youngStars: {r: 0.55, g: 0.7, b: 1.05, a: 1}
-  outerDisc: {r: 0.3, g: 0.38, b: 0.62, a: 1}
-  hiiRegions: {r: 1.7, g: 0.42, b: 0.75, a: 1}
+  bulgeColour: {r: 1.35, g: 1, b: 0.62, a: 1}
+  oldDisc: {r: 1, g: 0.8, b: 0.58, a: 1}
+  youngStars: {r: 0.7, g: 0.8, b: 1.05, a: 1}
+  outerDisc: {r: 0.5, g: 0.55, b: 0.78, a: 1}
+  hiiRegions: {r: 1.6, g: 0.35, b: 0.55, a: 1}
   dustColour: {r: 0.05, g: 0.03, b: 0.025, a: 1}
   haloColour: {r: 0.35, g: 0.38, b: 0.5, a: 1}
   bulgeSize: 0.16
@@ -215137,9 +215137,9 @@ MonoBehaviour:
   discStarCount: 8000
   globularCount: 150
   supernovaCount: 6
-  starSize: 0.0035
+  starSize: 0.0024
   orbitalSpeed: 0.01
-  youngStarColour: {r: 1.2, g: 1.4, b: 2, a: 1}
+  youngStarColour: {r: 1, g: 1.08, b: 1.3, a: 1}
   bulgeStarColour: {r: 1.6, g: 1.2, b: 0.75, a: 1}
   discStarColour: {r: 0.27, g: 0.22, b: 0.16, a: 1}
   globularColour: {r: 0.42, g: 0.37, b: 0.3, a: 1}
@@ -279352,7 +279352,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1585973278}
   m_LocalRotation: {x: 0.7069248, y: 0.01604237, z: 0.7069248, w: 0.01604237}
-  m_LocalPosition: {x: 87.7165, y: 0, z: -4.5136}
+  m_LocalPosition: {x: 20.8951, y: 0, z: -85.3109}
   m_LocalScale: {x: 2.2889168, y: 2.2889168, z: 2.2889168}
   m_Children:
   - {fileID: 2073440190}
@@ -304567,18 +304567,18 @@ MonoBehaviour:
   shimmer: 0.35
   beaming: 0.5
   orbitalSpeed: 0.45
-  hot: {r: 2.6, g: 2, b: 1.2, a: 1}
-  middle: {r: 1.7, g: 0.42, b: 0.05, a: 1}
-  rim: {r: 0.5, g: 0.035, b: 0.015, a: 1}
+  hot: {r: 2, g: 2.1, b: 2.5, a: 1}
+  middle: {r: 2.2, g: 1.25, b: 0.4, a: 1}
+  rim: {r: 0.75, g: 0.14, b: 0.05, a: 1}
   dustColour: {r: 0.03, g: 0.01, b: 0.005, a: 1}
   discBrightness: 0.8
   gasSheets: 3
   gasReach: 2.6
   gasTilt: 14
-  gasInner: {r: 1, g: 0.16, b: 0.04, a: 1}
-  gasOuter: {r: 0.28, g: 0.03, b: 0.2, a: 1}
-  gasBrightness: 0.55
-  gasWisps: 0.85
+  gasInner: {r: 1, g: 0.3, b: 0.08, a: 1}
+  gasOuter: {r: 0.22, g: 0.07, b: 0.32, a: 1}
+  gasBrightness: 0.35
+  gasWisps: 0.7
   coreSize: 0.35
   coreHot: {r: 4, g: 3.7, b: 3.2, a: 1}
   coreGlow: {r: 1.1, g: 0.6, b: 0.25, a: 1}
@@ -304589,32 +304589,32 @@ MonoBehaviour:
   spikeLength: 0.3
   spikeAngle: 45
   streak: 0.6
-  hole: 0.35
+  hole: 0.2
   holeRing: 1
   lensing: 1
   holeHaze: 0.06
   jetOverHole: 0.12
   aimJetAt: {fileID: 0}
-  jetLength: 2.6
+  jetLength: 1.9
   jetWidth: 0.035
-  jetHeart: {r: 2.6, g: 2.9, b: 3.2, a: 1}
-  jetSheath: {r: 0.35, g: 0.55, b: 1.1, a: 1}
+  jetHeart: {r: 0.75, g: 0.9, b: 1.25, a: 1}
+  jetSheath: {r: 0.35, g: 0.55, b: 1.25, a: 1}
   jetBrightness: 1
   counterJet: 0.5
   hollow: 0.6
-  sheathBrightness: 0.5
+  sheathBrightness: 0.7
   filamentTurns: 1.5
   filamentSpeed: 0.15
   knots: 6
   knotSpeed: 0.35
-  jetCeiling: 5
+  jetCeiling: 3
   jetQuality: 32
   embers: 900
   hotSpots: 24
   jetClumps: 300
   clumpSpeed: {x: 0.25, y: 0.6}
   matterSizes: {x: 0.008, y: 0.015, z: 0.01}
-  matterBrightness: 0.7
+  matterBrightness: 0.5
   matterStreak: 0.6
   emberDrift: 0.3
   flicker: 0.15
@@ -304666,7 +304666,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1736098598}
   m_LocalRotation: {x: 0.0193118, y: 0.706843, z: 0.0193118, w: 0.706843}
-  m_LocalPosition: {x: 150.2066, y: 0, z: -121.7869}
+  m_LocalPosition: {x: -175.8319, y: 0, z: 80.4812}
   m_LocalScale: {x: 11.393655, y: 11.393655, z: 11.393655}
   m_Children:
   - {fileID: 584851559}
@@ -345609,11 +345609,15 @@ MonoBehaviour:
   photon: {fileID: 800000001}
   sun: {fileID: 1137653274}
   earth: {fileID: 1593210869}
+  earthGate: {fileID: 800000016}
   earthLayerId: Earth
   layerId: SolarSystem
-  earthPastGate: 1.8643
   sunAside: 0.8
+  passBy:
+  - {fileID: 2035511618}
+  - {fileID: 2107001001}
   passClearance: 0.6
+  keepClear: 4
   followPhoton: 1
   pathDirection: {x: 0, y: 0, z: 1}
 --- !u!4 &2059859077
@@ -345624,7 +345628,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2059859076}
   m_LocalRotation: {x: -0, y: 0.28371835, z: -0, w: 0.95890766}
-  m_LocalPosition: {x: -8, y: 0, z: 739.5588}
+  m_LocalPosition: {x: -8, y: 0, z: 737.6}
   m_LocalScale: {x: 0.09999999, y: 0.099999994, z: 0.09999999}
   m_Children:
   - {fileID: 1137653274}
@@ -351011,7 +351015,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2107001000}
   m_LocalRotation: {x: 0.15419035, y: 0.69009084, z: 0.15419035, w: 0.69009084}
-  m_LocalPosition: {x: 116.7892, y: 0, z: -18.4183}
+  m_LocalPosition: {x: 111.4514, y: 0, z: -39.4655}
   m_LocalScale: {x: 1.5722612, y: 1.5722612, z: 1.5722612}
   m_Children:
   - {fileID: 2107001011}

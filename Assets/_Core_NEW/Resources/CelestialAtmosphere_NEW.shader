@@ -25,6 +25,16 @@ Shader "Custom/CelestialAtmosphere_NEW"
     // in the height — came out as noise, a different speck of light every frame. The air comes
     // up as the planet grows from 6 to 16 pixels in radius (a band that thin is not seen
     // before), and every point is worked out from the planet's centre, not the origin.
+    //
+    // LATER STILL: STEADY AT ANY SIZE. The band of air at the limb is a fortieth of the
+    // radius: under a pixel wide until the planet is forty pixels across, it landed on pixels
+    // and missed them as the planet moved, and Earth's limb twinkled. It now comes up from 24
+    // to 64 pixels in radius, where the band is wide enough to draw. And the ray each pixel
+    // looks along is the camera's offset to the shell, interpolated, rather than the shell's
+    // world position less the camera's: hundreds of units out, those positions are a float's
+    // step apart by more than the air's own thickness, and each pixel's ray came out a little
+    // different every frame. Where a ray passes the planet is measured square to it, not as
+    // the difference of two large squares.
 
     Properties
     {
@@ -60,7 +70,7 @@ Shader "Custom/CelestialAtmosphere_NEW"
             struct v2f
             {
                 float4 pos   : SV_POSITION;
-                float3 world : TEXCOORD0;
+                float3 ray   : TEXCOORD0;   // from the camera to the shell, world space
             };
 
             v2f vert(appdata_base v)
@@ -71,7 +81,7 @@ Shader "Custom/CelestialAtmosphere_NEW"
                 float distance = max(length(fromCamera), 1e-5);
                 float pulled = max(distance - _Radii.x, _ProjectionParams.y * 2.0);
                 o.pos = mul(UNITY_MATRIX_VP, float4(_WorldSpaceCameraPos + fromCamera * (min(pulled, distance) / distance), 1.0));
-                o.world = world;
+                o.ray = fromCamera;
                 return o;
             }
 
@@ -80,7 +90,7 @@ Shader "Custom/CelestialAtmosphere_NEW"
                 float3 c = _Centre.xyz;
                 float rg = _Radii.x, ra = _Radii.y;
                 float3 o = _WorldSpaceCameraPos;
-                float3 d = normalize(i.world - o);
+                float3 d = normalize(i.ray);
                 float3 oc = o - c;
 
                 // Only the face the camera looks through first: outside, the near side; inside, the far.
@@ -89,16 +99,18 @@ Shader "Custom/CelestialAtmosphere_NEW"
 
                 // Nothing while the planet is a few pixels across (see LATER, above).
                 float pixels = rg / max(length(oc), 1e-6) * abs(unity_CameraProjection._m11) * _ScreenParams.y * 0.5;
-                float show = smoothstep(6.0, 16.0, pixels);
+                float show = smoothstep(24.0, 64.0, pixels);
                 if (show <= 0.0) return 0;
 
                 // The ray through the air, stopping at the ground.
                 float b = dot(oc, d);
-                float disc = b * b - (dot(oc, oc) - ra * ra);
+                float3 across = oc - d * b;   // from the centre to where the ray passes nearest
+                float miss2 = dot(across, across);
+                float disc = ra * ra - miss2;
                 if (disc <= 0.0) return 0;
                 float s = sqrt(disc);
                 float t0 = max(-b - s, 0.0), t1 = -b + s;
-                float discG = b * b - (dot(oc, oc) - rg * rg);
+                float discG = rg * rg - miss2;
                 if (discG > 0.0)
                 {
                     float tg = -b - sqrt(discG);
