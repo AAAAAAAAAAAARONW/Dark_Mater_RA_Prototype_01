@@ -2,7 +2,8 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// A quasar, as the artists' impressions draw one, and alive: a white-hot core; an accretion
+/// A quasar, as the artists' impressions draw one, and alive: a black hole at its heart, its
+/// shadow edged by a thin ring of light with the far side of the disc bent round it; an accretion
 /// disc round it, yellow inside, orange, deep red at the rim, in rings of gas with dark lanes
 /// of dust between them, turning fast inside and slowly outside and drifting in, embers of
 /// hot gas orbiting in it and hot spots flaring near its inner edge; sheets of red and purple
@@ -23,7 +24,13 @@ using UnityEngine;
 ///          brighter.
 ///   gas    More annuli, larger and tilted a little off the disc, the same shader keeping
 ///          only its filaments.
-///   core   A quad turned to the camera (QuasarCore_NEW): glow, shadow, photon ring, spikes.
+///   core   A quad turned to the camera (QuasarCore_NEW): glow, spikes, and — with no hole —
+///          a small shadow and photon ring of its own.
+///   hole   A quad turned to the camera (QuasarHole_NEW): the black hole's shadow, its photon
+///          ring and the lensed far side of the disc. The disc is drawn in two halves split at
+///          the middle's depth, the far one before the hole and the near one after, so the
+///          shadow blocks what is behind the hole and the near side of the disc crosses in
+///          front of it, as in the pictures. The embers behind it are put out too.
 ///   jets   A box round them (QuasarJet_NEW), each pixel adding up the light along its ray —
 ///          so they are right side on, end on, and from inside, where they are a tunnel. Two
 ///          copies: the side of the disc away from the camera before the disc, so its dust
@@ -111,10 +118,11 @@ public class QuasarVFX_NEW : MonoBehaviour
     [ColorUsage(false, true)] [SerializeField] Color coreGlow = new Color(1.1f, 0.6f, 0.25f, 1f);
     [ColorUsage(false, true)] [SerializeField] Color coreHalo = new Color(0.3f, 0.1f, 0.03f, 1f);
 
-    [Tooltip("The black hole's shadow at the very middle, as a fraction of the core's glow. 0 = none.")]
+    [Tooltip("With no hole (hole 0): a small black hole's shadow at the very middle, as a fraction of " +
+             "the core's glow. 0 = none.")]
     [Range(0f, 0.2f)] [SerializeField] float shadow = 0.03f;
 
-    [Tooltip("The thin ring of light round the shadow.")]
+    [Tooltip("With no hole: the thin ring of light round that shadow.")]
     [Min(0f)] [SerializeField] float photonRing = 1.5f;
 
     [Tooltip("Diffraction spikes: a point that bright draws them in any telescope. 0 = none.")]
@@ -128,6 +136,24 @@ public class QuasarVFX_NEW : MonoBehaviour
 
     [Tooltip("A horizontal streak through the core, as a wide lens draws one.")]
     [Min(0f)] [SerializeField] float streak = 0.6f;
+
+    [Header("Black hole")]
+    [Tooltip("The black hole at the middle: its shadow's radius, as a fraction of the disc's. The " +
+             "disc's inner edge is kept outside it (at 1.25 times this at least), as the gas's last " +
+             "orbit is. It is gone with the camera inside the core's glow, so the light can fly " +
+             "through. 0 = none: the core is a white-hot point, as before.")]
+    [Range(0f, 0.3f)] [SerializeField] float hole = 0.1f;
+
+    [Tooltip("The thin ring of light round the hole's shadow.")]
+    [Min(0f)] [SerializeField] float holeRing = 1f;
+
+    [Tooltip("The far side of the disc, bent by the hole's gravity into an arc round its shadow — " +
+             "over its top and under its bottom, seen edge on.")]
+    [Range(0f, 2f)] [SerializeField] float lensing = 1f;
+
+    [Tooltip("How much of the core's glow lies over the hole, which is in front of it: a little, so " +
+             "it reads as a hole in the light rather than a cut-out.")]
+    [Range(0f, 1f)] [SerializeField] float holeHaze = 0.06f;
 
     [Header("Jets")]
     [Tooltip("Lay the jets along the line through here and this — the light, in the tutorial, so it " +
@@ -263,16 +289,20 @@ public class QuasarVFX_NEW : MonoBehaviour
     // Built on enable, gone on disable; never saved, never shown in the hierarchy.
     const HideFlags Built = HideFlags.HideAndDontSave;
 
-    // Transparent is 3000. The disc in the middle; the far jet and the gas before it, so its
-    // dust darkens them; the core, the near jet and the moving matter after.
-    const int FarJetQueue = 2998, GasQueue = 2999, DiscQueue = 3000, CoreQueue = 3001, NearJetQueue = 3002, MatterQueue = 3003;
+    // Transparent is 3000. The far jet and the gas first, so the disc's dust darkens them; the
+    // half of the disc beyond the middle, then the hole, which blocks all of those behind it;
+    // the near half of the disc, which crosses in front of the hole; the core, the near jet
+    // and the moving matter after.
+    const int FarJetQueue = 2996, GasQueue = 2997, FarDiscQueue = 2998, HoleQueue = 2999, DiscQueue = 3000,
+              CoreQueue = 3001, NearJetQueue = 3002, MatterQueue = 3003;
 
     readonly List<GameObject> _parts = new List<GameObject>();
     readonly List<Material> _materials = new List<Material>();
     readonly List<Material> _gas = new List<Material>();
     readonly List<Mesh> _meshes = new List<Mesh>();
-    Material _disc, _core, _farJet, _nearJet, _matter;
+    Material _disc, _farDisc, _hole, _core, _farJet, _nearJet, _matter;
     Transform _farJetPart, _nearJetPart;
+    GameObject _holePart;
     Renderer _coreRenderer;
     Mesh _matterMesh;
     int _builtSheets = -1, _builtMatter = -1;
@@ -289,6 +319,9 @@ public class QuasarVFX_NEW : MonoBehaviour
 
     /// <summary>The disc's radius, in world units.</summary>
     public float Radius => transform.lossyScale.x;
+
+    /// <summary>The disc's inner edge, kept outside the hole's shadow.</summary>
+    float InnerEdge => hole > 0f ? Mathf.Max(innerEdge, hole * 1.25f) : innerEdge;
 
     // ── Scripted ────────────────────────────────────────────────────────────
 
@@ -487,7 +520,8 @@ public class QuasarVFX_NEW : MonoBehaviour
         Shader coreShader = Resources.Load<Shader>("QuasarCore_NEW");
         Shader jetShader = Resources.Load<Shader>("QuasarJet_NEW");
         Shader matterShader = Resources.Load<Shader>("QuasarSparks_NEW");
-        if (discShader == null || coreShader == null || jetShader == null || matterShader == null)
+        Shader holeShader = Resources.Load<Shader>("QuasarHole_NEW");
+        if (discShader == null || coreShader == null || jetShader == null || matterShader == null || holeShader == null)
         {
             Debug.LogWarning("[QuasarVFX_NEW] Its shaders (Resources/Quasar*_NEW.shader) are missing; nothing drawn.", this);
             return;
@@ -497,7 +531,9 @@ public class QuasarVFX_NEW : MonoBehaviour
         Mesh quad = Keep(Quad());
         Mesh box = Keep(Box());
 
+        _farDisc = Part("Disc (far half)", annulus, discShader, FarDiscQueue, Quaternion.identity, Vector3.one, out _);
         _disc = Part("Disc", annulus, discShader, DiscQueue, Quaternion.identity, Vector3.one, out _);
+        _hole = Part("Hole", quad, holeShader, HoleQueue, Quaternion.identity, Vector3.one, out _holePart);
 
         _builtSheets = gasSheets;
         for (int s = 0; s < gasSheets; s++)
@@ -564,8 +600,9 @@ public class QuasarVFX_NEW : MonoBehaviour
         _materials.Clear();
         _meshes.Clear();
         _gas.Clear();
-        _disc = _core = _farJet = _nearJet = _matter = null;
+        _disc = _farDisc = _hole = _core = _farJet = _nearJet = _matter = null;
         _farJetPart = _nearJetPart = null;
+        _holePart = null;
         _coreRenderer = null;
         _matterMesh = null;
         _builtSheets = _builtMatter = -1;
@@ -586,8 +623,13 @@ public class QuasarVFX_NEW : MonoBehaviour
     {
         Texture2D noise = QuasarNoise_NEW.Texture;
 
-        SetDisc(_disc, innerEdge, spin, twist, rings, inflow, dust, tendrils, 2f, 0f, shimmer, beaming, orbitalSpeed, 0.7f,
-                hot * discBrightness, middle * discBrightness, rim * discBrightness, dustColour, 1f, waveSpeed, seed, noise);
+        // The disc in two halves, either side of the middle's depth (see the hole).
+        float inner = InnerEdge;
+        foreach (Material half in new[] { _farDisc, _disc })
+            SetDisc(half, inner, spin, twist, rings, inflow, dust, tendrils, 2f, 0f, shimmer, beaming, orbitalSpeed, 0.7f,
+                    hot * discBrightness, middle * discBrightness, rim * discBrightness, dustColour, 1f, waveSpeed, seed, noise);
+        _farDisc.SetFloat("_Split", 1f);
+        _disc.SetFloat("_Split", -1f);
 
         // The gas: only its filaments, with no dust and nothing hidden behind it; its ring
         // runs at the disc's, in its own larger radius.
@@ -601,12 +643,30 @@ public class QuasarVFX_NEW : MonoBehaviour
         _core.SetColor("_Hot", coreHot);
         _core.SetColor("_Glow", coreGlow);
         _core.SetColor("_Halo", coreHalo);
-        _core.SetFloat("_Shadow", shadow);
+        // With the hole, its own small shadow is left off: the hole is the shadow.
+        bool holeOn = hole > 0f;
+        _core.SetFloat("_Shadow", holeOn ? 0f : shadow);
         _core.SetFloat("_Ring", photonRing);
+        _core.SetFloat("_Hole", holeOn ? hole / Mathf.Max(coreSize, 1e-3f) : 0f);
+        _core.SetFloat("_HoleHaze", holeHaze);
         _core.SetFloat("_Spikes", spikes);
         _core.SetFloat("_SpikeLength", spikeLength);
         _core.SetFloat("_SpikeAngle", spikeAngle);
         _core.SetFloat("_Streak", streak);
+
+        // The black hole: its shadow, photon ring and the lensed far side of the disc.
+        _holePart.SetActive(holeOn);
+        _hole.SetTexture("_Noise", noise);
+        _hole.SetFloat("_Radius", hole);
+        _hole.SetFloat("_Near", coreSize);
+        _hole.SetFloat("_Ring", holeRing);
+        _hole.SetColor("_RingColor", coreHot * 0.5f);
+        _hole.SetFloat("_Lens", lensing);
+        _hole.SetColor("_ArcHot", hot * discBrightness);
+        _hole.SetColor("_ArcMid", middle * discBrightness);
+        _hole.SetFloat("_Spin", spin);
+        _hole.SetFloat("_Beaming", beaming);
+        _hole.SetFloat("_Seed", seed);
 
         // The jets' box: as long as they are, and wide enough for the sheath at the tip.
         float length = Mathf.Max(1e-3f, jetLength);
@@ -620,7 +680,9 @@ public class QuasarVFX_NEW : MonoBehaviour
         _farJetPart.gameObject.SetActive(jets);
         _nearJetPart.gameObject.SetActive(jets);
 
-        _matter.SetFloat("_Inner", innerEdge);
+        _matter.SetFloat("_Inner", inner);
+        _matter.SetFloat("_HoleRadius", holeOn ? hole : 0f);
+        _matter.SetFloat("_HoleNear", coreSize);
         _matter.SetFloat("_Spin", spin);
         _matter.SetFloat("_Drift", emberDrift);
         _matter.SetColor("_Hot", hot * discBrightness);
