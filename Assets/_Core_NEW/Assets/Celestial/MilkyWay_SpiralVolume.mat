@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 6
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: MilkyWay_SpiralVolume
+  m_Shader: {fileID: 4800000, guid: 3d2dad6ee66457dea73f5c94ba837307, type: 3}
+  m_ShaderKeywords: MILKYWAY_BAKED_VOLUME
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _Noise:
+        m_Texture: {fileID: 2800000, guid: 5eeb0a731bc354c98434f81a83c6035b, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Volume:
+        m_Texture: {fileID: 11700000, guid: 0bf627d77489e2a44b2cb5b370a298ac, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Floats:
+    - _ArmCount: 4
+    - _ArmWidth: 0.095
+    - _Brightness: 0.85
+    - _Dust: 1.35
+    - _Phase: 0.55
+    - _Pitch: 2.3
+    - _Steps: 32
+    - _Thickness: 0.0045
+    m_Colors:
+    - _ArmColor: {r: 0.38, g: 0.6, b: 0.9, a: 1}
+    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _CoreColor: {r: 1.05, g: 0.77, b: 0.49, a: 1}
+    - _HIIColor: {r: 1.25, g: 0.13, b: 0.29, a: 1}

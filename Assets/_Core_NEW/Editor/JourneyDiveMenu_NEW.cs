@@ -400,9 +400,12 @@ static class JourneyDiveMenu_NEW
         foreach (ParticleSystem ps in galaxy.GetComponentsInChildren<ParticleSystem>(false))
             if (ps.name == "Disk") { disk = ps; break; }
 
-        if (gate == null || disk == null)
+        // The polished galaxy has a tilted volumetric disc, not a Disk particle system.
+        // Keep the legacy lookup for the other scenes that still use the old galaxy.
+        MilkyWayStars_NEW spiral = galaxy.GetComponentInChildren<MilkyWayStars_NEW>(false);
+        if (gate == null || (disk == null && spiral == null))
         {
-            Debug.LogWarning("Journey NEW: no SolarSystem gate or no Disk particle system in the Milky Way, so " +
+            Debug.LogWarning("Journey NEW: no SolarSystem gate or galactic disc in the Milky Way, so " +
                              "the Solar dive point was not placed. Make an object named " + SolarDivePointName +
                              " under the MilkyWay group and set it as the row's Focus Override.");
             return point;
@@ -410,7 +413,11 @@ static class JourneyDiveMenu_NEW
 
         Collider c = gate.GetComponent<Collider>();
         Vector3 at = c != null ? c.bounds.center : gate.transform.position;
-        Vector3 spot = new Vector3(at.x - 4f, disk.transform.position.y, at.z + 20f);
+        Vector3 centre = spiral != null ? spiral.transform.position : disk.transform.position;
+        Vector3 normal = spiral != null ? spiral.transform.up : Vector3.up;
+        Vector3 spot = new Vector3(at.x - 4f, centre.y, at.z + 20f);
+        if (Mathf.Abs(normal.y) > 0.01f)
+            spot.y = centre.y - (normal.x * (spot.x - centre.x) + normal.z * (spot.z - centre.z)) / normal.y;
 
         if (point == null)
         {
