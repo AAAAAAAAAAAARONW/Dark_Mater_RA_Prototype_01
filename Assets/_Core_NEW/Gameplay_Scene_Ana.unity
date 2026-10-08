@@ -143716,10 +143716,10 @@ MonoBehaviour:
     haloColor: {r: 1, g: 0.88, b: 0.62, a: 1}
     haloIntensity: 0.6
     lookBackYaw: 165
-    lookBackLift: 0.5
-    lookBackFrame: 0.06
+    lookBackLift: 2.2
+    lookBackFrame: 0.12
     lookBackFrom: 0.8
-    lookBackUntil: 7.6
+    lookBackUntil: 8.2
     lookBackSwing: 1.4
     lookBackDolly: 2
     ambientCrowd: 0.3
@@ -143730,6 +143730,14 @@ MonoBehaviour:
     coolShare: 0.35
     memberAccent: {r: 0.96, g: 0.69, b: 0.92, a: 1}
     accentShare: 0
+    collapse: 600
+    collapseRadius: 20
+    remnantColor: {r: 1.6, g: 1.55, b: 1.8, a: 1}
+    remnantSize: 0.0025
+    remnantSpikes: 1
+    remnantSpikeAngle: 45
+    remnantSpikeLength: 0.14
+    remnantStreak: 0.3
     spin: 0
     bank: 0
     dollyZoom: 1
@@ -304586,9 +304594,9 @@ MonoBehaviour:
   shadow: 0.03
   photonRing: 1.5
   spikes: 1
-  spikeLength: 0.3
+  spikeLength: 0.14
   spikeAngle: 45
-  streak: 0.6
+  streak: 0.3
   hole: 0.2
   holeRing: 1
   lensing: 1
