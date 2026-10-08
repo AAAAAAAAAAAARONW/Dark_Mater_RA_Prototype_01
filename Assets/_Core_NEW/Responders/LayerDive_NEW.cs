@@ -717,6 +717,17 @@ public class LayerDive_NEW : MonoBehaviour
     // How much faster the new world grows once the old one is gone than during the dive.
     const float EmergeRate = 2.5f;
 
+    // Going in, the world being left fades its particles between these distances from the
+    // camera (world units) by the peak; less before it, in step with the magnification. See
+    // WorldSwitcher_NEW.SetGroupNearFade.
+    const float NearFadeFrom = 1.5f;
+    const float NearFadeTo = 6f;
+
+    // Continuous, each renderer of the new world comes in between these sizes on screen
+    // (pixels across). See WorldSwitcher_NEW.SetGroupSizeFade.
+    const float SizeFadeFromPixels = 1.5f;
+    const float SizeFadeToPixels = 5f;
+
     TrailRenderer[] _trails = Array.Empty<TrailRenderer>();
     float[] _trailWidths = Array.Empty<float>();
 
@@ -906,7 +917,25 @@ public class LayerDive_NEW : MonoBehaviour
         _brighten = 0f;
         IsActive = true;
 
-        if (worlds != null) worlds.Hold(this);
+        if (worlds != null)
+        {
+            worlds.Hold(this);
+
+            // Going in, the world being left is magnified round the camera: its particles fade
+            // as they come close instead of each being cut away whole at the near plane. The
+            // distances grow with the magnification (TickDive), from next to nothing here, so
+            // nothing near the camera dims on the frame the dive starts.
+            if (dive.direction == Direction.In)
+            {
+                float k = 1f / Mathf.Max(1f, dive.diveZoom);
+                worlds.SetGroupNearFade(_fromId, NearFadeFrom * k, NearFadeTo * k);
+            }
+
+            // Continuous, the new world grows out of a speck: nothing in it is drawn until it is
+            // big enough on screen to draw cleanly, or its planets blink between pixels.
+            if (dive.direction == Direction.In && dive.continuous)
+                worlds.SetGroupSizeFade(_toId, _camera, SizeFadeFromPixels, SizeFadeToPixels);
+        }
 
         _focus = DiveFocus();
         _crowdAim = CrowdAim(dive, _focus, _gatesByLayer.TryGetValue(_toId, out LayerGate_NEW gate) ? gate : null);
@@ -980,7 +1009,16 @@ public class LayerDive_NEW : MonoBehaviour
 
         float dissolve = Smooth(_dive.dissolveFrom, 1f, u);
         float glow = Mathf.Lerp(1f, _dive.leaveGlow, Smooth(0f, 0.85f, u));
-        if (worlds != null) worlds.SetGroupLook(_fromId, 1f - dissolve, glow);
+        if (worlds != null)
+        {
+            // Going in, the near fade grows as the world does, to NearFadeFrom..To at the peak.
+            if (!outward)
+            {
+                float k = Mathf.Pow(Mathf.Max(1f, _dive.diveZoom), p - 1f);
+                worlds.SetGroupNearFade(_fromId, NearFadeFrom * k, NearFadeTo * k, false);
+            }
+            worlds.SetGroupLook(_fromId, 1f - dissolve, glow);
+        }
 
         SetVeil(Continuous ? 0f : _dive.whiteout * Smooth(_dive.whiteoutFrom, 1f, u));
         _fovMultiplier = Mathf.Lerp(1f, _dive.fieldOfViewScale, Smooth(0f, 1f, u));
@@ -1698,7 +1736,12 @@ public class LayerDive_NEW : MonoBehaviour
 
         IsActive = false;
 
-        if (worlds != null) worlds.Release(this, _toId);
+        if (worlds != null)
+        {
+            worlds.SetGroupNearFade(_fromId, 0f, 0f);
+            worlds.SetGroupSizeFade(_toId, null, 0f, 0f);
+            worlds.Release(this, _toId);
+        }
     }
 
     // ── Where ────────────────────────────────────────────────────────────────

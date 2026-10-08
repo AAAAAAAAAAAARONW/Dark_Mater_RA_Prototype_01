@@ -48,6 +48,9 @@ Shader "Custom/EarthClouds_NEW"
         _Horizon ("Sky at the horizon", Color) = (0.62, 0.74, 0.9, 1)
         _Ground ("Looking down, the ground through the air", Color) = (0.1, 0.16, 0.26, 1)
         _Haze ("Sky over space", Range(0, 1)) = 0
+        _Limb ("Glow along the horizon, seen from space", Range(0, 1)) = 0
+        _Below ("The ground, looking down, from anywhere", Range(0, 1)) = 0
+        _Evolve ("Wisps' change, detail tiles a second", Float) = 0.05
         _Opacity ("Clouds", Range(0, 1)) = 1
     }
 
@@ -69,7 +72,7 @@ Shader "Custom/EarthClouds_NEW"
 
             sampler3D _Noise;
             float _DeckBottom, _DeckTop, _ShapeScale, _DetailScale, _Coverage, _Erosion, _Weather, _Density;
-            float _Steps, _MaxStep, _MaxDistance, _PhotonRadius, _Haze, _Opacity;
+            float _Steps, _MaxStep, _MaxDistance, _PhotonRadius, _Haze, _Opacity, _Limb, _Below, _Evolve;
             float4 _DeckOffset, _SunDir, _PhotonPos;
             float4 _SunColor;   // HDR: the sun is brighter than white
             fixed4 _AmbientTop, _AmbientBottom, _PhotonColor, _Zenith, _Horizon, _Ground;
@@ -116,7 +119,9 @@ Shader "Custom/EarthClouds_NEW"
                 float base = saturate(Remap(shape * profile, 1.0 - cover, 1.0, 0.0, 1.0));
                 if (base <= 0.0) return 0.0;
 
-                float detail = tex3Dlod(_Noise, float4(q * _DetailScale, 0)).g;
+                // The detail drifts through the shapes, so the wisps change as the deck rises.
+                float3 drift = float3(0.6, 1.0, 0.35) * (_Time.y * _Evolve);
+                float detail = tex3Dlod(_Noise, float4(q * _DetailScale + drift, 0)).g;
                 return saturate(Remap(base, detail * _Erosion, 1.0, 0.0, 1.0)) * _Density;
             }
 
@@ -189,7 +194,10 @@ Shader "Custom/EarthClouds_NEW"
                         {
                             // Its own shadow: what lies between it and the sun.
                             float toSun = Density(p + sun * 0.7) * 0.7 + Density(p + sun * 2.0) * 1.3;
-                            float lit = exp(-toSun * 1.4);
+                            // Beer's law for the light straight through, and a softer second
+                            // term for the light scattered on into the cloud, so its insides are
+                            // not a flat grey.
+                            float lit = max(exp(-toSun * 1.4), 0.35 * exp(-toSun * 0.35));
                             float powder = 1.0 - exp(-d * 2.0);
 
                             float h = Height(p.y);
@@ -213,8 +221,13 @@ Shader "Custom/EarthClouds_NEW"
                 float cloud = (1.0 - through) * _Opacity;
                 light *= _Opacity;
 
-                // Behind the clouds, the sky, over whatever was there.
-                float sky = (1.0 - cloud) * _Haze;
+                // Behind the clouds, the sky, over whatever was there: all of it in the air; from
+                // space, the ground below the horizon — the planet is under the deck — and only a
+                // thin glow along the horizon above it.
+                float horizon = pow(saturate(1.0 - abs(dir.y)), 6.0);
+                float down = saturate(-dir.y / 0.08);
+                down = down * down * (3.0 - 2.0 * down);
+                float sky = (1.0 - cloud) * saturate(max(_Haze, _Below * down) + _Limb * horizon);
                 float3 colour = light + Sky(dir, sun) * sky;
                 return fixed4(colour, cloud + sky);
             }

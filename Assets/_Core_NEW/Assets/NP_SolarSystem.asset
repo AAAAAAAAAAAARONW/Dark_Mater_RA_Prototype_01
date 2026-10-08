@@ -13,17 +13,17 @@ MonoBehaviour:
   m_Name: NP_SolarSystem
   m_EditorClassIdentifier: 
   colorDark: {r: 0.09414222, g: 0.03613386, b: 0.13207549, a: 1}
-  colorMid: {r: 0, g: 0.003862489, b: 0.0754717, a: 1}
-  colorBright: {r: 0, g: 0.004456138, b: 0.1981132, a: 1}
-  colorStar: {r: 0.4056604, g: 0.4056604, b: 0.4056604, a: 1}
+  colorMid: {r: 0.03, g: 0.04, b: 0.16, a: 1}
+  colorBright: {r: 0.12, g: 0.08, b: 0.32, a: 1}
+  colorStar: {r: 0.8, g: 0.84, b: 1, a: 1}
   scale: 1.2
   octaves: 4
   persistence: 0.5
   density: 0.8
   sharpness: 1.5
-  starScale: 20
+  starScale: 80
   starThreshold: 0.992
-  starBrightness: 0.5
+  starBrightness: 1
   animate: 1
   speed: 0.05
   blendDuration: 0

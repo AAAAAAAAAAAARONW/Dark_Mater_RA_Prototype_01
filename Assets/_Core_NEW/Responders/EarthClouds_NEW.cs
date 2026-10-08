@@ -27,6 +27,15 @@ using UnityEngine;
 ///
 /// The noise is a tiling 64-cube made at start on a worker thread, so building it never
 /// holds up a frame. Until it is there the deck is not drawn; the sky still is.
+///
+/// LATER: SPACE STAYS SPACE UNTIL THE AIR. The sky used to come up over everything within
+/// three and a half seconds of arriving, while the camera was still far above the deck — the
+/// black of space turned into a pale blue fog with the Solar System hanging in it. Now how much
+/// sky there is goes with how far into the air the camera has come: above the deck by
+/// spaceAbove or more it is space, with only a thin glow along the horizon (limb), and the sky
+/// closes in as the deck comes up to the camera. The cloud also scatters light deeper into
+/// itself (its insides were a flat grey), and its wisps change as it rises past (evolve)
+/// instead of rising as one rigid shape.
 /// </summary>
 [DisallowMultipleComponent]
 [HierarchyBadge_NEW("CLOUDS", "#9FC4E8")]
@@ -113,6 +122,18 @@ public class EarthClouds_NEW : MonoBehaviour
     [Tooltip("Seconds over which space turns into sky.")]
     [Min(0.1f)] [SerializeField] float skySeconds = 3.5f;
 
+    [Tooltip("How far above the deck's top the camera is still in space, in world units: there the " +
+             "sky above the horizon is black, with only its glow; below the horizon the ground shows " +
+             "through the gaps from the start. The sky closes in as the deck comes up, all of it by " +
+             "the time the camera reaches the deck. 0 = sky everywhere from the start, as before.")]
+    [Min(0f)] [SerializeField] float spaceAbove = 14f;
+
+    [Tooltip("The thin glow of air along the horizon, seen from space.")]
+    [Range(0f, 1f)] [SerializeField] float limb = 0.35f;
+
+    [Tooltip("How fast the cloud's wisps change as it comes up, in detail tiles a second.")]
+    [Range(0f, 0.3f)] [SerializeField] float evolve = 0.05f;
+
     [Header("What is left above")]
     [Tooltip("The render group hidden once the camera is in the cloud. Empty: none.")]
     [SerializeField] string hideGroup = "SolarSystem";
@@ -181,6 +202,9 @@ public class EarthClouds_NEW : MonoBehaviour
     static readonly int HorizonId = Shader.PropertyToID("_Horizon");
     static readonly int HazeId = Shader.PropertyToID("_Haze");
     static readonly int OpacityId = Shader.PropertyToID("_Opacity");
+    static readonly int LimbId = Shader.PropertyToID("_Limb");
+    static readonly int BelowId = Shader.PropertyToID("_Below");
+    static readonly int EvolveId = Shader.PropertyToID("_Evolve");
 
     Task<Color32[]> _building;
     Texture3D _noise;
@@ -310,7 +334,15 @@ public class EarthClouds_NEW : MonoBehaviour
         _material.SetColor(ZenithId, skyOverhead);
         _material.SetColor(HorizonId, skyAtHorizon);
         _material.SetColor(GroundId, groundThroughAir);
-        _material.SetFloat(HazeId, sky * Smooth(0f, skySeconds, t));
+        // The sky: as much as the camera is into the air — none while it is spaceAbove over the
+        // deck, all of it at the deck — and only along the horizon above that.
+        float ramp = sky * Smooth(0f, skySeconds, t);
+        float camY = cam.transform.position.y;
+        float inAir = spaceAbove > 0f ? 1f - Smooth(0f, spaceAbove, camY - top) : 1f;
+        _material.SetFloat(HazeId, ramp * inAir);
+        _material.SetFloat(LimbId, ramp * limb * (1f - inAir));
+        _material.SetFloat(BelowId, ramp);
+        _material.SetFloat(EvolveId, evolve);
 
         // The deck fades up from far below rather than appearing there — and only once the
         // noise is made.
