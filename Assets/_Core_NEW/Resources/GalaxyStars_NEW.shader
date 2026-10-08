@@ -205,12 +205,12 @@ Shader "Custom/GalaxyStars_NEW"
                 float wide = max(half_, 2.0 * pixel);
                 colour *= (half_ / wide) * (half_ / wide);
 
-                // The fade (WorldSwitcher_NEW scales all four channels of _Color by it), star
-                // by star: each goes out over a fifth of it, at its own point on the way down.
+                // The fade (WorldSwitcher_NEW scales all four channels of _Color by it; the
+                // alpha is the fade itself, the colour has been made linear), star by star:
+                // each goes out over a fifth of it, at its own point on the way down.
                 float fade = _Color.a;
                 float turn = frac(s0 * 71.37 + s1 * 19.13 + s2 * 5.71) * 0.8;
-                float shown = smoothstep(turn, turn + 0.2, fade);
-                colour *= shown * _Color.rgb / max(fade, 1e-3);
+                colour *= smoothstep(turn, turn + 0.2, fade);
 
                 view.xy += v.corner * wide * depth;
                 if (depth < 1e-3) view = float3(0.0, 0.0, 1.0);

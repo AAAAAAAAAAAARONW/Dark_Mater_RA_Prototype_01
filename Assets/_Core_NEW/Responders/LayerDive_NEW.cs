@@ -109,6 +109,16 @@ using UnityEngine.UI;
 /// continuous, the rest are left strewn through the new world, drifting out more and more
 /// slowly as the zoom that carried them lets go, and wink out over ScatterSeconds.
 ///
+/// LATER: THE WORLD LEFT BECOMES A POINT (Dive.collapse). Coming out of the quasar into the
+/// cosmic web, the quasar shrank six times and faded away while the web came in: it was gone,
+/// not small. With collapse set, the world being left shrinks into its centre the whole way
+/// through — steadily over the dive, easing to a stop by the end — and is not faded until it
+/// is a few pixels across, when a point of light (DiveRemnant_NEW) takes its place, flares,
+/// and stays: the quasar is one bright point among the web's knots, there for as long as the
+/// web is. On the way the quasar's own core turns back into a star with its diffraction
+/// spikes as its black hole becomes too small to see, so it reads as one continuous thing
+/// becoming a point.
+///
 /// THE LIGHT is a camera-facing glow in the world, drawn after the web and before the
 /// photon trail, so it sits inside the cluster and behind the photon. Only the full-screen
 /// whiteout at the peak is an overlay.
@@ -469,6 +479,35 @@ public class LayerDive_NEW : MonoBehaviour
         [Tooltip("Share of the members in the accent colour. 0 = none.")]
         [Range(0f, 1f)] public float accentShare = 0f;
 
+        [Header("Collapse (coming out: the world left becomes a point in the new one)")]
+        [Tooltip("Coming out: how many times smaller the world being left gets, shrinking into " +
+                 "its centre the whole way through — steadily over the dive, easing to a stop by " +
+                 "the end — instead of shrinking by diveZoom and fading. Once it is a few pixels " +
+                 "across, a point of light takes its place, flares and stays in the new world " +
+                 "(DiveRemnant_NEW): the quasar, one bright point in the cosmic web. 0 = off.")]
+        [Min(0f)] public float collapse = 0f;
+
+        [Tooltip("How big what becomes the point is at full size, in world units: the radius whose " +
+                 "shrinking under a few pixels hands over to the point. 0 = measured from the " +
+                 "world's renderers.")]
+        [Min(0f)] public float collapseRadius = 0f;
+
+        [Tooltip("The point: its colour, times its brightness.")]
+        [ColorUsage(false, true)] public Color remnantColor = new Color(1.6f, 1.55f, 1.8f, 1f);
+
+        [Tooltip("The point's core radius, as a fraction of the screen's height.")]
+        [Range(0.0005f, 0.02f)] public float remnantSize = 0.0025f;
+
+        [Tooltip("Its diffraction spikes' brightness. 0 = none.")]
+        [Range(0f, 3f)] public float remnantSpikes = 1f;
+
+        [Tooltip("Their angle in degrees, their length as a fraction of half the screen's height, and " +
+                 "the horizontal streak's brightness: as the quasar's own core draws them (its " +
+                 "spikeAngle, spikeLength and streak), so the one hands over to the other unchanged.")]
+        public float remnantSpikeAngle = 45f;
+        [Min(0.01f)] public float remnantSpikeLength = 0.14f;
+        [Range(0f, 2f)] public float remnantStreak = 0.3f;
+
         [Header("Spiral (going in)")]
         [Tooltip("How far, in degrees, the old world turns round the point by the peak, about its " +
                  "own up, at the rate it opens: its stars stream out of the frame along curves, and " +
@@ -640,6 +679,11 @@ public class LayerDive_NEW : MonoBehaviour
     Vector3 _lightPosition;
     float _lightSize;
     bool _warnedNoLightShader;
+
+    // Coming out with a collapse: what becomes the point, and the point.
+    float _collapseRadius;
+    DiveRemnant_NEW _remnant;
+    readonly Dictionary<string, DiveRemnant_NEW> _remnants = new Dictionary<string, DiveRemnant_NEW>();
 
     GameObject _crowd;
     Material _crowdMaterial;
@@ -960,6 +1004,15 @@ public class LayerDive_NEW : MonoBehaviour
         _enter = Capture(worlds != null ? worlds.GroupRoot(_toId) : null);
         _fovPush = 0f;
 
+        // Collapsing, the point this gate left last time goes: it is made again.
+        _remnant = null;
+        if (Collapsing)
+        {
+            _collapseRadius = dive.collapseRadius > 0f ? dive.collapseRadius : WorldRadius(_leave?.root);
+            if (_remnants.TryGetValue(RemnantKey, out DiveRemnant_NEW old) && old != null) Destroy(old.gameObject);
+            _remnants.Remove(RemnantKey);
+        }
+
         // The next world stays out of sight until the peak — or, crossfading, until it starts
         // to show through the old one, already at the size it grows from, inside the light.
         if (worlds != null) worlds.SetGroupLook(_toId, 0f);
@@ -1006,13 +1059,15 @@ public class LayerDive_NEW : MonoBehaviour
         // The old world grows around the point ahead going in, turning about its up as it does
         // for a spiral. Coming out it shrinks into its own middle, behind the photon, with the
         // rest of its cluster.
-        Place(_leave, new Placement
-        {
-            anchor = _focus,
-            at = _focus,
-            turn = outward ? Quaternion.identity : Quaternion.AngleAxis(_dive.spin * p, Vector3.up),
-            scale = Mathf.Pow(outward ? 1f / _dive.diveZoom : _dive.diveZoom, p)
-        });
+        // (Collapsing, TickComingOut shrinks it, on its own clock.)
+        if (!Collapsing)
+            Place(_leave, new Placement
+            {
+                anchor = _focus,
+                at = _focus,
+                turn = outward ? Quaternion.identity : Quaternion.AngleAxis(_dive.spin * p, Vector3.up),
+                scale = Mathf.Pow(outward ? 1f / _dive.diveZoom : _dive.diveZoom, p)
+            });
 
         // The camera leans in with the turn over the first half of the dive, level by the peak.
         _roll = outward ? 0f : _dive.bank * Mathf.Sign(_dive.spin) * Smooth(0.1f, 0.5f, u) * (1f - Smooth(0.6f, 1f, u));
@@ -1030,7 +1085,7 @@ public class LayerDive_NEW : MonoBehaviour
                 float k = Mathf.Pow(Mathf.Max(1f, _dive.diveZoom), p - 1f);
                 worlds.SetGroupNearFade(_fromId, NearFadeFrom * k, NearFadeTo * k, false);
             }
-            worlds.SetGroupLook(_fromId, 1f - dissolve, glow);
+            if (!Collapsing) worlds.SetGroupLook(_fromId, 1f - dissolve, glow);
         }
 
         SetVeil(Continuous ? 0f : _dive.whiteout * Smooth(_dive.whiteoutFrom, 1f, u));
@@ -1161,9 +1216,13 @@ public class LayerDive_NEW : MonoBehaviour
     {
         if (!IsActive) return;
 
-        // The world left has dissolved by now: back where it was built, out of sight.
-        Restore(_leave);
-        if (worlds != null) worlds.SetGroupLook(_fromId, 0f);
+        // The world left has dissolved by now: back where it was built, out of sight. Unless
+        // it is collapsing into a point, which goes on through the peak (TickComingOut).
+        if (!Collapsing)
+        {
+            Restore(_leave);
+            if (worlds != null) worlds.SetGroupLook(_fromId, 0f);
+        }
 
         // The sky changes as soon as this returns (CoverReached), and every sky snaps — fine
         // under a whiteout, but coming out or crossfading nothing hides it: blend it instead.
@@ -1330,7 +1389,86 @@ public class LayerDive_NEW : MonoBehaviour
         float gather = Mathf.Clamp(Mathf.Sqrt(_dive.haloRadius / Mathf.Max(4f * sigma, 1e-3f)), 1f, 2f);
         SetHalo(_dive, _focus, sigma, _dive.haloIntensity * _lookBack * gather
                                       * (1f - Smooth(dive + 0.5f * rest, dive + rest, t)));
+
+        if (Collapsing) TickCollapse(t);
     }
+
+    /// <summary>
+    /// Coming out with a collapse (see THE WORLD LEFT BECOMES A POINT on the class): the world
+    /// being left shrinks into its centre, <paramref name="t"/> seconds from the gate; as it
+    /// goes from 0.8% to 0.25% of the screen's height in radius, the point takes its place.
+    /// </summary>
+    void TickCollapse(float t)
+    {
+        float scale = CollapseScale(t);
+        Place(_leave, new Placement { anchor = _focus, at = _focus, turn = Quaternion.identity, scale = scale });
+
+        float handover = 1f - Smooth(0.0025f, 0.008f, ScreenRadius(_collapseRadius * scale, _focus));
+        if (worlds != null) worlds.SetGroupLook(_fromId, 1f - handover, 1f);
+
+        if (handover > 0f && _remnant == null)
+        {
+            _remnant = DiveRemnant_NEW.Create("Remnant of " + _fromId + " (runtime)",
+                                              worlds != null ? worlds.GroupRoot(_toId) : null, _focus, worlds, _toId,
+                                              _dive.remnantColor, _dive.remnantSize, _dive.remnantSpikes,
+                                              _dive.remnantSpikeAngle, _dive.remnantSpikeLength, _dive.remnantStreak);
+            if (_remnant != null) _remnants[RemnantKey] = _remnant;
+        }
+        if (_remnant != null) _remnant.SetAppear(handover);
+    }
+
+    /// <summary>
+    /// Collapsing, how much of its size the world being left has, <paramref name="t"/> seconds
+    /// from the gate. It holds its size until the camera is half way round to face it — the
+    /// light leaving it is seen, then the shrinking — and shrinks by the same factor every
+    /// second, easing in and out, until the camera turns forward again (the end, with no look
+    /// back): seen whole, then seen go to a point.
+    /// </summary>
+    float CollapseScale(float t)
+    {
+        float total = _dive.diveSeconds + _dive.peakHoldSeconds + _dive.emergeSeconds;
+        bool looking = _dive.lookBackYaw > 0f;
+        float from = looking ? _dive.lookBackFrom + 0.5f * Mathf.Max(0.1f, _dive.lookBackSwing) : 0f;
+        float to = looking ? Mathf.Min(_dive.lookBackUntil, total) : total;
+        float x = Mathf.Clamp01((t - from) / Mathf.Max(0.1f, to - from));
+
+        // A steady rate between an ease in and an ease out, each a fifth of the way.
+        const float ease = 0.2f;
+        float k = 1f / (1f - ease);
+        float f = x < ease ? k * x * x / (2f * ease)
+                : x > 1f - ease ? 1f - k * (1f - x) * (1f - x) / (2f * ease)
+                : k * (x - ease * 0.5f);
+        return Mathf.Exp(-Mathf.Log(Mathf.Max(1f, _dive.collapse)) * f);
+    }
+
+    /// <summary>A sphere of <paramref name="radius"/> at <paramref name="at"/>: its radius on the camera's screen, as a fraction of the screen's height.</summary>
+    float ScreenRadius(float radius, Vector3 at)
+    {
+        Camera cam = _camera != null ? _camera : (brain != null ? brain.OutputCamera : Camera.main);
+        if (cam == null) return 1f;
+        float distance = Mathf.Max(Vector3.Distance(cam.transform.position, at), 1e-3f);
+        return radius / distance / (2f * Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad));
+    }
+
+    /// <summary>How far a world reaches from its centre, from its renderers' bounds: what the
+    /// eye takes for its size, not its faintest outskirts — the median of its renderers' reach.</summary>
+    float WorldRadius(Transform root)
+    {
+        if (root == null) return 1f;
+        var reach = new List<float>();
+        foreach (Renderer r in root.GetComponentsInChildren<Renderer>(false))
+        {
+            Bounds b = r.bounds;
+            if (b.size == Vector3.zero) continue;
+            reach.Add(Vector3.Distance(b.center, _focus) + b.extents.magnitude * 0.5f);
+        }
+        if (reach.Count == 0) return 1f;
+        reach.Sort();
+        return Mathf.Max(reach[reach.Count / 2], 1e-3f);
+    }
+
+    /// <summary>Which gate's point this is: one per way through.</summary>
+    string RemnantKey => _fromId + ">" + _toId;
 
     /// <summary>
     /// Coming out, how much of its size the cluster has left, <paramref name="t"/> seconds
@@ -1747,6 +1885,10 @@ public class LayerDive_NEW : MonoBehaviour
 
     void Cleanup()
     {
+        // The point, if the world left became one, stays — part of the world entered now.
+        if (_remnant != null) _remnant.Settle();
+        _remnant = null;
+
         Restore(_leave);
         Restore(_enter);
         _leave = null;
@@ -2793,6 +2935,9 @@ public class LayerDive_NEW : MonoBehaviour
 
     /// <summary>A dive in that crossfades into the next world instead of a whiteout swap.</summary>
     bool Crossfading => _dive != null && _dive.direction == Direction.In && !_dive.continuous && _dive.crossfade > 0f;
+
+    /// <summary>A way out whose world left collapses into a point that stays (Dive.collapse).</summary>
+    bool Collapsing => _dive != null && _dive.direction == Direction.Out && _dive.collapse > 1f;
 
     /// <summary>A dive in that is one zoom on one clock, with nothing hidden (CONTINUOUS on the class).</summary>
     bool Continuous => _dive != null && _dive.direction == Direction.In && _dive.continuous;
