@@ -18,7 +18,9 @@ using UnityEngine;
 /// out, between Sagittarius just inside it and Perseus outside — 26,000 of the 65,000 light
 /// years the reference maps run to.
 ///
-/// WHAT MOVES. The arms are a density wave, and the frame here turns with the Sun, which is
+/// WHAT MOVES. The gas and dust stream through the arms along their orbits; star-forming
+/// regions and young clusters flicker; the core breathes; stars are born on the arms with a
+/// flash. The arms themselves are a density wave, and the frame here turns with the Sun, which is
 /// close to their corotation, so in it they hardly move and the Sun stays on SolarDivePoint.
 /// The stars move: born on the arms, they orbit on a flat rotation curve, inside the Sun's
 /// orbit pulling ahead of the arms and outside falling behind, fading and being born again.
@@ -65,6 +67,13 @@ public class GalaxyVFX_NEW : MonoBehaviour
     [Range(0f, 1f)] [SerializeField] float haze = 0.32f;
     [Range(0f, 3f)] [SerializeField] float brightness = 0.6f;
 
+    [Header("Motion")]
+    [Tooltip("How fast the gas and dust stream along their orbits through the arms. The arms " +
+             "themselves hold still: they are a density wave.")]
+    [SerializeField] float gasFlow = 0.012f;
+    [Tooltip("Star-forming regions and young clusters flickering.")]
+    [Range(0f, 1f)] [SerializeField] float twinkle = 0.6f;
+
     [ColorUsage(false, true)] [SerializeField] Color bulgeColour = new Color(1.6f, 1.25f, 0.85f, 1f);
     [ColorUsage(false, true)] [SerializeField] Color oldDisc = new Color(1f, 0.78f, 0.52f, 1f);
     [ColorUsage(false, true)] [SerializeField] Color youngStars = new Color(0.55f, 0.70f, 1.05f, 1f);
@@ -79,13 +88,13 @@ public class GalaxyVFX_NEW : MonoBehaviour
 
     [Header("Stars")]
     [Tooltip("Young stars, born on the arms.")]
-    [Range(0, 20000)] [SerializeField] int youngStarCount = 3000;
+    [Range(0, 20000)] [SerializeField] int youngStarCount = 5000;
     [Tooltip("Old stars in the bulge.")]
     [Range(0, 10000)] [SerializeField] int bulgeStarCount = 600;
     [Tooltip("Their size, as a fraction of the radius. Never less than a pixel and a half on screen.")]
     [Min(0f)] [SerializeField] float starSize = 0.0035f;
     [Tooltip("Orbital speed on the flat rotation curve, radii a second. Slow: it is a galaxy.")]
-    [SerializeField] float orbitalSpeed = 0.004f;
+    [SerializeField] float orbitalSpeed = 0.01f;
     [ColorUsage(false, true)] [SerializeField] Color youngStarColour = new Color(1.2f, 1.4f, 2f, 1f);
     [ColorUsage(false, true)] [SerializeField] Color bulgeStarColour = new Color(1.6f, 1.2f, 0.75f, 1f);
 
@@ -226,6 +235,8 @@ public class GalaxyVFX_NEW : MonoBehaviour
         _disc.SetFloat("_Sparkle", clusters);
         _disc.SetFloat("_Haze", haze);
         _disc.SetFloat("_Brightness", brightness);
+        _disc.SetFloat("_Flow", gasFlow);
+        _disc.SetFloat("_Twinkle", twinkle);
         _disc.SetColor("_Core", bulgeColour);
         _disc.SetColor("_Old", oldDisc);
         _disc.SetColor("_Young", youngStars);

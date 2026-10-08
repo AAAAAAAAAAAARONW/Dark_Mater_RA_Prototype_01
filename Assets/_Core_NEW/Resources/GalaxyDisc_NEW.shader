@@ -39,6 +39,8 @@ Shader "Custom/GalaxyDisc_NEW"
         _Sparkle ("Young clusters", Range(0, 2)) = 0.7
         _Haze ("Light between the arms", Range(0, 1)) = 0.32
         _Brightness ("Brightness", Range(0, 3)) = 0.6
+        _Flow ("Gas flow along the orbits, radii a second", Float) = 0.012
+        _Twinkle ("Star-forming regions and clusters flickering", Range(0, 1)) = 0.6
         [HDR] _Core ("Bulge and bar", Color) = (1.6, 1.25, 0.85, 1)
         [HDR] _Old ("Old disc", Color) = (1.0, 0.78, 0.52, 1)
         [HDR] _Young ("Young stars", Color) = (0.55, 0.70, 1.05, 1)
@@ -66,7 +68,7 @@ Shader "Custom/GalaxyDisc_NEW"
 
             sampler2D _Noise;
             fixed4 _Color;
-            float _SunRadius, _Pitch, _ScaleLength, _Dust, _HII, _Sparkle, _Haze, _Brightness;
+            float _SunRadius, _Pitch, _ScaleLength, _Dust, _HII, _Sparkle, _Haze, _Brightness, _Flow, _Twinkle;
             float4 _ArmWidth, _ArmStrength, _Bar;
             float4 _Core, _Old, _Young, _OuterColor, _Pink;
             fixed4 _DustColor;
@@ -121,16 +123,31 @@ Shader "Custom/GalaxyDisc_NEW"
                 float4 big = Look(p * 0.55 + float2(0.31, 0.17), dpx * 0.55, dpy * 0.55);
                 float az = az0 + (big.r - 0.5) * 0.5;
 
-                // Log-polar noise at two scales, and feathers at a wider pitch.
-                float2 uv = float2(az / TAU * 4.0 + lnr * 0.9, lnr * 2.2 + az / TAU);
-                float2 udx = float2(dAz.x / TAU * 4.0 + dLnr.x * 0.9, dLnr.x * 2.2 + dAz.x / TAU);
-                float2 udy = float2(dAz.y / TAU * 4.0 + dLnr.y * 0.9, dLnr.y * 2.2 + dAz.y / TAU);
-                float4 n = Look(uv, udx * 2.0, udy * 2.0);
-                float4 m = Look(uv * 3.0 + float2(0.4, 0.1), udx * 4.2, udy * 4.2);
-                float2 fuv = float2(az / TAU * 6.0 + lnr * 2.6, lnr * 1.2 - az / TAU * 2.0);
-                float2 fdx = float2(dAz.x / TAU * 6.0 + dLnr.x * 2.6, dLnr.x * 1.2 - dAz.x / TAU * 2.0);
-                float2 fdy = float2(dAz.y / TAU * 6.0 + dLnr.y * 2.6, dLnr.y * 1.2 - dAz.y / TAU * 2.0);
-                float4 fe = Look(fuv, fdx * 1.4, fdy * 1.4);
+                // Log-polar noise at two scales, and feathers at a wider pitch, streaming along
+                // the orbits. The arms are a density wave and hold still (in this frame, which
+                // turns with the Sun); the gas flows through them on the flat rotation curve,
+                // ahead inside the Sun's orbit, behind outside. Sheared for ever it would wind up,
+                // so it is read twice, half a cycle apart, and crossfaded.
+                const float cycle = 30.0;
+                float ph = frac(_Time.y / cycle);
+                float drift = _Flow * (1.0 / r - 1.0 / _SunRadius) * cycle;
+                float4 n = 0, m = 0, fe = 0;
+                [unroll]
+                for (int k = 0; k < 2; k++)
+                {
+                    float phase = k == 0 ? ph : frac(ph + 0.5);
+                    float w = 1.0 - abs(phase * 2.0 - 1.0);   // weighted most mid-cycle; the two sum to 1
+                    float azF = az - drift * phase + k * 2.1;
+                    float2 uv = float2(azF / TAU * 4.0 + lnr * 0.9, lnr * 2.2 + azF / TAU);
+                    float2 udx = float2(dAz.x / TAU * 4.0 + dLnr.x * 0.9, dLnr.x * 2.2 + dAz.x / TAU);
+                    float2 udy = float2(dAz.y / TAU * 4.0 + dLnr.y * 0.9, dLnr.y * 2.2 + dAz.y / TAU);
+                    n += Look(uv, udx * 2.0, udy * 2.0) * w;
+                    m += Look(uv * 3.0 + float2(0.4, 0.1), udx * 4.2, udy * 4.2) * w;
+                    float2 fuv = float2(azF / TAU * 6.0 + lnr * 2.6, lnr * 1.2 - azF / TAU * 2.0);
+                    float2 fdx = float2(dAz.x / TAU * 6.0 + dLnr.x * 2.6, dLnr.x * 1.2 - dAz.x / TAU * 2.0);
+                    float2 fdy = float2(dAz.y / TAU * 6.0 + dLnr.y * 2.6, dLnr.y * 1.2 - dAz.y / TAU * 2.0);
+                    fe += Look(fuv, fdx * 1.4, fdy * 1.4) * w;
+                }
                 float4 nf = Look(p * 3.1 + float2(0.2, 0.7), dpx * 3.1 * 1.2, dpy * 3.1 * 1.2);
                 float4 ng = Look(p * 9.0 + float2(0.5, 0.3), dpx * 9.0, dpy * 9.0);
 
@@ -160,12 +177,16 @@ Shader "Custom/GalaxyDisc_NEW"
                 // The old disc, the bar and the bulge.
                 float disc = exp(-r / _ScaleLength) * 1.1 * edge;
                 float bar = exp(-pow(Sq(q.x / _Bar.y) + Sq(q.y / _Bar.z), 1.1) * 2.2);
-                float bulge = exp(-Sq(r / 0.06)) * 0.8 + 0.5 * exp(-Sq(r / 0.018)) + 0.22 * exp(-Sq(r / 0.17));
+                float bulge = (exp(-Sq(r / 0.06)) * 0.8 + 0.5 * exp(-Sq(r / 0.018)) + 0.22 * exp(-Sq(r / 0.17)))
+                            * (1.0 + 0.1 * sin(_Time.y * 0.55));   // the core breathing, slowly
 
                 // Star formation, and the stars.
                 float hii = smoothstep(0.56, 0.74, nf.r) * smoothstep(0.45, 0.8, m.b) * saturate(arm * 1.2) * _HII;
+                // Each region and cluster flickering on its own clock.
+                hii *= lerp(1.0, 0.55 + 0.9 * (0.5 + 0.5 * sin(_Time.y * (0.8 + 2.0 * nf.g) + nf.b * 40.0)), _Twinkle);
                 float grain = 0.75 + 0.5 * ng.a;
                 float sparkle = smoothstep(0.64, 0.9, nf.a) * (saturate(arm) + 0.15 * disc) * _Sparkle;
+                sparkle *= lerp(1.0, 0.4 + 1.2 * (0.5 + 0.5 * sin(_Time.y * (2.0 + 5.0 * ng.r) + ng.g * 60.0)), _Twinkle);
 
                 float3 young = lerp(_OuterColor.rgb, _Young.rgb, lerp(1.0, 0.55, smoothstep(0.5, 1.0, r)));
                 float3 light = (_Core.rgb * (bulge * 1.4 + bar * 0.9)

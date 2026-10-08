@@ -97,7 +97,8 @@ Shader "Custom/GalaxyStars_NEW"
                     float y = (frac(s1 * 9.1) - 0.5) * _Thickness;
                     position = float3(cos(angle) * r, y, sin(angle) * r);
 
-                    float b = smoothstep(0.0, 0.1, age) * smoothstep(1.0, 0.6, age);
+                    // Born with a flash, then a steady glow that fades as the star leaves its arm.
+                    float b = smoothstep(0.0, 0.02, age) * smoothstep(1.0, 0.6, age) * (1.0 + 3.0 * exp(-age * life / 0.9));
                     colour = _Young.rgb * b * (0.5 + 0.8 * frac(s1 * 31.7));
                     size *= 0.6 + 0.9 * frac(s0 * 17.3);
                 }
