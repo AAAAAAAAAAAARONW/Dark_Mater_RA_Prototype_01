@@ -13,6 +13,10 @@ Shader "Custom/QuasarSparks_NEW"
     // Orbits are Kepler's, at the disc's own rate (_Spin turns a second at its inner edge), on
     // the same clock as the disc (_Pace, _PaceOffset), so the embers turn with the gas.
     //
+    // Drawn after everything, so with a black hole in the middle (QuasarHole_NEW) a particle
+    // beyond the middle that is behind the hole's shadow on screen is put out — as the disc's
+    // far half is — unless the camera is in the core's glow, where the hole is gone.
+    //
     // Additive. _Color fades it. In Resources so a build always has it.
 
     Properties
@@ -34,6 +38,8 @@ Shader "Custom/QuasarSparks_NEW"
         _Brightness ("Brightness", Float) = 0.7
         _Stretch ("Streak length, seconds of motion", Float) = 0.6
         _MaxSize ("Largest on screen, of half its height", Float) = 0.02
+        _HoleRadius ("Black hole radius (of the object's scale); 0 = none", Float) = 0
+        _HoleNear ("Hole gone within this far of the middle, x2 (of the object's scale)", Float) = 0.35
 
         // Set every frame by QuasarVFX_NEW.
         _Pace ("Clock rate", Float) = 1
@@ -62,7 +68,7 @@ Shader "Custom/QuasarSparks_NEW"
 
             fixed4 _Color;
             float _Inner, _Spin, _Drift, _JetLength, _JetWidth, _TwistTurns, _CounterJet;
-            float _Brightness, _Stretch, _MaxSize;
+            float _Brightness, _Stretch, _MaxSize, _HoleRadius, _HoleNear;
             float4 _Hot, _Mid, _Outer, _JetColor, _JetSpeed, _Sizes;
             float _Pace, _PaceOffset, _Bright, _FlareAge, _FlareGain;
 
@@ -165,6 +171,21 @@ Shader "Custom/QuasarSparks_NEW"
                 float3 view = mul(UNITY_MATRIX_V, float4(world, 1.0)).xyz;
                 float3 viewVelocity = mul((float3x3)UNITY_MATRIX_V, mul((float3x3)unity_ObjectToWorld, velocity));
                 float depth = -view.z;
+
+                // Behind the black hole: beyond its middle, and inside its shadow on screen.
+                if (_HoleRadius > 0.0)
+                {
+                    float3 middle = mul(UNITY_MATRIX_V, float4(mul(unity_ObjectToWorld, float4(0, 0, 0, 1)).xyz, 1.0)).xyz;
+                    float middleDepth = max(-middle.z, 1e-4);
+                    if (depth > middleDepth)
+                    {
+                        float off = length(view.xy / max(depth, 1e-4) - middle.xy / middleDepth);
+                        float shadow = _HoleRadius * scale / middleDepth;
+                        float seen = saturate(middleDepth / max(scale * _HoleNear, 1e-6) - 1.0)
+                                   * smoothstep(1.5, 4.0, shadow * abs(unity_CameraProjection._m11) * _ScreenParams.y * 0.5);
+                        colour *= lerp(1.0, smoothstep(shadow * 0.95, shadow * 1.1, off), seen);
+                    }
+                }
 
                 // On the screen plane, in units of depth (tangent of the angle off the axis).
                 float tanHalf = 1.0 / unity_CameraProjection._m11;

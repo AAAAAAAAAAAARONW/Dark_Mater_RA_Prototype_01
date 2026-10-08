@@ -14,6 +14,11 @@ Shader "Custom/QuasarCore_NEW"
     // QuasarVFX_NEW sets the brightness, the flicker and the eruption, which flashes the core
     // and throws the spikes out longer.
     //
+    // With a black hole (QuasarVFX_NEW's hole, drawn by QuasarHole_NEW before this), the
+    // white-hot point would sit right on it: inside _Hole the core's light is held down to
+    // _HoleHaze of itself, so the hole reads as a hole in the light and not as a cut-out. Its
+    // own small shadow is then left off (the hole is the shadow).
+    //
     // Premultiplied alpha, so the glow adds light and the shadow blocks it. _Color fades it.
     // In Resources so a build always has it.
 
@@ -30,6 +35,8 @@ Shader "Custom/QuasarCore_NEW"
         _SpikeLength ("Spike length (of half the screen's height)", Float) = 0.3
         _SpikeAngle ("Spike angle", Float) = 45
         _Streak ("Horizontal streak", Float) = 0.6
+        _Hole ("Black hole radius (of the glow size); 0 = none", Float) = 0
+        _HoleHaze ("Glow left over the hole", Range(0, 1)) = 0.06
 
         // Set every frame by QuasarVFX_NEW.
         _Bright ("Brightness", Float) = 1
@@ -53,7 +60,7 @@ Shader "Custom/QuasarCore_NEW"
             #include "UnityCG.cginc"
 
             fixed4 _Color;
-            float _Size, _Shadow, _Ring, _Spikes, _SpikeLength, _SpikeAngle, _Streak;
+            float _Size, _Shadow, _Ring, _Spikes, _SpikeLength, _SpikeAngle, _Streak, _Hole, _HoleHaze;
             float _Bright, _Pulse, _FlareAge, _FlareGain;
             float4 _Hot, _Glow, _Halo;
 
@@ -86,6 +93,14 @@ Shader "Custom/QuasarCore_NEW"
                 o.screen = vertex.xy * extent / halfScreen;
                 // 0 with the camera inside the glow, 1 from twice its size out. See the shadow.
                 o.flare = float3(flash, spikeLength, saturate(-view.z / max(glow, 1e-6) - 1.0));
+
+                // The black hole is gone when it is down to a few pixels, as QuasarHole_NEW's
+                // is: from far off the core is a point of light again, not a ring.
+                if (_Hole > 0.0)
+                {
+                    float holePixels = _Hole * glow / halfScreen * _ScreenParams.y * 0.5;
+                    o.flare.z *= smoothstep(1.5, 4.0, holePixels);
+                }
                 return o;
             }
 
@@ -109,6 +124,14 @@ Shader "Custom/QuasarCore_NEW"
                 float halo = r < 1.0 ? exp(-r * 4.5) * (1.0 - r) : 0.0;
                 float ring = _Shadow > 0.0 ? exp(-Sq((r - _Shadow * 1.25) / (_Shadow * 0.15))) * _Ring : 0.0;
                 float3 light = _Hot.rgb * (hot + ring * 0.6) + _Glow.rgb * glow + _Halo.rgb * halo;
+
+                // Over the black hole only a haze of the glow, which is in front of it; and
+                // none of that held back with the camera in the glow, where the hole is gone.
+                if (_Hole > 0.0)
+                {
+                    float outside = smoothstep(_Hole * 0.9, _Hole * 1.3, r);
+                    light *= lerp(1.0, lerp(_HoleHaze, 1.0, outside), i.flare.z);
+                }
 
                 float flash = i.flare.x;
                 float spikeLength = i.flare.y;

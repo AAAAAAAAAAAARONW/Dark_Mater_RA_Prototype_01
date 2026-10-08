@@ -25,6 +25,11 @@ Shader "Custom/QuasarDisc_NEW"
     // The noise is QuasarNoise_NEW's texture, read in polar coordinates with gradients worked
     // out from the plane's own, so the seam of atan2 at ±180° never picks the wrong mip.
     //
+    // With a black hole in the middle (QuasarHole_NEW) the disc is drawn twice, split at the
+    // depth of its middle (_Split): the half beyond the middle before the hole, so the hole's
+    // shadow blocks it, and the half nearer the camera after, so it still crosses in front.
+    // The halves are each other's complement: together they are the disc drawn once.
+    //
     // Premultiplied alpha: the bright gas glows, and the dust is dark and blocks what is
     // behind it. _Color fades the whole of it (WorldSwitcher_NEW and the dives use it).
     // In Resources so a build always has it.
@@ -55,6 +60,7 @@ Shader "Custom/QuasarDisc_NEW"
         _WaveSpeed ("Eruption ring speed, radii a second", Float) = 0.35
         _WaveDecay ("Eruption ring fade, seconds", Float) = 1.6
         _Seed ("Seed", Float) = 0
+        _Split ("Draw: 0 all, 1 the half beyond the middle, -1 the half nearer", Float) = 0
 
         // Set every frame by QuasarVFX_NEW.
         _Pace ("Clock rate", Float) = 1
@@ -85,7 +91,7 @@ Shader "Custom/QuasarDisc_NEW"
             sampler2D _Noise;
             fixed4 _Color;
             float _Inner, _Spin, _Twist, _Rings, _Around, _Inflow, _Dust, _Tendrils, _Rim, _Wisps, _Shimmer;
-            float _Beaming, _Speed, _Opacity, _WaveLight, _WaveSpeed, _WaveDecay, _Seed;
+            float _Beaming, _Speed, _Opacity, _WaveLight, _WaveSpeed, _WaveDecay, _Seed, _Split;
             float _Pace, _PaceOffset, _Bright, _Pulse, _FlareAge, _FlareGain;
             float4 _Hot, _Mid, _Outer;
             fixed4 _DustColor;
@@ -95,6 +101,7 @@ Shader "Custom/QuasarDisc_NEW"
                 float4 pos   : SV_POSITION;
                 float2 plane : TEXCOORD0;   // where on the disc, radius 1 at the rim
                 float3 view  : TEXCOORD1;   // from the camera to here, in object space
+                float  behind : TEXCOORD2;  // how much further from the camera than the middle
             };
 
             v2f vert(float4 vertex : POSITION)
@@ -104,6 +111,7 @@ Shader "Custom/QuasarDisc_NEW"
                 o.plane = vertex.xz;
                 float3 camera = mul(unity_WorldToObject, float4(_WorldSpaceCameraPos, 1.0)).xyz;
                 o.view = vertex.xyz - camera;
+                o.behind = UnityObjectToViewPos(float3(0.0, 0.0, 0.0)).z - UnityObjectToViewPos(vertex.xyz).z;
                 return o;
             }
 
@@ -135,6 +143,8 @@ Shader "Custom/QuasarDisc_NEW"
 
                 float r = length(p);
                 if (r > 1.0 || r < _Inner * 0.85) return 0;
+                if (_Split > 0.5 && i.behind <= 0.0) return 0;
+                if (_Split < -0.5 && i.behind > 0.0) return 0;
 
                 float t = saturate((r - _Inner) / (1.0 - _Inner));   // 0 inner edge, 1 rim
                 float a = atan2(p.y, p.x);
