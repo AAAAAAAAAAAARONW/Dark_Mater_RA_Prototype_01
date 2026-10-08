@@ -25,12 +25,22 @@ using UnityEngine;
 /// bend together. The Sun's side is flat: the warp's line of nodes runs close to it.
 ///
 /// WHAT MOVES. The gas and dust stream through the arms along their orbits; waves of star
-/// formation run out along the arms; star-forming regions and young clusters flicker; the core
-/// breathes; stars are born on the arms with a flash; now and then a supernova flares far
-/// brighter than the galaxy round it and fades to gold. The arms themselves are a density wave, and the frame here turns with the Sun, which is
-/// close to their corotation, so in it they hardly move and the Sun stays on SolarDivePoint.
-/// The stars move: born on the arms, they orbit on a flat rotation curve, inside the Sun's
-/// orbit pulling ahead of the arms and outside falling behind, fading and being born again.
+/// formation run out along the arms; star-forming regions and young clusters slowly brighten
+/// and dim; the core breathes; stars are born on the arms; now and then a supernova flares far
+/// brighter than the galaxy round it and fades to gold. The arms themselves are a density
+/// wave, and the frame here turns with the Sun, which is close to their corotation, so they
+/// hold still and the Sun stays on SolarDivePoint. The stars move: born on the arms, they
+/// orbit on a flat rotation curve, fading and being born again.
+///
+/// LATER: IT TURNS ONE WAY, AND CALMLY. In the Sun's frame the inside of the disc drifted one
+/// way and the outside the other, round a middle that stood still, so the galaxy never read
+/// as turning — and the gas was advanced the opposite way to the stars. frameSpin adds the
+/// Sun's own turn back to the gas and the stars (not the arms, so the Sun stays put): at 1
+/// everything streams round the same way through the still arms, faster inside, as a galaxy
+/// turns, and the gas with its stars. The flickering was slowed to a breathing (regions and
+/// clusters over many seconds, not one), births no longer flash, and supernovae are rare:
+/// hundreds of things blinking at once read as the screen flickering, more so magnified twelve
+/// times on the way into the Solar System.
 ///
 /// CHEAP. The disc is one sheet worked out per pixel in one pass, with a handful of reads of
 /// the shared noise texture (QuasarNoise_NEW). The volume is smooth maths, ten samples a ray
@@ -93,6 +103,10 @@ public class GalaxyVFX_NEW : MonoBehaviour
     [Range(0f, 1f)] [SerializeField] float twinkle = 0.6f;
     [Tooltip("Waves of star formation running out along the arms.")]
     [Range(0f, 1f)] [SerializeField] float pulse = 0.6f;
+    [Tooltip("The Sun's own turn added back to the gas and the stars (not the arms, which hold " +
+             "still): 1 everything streams round one way, faster inside, and the galaxy reads as " +
+             "turning; 0 the Sun's frame, the inside one way and the outside the other.")]
+    [Range(0f, 1f)] [SerializeField] float frameSpin = 1f;
 
     [ColorUsage(false, true)] [SerializeField] Color bulgeColour = new Color(1.6f, 1.25f, 0.85f, 1f);
     [ColorUsage(false, true)] [SerializeField] Color oldDisc = new Color(1f, 0.78f, 0.52f, 1f);
@@ -280,6 +294,7 @@ public class GalaxyVFX_NEW : MonoBehaviour
         _disc.SetFloat("_Flow", gasFlow);
         _disc.SetFloat("_Twinkle", twinkle);
         _disc.SetFloat("_Pulse", pulse);
+        _disc.SetFloat("_FrameSpin", frameSpin);
         _disc.SetFloat("_Warp", warp);
         _disc.SetFloat("_SheetBulge", sheetBulge);
         _disc.SetColor("_Core", bulgeColour);
@@ -316,6 +331,7 @@ public class GalaxyVFX_NEW : MonoBehaviour
         _stars.SetColor("_Globular", globularColour);
         _stars.SetColor("_Supernova", supernovaColour);
         _stars.SetFloat("_Speed", orbitalSpeed);
+        _stars.SetFloat("_FrameSpin", frameSpin);
         _stars.SetFloat("_Size", starSize);
         _stars.SetColor("_Young", youngStarColour);
         _stars.SetColor("_OldStars", bulgeStarColour);
