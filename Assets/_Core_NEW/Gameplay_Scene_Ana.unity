@@ -123092,6 +123092,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 734486411}
+  - component: {fileID: 734486412}
   m_Layer: 14
   m_Name: Galaxy2 (1)
   m_TagString: Untagged
@@ -123099,6 +123100,26 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
+--- !u!114 &734486412
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 734486410}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4256c8f93ac4251a0e9c63b89ca5d32, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  pace: 1.6
+  turn: 4
+  way: 0
+  spinUp: 2
+  wobble: 0.6
+  oneWay: 1
+  soften: 0.15
+  debugLog: 0
 --- !u!4 &734486411
 Transform:
   m_ObjectHideFlags: 0
