@@ -42,15 +42,16 @@ public class CelestialBody_NEW : MonoBehaviour
     [SerializeField] Texture dayMap;
 
     [Header("Surface")]
-    [Range(0.3f, 3f)] [SerializeField] float exposure = 1.25f;
+    [Range(0.3f, 3f)] [SerializeField] float exposure = 1.5f;
     [Tooltip("Relief from the map's own brightness, standing up along the terminator.")]
     [Range(0f, 6f)] [SerializeField] float relief = 2f;
     [Tooltip("0 Lambert; 1 Lommel-Seeliger, the lighting of dusty regolith.")]
     [Range(0f, 1f)] [SerializeField] float regolith = 0.8f;
     [SerializeField] Color nightSide = new Color(0.004f, 0.005f, 0.009f, 1f);
-    [Tooltip("A faint light from the camera's side, so a planet seen from its night side is a dim " +
-             "disc with its markings rather than a black one. Black = off.")]
-    [SerializeField] Color fill = new Color(0.07f, 0.08f, 0.11f, 1f);
+    [Tooltip("A soft light from the camera's side, so a planet seen from its night side is a dim " +
+             "disc with its markings rather than a black one, and its day side a little brighter. " +
+             "Black = off.")]
+    [SerializeField] Color fill = new Color(0.14f, 0.15f, 0.19f, 1f);
     [Range(0f, 1f)] [SerializeField] float terminatorReddening = 0f;
     [SerializeField] Color terminatorColour = new Color(1f, 0.45f, 0.2f, 1f);
     [Tooltip("The air seen over the ground towards the limb.")]
@@ -103,22 +104,22 @@ public class CelestialBody_NEW : MonoBehaviour
         clouds = false;
         atmosphere = false;
         oceans = cityLights = hazeOverGround = terminatorReddening = limbDarkening = bandFlow = 0f;
-        exposure = 1.25f;
+        exposure = 1.5f;
         nightSide = new Color(0.004f, 0.005f, 0.009f, 1f);
 
         switch (k)
         {
             case Kind.Rocky:
-                relief = 3f; regolith = 0.85f; exposure = 1.35f;
+                relief = 3f; regolith = 0.85f; exposure = 1.6f;
                 break;
             case Kind.Venus:
-                relief = 0.3f; regolith = 0f; exposure = 1.1f;
+                relief = 0.3f; regolith = 0f; exposure = 1.3f;
                 hazeOverGround = 0.9f; hazeColour = new Color(0.55f, 0.48f, 0.3f, 1f);
                 atmosphere = true; airDepth = 0.06f; scaleHeight = 0.35f; airStrength = 0.9f;
                 scattering = new Color(1.2f, 1.05f, 0.65f, 1f); sunset = new Color(1.2f, 0.6f, 0.25f, 1f);
                 break;
             case Kind.Earth:
-                relief = 1.2f; regolith = 0f; exposure = 1.3f;
+                relief = 1.2f; regolith = 0f; exposure = 1.55f;
                 oceans = 1f; cityLights = 1.2f;
                 hazeOverGround = 0.55f; hazeColour = new Color(0.25f, 0.5f, 1f, 1f);
                 terminatorReddening = 0.7f; terminatorColour = new Color(1f, 0.45f, 0.2f, 1f);
@@ -127,19 +128,19 @@ public class CelestialBody_NEW : MonoBehaviour
                 scattering = new Color(0.3f, 0.6f, 1.5f, 1f); sunset = new Color(1.1f, 0.45f, 0.18f, 1f);
                 break;
             case Kind.Mars:
-                relief = 2.5f; regolith = 0.5f; exposure = 1.3f;
+                relief = 2.5f; regolith = 0.5f; exposure = 1.55f;
                 hazeOverGround = 0.25f; hazeColour = new Color(0.6f, 0.4f, 0.3f, 1f);
                 atmosphere = true; airDepth = 0.02f; scaleHeight = 0.3f; airStrength = 0.35f;
                 scattering = new Color(1.1f, 0.7f, 0.5f, 1f); sunset = new Color(0.45f, 0.65f, 1.2f, 1f);
                 break;
             case Kind.GasGiant:
-                relief = 0f; regolith = 0f; exposure = 1.25f;
+                relief = 0f; regolith = 0f; exposure = 1.5f;
                 limbDarkening = 0.6f; bandFlow = 0.0015f;
                 atmosphere = true; airDepth = 0.02f; scaleHeight = 0.4f; airStrength = 0.25f;
                 scattering = new Color(1f, 0.85f, 0.65f, 1f); sunset = new Color(1f, 0.6f, 0.35f, 1f);
                 break;
             case Kind.IceGiant:
-                relief = 0f; regolith = 0f; exposure = 1.25f;
+                relief = 0f; regolith = 0f; exposure = 1.5f;
                 limbDarkening = 0.5f; bandFlow = 0.0006f;
                 atmosphere = true; airDepth = 0.03f; scaleHeight = 0.4f; airStrength = 0.5f;
                 scattering = new Color(0.45f, 0.85f, 1.3f, 1f); sunset = new Color(0.6f, 0.8f, 1f, 1f);

@@ -32,6 +32,16 @@ Shader "Custom/GalaxyDisc_NEW"
     //
     // Premultiplied alpha: the stars glow, the dust darkens what is behind. _Color fades it.
     // In Resources so a build always has it.
+    //
+    // LATER: STEADY IN THE DIVE. Two things here shimmered as the dive to the Solar System
+    // magnified the disc round the Sun and turned it. How squarely the camera looks at the
+    // sheet was worked out at each vertex and spread across triangles hundreds of pixels wide,
+    // which near the plane — where the dive ends — it changes far faster than that; it is now
+    // worked out for each pixel. And the clock each star-forming region and cluster flickers
+    // on was read from the finest noise, scaled up forty and sixty times, so neighbouring
+    // pixels had unrelated clocks and a change of mip level, as the zoom went on, reset them
+    // all: a field of pixels blinking. It now comes from coarser noise, so a region keeps one
+    // clock and the zoom leaves it alone.
 
     Properties
     {
@@ -91,7 +101,7 @@ Shader "Custom/GalaxyDisc_NEW"
             {
                 float4 pos   : SV_POSITION;
                 float2 plane : TEXCOORD0;
-                float  slant : TEXCOORD1;   // 1 / how squarely the camera looks at the sheet
+                float3 local : TEXCOORD1;   // on the warped sheet, object space
             };
 
             v2f vert(float4 vertex : POSITION)
@@ -100,8 +110,7 @@ Shader "Custom/GalaxyDisc_NEW"
                 vertex.y += GalaxyWarp(vertex.xz);
                 o.pos = UnityObjectToClipPos(vertex);
                 o.plane = vertex.xz;
-                float3 camera = mul(unity_WorldToObject, float4(_WorldSpaceCameraPos, 1.0)).xyz;
-                o.slant = length(camera - vertex.xyz) / max(abs(camera.y - vertex.y), 1e-4);
+                o.local = vertex.xyz;
                 return o;
             }
             float Wrap(float a) { return a - TAU * floor(a / TAU + 0.5); }
@@ -167,6 +176,9 @@ Shader "Custom/GalaxyDisc_NEW"
                 }
                 float4 nf = Look(p * 3.1 + float2(0.2, 0.7), dpx * 3.1 * 1.2, dpy * 3.1 * 1.2);
                 float4 ng = Look(p * 9.0 + float2(0.5, 0.3), dpx * 9.0, dpy * 9.0);
+                // The flickering's clocks: coarser than the regions they time, so one region
+                // keeps one clock (see LATER, above).
+                float4 nc = Look(p * 1.3 + float2(0.71, 0.29), dpx * 1.3, dpy * 1.3);
 
                 // The arms, clumpy and broken; waves of star formation running out along them.
                 float clump = (0.35 + 1.3 * m.r * (0.6 + 0.8 * n.r)) * (0.35 + 0.9 * smoothstep(0.3, 0.65, big.g));
@@ -203,10 +215,10 @@ Shader "Custom/GalaxyDisc_NEW"
                 float hii = smoothstep(0.56, 0.74, nf.r) * smoothstep(0.45, 0.8, m.b) * saturate(arm * 1.2) * _HII * (0.7 + 0.6 * wave * _Pulse);
                 // Each region and cluster brightening and dimming on its own slow clock — slow:
                 // at a second or so a cycle, hundreds of them read as the screen flickering.
-                hii *= lerp(1.0, 0.55 + 0.9 * (0.5 + 0.5 * sin(_Time.y * (0.15 + 0.35 * nf.g) + nf.b * 40.0)), _Twinkle);
+                hii *= lerp(1.0, 0.55 + 0.9 * (0.5 + 0.5 * sin(_Time.y * (0.15 + 0.35 * nc.g) + nc.b * 25.0)), _Twinkle);
                 float grain = 0.75 + 0.5 * ng.a;
                 float sparkle = smoothstep(0.64, 0.9, nf.a) * (saturate(arm) + 0.15 * disc) * _Sparkle;
-                sparkle *= lerp(1.0, 0.4 + 1.2 * (0.5 + 0.5 * sin(_Time.y * (0.25 + 0.6 * ng.r) + ng.g * 60.0)), _Twinkle);
+                sparkle *= lerp(1.0, 0.4 + 1.2 * (0.5 + 0.5 * sin(_Time.y * (0.25 + 0.6 * nc.r) + nc.a * 30.0 + nf.g * 4.0)), _Twinkle);
 
                 float3 young = lerp(_OuterColor.rgb, _Young.rgb, lerp(1.0, 0.55, smoothstep(0.5, 1.0, r)));
                 float3 light = (_Core.rgb * (bulge * 1.4 + bar * 0.9) * _SheetBulge
@@ -217,7 +229,10 @@ Shader "Custom/GalaxyDisc_NEW"
 
                 // Seen at a slant, through more of the layer: the light builds up and the dust
                 // closes (as 1 / cos, gently, and the same as before at the journey's 33°).
-                float slant = min(i.slant, 8.0) / 1.84;
+                // For each pixel, from the camera in the sheet's own space.
+                float3 camera = mul(unity_WorldToObject, float4(_WorldSpaceCameraPos, 1.0)).xyz;
+                float3 toCamera = camera - i.local;
+                float slant = min(length(toCamera) / max(abs(toCamera.y), 1e-4), 8.0) / 1.84;
                 float through = pow(1.0 - saturate(dust * 0.85), slant);
                 float hide = 1.0 - through;
                 light *= sqrt(slant);

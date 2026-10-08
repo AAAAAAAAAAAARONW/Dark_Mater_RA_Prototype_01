@@ -37,6 +37,7 @@ Shader "Custom/QuasarCore_NEW"
         _Streak ("Horizontal streak", Float) = 0.6
         _Hole ("Black hole radius (of the glow size); 0 = none", Float) = 0
         _HoleHaze ("Glow left over the hole", Range(0, 1)) = 0.06
+        _HoleNear ("Hole gone within this far, x2 (of the glow size)", Float) = 1
 
         // Set every frame by QuasarVFX_NEW.
         _Bright ("Brightness", Float) = 1
@@ -60,7 +61,7 @@ Shader "Custom/QuasarCore_NEW"
             #include "UnityCG.cginc"
 
             fixed4 _Color;
-            float _Size, _Shadow, _Ring, _Spikes, _SpikeLength, _SpikeAngle, _Streak, _Hole, _HoleHaze;
+            float _Size, _Shadow, _Ring, _Spikes, _SpikeLength, _SpikeAngle, _Streak, _Hole, _HoleHaze, _HoleNear;
             float _Bright, _Pulse, _FlareAge, _FlareGain;
             float4 _Hot, _Glow, _Halo;
 
@@ -96,10 +97,12 @@ Shader "Custom/QuasarCore_NEW"
 
                 // The black hole is gone when it is down to a few pixels, as QuasarHole_NEW's
                 // is: from far off the core is a point of light again, not a ring.
+                // With the hole, flare.z is how much of it there is, at QuasarHole_NEW's distances
+                // (this core's own small shadow is off then).
                 if (_Hole > 0.0)
                 {
                     float holePixels = _Hole * glow / halfScreen * _ScreenParams.y * 0.5;
-                    o.flare.z *= smoothstep(1.5, 4.0, holePixels);
+                    o.flare.z = saturate(-view.z / max(glow * _HoleNear, 1e-6) - 1.0) * smoothstep(1.5, 4.0, holePixels);
                 }
                 return o;
             }

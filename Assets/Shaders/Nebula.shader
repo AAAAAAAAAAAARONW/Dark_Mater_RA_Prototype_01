@@ -39,6 +39,12 @@ Shader "Custom/Nebula"
         _StarThreshold2 ("Incoming Star Threshold", Range(0.95, 0.999)) = 0.992
         _StarBrightness2 ("Incoming Star Brightness", Range(0, 3)) = 0
 
+        // How far through a crossfade each field is, star by star: below 1 every star goes
+        // out (or, for the incoming field, comes in) at its own point on the way, so the sky's
+        // stars wink out one by one instead of all dimming together. 1 = all there, as before.
+        _StarFade ("Star Fade", Range(0, 1)) = 1
+        _StarFade2 ("Incoming Star Fade", Range(0, 1)) = 1
+
         [Header(Animation)]
         _Animate ("Animate", Float) = 1
         _Speed ("Speed", Range(0, 0.5)) = 0.05
@@ -61,6 +67,7 @@ Shader "Custom/Nebula"
             float _StarScale, _StarThreshold, _StarBrightness;
             float _StarTwinkle, _StarTwinkleSpeed, _StarTwinkleAmount;
             float _StarScale2, _StarThreshold2, _StarBrightness2;
+            float _StarFade, _StarFade2;
             float _Animate, _Speed;
             float _Octaves;
 
@@ -128,10 +135,19 @@ Shader "Custom/Nebula"
             // The mask itself is left alone. Modulating the threshold over time would
             // make stars appear and disappear, which is a different effect and a worse
             // one — real stars do not blink out.
-            float stars(float3 dir, float scale, float threshold, float brightness)
+            //
+            // Fading (fade under 1), each star has its own turn, from the lattice point it is
+            // centred on, so the whole star goes at once.
+            float stars(float3 dir, float scale, float threshold, float brightness, float fade)
             {
                 float3 p = dir * scale;
                 float mask = step(threshold, valueNoise3D(p));
+
+                if (fade < 1.0)
+                {
+                    float turn = hash(round(p) + 17.31) * 0.8;
+                    mask *= smoothstep(turn, turn + 0.2, fade);
+                }
 
                 if (_StarTwinkle > 0.5)
                 {
@@ -186,9 +202,9 @@ Shader "Custom/Nebula"
                 col = lerp(col, _ColorStar, saturate((nebula - 0.75) * 2.0));
 
                 // stars
-                float star = stars(dir, _StarScale, _StarThreshold, _StarBrightness);
+                float star = stars(dir, _StarScale, _StarThreshold, _StarBrightness, _StarFade);
                 if (_StarBrightness2 > 0.0)
-                    star += stars(dir, _StarScale2, _StarThreshold2, _StarBrightness2);
+                    star += stars(dir, _StarScale2, _StarThreshold2, _StarBrightness2, _StarFade2);
                 col.rgb += _ColorStar.rgb * star;
 
                 return col;

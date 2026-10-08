@@ -18,7 +18,15 @@ Shader "Custom/GalaxyStars_NEW"
     //   4 supernova  on the arms; now and then one flares far brighter than the galaxy round
     //                it, with spikes, and fades from blue-white to gold over a few seconds
     //
-    // Additive points, never thinner than a pixel and a half. _Color fades it.
+    // Additive points, never thinner than two pixels. _Color fades it — but not all at once:
+    // each star goes out on its own as the fade passes its turn, so as the dive into the Solar
+    // System dissolves the galaxy round the camera, its stars are left scattered through the
+    // space it opens up and wink out one by one, rather than the whole field dimming together.
+    //
+    // LATER: TWO PIXELS, NOT ONE AND A HALF. At a pixel and a half the glow is narrower than a
+    // pixel, and a star sliding across the pixel grid — as all of them do while the dive turns
+    // and magnifies the galaxy — is brighter on a pixel and dimmer between two: thousands of
+    // them twinkled. At two the same light is spread evenly enough to slide without it.
 
     Properties
     {
@@ -76,7 +84,7 @@ Shader "Custom/GalaxyStars_NEW"
             {
                 float4 pos    : SV_POSITION;
                 float2 corner : TEXCOORD0;
-                float3 colour : TEXCOORD1;
+                float3 colour : TEXCOORD1;   // with the fade in it
                 float2 shape  : TEXCOORD2;   // x: spikes; y: softness (globular clusters)
             };
 
@@ -189,8 +197,15 @@ Shader "Custom/GalaxyStars_NEW"
                 float maxHalf = _MaxSize * tanHalf * (shape.x > 0.0 ? 5.0 : 1.0);
                 float half_ = min(size * scale / max(depth, 1e-4), maxHalf);
                 float pixel = 2.0 * tanHalf / _ScreenParams.y;
-                float wide = max(half_, 1.5 * pixel);
+                float wide = max(half_, 2.0 * pixel);
                 colour *= (half_ / wide) * (half_ / wide);
+
+                // The fade (WorldSwitcher_NEW scales all four channels of _Color by it), star
+                // by star: each goes out over a fifth of it, at its own point on the way down.
+                float fade = _Color.a;
+                float turn = frac(s0 * 71.37 + s1 * 19.13 + s2 * 5.71) * 0.8;
+                float shown = smoothstep(turn, turn + 0.2, fade);
+                colour *= shown * _Color.rgb / max(fade, 1e-3);
 
                 view.xy += v.corner * wide * depth;
                 if (depth < 1e-3) view = float3(0.0, 0.0, 1.0);
@@ -211,7 +226,7 @@ Shader "Custom/GalaxyStars_NEW"
                 // A supernova's spikes, as a telescope draws a star far brighter than its field.
                 float spikes = (exp(-abs(c.y) * 40.0) + exp(-abs(c.x) * 40.0)) * (1.0 - sqrt(q)) * 0.6;
                 k = k * (1.0 - 0.75 * i.shape.x) + spikes * i.shape.x + exp(-q * 30.0) * i.shape.x;
-                return fixed4(i.colour * k * _Color.rgb, 1.0);
+                return fixed4(i.colour * k, 1.0);
             }
             ENDCG
         }

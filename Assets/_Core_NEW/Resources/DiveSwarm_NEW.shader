@@ -13,6 +13,11 @@ Shader "Custom/DiveSwarm_NEW"
     // lands on a pixel one frame and between pixels the next, and a crowd of them streaming
     // past twinkles all over.
     //
+    // Scattering (_Scatter, 0 to 1): instead of the whole crowd dimming together, each member
+    // goes out on its own as _Scatter passes its turn (TEXCOORD1.y), over a short while — so
+    // the members are left strewn through the world the dive has opened and wink out one by
+    // one.
+    //
     // Additive, queue 2990: after the cosmic web's volumes, before the photon trail —
     // the members sit inside the web and behind the light, like the dive's own glow.
     // In Resources so a build always has it: LayerDive_NEW loads it by name.
@@ -30,6 +35,8 @@ Shader "Custom/DiveSwarm_NEW"
         // Turning round the crowd's up axis as it opens (a spiral): how far it turns, in
         // radians, for every factor of e it opens by. 0: straight out.
         _Spin     ("Spin", Float) = 0
+        // How far through going out one by one: 0 all there, 1 all gone.
+        _Scatter  ("Scatter", Range(0, 1)) = 0
     }
 
     SubShader
@@ -50,7 +57,7 @@ Shader "Custom/DiveSwarm_NEW"
             // its quad, so this is about a pixel and a half of light across.
             #define MinPixels 2.0
 
-            float  _Alpha, _Streak, _SizeScale, _Resolve, _Core, _Spin;
+            float  _Alpha, _Streak, _SizeScale, _Resolve, _Core, _Spin, _Scatter;
             float4 _NearFade;
 
             struct appdata
@@ -58,7 +65,7 @@ Shader "Custom/DiveSwarm_NEW"
                 float4 vertex : POSITION;    // member centre, object space
                 fixed4 color  : COLOR;       // member colour; alpha = its brightness
                 float2 uv     : TEXCOORD0;   // quad corner, -1..1
-                float2 size   : TEXCOORD1;   // x = radius in object units
+                float2 size   : TEXCOORD1;   // x = radius in object units; y = its turn to go out (0.12..1)
             };
 
             struct v2f
@@ -111,8 +118,11 @@ Shader "Custom/DiveSwarm_NEW"
                 // resolved: they brighten as they separate from it (full by about three degrees).
                 float resolved = lerp(1.0, saturate((len - 0.01) / 0.04), _Resolve);
 
+                // Its turn to go out: over the last 0.12 of _Scatter before its own.
+                float stays = 1.0 - smoothstep(v.size.y - 0.12, v.size.y, _Scatter);
+
                 o.color = v.color;
-                o.color.a *= near * resolved * spread * _Alpha;
+                o.color.a *= near * resolved * spread * stays * _Alpha;
                 return o;
             }
 

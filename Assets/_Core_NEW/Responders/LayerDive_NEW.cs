@@ -102,6 +102,13 @@ using UnityEngine.UI;
 ///              behind the photon until the new world is in the middle of the frame, and is
 ///              left there for the player.
 ///
+/// LATER: THE STARS SCATTER. The crowd the point resolves into used to dim as one over the
+/// end of the dive, and the old world's stars with it: all the starlight faded together.
+/// Now each member goes out on its own (DiveSwarm_NEW's _Scatter; GalaxyStars_NEW does the
+/// same with the world's fade). Going in, half of them wink out over the end of the dive;
+/// continuous, the rest are left strewn through the new world, drifting out more and more
+/// slowly as the zoom that carried them lets go, and wink out over ScatterSeconds.
+///
 /// THE LIGHT is a camera-facing glow in the world, drawn after the web and before the
 /// photon trail, so it sits inside the cluster and behind the photon. Only the full-screen
 /// whiteout at the peak is an overlay.
@@ -607,6 +614,12 @@ public class LayerDive_NEW : MonoBehaviour
     static readonly int NearFadeId = Shader.PropertyToID("_NearFade");
     static readonly int CoreId = Shader.PropertyToID("_Core");
     static readonly int SigmaId = Shader.PropertyToID("_Sigma");
+    static readonly int ScatterId = Shader.PropertyToID("_Scatter");
+
+    // Continuous: how long the crowd left in the new world takes to go out, after the peak,
+    // and how quickly the zoom that carried it out lets go of it (an exponential's time).
+    const float ScatterSeconds = 3.2f;
+    const float ScatterDrift = 1.1f;
 
     readonly Dictionary<string, LayerGate_NEW> _gatesByLayer = new Dictionary<string, LayerGate_NEW>();
     readonly Dictionary<string, Vector3> _worldCentres = new Dictionary<string, Vector3>();
@@ -1079,22 +1092,47 @@ public class LayerDive_NEW : MonoBehaviour
 
     /// <summary>
     /// Going in, the crowd opens at the dive's own constant rate (<paramref name="p"/>), only
-    /// much further, out of the point and past the camera, turning with the old world; it is
-    /// gone by the peak. With no approach crowd nothing has shown it yet: it resolves over the
+    /// much further, out of the point and past the camera, turning with the old world. Its
+    /// members go out one by one over the end of the dive (see THE STARS SCATTER on the class):
+    /// all of them by the peak, or — continuous — half, the rest left in the new world for
+    /// TickCrowdAfter. With no approach crowd nothing has shown it yet: it resolves over the
     /// first half of the dive, the way detail comes up as you close in, instead of being there
     /// at the gate.
     /// </summary>
     void TickCrowd(float u, float p)
     {
         float rise = _dive.approachCrowd > 0f ? Smooth(0f, 0.2f, u) : Smooth(0.05f, 0.5f, u);
-        float crowd = Mathf.Lerp(_dive.approachCrowd, _dive.diveCrowd, rise) * (1f - Smooth(0.8f, 1f, u));
+        float crowd = Mathf.Lerp(_dive.approachCrowd, _dive.diveCrowd, rise);
         float streak = _dive.streak * Smooth(0f, 0.25f, u) * (1f - Smooth(0.85f, 1f, u));
+        float scatter = (Continuous ? 0.5f : 1f) * Smooth(0.55f, 1f, u);
 
         // It turns as far as the old world, while opening further: its streaks slant by that
         // much less.
         Quaternion turn = Quaternion.AngleAxis(_dive.spin * p, Vector3.up);
         float spin = _dive.resolveZoom > 1f ? _dive.spin * Mathf.Deg2Rad / Mathf.Log(_dive.resolveZoom) : 0f;
-        SetCrowd(_dive, _focus, turn * _crowdAim, Mathf.Pow(_dive.resolveZoom, p), crowd, streak, spin);
+        SetCrowd(_dive, _focus, turn * _crowdAim, Mathf.Pow(_dive.resolveZoom, p), crowd, streak, spin, scatter);
+    }
+
+    /// <summary>
+    /// Continuous, after the peak: the half of the crowd still out is left in the new world.
+    /// The zoom that carried it out lets go of it — it drifts on outward and turning, slower
+    /// and slower, from the rate the dive left it at — and its members wink out one by one
+    /// over ScatterSeconds. <paramref name="since"/> is seconds since the peak.
+    /// </summary>
+    void TickCrowdAfter(float since)
+    {
+        if (since >= ScatterSeconds)
+        {
+            HideCrowd();
+            return;
+        }
+
+        float rate = SteadyRate / Mathf.Max(0.1f, _dive.diveSeconds);
+        float p = SteadyRamp(1f) + rate * ScatterDrift * (1f - Mathf.Exp(-since / ScatterDrift));
+        Quaternion turn = Quaternion.AngleAxis(_dive.spin * p, Vector3.up);
+        float spin = _dive.resolveZoom > 1f ? _dive.spin * Mathf.Deg2Rad / Mathf.Log(_dive.resolveZoom) : 0f;
+        float scatter = Mathf.Lerp(0.5f, 1f, Smooth(0f, ScatterSeconds, since));
+        SetCrowd(_dive, _focus, turn * _crowdAim, Mathf.Pow(_dive.resolveZoom, p), _dive.diveCrowd, 0f, spin, scatter);
     }
 
     /// <summary>
@@ -1135,8 +1173,8 @@ public class LayerDive_NEW : MonoBehaviour
         if (Continuous)
         {
             // Nothing to hide and nothing to snap back: the new world goes on growing out of
-            // the point, and its star and the camera with it.
-            HideCrowd();
+            // the point, and its star and the camera with it; what is left of the crowd stays
+            // in it, scattering (TickContinuous).
             _dolly = 1f;
             _clock = _dive.diveSeconds;
             TickContinuous();
@@ -1372,6 +1410,9 @@ public class LayerDive_NEW : MonoBehaviour
         // Once the real star has taken over, its planets' orbits are drawn round it.
         if (_orbitsFrom < 0f && handover >= 0.6f) _orbitsFrom = t;
         TickOrbits(t, total - release, turn);
+
+        // Past the peak, what is left of the crowd scatters through the new world.
+        if (t >= dive) TickCrowdAfter(t - dive);
 
         // And at the end the zone camera settles onto the new world.
         if (_dive.endFacingStar) TickSettle(t, total);
@@ -2150,9 +2191,11 @@ public class LayerDive_NEW : MonoBehaviour
     /// coming out. 1 = as built.</param>
     /// <param name="spin">Turning as it opens: radians round its up for every factor of e it
     /// opens by, which slants the streaks (DiveSwarm_NEW's _Spin).</param>
-    void SetCrowd(Dive d, Vector3 at, Quaternion aim, float zoom, float alpha, float streak, float spin = 0f)
+    /// <param name="scatter">How far through going out one by one, 0 to 1 (DiveSwarm_NEW's
+    /// _Scatter): 0 every member there, 1 none.</param>
+    void SetCrowd(Dive d, Vector3 at, Quaternion aim, float zoom, float alpha, float streak, float spin = 0f, float scatter = 0f)
     {
-        if (!d.resolve || d.memberCount <= 0 || alpha <= 0.001f)
+        if (!d.resolve || d.memberCount <= 0 || alpha <= 0.001f || scatter >= 0.999f)
         {
             HideCrowd();
             return;
@@ -2173,6 +2216,7 @@ public class LayerDive_NEW : MonoBehaviour
         _crowdMaterial.SetFloat(AlphaId, alpha);
         _crowdMaterial.SetFloat(StreakId, streak);
         _crowdMaterial.SetFloat(SpinId, spin);
+        _crowdMaterial.SetFloat(ScatterId, scatter);
         // The shader scales members with the crowd; this takes back all but memberGrowth of it.
         _crowdMaterial.SetFloat(SizeScaleId, Mathf.Pow(zoom, d.memberGrowth - 1f));
         // Going in, members come out of the point's glow; coming out there is no point to see.
@@ -2267,6 +2311,9 @@ public class LayerDive_NEW : MonoBehaviour
     /// photon crosses that world: galaxies of one size spread evenly through the volume from
     /// an eighth of crowdRadius (clear of the galaxy itself) out to crowdRadius, in every
     /// direction (spread 180) or in a cone round local +Z, turned by CrowdAim.
+    ///
+    /// Each member also has its turn to go out as the crowd scatters (DiveSwarm_NEW's
+    /// _Scatter), from a generator of its own, so the crowd itself is the one it always was.
     /// </summary>
     static Mesh BuildCrowdMesh(Dive d)
     {
@@ -2278,6 +2325,7 @@ public class LayerDive_NEW : MonoBehaviour
         var triangles = new int[n * 6];
 
         var rng = new System.Random(7919);
+        var turns = new System.Random(104729);
         bool outward = d.direction == Direction.Out;
         // Enough decades that members are still leaving the point when the dive peaks.
         float decades = Mathf.Log10(Mathf.Max(1f, d.resolveZoom)) + 1.4f;
@@ -2311,13 +2359,14 @@ public class LayerDive_NEW : MonoBehaviour
                     : pick < d.coolShare + d.accentShare ? d.memberAccent
                     : d.memberWarm;
             c.a = Mathf.Lerp(0.25f, 1f, (float)rng.NextDouble());   // brightness
+            float turn = Mathf.Lerp(0.12f, 1f, (float)turns.NextDouble());
 
             int v = i * 4;
             for (int k = 0; k < 4; k++)
             {
                 vertices[v + k] = p;
                 colors[v + k] = c;
-                sizes[v + k] = new Vector2(radius, 0f);
+                sizes[v + k] = new Vector2(radius, turn);
             }
             corners[v + 0] = new Vector2(-1f, -1f);
             corners[v + 1] = new Vector2(1f, -1f);
