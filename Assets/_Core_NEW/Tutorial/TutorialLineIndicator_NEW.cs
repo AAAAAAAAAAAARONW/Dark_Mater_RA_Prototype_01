@@ -18,11 +18,11 @@ using UnityEngine;
 /// through TutorialTrailBands_NEW.WidthFraction so it stays right while UV and IR are
 /// unfolded or folded, then projected from the world onto the screen.
 ///
-/// THE TRAIL ARROW'S SIDE MAY NEED FLIPPING. A TrailRenderer facing the camera builds
-/// its width from the direction of the trail and the direction to the camera, and which
-/// edge Unity calls uv.y = 0 is not something that can be confirmed without running it.
-/// If the arrow sits over the wrong edge of the ribbon — pointing at IR when the line is
-/// in the visible — tick flipAcross. One checkbox, no code.
+/// WHICH EDGE IS WHICH. A TrailRenderer facing the camera builds its width from the
+/// direction of the trail and the direction to the camera, so which edge Unity calls
+/// uv.y = 0 cannot be worked out from the source. It is read instead from the mesh Unity
+/// actually draws (TrailRibbon_NEW), a few times a second. flipAcross is left only as a
+/// manual override, for the day that reading is wrong.
 ///
 /// Fades run on real time, not the world clock: these are interface, and a pause should
 /// not leave an arrow half faded in.
@@ -62,8 +62,8 @@ public class TutorialLineIndicator_NEW : MonoBehaviour
     [Tooltip("Pixels above that point where the arrow sits, pointing down at it.")]
     [SerializeField] float trailArrowGap = 40f;
 
-    [Tooltip("Tick if the trail arrow points at the opposite edge of the ribbon from the " +
-             "line. See the class summary.")]
+    [Tooltip("Manual override: tick if the trail arrow still lands on the opposite edge of " +
+             "the ribbon from the line. Normally unneeded — see the class summary.")]
     [SerializeField] bool flipAcross = false;
 
     [Tooltip("Degrees to turn the arrow sprite so it points UP. 0 for a sprite drawn " +
@@ -75,6 +75,16 @@ public class TutorialLineIndicator_NEW : MonoBehaviour
     [SerializeField] float fadeSeconds = 0.35f;
 
     float _alpha;
+
+    float _nextRibbonRead;
+    Mesh _ribbonMesh;
+    float _ribbonSign = 1f;
+    float _ribbonWidth = -1f;
+
+    void OnDestroy()
+    {
+        if (_ribbonMesh != null) Destroy(_ribbonMesh);
+    }
     float _alphaTarget;
 
     // ── Public API ───────────────────────────────────────────────────────────
@@ -166,12 +176,30 @@ public class TutorialLineIndicator_NEW : MonoBehaviour
         Vector3 toCamera = viewCamera.transform.position - point;
         Vector3 across = Vector3.Cross(behind, toCamera).normalized;
         if (across.sqrMagnitude < 0.0001f) return false;
-        if (flipAcross) across = -across;
+        // Which way across is uv.y = 0, and how wide the ribbon really is, read from the mesh
+        // Unity draws a few times a second rather than guessed (TrailRibbon_NEW) — so the
+        // arrow lands on the stripe whichever way the ribbon is built, without flipAcross.
+        // Read occasionally and smoothed: snapping to the nearest vertex every frame shakes.
+        if (Time.unscaledTime >= _nextRibbonRead)
+        {
+            _nextRibbonRead = Time.unscaledTime + 0.25f;
+            if (_ribbonMesh == null) _ribbonMesh = new Mesh { name = "TutorialLineIndicator_Bake" };
 
-        float width = trail.widthMultiplier * trail.widthCurve.Evaluate(0f);
+            Vector3 e0, e1;
+            if (TrailRibbon_NEW.Edges(trail, viewCamera, _ribbonMesh, point, out e0, out e1))
+            {
+                Vector3 d = e1 - e0;
+                float s = Vector3.Dot(d, across);
+                if (Mathf.Abs(s) > 1e-4f) _ribbonSign = Mathf.Sign(s);
+                _ribbonWidth = _ribbonWidth < 0f ? d.magnitude : Mathf.Lerp(_ribbonWidth, d.magnitude, 0.3f);
+            }
+        }
+
+        float width = _ribbonWidth > 0f ? _ribbonWidth : trail.widthMultiplier * trail.widthCurve.Evaluate(0f);
         float u = trailBands.WidthFraction(spectrum.TrackedLineTrailPosition);
 
-        point += across * (u - 0.5f) * width;
+        // flipAcross is now only a manual override on top of what the mesh says.
+        point += across * ((flipAcross ? -1f : 1f) * _ribbonSign * (u - 0.5f) * width);
 
         Vector3 screen = viewCamera.WorldToScreenPoint(point);
         if (screen.z <= 0f) return false;

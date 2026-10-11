@@ -205,6 +205,19 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
     [Range(32, 1024)]
     [SerializeField] int trailTextureWidth = 256;
 
+    [Header("Trail lines")]
+    [Tooltip("Narrows the absorption lines ON THE TRAIL ONLY, so neighbouring lines stop running " +
+             "into each other. Each column is scaled by (its depth / the deepest nearby) to this " +
+             "power minus one: a line's deepest point keeps its full depth, its fading wings are " +
+             "cut back. 1 = off, the data as it is. The bar is never touched.")]
+    [Range(1f, 6f)]
+    [SerializeField] float trailLineSharpness = 2.5f;
+
+    [Tooltip("How far either side, in trail columns, counts as 'nearby' when finding a line's " +
+             "deepest point. About a line's half-width on the ribbon.")]
+    [Range(1, 64)]
+    [SerializeField] int trailSharpenWindow = 12;
+
     [Header("Debug")]
     [SerializeField] bool logLoad = true;
 
@@ -600,6 +613,7 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
         {
             DrawTrailSegments();
         }
+        SharpenTrailLines();
         if (field != null) field.MarkExternalAbsorptionDirty();
 
         if (driveBands && spectrumTrail != null)
@@ -675,6 +689,42 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
             _data.SampleView(_zNow, Math.Exp(a), Math.Exp(b), null, _segBuffer, w);
             for (int c = 0; c < n; c++) _absorption[start + c] = 1f - _segBuffer[c];
             start = end;
+        }
+    }
+
+    float[] _sharpenPeak;
+
+    /// <summary>
+    /// The trail's lines, narrowed (trailLineSharpness). The line region is stretched to a
+    /// quarter of the ribbon so the tutorial's lines can be told apart, which stretches each
+    /// line's wings with it, and close lines ran together. Scaling every column by
+    /// (depth / nearby peak)^(k − 1) leaves each line's deepest point exactly as deep and
+    /// cuts back only what fades away from it. Absorption only: the bar is drawn from its
+    /// own curve and never sees this.
+    /// </summary>
+    void SharpenTrailLines()
+    {
+        if (trailLineSharpness <= 1.001f || _absorption == null) return;
+
+        int n = _absorption.Length;
+        if (_sharpenPeak == null || _sharpenPeak.Length != n) _sharpenPeak = new float[n];
+
+        int w = Mathf.Max(1, trailSharpenWindow);
+        for (int c = 0; c < n; c++)
+        {
+            float peak = 0f;
+            int lo = Mathf.Max(0, c - w), hi = Mathf.Min(n - 1, c + w);
+            for (int q = lo; q <= hi; q++) if (_absorption[q] > peak) peak = _absorption[q];
+            _sharpenPeak[c] = peak;
+        }
+
+        float k = trailLineSharpness - 1f;
+        for (int c = 0; c < n; c++)
+        {
+            float a = _absorption[c];
+            float peak = _sharpenPeak[c];
+            if (a <= 0f || peak <= 0f) continue;
+            _absorption[c] = a * Mathf.Pow(a / peak, k);
         }
     }
 

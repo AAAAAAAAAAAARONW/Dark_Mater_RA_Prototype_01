@@ -1766,6 +1766,29 @@ public static class TutorialSceneBuilder_NEW
                          "is drawn about 0.035 of the spectrum wide instead of 0.069. Still one " +
                          "solid black line.");
 
+        // THE TRAIL'S LINES ARE REAL NOW. The spread above made a one-pixel procedural line
+        // visible; the baked lines have their own width, and spread on top of it ran them
+        // together. A hair of spread is kept, and the outline (outlineWidth) carries the rest.
+        // After the pass above, so a scene still on any older width lands here in one build.
+        // Narrow as always: only values this builder wrote (0 was a brief step on the way).
+        RepairSerialized(bands, "lineSpread",
+                         p => Mathf.Approximately(p.floatValue, 0.013f) ||
+                              Mathf.Approximately(p.floatValue, 0f),
+                         p => p.floatValue = 0.002f,
+                         "trail line spread -> 0.002: the baked lines have their own width.");
+
+        // Hardness went to 0.5 for one step and back: with the wings trimmed first
+        // (TutorialBakedSpectrum_NEW.trailLineSharpness) a solid cut only blackens the core.
+        RepairSerialized(bands, "lineHardness", p => Mathf.Approximately(p.floatValue, 0.5f),
+                         p => p.floatValue = 1f,
+                         "trail line hardness 0.5 -> 1: a solid black core.");
+
+        // The outline was briefly always on at 1.2 (boosted on a blink); it is now only the
+        // blink, so its strength is the blink's peak.
+        RepairSerialized(bands, "outlineStrength", p => Mathf.Approximately(p.floatValue, 1.2f),
+                         p => p.floatValue = 3f,
+                         "trail line outline 1.2 -> 3: it shows only at the blink now.");
+
         return bands;
     }
 

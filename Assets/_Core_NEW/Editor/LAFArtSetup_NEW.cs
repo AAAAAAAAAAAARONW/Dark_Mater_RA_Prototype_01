@@ -68,8 +68,21 @@ public static class LAFArtSetup_NEW
     const float TutorialTrailArrowSize = 22f;
     const float TutorialArrowGap = 6f;
 
-    /// <summary>The UV and IR tints, lowered now the line carries the colours too.</summary>
-    const float BandTintAlpha = 0.06f;
+    /// <summary>The UV and IR tints: off. A violet fill under a violet line hid the line;
+    /// the bands are marked by their edges and labels instead.</summary>
+    const float BandTintAlpha = 0f;
+
+    /// <summary>The thin lines where visible light starts and ends.</summary>
+    const string BandEdgeName = "Edge";
+    const float BandEdgeWidth = 1f;
+    static readonly Color BandEdgeColour = new Color(0.03f, 0.95f, 0.52f, 0.5f);
+
+    /// <summary>
+    /// The tutorial bar's UV colour for the line, lighter than the trail's deep violet: still
+    /// violet, so still "UV", but bright enough to read on the dark background while the bar
+    /// is zoomed into the UV and the whole line is that colour.
+    /// </summary>
+    static readonly Color TutorialLineUv = new Color(0.78f, 0.6f, 1f, 1f);
 
     /// <summary>
     /// Scripts that used to draw the journey graph and are switched off on it. Matched by
@@ -220,7 +233,15 @@ public static class LAFArtSetup_NEW
             nested.sortingOrder = (root != null ? root.sortingOrder : 0) - 1;
 
             LineGraphRenderer_NEW graph = bar.GetComponent<LineGraphRenderer_NEW>();
-            if (graph != null) StyleCurve(graph);
+            if (graph != null)
+            {
+                StyleCurve(graph);
+
+                SerializedObject gs = new SerializedObject(graph);
+                SerializedProperty uv = gs.FindProperty("uvColour");
+                if (uv != null) uv.colorValue = TutorialLineUv;
+                gs.ApplyModifiedProperties();
+            }
         }
 
         if (bands == null) return;
@@ -241,6 +262,11 @@ public static class LAFArtSetup_NEW
             birthRef.objectReferenceValue = birthImage.rectTransform;
             bs.ApplyModifiedProperties();
         }
+
+        // The visible band's two edges: on the UV band's right side and the IR band's left,
+        // so they sit exactly on the boundaries and fold away with those bands.
+        EnsureBandEdge(bands.transform.Find("UV"), 1f, style);
+        EnsureBandEdge(bands.transform.Find("IR"), 0f, style);
 
         if (!style) return;
 
@@ -296,6 +322,28 @@ public static class LAFArtSetup_NEW
             if (trailArrow != null)
                 StyleArrowImage(trailArrow.GetComponent<Image>(), arrow, TrackCream, TutorialTrailArrowSize);
         }
+    }
+
+    /// <summary>A one-pixel line down one side of a band (x 0 = left, 1 = right).</summary>
+    static void EnsureBandEdge(Transform band, float x, bool style)
+    {
+        if (band == null) return;
+
+        bool isNew = band.Find(BandEdgeName) == null;
+        Image edge = FindOrCreateImage((RectTransform)band, BandEdgeName);
+        if (!isNew && !style) return;
+
+        Undo.RecordObject(edge, "LAF band edge");
+        edge.color = BandEdgeColour;
+        edge.raycastTarget = false;
+
+        RectTransform rect = edge.rectTransform;
+        Undo.RecordObject(rect, "LAF band edge");
+        rect.anchorMin = new Vector2(x, 0f);
+        rect.anchorMax = new Vector2(x, 1f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = Vector2.zero;
+        rect.sizeDelta = new Vector2(BandEdgeWidth, 0f);
     }
 
     // ── Shared styling ───────────────────────────────────────────────────────

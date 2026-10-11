@@ -67,6 +67,23 @@ public class TutorialTrailBands_NEW : MonoBehaviour
              "flipAcross on TutorialLineIndicator_NEW, and the two want the same answer.")]
     [SerializeField] bool mirrorAcross = false;
 
+    [Tooltip("Set mirrorAcross by itself, from the ribbon Unity actually draws (the journey's " +
+             "AbsorberHighlight_NEW does the same): UV on screen-left like the bar, so a line " +
+             "drifts left to right on both. Re-read every orientSeconds, because the player can " +
+             "swing the view round and turn the ribbon over on screen. Off: mirrorAcross is " +
+             "left exactly as ticked.")]
+    [SerializeField] bool autoOrient = true;
+
+    [Tooltip("The camera the ribbon is judged against. Leave empty for the main camera.")]
+    [SerializeField] Camera viewCamera;
+
+    [Min(0.1f)]
+    [SerializeField] float orientSeconds = 0.5f;
+
+    [Tooltip("Metres behind the light where the ribbon is read: a little way back, where it " +
+             "is already full width.")]
+    [SerializeField] float orientBehindLight = 1.5f;
+
     [Header("Unfold / fold UV and IR")]
     [Tooltip("Seconds for the ribbon to widen from the visible band to the full spectrum, " +
              "or back.")]
@@ -106,7 +123,7 @@ public class TutorialTrailBands_NEW : MonoBehaviour
              "ribbon starts looking banded rather than marked, or if D8's second line " +
              "runs into the first.")]
     [Range(0f, 0.06f)]
-    [SerializeField] float lineSpread = 0.013f;
+    [SerializeField] float lineSpread = 0.002f;
 
     [Tooltip("0 draws the line with the buffer's soft falloff; 1 cuts it as one solid black " +
              "band with a clean edge.\n\n" +
@@ -115,6 +132,30 @@ public class TutorialTrailBands_NEW : MonoBehaviour
              "that faded into the colours either side of it.")]
     [Range(0f, 1f)]
     [SerializeField] float lineHardness = 1f;
+
+    [Header("Absorption line outline")]
+    [Tooltip("A bright rim round the line an atom has JUST cut, for the length of its blink " +
+             "(BlinkLines) and on that line only — the moment of absorption, not a style for " +
+             "every line. Width is in spectrum units, like lineSpread, and scaled by the crop " +
+             "the same way. 0 = no outline.")]
+    [Range(0f, 0.03f)]
+    [SerializeField] float outlineWidth = 0.006f;
+
+    [Tooltip("Brightness at the peak of the blink. It rises and falls with the blink and is " +
+             "off the rest of the time.")]
+    [Range(0f, 6f)]
+    [SerializeField] float outlineStrength = 3f;
+
+    [Tooltip("Cream, the colour of the arrows that follow a line on the bar and the trail.")]
+    [SerializeField] Color outlineColor = new Color(1f, 0.91f, 0.63f, 1f);
+
+    [Tooltip("How far either side of the new line, in spectrum units, the outline may show. " +
+             "Small, so neighbouring lines stay plain.")]
+    [Range(0.001f, 0.1f)]
+    [SerializeField] float outlineRange = 0.015f;
+
+    [Tooltip("Where the newest line is. Leave empty to find it.")]
+    [SerializeField] TutorialSpectrum_NEW spectrum;
 
     [Tooltip("How BLACK the absorbed line is, 0 to 1.\n\n" +
              "The ribbon is additive, so on its own an absorbed wavelength just stops " +
@@ -170,6 +211,11 @@ public class TutorialTrailBands_NEW : MonoBehaviour
     static readonly int LineSpreadId = Shader.PropertyToID("_AbsorptionLineSpread");
     static readonly int LineHardnessId = Shader.PropertyToID("_AbsorptionLineHardness");
     static readonly int LineBlackId = Shader.PropertyToID("_AbsorptionBlack");
+    static readonly int OutlineWidthId = Shader.PropertyToID("_AbsorptionOutlineWidth");
+    static readonly int OutlineStrengthId = Shader.PropertyToID("_AbsorptionOutlineStrength");
+    static readonly int OutlineColorId = Shader.PropertyToID("_AbsorptionOutlineColor");
+    static readonly int OutlineCenterId = Shader.PropertyToID("_AbsorptionOutlineCenter");
+    static readonly int OutlineRangeId = Shader.PropertyToID("_AbsorptionOutlineRange");
 
     // ── Public API ───────────────────────────────────────────────────────────
 
@@ -234,6 +280,7 @@ public class TutorialTrailBands_NEW : MonoBehaviour
         _block = new MaterialPropertyBlock();
 
         if (spectrumTrail == null) spectrumTrail = GetComponent<PhotonSpectrumTrail>();
+        if (spectrum == null) spectrum = FindObjectOfType<TutorialSpectrum_NEW>();
 
         // The material's own values are what "full" means. Read from the shared asset,
         // before anything has instanced it.
@@ -267,7 +314,57 @@ public class TutorialTrailBands_NEW : MonoBehaviour
             if (_blinkElapsed > lineBlinkSeconds) _blinkElapsed = -1f;
         }
 
+        if (autoOrient && Time.unscaledTime >= _nextOrient)
+        {
+            _nextOrient = Time.unscaledTime + orientSeconds;
+            Orient();
+        }
+
         Apply();
+    }
+
+    float _nextOrient;
+    Mesh _ribbonMesh;
+
+    /// <summary>Whether the ribbon is currently drawn mirrored (UV on the uv.y = 0 edge).</summary>
+    public bool MirrorAcross { get { return mirrorAcross; } }
+
+    /// <summary>
+    /// Mirror the ribbon if its UV edge is on screen-right. Unmirrored, specT = 1 − uv.y, so
+    /// UV is the uv.y = 1 edge (e1) and IR the uv.y = 0 edge (e0); e0 left of e1 means UV is
+    /// on the right, and the ribbon has to be mirrored.
+    /// </summary>
+    void Orient()
+    {
+        if (_trail == null || _trail.positionCount < 8) return;
+
+        Camera cam = viewCamera != null ? viewCamera : Camera.main;
+        if (cam == null) return;
+
+        // Behind the light: back along the trail's own most recent points.
+        Vector3 head = _trail.transform.position;
+        Vector3 back = _trail.GetPosition(Mathf.Max(0, _trail.positionCount - 4)) - head;
+        if (back.sqrMagnitude < 1e-6f) return;
+
+        Vector3 target = head + back.normalized * orientBehindLight;
+
+        if (_ribbonMesh == null) _ribbonMesh = new Mesh { name = "TutorialTrailBands_Bake" };
+
+        Vector3 e0, e1;
+        if (!TrailRibbon_NEW.Edges(_trail, cam, _ribbonMesh, target, out e0, out e1)) return;
+
+        Vector3 s0 = cam.WorldToScreenPoint(e0), s1 = cam.WorldToScreenPoint(e1);
+        if (s0.z <= 0f || s1.z <= 0f) return;
+
+        float dx = s0.x - s1.x;
+        if (Mathf.Abs(dx) < 3f) return;   // edge-on to the screen: no clear left or right
+
+        mirrorAcross = dx < 0f;
+    }
+
+    void OnDestroy()
+    {
+        if (_ribbonMesh != null) Destroy(_ribbonMesh);
     }
 
     void Apply()
@@ -321,6 +418,14 @@ public class TutorialTrailBands_NEW : MonoBehaviour
         _block.SetFloat(LineSpreadId, lineSpread * scale);
         _block.SetFloat(LineHardnessId, lineHardness);
         _block.SetFloat(LineBlackId, lineBlack);
+        _block.SetFloat(OutlineWidthId, outlineWidth * scale);
+        // Only while the new line blinks, and only on it.
+        bool onLine = spectrum != null && spectrum.HasTrackedLine;
+        _block.SetFloat(OutlineStrengthId,
+                        onLine ? outlineStrength * Pulse(_blinkElapsed, lineBlinkSeconds, lineBlinkCount) : 0f);
+        _block.SetFloat(OutlineCenterId, onLine ? spectrum.TrackedLineTrailPosition : 0.5f);
+        _block.SetFloat(OutlineRangeId, outlineRange);
+        _block.SetColor(OutlineColorId, outlineColor);
 
         _trail.SetPropertyBlock(_block);
     }

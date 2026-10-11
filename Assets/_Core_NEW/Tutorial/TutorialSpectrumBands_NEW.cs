@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -53,6 +54,12 @@ public class TutorialSpectrumBands_NEW : MonoBehaviour
              "point is drawn the same way on both sides of the handoff. Only its x is set " +
              "here; its size, rotation and gap are its own.")]
     [SerializeField] RectTransform birthArrow;
+
+    [Tooltip("A band's UV / VISIBLE / IR label is hidden while the band is narrower than " +
+             "the label plus this many pixels. When the bar zooms into the UV the visible and " +
+             "IR bands are squeezed against the right edge, and their labels landed on top of " +
+             "each other.")]
+    [SerializeField] float labelPadding = 6f;
 
     [Header("Look")]
     [Range(0f, 1f)]
@@ -141,6 +148,11 @@ public class TutorialSpectrumBands_NEW : MonoBehaviour
         Span(visibleBand, visStart, visEnd);
         Span(irBand, visEnd, 1f);
 
+        float barWidth = ((RectTransform)transform).rect.width;
+        FitLabel(uvBand, visStart * barWidth);
+        FitLabel(visibleBand, (visEnd - visStart) * barWidth);
+        FitLabel(irBand, (1f - visEnd) * barWidth);
+
         if (uvGroup != null) uvGroup.alpha = _open;
         if (irGroup != null) irGroup.alpha = _open;
 
@@ -172,6 +184,19 @@ public class TutorialSpectrumBands_NEW : MonoBehaviour
             c.a = Pulse(_blinkElapsed, lineBlinkSeconds, lineBlinkCount) * 0.9f;
             lineMarkerImage.color = c;
         }
+    }
+
+    /// <summary>Show a band's label only while the band is wide enough to hold it.</summary>
+    void FitLabel(RectTransform band, float width)
+    {
+        if (band == null) return;
+
+        Transform t = band.Find("Label");
+        TMP_Text label = t != null ? t.GetComponent<TMP_Text>() : null;
+        if (label == null) return;
+
+        bool fits = width >= label.preferredWidth + labelPadding;
+        if (label.enabled != fits) label.enabled = fits;
     }
 
     static void Span(RectTransform rect, float from, float to)

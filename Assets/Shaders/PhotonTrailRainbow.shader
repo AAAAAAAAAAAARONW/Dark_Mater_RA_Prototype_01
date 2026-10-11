@@ -69,6 +69,17 @@ Shader "Custom/PhotonTrail"
         // nothing, so existing materials look the same.
         _AbsorptionBlack ("Absorption Line Black", Range(0, 1)) = 0
         _AbsorbThroughGlow ("Absorption Cuts Glow", Range(0, 1)) = 0
+
+        // A bright rim either side of every absorbed line, so a thin black line still reads
+        // against a dim ribbon. Width is in the same wavelength units as the spread.
+        // Width 0 (the default) draws nothing, so existing materials look the same.
+        _AbsorptionOutlineWidth    ("Absorption Outline Width",    Range(0, 0.03)) = 0
+        _AbsorptionOutlineStrength ("Absorption Outline Strength", Range(0, 4)) = 1
+        _AbsorptionOutlineColor    ("Absorption Outline Color",    Color) = (1, 0.91, 0.63, 1)
+        // Limit the outline to one line: only within Range of Center (both in the same
+        // wavelength units as the line texture). Range 0 (the default) outlines every line.
+        _AbsorptionOutlineCenter   ("Absorption Outline Center",   Range(0, 1)) = 0.5
+        _AbsorptionOutlineRange    ("Absorption Outline Range",    Range(0, 0.5)) = 0
     }
 
     SubShader
@@ -256,6 +267,11 @@ Shader "Custom/PhotonTrail"
             float  _AbsorptionLineSpread;
             float  _AbsorptionLineHardness;
             float  _AbsorbThroughGlow;
+            float  _AbsorptionOutlineWidth;
+            float  _AbsorptionOutlineStrength;
+            float4 _AbsorptionOutlineColor;
+            float  _AbsorptionOutlineCenter;
+            float  _AbsorptionOutlineRange;
 
             struct appdata
             {
@@ -448,6 +464,28 @@ Shader "Custom/PhotonTrail"
                     absorp = lineStrength * _AbsorptionLineStrength;
                 }
 
+                // ── 8b. Outline ─────────────────────────────────────────
+                // Light just outside a line: the strongest absorption within the outline
+                // width either side, minus the absorption here. Zero inside the line and
+                // far from it, so it is a rim and nothing else.
+                float outline = 0.0;
+                if (_UseAbsorptionLine > 0.5 && _AbsorptionOutlineWidth > 0.0001)
+                {
+                    float nearAbs = 0.0;
+                    for (int o = 1; o <= 4; o++)
+                    {
+                        float d = _AbsorptionOutlineWidth * o * 0.25;
+                        nearAbs = max(nearAbs, tex2Dlod(_AbsorptionLineTex, float4(specT - d, 0.5, 0, 0)).r);
+                        nearAbs = max(nearAbs, tex2Dlod(_AbsorptionLineTex, float4(specT + d, 0.5, 0, 0)).r);
+                    }
+                    nearAbs = lerp(nearAbs, smoothstep(0.06, 0.22, nearAbs), _AbsorptionLineHardness);
+                    outline = saturate(nearAbs - absorp) * _AbsorptionOutlineStrength;
+
+                    if (_AbsorptionOutlineRange > 0.0001)
+                        outline *= 1.0 - smoothstep(_AbsorptionOutlineRange * 0.5, _AbsorptionOutlineRange,
+                                                    abs(specT - _AbsorptionOutlineCenter));
+                }
+
                 // Darken the color at absorbed wavelengths — absorption removes light
                 float4 absorbedColor = baseColor * (1.0 - absorp);
 
@@ -473,6 +511,10 @@ Shader "Custom/PhotonTrail"
                 float huePeak = max(specColor.r, max(specColor.g, specColor.b));
                 float3 hue    = specColor.rgb / max(huePeak, 0.001);
                 col.rgb      += hue * visMask * _VisibleHighlight * 0.6 * (1.0 - absorp);
+
+                // The outline is added light, so it shows on the dimmest part of the ribbon.
+                col.rgb += _AbsorptionOutlineColor.rgb * outline;
+                col.a    = max(col.a, saturate(outline));
 
                 // headClip cuts the rectangle corners into a semicircle shape
                 float alpha = col.a
