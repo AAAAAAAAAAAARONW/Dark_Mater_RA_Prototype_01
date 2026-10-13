@@ -289,7 +289,7 @@ public class TutorialHUD_NEW : MonoBehaviour
 
         bool paused = pause != null && pause.IsPaused;
 
-        bool live = !paused && _currentBeat != null && _currentBeat.IsActive;
+        bool live = !paused && _currentBeat != null && _currentBeat.IsActive && !VoiceHoldsHint;
 
         stickGuide.SetGesture(live
             ? _currentBeat.StickGesture
@@ -344,9 +344,12 @@ public class TutorialHUD_NEW : MonoBehaviour
         // With a pause card in the scene the card carries B TO RESUME, and the hint line
         // clears so the same words are not on screen twice. Without one, the hint line
         // still carries it, so a pause is never left with no way out on screen.
+        // While the voice-over holds the current beat's instruction back, the line is
+        // empty - including words a Keep beat would otherwise inherit, since those are
+        // also an instruction arriving before the narration has finished.
         string wanted = paused
             ? (pauseCard != null ? null : pause.ResumeHintText)
-            : _beatHintText;
+            : (VoiceHoldsHint ? null : _beatHintText);
 
         if (wanted == _shownHintText) return;
 
@@ -645,9 +648,20 @@ public class TutorialHUD_NEW : MonoBehaviour
         get { return _hintShown && _shownArt != null && _shownArt.carriesTheButton; }
     }
 
+    /// <summary>
+    /// The current beat's instruction is waiting for its narration to finish. Set by
+    /// TutorialVoiceOver_NEW from the voice-over table's hint timing; hides the hint line,
+    /// the stick diagram and the A prompt together, since they are one instruction.
+    /// </summary>
+    bool VoiceHoldsHint
+    {
+        get { return _currentBeat != null && _currentBeat.IsActive && _currentBeat.HintHeld; }
+    }
+
     void TickPrompt(float dt)
     {
-        bool wanted = _promptBeat != null && _promptBeat.PromptVisible && !ArtCarriesTheButton;
+        bool wanted = _promptBeat != null && _promptBeat.PromptVisible && !ArtCarriesTheButton &&
+                      !VoiceHoldsHint;
 
         if (confirmPromptRoot != null && confirmPromptRoot.activeSelf != wanted)
         {

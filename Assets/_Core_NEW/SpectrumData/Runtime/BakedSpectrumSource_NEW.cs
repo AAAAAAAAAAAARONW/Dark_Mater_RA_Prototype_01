@@ -312,6 +312,114 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
         _trailDirty = true;
     }
 
+    /// <summary>
+    /// Cut a line NOW, as if the light had just passed a cloud: an absorber at the light's
+    /// present redshift, born at the birth tick and carried redward from there like every
+    /// other line. Returns that redshift (for AbsorberHighlight_NEW.HighlightLine), or NaN
+    /// if the source is not running the journey.
+    ///
+    /// WHY THIS EXISTS. The bake is faithful, and in it the forest FREEZES at z 2.46 (see
+    /// the bake report): after that no new line forms. The first cosmic web starts just after
+    /// the freeze, so flying through its yellow filaments cut nothing — while the tutorial
+    /// has just taught that passing gas cuts a line. FilamentAbsorber_NEW calls this when the
+    /// light crosses a placed filament, so the lesson holds where the player can see it. It
+    /// is a teaching representation, chosen on purpose, and it is the only line in the
+    /// journey that is not in the bake.
+    ///
+    /// Width in km/s on the line's own scale: about 600 is one bar column.
+    /// </summary>
+    public float AddAbsorber(float depth, float widthKmS)
+    {
+        if (!_active || _arrival != Arrival.Journey) return float.NaN;
+
+        _extraLines.Add(new ExtraLine
+        {
+            zAbs = _zNow,
+            depth = Mathf.Clamp01(depth),
+            sigmaLn = Mathf.Max(1f, widthKmS) / 299792.458
+        });
+
+        // On screen this frame, not at the next row change.
+        Push(_data.RowFromZ(_zNow));
+
+        return _zNow;
+    }
+
+    struct ExtraLine
+    {
+        public double zAbs;
+        public float depth;
+        public double sigmaLn;
+    }
+
+    readonly System.Collections.Generic.List<ExtraLine> _extraLines = new System.Collections.Generic.List<ExtraLine>();
+
+    /// <summary>
+    /// Fold the added lines into a curve sampled at ln-wavelengths lnStart + i * lnStep.
+    /// absorption: the array holds absorption (1 = all gone); otherwise it holds light
+    /// (transmission or flux) and is multiplied down.
+    /// </summary>
+    void ApplyExtraLines(float[] values, double lnStart, double lnStep, bool absorption)
+    {
+        if (_extraLines.Count == 0 || values == null) return;
+
+        for (int k = 0; k < _extraLines.Count; k++)
+        {
+            ExtraLine e = _extraLines[k];
+
+            // Not reached yet (a replay running back past it): not cut yet, like any line.
+            if (e.zAbs < _zDisplay) continue;
+
+            double centre = Math.Log(BakedSpectrumData_NEW.LymanAlphaA * (1.0 + e.zAbs) / (1.0 + _zDisplay));
+            double reach = e.sigmaLn * 4.0;
+
+            int from = Math.Max(0, (int)Math.Floor((centre - reach - lnStart) / lnStep));
+            int to = Math.Min(values.Length - 1, (int)Math.Ceiling((centre + reach - lnStart) / lnStep));
+
+            for (int i = from; i <= to; i++)
+            {
+                double x = (lnStart + i * lnStep - centre) / e.sigmaLn;
+                float dip = e.depth * (float)Math.Exp(-0.5 * x * x);
+
+                values[i] = absorption ? 1f - (1f - values[i]) * (1f - dip) : values[i] * (1f - dip);
+            }
+        }
+    }
+
+    static readonly int OutlineWidthId = Shader.PropertyToID("_AbsorptionOutlineWidth");
+    static readonly int OutlineStrengthId = Shader.PropertyToID("_AbsorptionOutlineStrength");
+    static readonly int OutlineColorId = Shader.PropertyToID("_AbsorptionOutlineColor");
+    static readonly int OutlineCenterId = Shader.PropertyToID("_AbsorptionOutlineCenter");
+    static readonly int OutlineRangeId = Shader.PropertyToID("_AbsorptionOutlineRange");
+
+    /// <summary>
+    /// The tutorial's outline round one line on the trail (PhotonTrailRainbow), through this
+    /// source's property block. center is across the ribbon (TrailLineT); strength 0 hides it.
+    /// AbsorberHighlight_NEW drives it, pulsing with its blinks.
+    /// </summary>
+    public void SetTrailOutline(float center, float strength, float width, Color color, float range)
+    {
+        if (_trailRenderer == null) return;
+        if (_trailBlock == null) _trailBlock = new MaterialPropertyBlock();
+
+        _trailRenderer.GetPropertyBlock(_trailBlock);
+        _trailBlock.SetFloat(OutlineWidthId, width);
+        _trailBlock.SetFloat(OutlineStrengthId, float.IsNaN(center) ? 0f : strength);
+        _trailBlock.SetColor(OutlineColorId, color);
+        _trailBlock.SetFloat(OutlineCenterId, float.IsNaN(center) ? 0.5f : center);
+        _trailBlock.SetFloat(OutlineRangeId, range);
+        _trailRenderer.SetPropertyBlock(_trailBlock);
+    }
+
+    public void ClearTrailOutline()
+    {
+        if (_trailRenderer == null || _trailBlock == null) return;
+
+        _trailRenderer.GetPropertyBlock(_trailBlock);
+        _trailBlock.SetFloat(OutlineStrengthId, 0f);
+        _trailRenderer.SetPropertyBlock(_trailBlock);
+    }
+
     public void ClearTrailEmphasis()
     {
         if (float.IsNaN(_emphT)) return;
@@ -456,6 +564,8 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
     {
         if (_active) return;
 
+        _extraLines.Clear();
+
         if (bakedFile == null)
         {
             Fail("no baked file assigned. Bake one with Tools > Journey NEW > Spectrum Data > " +
@@ -598,11 +708,14 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
             // stored rows did (it read as the lines jumping).
             _data.SampleView(_zDisplay, _data.LambdaMin, _data.LambdaMax, null, _transmission);
             for (int c = 0; c < _absorption.Length; c++) _absorption[c] = 1f - _transmission[c];
+            ApplyExtraLines(_absorption, Math.Log(_data.LambdaMin), AxisStep(_absorption.Length), true);
             DrawHudRiding(flux);
         }
         else
         {
             _data.SampleRow(row, flux ? _flux : null, _absorption);
+            ApplyExtraLines(_absorption, Math.Log(_data.LambdaMin), AxisStep(_absorption.Length), true);
+            if (flux) ApplyExtraLines(_flux, Math.Log(_data.LambdaMin), AxisStep(_flux.Length), false);
 
             int n = _hudCurve.Length;
             if (flux)
@@ -642,7 +755,14 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
 
         _data.SampleView(_zDisplay, Math.Exp(lnMin + phase * step), Math.Exp(lnMax + phase * step),
                          flux ? _hudCurve : null, flux ? null : _hudCurve, null, lymanBreakFloor, hudBinWidth);
+        ApplyExtraLines(_hudCurve, lnMin + phase * step, step, false);
         if (driveHud && hud != null) hud.SetExternalCurveShift(phase);
+    }
+
+    /// <summary>ln-wavelength step between columns of an array spanning the bar's full range.</summary>
+    double AxisStep(int columns)
+    {
+        return (Math.Log(_data.LambdaMax) - Math.Log(_data.LambdaMin)) / Math.Max(1, columns - 1);
     }
 
     float CurrentLookbackGyr()

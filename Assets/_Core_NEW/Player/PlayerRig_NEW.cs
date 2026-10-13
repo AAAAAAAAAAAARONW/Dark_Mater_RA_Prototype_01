@@ -97,6 +97,7 @@ public class PlayerRig_NEW : MonoBehaviour
     Vector3 _defaultDirection;
     float _externalSpeedMultiplier = 1f;
     float _narrationSpeedMultiplier = 1f;
+    float _paceSpeedMultiplier = 1f;
     bool _cameraInputLocked;
     string _lockReason;
     float _lookSensitivityScale = 1f;
@@ -164,6 +165,30 @@ public class PlayerRig_NEW : MonoBehaviour
     public float NarrationSpeedMultiplier => _narrationSpeedMultiplier;
 
     /// <summary>
+    /// A third multiplier, for pacing a layer: LayerPace_NEW holds a slow layer slow while
+    /// it is talked about, then hurries the light out. Separate from the per-layer one
+    /// (SpeedResponder_NEW) and the narration one (NarrationSlowdown_NEW) so none of the
+    /// three ever overwrites another. All three multiply. 1 = no effect.
+    /// </summary>
+    public void SetPaceSpeedMultiplier(float multiplier)
+    {
+        _paceSpeedMultiplier = Mathf.Max(0f, multiplier);
+    }
+
+    public float PaceSpeedMultiplier => _paceSpeedMultiplier;
+
+    bool _held;
+
+    /// <summary>
+    /// Hold the light where it is. For JourneyOpening_NEW, which keeps it at the spawn while
+    /// the screen is black and the first line is said - nothing on screen, so nothing about
+    /// the trail is seen to change. Not a speed: the multipliers are left as they are.
+    /// </summary>
+    public void SetHeld(bool held) { _held = held; }
+
+    public bool IsHeld => _held;
+
+    /// <summary>
     /// Called by CameraDirector_NEW around a transition. <paramref name="reason"/> is what
     /// the debug banner shows while the lock holds.
     /// </summary>
@@ -218,7 +243,7 @@ public class PlayerRig_NEW : MonoBehaviour
         bend.Tick(dt, transform.position, speed, ref movementDirection, ref _defaultDirection);
 
         // 3 · Move
-        float finalSpeed = speed * _externalSpeedMultiplier * _narrationSpeedMultiplier;
+        float finalSpeed = _held ? 0f : speed * _externalSpeedMultiplier * _narrationSpeedMultiplier * _paceSpeedMultiplier;
         _controller.Move(movementDirection * (finalSpeed * dt));
 
         // 4 · Look input

@@ -1,0 +1,33 @@
+{
+  "*": "[calmly]",
+
+  "A1": "[warmly]",
+  "A2": "[in awe]",
+  "C1": "[softly]",
+  "C4": "[in awe]",
+  "C5": "[warmly]",
+  "D5": "[softly]",
+  "Ending": "[warmly]",
+
+  "E1": "[softly]",
+  "E2_After": "[softly]",
+
+  "N_A1": "[gently]",
+  "N_A2": "[gently]",
+  "N_A3": "[gently]",
+  "N_B1": "[gently]",
+  "N_B2": "[gently]",
+  "N_B3": "[gently]",
+  "N_B4": "[gently]",
+  "N_C2": "[gently]",
+  "N_D10": "[gently]",
+  "N_E2": "[gently]",
+  "N_E3": "[gently]",
+  "N_Pause": "[gently]",
+
+  "J1": "[warmly]",
+  "J3": "[in awe]",
+  "J6_3": "[thoughtfully]",
+  "J9": "[warmly]",
+  "Closing": "[softly]"
+}

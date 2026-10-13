@@ -1,0 +1,154 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a392519fd931e4b4b8c9f48495919567, type: 3}
+  m_Name: VO_Tutorial_Phase4
+  m_EditorClassIdentifier: 
+  title: Phase 4
+  beats:
+  - beatId: E1
+    settings:
+      narrationDelay: 0
+      durationMode: 0
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: E1
+      role: 0
+      takes:
+      - language: en
+        variant: A
+        text: The gas ahead is not scattered at random. Something you cannot see
+          is pulling it into place.
+        clip: {fileID: 8300000, guid: f19cc20158aa12f4a892f08c99c23994, type: 3}
+        estimatedSeconds: 0
+        status: 1
+        recordedText: 
+      - language: en
+        variant: B
+        text: The gas ahead is hydrogen, spread thin across the young universe. Something
+          you cannot see is about to shape it.
+        clip: {fileID: 8300000, guid: 5217940df5197124a8acbc3c80961a90, type: 3}
+        estimatedSeconds: 9
+        status: 1
+        recordedText: 
+      - language: en
+        variant: 
+        text: 
+        clip: {fileID: 8300000, guid: f19cc20158aa12f4a892f08c99c23994, type: 3}
+        estimatedSeconds: 0
+        status: 1
+        recordedText: 
+      cues: []
+  - beatId: E2
+    settings:
+      narrationDelay: 0
+      durationMode: 0
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: E2_Before
+      role: 0
+      takes:
+      - language: en
+        variant: A
+        text: 'This is what holds it together: dark matter. We cannot see it, but
+          we can measure its pull.'
+        clip: {fileID: 8300000, guid: 796853991f51ab44f9853a032af1d823, type: 3}
+        estimatedSeconds: 8
+        status: 1
+        recordedText: 
+      - language: en
+        variant: B
+        text: On its own, the gas stays scattered, with nothing to hold it together.
+        clip: {fileID: 8300000, guid: 48c000a9be369b945b66b9cfe009b8ba, type: 3}
+        estimatedSeconds: 6
+        status: 1
+        recordedText: 
+      cues: []
+    - id: E2_After
+      role: 2
+      takes:
+      - language: en
+        variant: A
+        text: Without dark matter, the gas drifts apart. Its gravity is what pulls
+          gas into this structure.
+        clip: {fileID: 8300000, guid: 678a53005e6110c429f3b8e522cba9c9, type: 3}
+        estimatedSeconds: 7
+        status: 1
+        recordedText: 
+      - language: en
+        variant: B
+        text: 'That is dark matter. Its gravity pulls the gas into this structure:
+          long filaments, with empty voids between them.'
+        clip: {fileID: 8300000, guid: 7629b32befff9ed49816d08b3c3ca84b, type: 3}
+        estimatedSeconds: 8.5
+        status: 1
+        recordedText: 
+      cues: []
+    - id: N_E2
+      role: 1
+      takes:
+      - language: en
+        variant: A
+        text: Press B to switch dark matter off.
+        clip: {fileID: 8300000, guid: b37ac531668e05448b71ad5467d7bad7, type: 3}
+        estimatedSeconds: 2.5
+        status: 1
+        recordedText: 
+      - language: en
+        variant: B
+        text: Press B to switch dark matter on.
+        clip: {fileID: 8300000, guid: 9424c6929d182da459c941db4f4768af, type: 3}
+        estimatedSeconds: 2.5
+        status: 1
+        recordedText: 
+      - language: en
+        variant: 
+        text: 
+        clip: {fileID: 8300000, guid: b37ac531668e05448b71ad5467d7bad7, type: 3}
+        estimatedSeconds: 0
+        status: 1
+        recordedText: 
+      cues: []
+  - beatId: E3
+    settings:
+      narrationDelay: 0
+      durationMode: 0
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: N_E3
+      role: 1
+      takes:
+      - language: en
+        variant: 
+        text: Press A to begin your journey.
+        clip: {fileID: 8300000, guid: 3d2f9ee00fe234e42b0490c8e1f9cdb4, type: 3}
+        estimatedSeconds: 2.5
+        status: 1
+        recordedText: 
+      cues: []

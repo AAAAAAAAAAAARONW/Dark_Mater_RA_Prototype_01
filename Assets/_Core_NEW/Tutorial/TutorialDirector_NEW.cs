@@ -97,6 +97,14 @@ public class TutorialDirector_NEW : MonoBehaviour
     /// <summary>A beat has opened. The HUD uses this to decide what is on screen.</summary>
     public event Action<TutorialBeat_NEW> OnBeatEntered;
 
+    /// <summary>
+    /// A beat has opened, raised just BEFORE OnBeatEntered. For the voice-over, which
+    /// sets holds on the beat (hint line not up yet) that the HUD reads in its own
+    /// OnBeatEntered handler — two subscribers to one event run in whatever order they
+    /// subscribed, and the wrong order shows the hint for a frame.
+    /// </summary>
+    public event Action<TutorialBeat_NEW> OnBeatEntering;
+
     /// <summary>A beat's gate has been met, before the next one opens.</summary>
     public event Action<TutorialBeat_NEW> OnBeatSatisfied;
 
@@ -113,6 +121,13 @@ public class TutorialDirector_NEW : MonoBehaviour
     /// frame it does not belong to.
     /// </summary>
     public event Action OnJumped;
+
+    /// <summary>
+    /// The debug skip key is about to force this beat. Separate from a gameplay event
+    /// forcing a beat (D4 ending on contact): a skip should cut the line being said, an
+    /// ending that was always planned should not.
+    /// </summary>
+    public event Action<TutorialBeat_NEW> OnSkipped;
 
     // ── Public API ───────────────────────────────────────────────────────────
 
@@ -291,6 +306,7 @@ public class TutorialDirector_NEW : MonoBehaviour
             TutorialBeat_NEW skipped = CurrentBeat;
             if (skipped != null)
             {
+                if (OnSkipped != null) OnSkipped(skipped);
                 skipped.ForceSatisfy();
                 if (debugLog) Debug.Log("[TutorialDirector_NEW] Skipped " + skipped.BeatId + ".", this);
             }
@@ -402,6 +418,7 @@ public class TutorialDirector_NEW : MonoBehaviour
         if (debugLog)
             Debug.Log("[TutorialDirector_NEW] " + beat.BeatId + " entered (" + beat.Mode + ").", this);
 
+        if (OnBeatEntering != null) OnBeatEntering(beat);
         if (OnBeatEntered != null) OnBeatEntered(beat);
     }
 

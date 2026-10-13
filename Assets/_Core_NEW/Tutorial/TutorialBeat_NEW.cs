@@ -26,9 +26,11 @@ using UnityEngine.Events;
 /// rumble hook are wired there rather than in code, because the storyboard is going to
 /// move and the person moving it is not going to be in Visual Studio.
 ///
-/// Voice-over is the exception: each beat carries its clips as plain fields, and
-/// TutorialVoiceOver_NEW plays them. A UnityEvent calling PlayOneShot cannot know a
-/// line is still being said, so the next frame would talk over it.
+/// Voice-over is the exception. The lines live in the voice-over table (an asset, see
+/// VoiceOverTable_NEW) and TutorialVoiceOver_NEW plays them. What a beat carries is
+/// the scene half of that: cue events, which the table's cues fire at a moment inside
+/// a line, and the holds the voice-over puts on the beat - hint line not up yet, do
+/// not end yet - so the frame waits for what is being said about it.
 /// </summary>
 [DisallowMultipleComponent]
 public abstract class TutorialBeat_NEW : MonoBehaviour
@@ -98,22 +100,6 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
     [SerializeField] TutorialStickGuide_NEW.GuideKind stickGuide =
         TutorialStickGuide_NEW.GuideKind.None;
 
-    [Header("Voice over")]
-    [Tooltip("The narration for this frame, said once when it opens. Assets/VoiceOver/" +
-             "Tutorial/<beatId>_*.mp3 — Build or Update fills it when it is empty.\n\n" +
-             "The beat does not play it. TutorialVoiceOver_NEW does, because it is the one " +
-             "thing that knows what else is being said: a line is never cut off by the " +
-             "next frame opening, and it stops with the pause.\n\n" +
-             "Was on Beat_Cinematic_NEW only. It moved here because the gated frames have " +
-             "narration too — A1 and A2 explain before they ask.")]
-    [SerializeField] AudioClip voiceOverClip;
-
-    [Tooltip("The instruction — what to do to move on. Assets/VoiceOver/Tutorial/N_<beatId>_*" +
-             ".mp3, filled by Build or Update when empty.\n\n" +
-             "Said once the narration has finished, and on a gated frame said again if the " +
-             "player still has not done it — see TutorialVoiceOver_NEW for how often.")]
-    [SerializeField] AudioClip promptClip;
-
     [Header("Advance")]
     [SerializeField] AdvanceMode advanceMode = AdvanceMode.Duration;
 
@@ -156,8 +142,34 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
     [Tooltip("Fire onRumble when this beat opens.")]
     [SerializeField] bool rumbleOnEnter = false;
 
+    /// <summary>Something that happens at a moment inside one of this beat's lines.</summary>
+    [System.Serializable]
+    public class CueEvent
+    {
+        [Tooltip("Matches a cue's key in the voice-over table.")]
+        public string key = "cue";
+        public UnityEvent onCue = new UnityEvent();
+    }
+
+    [Header("Voice-over cues")]
+    [Tooltip("Fired by the voice-over table's cues, at a moment inside a line rather than " +
+             "when the beat opens - D2's flash on the word, D8's impact on 'cuts a fresh " +
+             "line'. WHEN is in the table, edited on the line's waveform in Tools > " +
+             "Journey NEW > Voice Over > Timeline. WHAT is here, because the table is an " +
+             "asset and cannot point at things in the scene. They are joined by key.")]
+    [SerializeField] System.Collections.Generic.List<CueEvent> cueEvents =
+        new System.Collections.Generic.List<CueEvent>();
+
     float _elapsed;
     bool _active;
+
+    // Set by TutorialVoiceOver_NEW. All cleared on Enter, so a beat with no voice-over
+    // behaves exactly as it did before the table existed.
+    bool _hintHeld;
+    bool _exitHeld;
+    bool _gateLatched;
+    bool _forced;
+    float _durationOverride = -1f;
 
     // ── Public API, read by TutorialDirector_NEW ─────────────────────────────
 
@@ -234,14 +246,16 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
     /// </summary>
     public bool BuilderOwnsCopy { get { return builderOwnsCopy; } }
 
-    /// <summary>Narration said when this frame opens, or null. Read by TutorialVoiceOver_NEW.</summary>
-    public AudioClip VoiceOverClip { get { return voiceOverClip; } }
-
-    /// <summary>The spoken instruction for this frame, or null. Read by TutorialVoiceOver_NEW.</summary>
-    public AudioClip PromptClip { get { return promptClip; } }
-
     public AdvanceMode Mode { get { return advanceMode; } }
-    public float Duration { get { return duration; } }
+
+    /// <summary>
+    /// Seconds a Duration beat runs: its authored duration, unless the voice-over table
+    /// set this beat to follow its narration.
+    /// </summary>
+    public float Duration { get { return _durationOverride >= 0f ? _durationOverride : duration; } }
+
+    /// <summary>The duration field as authored, whatever the voice-over is doing to it.</summary>
+    public float AuthoredDuration { get { return duration; } }
     public float Elapsed { get { return _elapsed; } }
     public bool IsActive { get { return _active; } }
 
@@ -250,8 +264,9 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
     {
         get
         {
-            if (advanceMode != AdvanceMode.Duration || duration <= 0f) return 0f;
-            return Mathf.Clamp01(_elapsed / duration);
+            float d = Duration;
+            if (advanceMode != AdvanceMode.Duration || d <= 0f) return 0f;
+            return Mathf.Clamp01(_elapsed / d);
         }
     }
 
@@ -261,10 +276,57 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
     /// </summary>
     public virtual string GateStatus()
     {
-        if (advanceMode == AdvanceMode.Duration)
-            return string.Format("runs {0:F1}/{1:F1}s", _elapsed, duration);
+        string status = advanceMode == AdvanceMode.Duration
+            ? string.Format("runs {0:F1}/{1:F1}s", _elapsed, Duration)
+            : (_gateLatched ? "done, " : "") + "waiting on player";
 
-        return "waiting on player";
+        return status + VoiceHoldStatus();
+    }
+
+    /// <summary>What the voice-over is holding, for the end of GateStatus.</summary>
+    protected string VoiceHoldStatus()
+    {
+        if (_exitHeld) return "  (holding for the voice-over)";
+        if (_hintHeld) return "  (hint waits for the voice-over)";
+        return "";
+    }
+
+    // -- Voice-over, set by TutorialVoiceOver_NEW ------------------------------
+
+    /// <summary>
+    /// The hint line, the stick diagram and the A prompt stay down while this is true.
+    /// Read by TutorialHUD_NEW. For "the instruction comes after the narration".
+    /// </summary>
+    public bool HintHeld { get { return _hintHeld; } }
+
+    /// <summary>The beat's gate has been met at some point since it opened.</summary>
+    public bool GateLatched { get { return _gateLatched; } }
+
+    /// <summary>The voice-over is keeping this beat open until a line has finished.</summary>
+    public bool ExitHeld { get { return _exitHeld; } }
+
+    /// <summary>Skipped or ended by an event rather than by its own clock or gate.</summary>
+    public bool WasForced { get { return _forced; } }
+
+    public void SetHintHeld(bool held) { _hintHeld = held; }
+
+    /// <summary>
+    /// Keep the beat open, however it is satisfied, until released. Never makes a beat
+    /// end sooner, and never stands in for a gate: a gated beat still needs its player.
+    /// A skip (F2, or a gameplay event calling ForceSatisfy) is not held.
+    /// </summary>
+    public void SetExitHeld(bool held) { _exitHeld = held; }
+
+    /// <summary>Run for this many seconds instead of the authored duration. Negative clears it.</summary>
+    public void OverrideDuration(float seconds) { _durationOverride = seconds; }
+
+    /// <summary>Fire the cue events with this key. Called by the voice-over at the cue's moment.</summary>
+    public void FireCue(string key)
+    {
+        for (int i = 0; i < cueEvents.Count; i++)
+            if (cueEvents[i] != null &&
+                string.Equals(cueEvents[i].key, key, System.StringComparison.OrdinalIgnoreCase))
+                cueEvents[i].onCue.Invoke();
     }
 
     // ── Director-facing lifecycle ────────────────────────────────────────────
@@ -273,6 +335,12 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
     {
         _active = true;
         _elapsed = 0f;
+
+        _hintHeld = false;
+        _exitHeld = false;
+        _gateLatched = false;
+        _forced = false;
+        _durationOverride = -1f;
 
         OnBeatEnter();
         onEnter.Invoke();
@@ -311,17 +379,31 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
     /// <summary>
     /// True when this beat is finished. Duration beats answer with the clock;
     /// PlayerAction beats answer with GateSatisfied and never with the clock.
+    ///
+    /// The gate is LATCHED: once met it stays met. That is what lets a player who acts
+    /// while the narration is still going be remembered rather than asked twice - the
+    /// beat ends as soon as the voice-over lets go of it, without the player doing it
+    /// again, and without a look-at gate un-meeting itself because they looked away.
     /// </summary>
     public bool IsSatisfied()
     {
         if (!_active) return false;
 
+        bool done;
+
         if (advanceMode == AdvanceMode.Duration)
-            return _elapsed >= duration;
+        {
+            done = _forced || _elapsed >= Duration;
+        }
+        else
+        {
+            if (!_gateLatched && _elapsed >= inputGraceSeconds && GateSatisfied()) _gateLatched = true;
+            done = _gateLatched;
+        }
 
-        if (_elapsed < inputGraceSeconds) return false;
+        if (!done) return false;
 
-        return GateSatisfied();
+        return _forced || !_exitHeld;
     }
 
     /// <summary>
@@ -330,7 +412,9 @@ public abstract class TutorialBeat_NEW : MonoBehaviour
     /// </summary>
     public virtual void ForceSatisfy()
     {
-        _elapsed = Mathf.Max(_elapsed, duration);
+        _elapsed = Mathf.Max(_elapsed, Duration);
+        _forced = true;
+        _gateLatched = true;
         OnForceSatisfy();
     }
 

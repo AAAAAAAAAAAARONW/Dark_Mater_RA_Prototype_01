@@ -33,6 +33,13 @@ public class AbsorberHighlightGraphic_NEW : MaskableGraphic
     [HideInInspector] public Vector2 arrowSize = new Vector2(14f, 11f);
     [HideInInspector] public float arrowGap = 4f;
 
+    // The moving line's mark: a box round it (LineOutlineGraphic_NEW's rule - arrows are for
+    // the fixed birth point only). False draws the old arrow under the bar instead.
+    [HideInInspector] public bool outlineOnBar = true;
+    [HideInInspector] public float outlineWidth = 14f;
+    [HideInInspector] public float outlinePad = 3f;
+    [HideInInspector] public float outlineStroke = 2f;
+
     public void Refresh() { SetVerticesDirty(); }
 
     protected override void OnPopulateMesh(VertexHelper vh)
@@ -73,7 +80,16 @@ public class AbsorberHighlightGraphic_NEW : MaskableGraphic
             }
         }
 
-        if (arrowAlpha > 0.001f)
+        if (outlineOnBar)
+        {
+            if (arrowAlpha > 0.001f)
+            {
+                float hw = outlineWidth * 0.5f;
+                Rect box = Rect.MinMaxRect(x - hw, band.yMin - outlinePad, x + hw, band.yMax + outlinePad);
+                LineOutlineGraphic_NEW.Stroke(vh, box, outlineStroke, Fade(arrowColor, arrowAlpha));
+            }
+        }
+        else if (arrowAlpha > 0.001f)
         {
             Color32 c = Fade(arrowColor, arrowAlpha);
             float hw = arrowSize.x * 0.5f;

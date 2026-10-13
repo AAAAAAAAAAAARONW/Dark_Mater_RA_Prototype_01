@@ -466,7 +466,12 @@ public static class TutorialSceneBuilder_NEW
         // a line still being said must not survive into the next visitor's title card.
         TutorialVoiceOver_NEW voiceOver = BuildVoiceOver(root.transform, director);
         AddCall(attract, "onReset", voiceOver, "ResetForAttract");
-        WireVoiceOverClips(beats.transform, voiceOver);
+
+        // The lines live in the voice-over table, an asset. Created from the script and
+        // the recordings folder the first time this runs, which is the migration for a
+        // scene that predates it; after that it is edited in Tools > Journey NEW >
+        // Voice Over > Timeline, and nothing here touches it.
+        Wire(voiceOver).Ref("table", VoiceOverTableTools_NEW.EnsureTutorialTable()).Apply();
 
         TutorialFadeIn_NEW fade = AddIfMissing<TutorialFadeIn_NEW>(blackout);
         Wire(fade)
@@ -1884,6 +1889,20 @@ public static class TutorialSceneBuilder_NEW
                                          Vector2.zero, new Vector2(22f, 22f));
         IndicatorArrow(trailArrow, arrowColor);
 
+        // The box round the line on the bar, which replaced the bar arrow: arrows are for the
+        // fixed birth point now (LineOutlineGraphic_NEW). The arrow is kept, faded out, so
+        // unticking outlineInsteadOfArrow brings it straight back.
+        GameObject barOutline = UIObject("LineOutline", bands.transform, new Vector2(0.5f, 0f),
+                                         Vector2.zero, new Vector2(14f, 6f));
+        LineOutlineGraphic_NEW outline = AddIfMissing<LineOutlineGraphic_NEW>(barOutline);
+        if (IsFresh(outline))
+        {
+            outline.color = arrowColor;
+            outline.raycastTarget = false;
+        }
+        CanvasGroup outlineGroup = AddIfMissing<CanvasGroup>(barOutline);
+        if (IsFresh(outlineGroup)) outlineGroup.alpha = 0f;
+
         // ── Retired: the leader between the two arrows ───────────────────────
         // (See below for why the arrow is back under the bar as well.)
         // It drew a line from the arrow on the trail to the arrow on the bar, on the
@@ -1909,6 +1928,8 @@ public static class TutorialSceneBuilder_NEW
             .Ref("barArrowGroup", barArrow.GetComponent<CanvasGroup>())
             .Ref("trailArrow", trailArrow.GetComponent<RectTransform>())
             .Ref("trailArrowGroup", trailArrow.GetComponent<CanvasGroup>())
+            .Ref("barOutline", barOutline.GetComponent<RectTransform>())
+            .Ref("barOutlineGroup", outlineGroup)
             .Apply();
 
         // The arrow hangs under the bar again, where nothing else is, now that the bar is
@@ -2092,9 +2113,6 @@ public static class TutorialSceneBuilder_NEW
         return outro;
     }
 
-    /// <summary>Where the tutorial's lines live. One folder, named by beat id — see WireVoiceOverClips.</summary>
-    const string VoiceOverFolder = "Assets/VoiceOver/Tutorial";
-
     /// <summary>
     /// The one AudioSource every tutorial line is said on, and the component that decides
     /// when. On the rig root, beside the rumble and the pause.
@@ -2123,103 +2141,6 @@ public static class TutorialSceneBuilder_NEW
             .Apply();
 
         return voiceOver;
-    }
-
-    /// <summary>
-    /// Put every line in VoiceOverFolder on the beat it belongs to, by file name:
-    ///
-    ///   &lt;id&gt;_Anything.mp3     narration for that beat     A1_LookAround → A1
-    ///   N_&lt;id&gt;_Anything.mp3   its spoken instruction      N_B3_TurnAround → B3
-    ///   Ending_PullBack.mp3      the pull-back, on TutorialVoiceOver_NEW
-    ///   Closing.mp3              the line after it
-    ///
-    /// The underscore after the id is what keeps D1_ from claiming D10's lines.
-    ///
-    /// Fill-only, like every other reference here: a clip somebody swapped in by hand
-    /// stays. To take a line off a beat for good, rename or move the file — clearing the
-    /// slot alone is a gap the next run fills.
-    ///
-    /// Then two reports. Lines that matched no beat, which today is Phase 4's (E1, N_E2,
-    /// N_E3) because Phase 4 is not built — so they are listed rather than lost. And
-    /// timed beats that end before their own line does: the line is not cut, the next
-    /// frame's narration waits for it, and the VO drifts behind the picture. The
-    /// duration is yours, so it is reported and not changed.
-    /// </summary>
-    static void WireVoiceOverClips(Transform beats, TutorialVoiceOver_NEW voiceOver)
-    {
-        string[] guids = AssetDatabase.FindAssets("t:AudioClip", new[] { VoiceOverFolder });
-
-        if (guids.Length == 0)
-        {
-            Debug.LogWarning("[TutorialSceneBuilder_NEW] No audio in " + VoiceOverFolder +
-                             ". The tutorial runs silent.");
-            return;
-        }
-
-        TutorialBeat_NEW[] all = beats.GetComponentsInChildren<TutorialBeat_NEW>(true);
-        System.Collections.Generic.List<string> unmatched = new System.Collections.Generic.List<string>();
-
-        for (int i = 0; i < guids.Length; i++)
-        {
-            string path = AssetDatabase.GUIDToAssetPath(guids[i]);
-            string name = System.IO.Path.GetFileNameWithoutExtension(path);
-            AudioClip clip = AssetDatabase.LoadAssetAtPath<AudioClip>(path);
-            if (clip == null) continue;
-
-            if (name == "Ending_PullBack")
-            {
-                Wire(voiceOver).Ref("endingClip", clip).Apply();
-                continue;
-            }
-
-            if (name == "Closing")
-            {
-                Wire(voiceOver).Ref("closingClip", clip).Apply();
-                continue;
-            }
-
-            bool isPrompt = name.StartsWith("N_");
-            string rest = isPrompt ? name.Substring(2) : name;
-
-            TutorialBeat_NEW owner = null;
-            for (int b = 0; b < all.Length; b++)
-            {
-                string id = all[b].BeatId;
-                if (!string.IsNullOrEmpty(id) && rest.StartsWith(id + "_"))
-                {
-                    owner = all[b];
-                    break;
-                }
-            }
-
-            if (owner == null)
-            {
-                unmatched.Add(name);
-                continue;
-            }
-
-            Wire(owner).Ref(isPrompt ? "promptClip" : "voiceOverClip", clip).Apply();
-        }
-
-        if (unmatched.Count > 0)
-            Debug.Log("[TutorialSceneBuilder_NEW] Voice-over with no beat to go on yet: " +
-                      string.Join(", ", unmatched.ToArray()) + ". They will be picked up when " +
-                      "a beat with that id exists.");
-
-        for (int b = 0; b < all.Length; b++)
-        {
-            TutorialBeat_NEW beat = all[b];
-            AudioClip line = beat.VoiceOverClip;
-
-            if (line == null || beat.Mode != TutorialBeat_NEW.AdvanceMode.Duration) continue;
-            if (line.length <= beat.Duration) continue;
-
-            Debug.LogWarning("[TutorialSceneBuilder_NEW] " + beat.BeatId + " runs " +
-                             beat.Duration.ToString("F1") + "s but its line '" + line.name +
-                             "' is " + line.length.ToString("F1") + "s. The line is not cut; " +
-                             "the next frame's narration waits for it. Lengthen " + beat.BeatId +
-                             "'s duration if the two should stay together.", beat);
-        }
     }
 
     /// <summary>
@@ -4493,6 +4414,11 @@ public static class TutorialSceneBuilder_NEW
         UnityEvent e = GetEvent(owner, eventName);
         if (e == null || HasCall(e, target, method)) return;
 
+        // Somebody moved this call from onEnter to a voice-over cue, so it happens at a
+        // moment in the line instead. Putting it back on onEnter would make it happen
+        // twice — once when the beat opens and once on the cue.
+        if (eventName == "onEnter" && OnACue(owner as TutorialBeat_NEW, target, method)) return;
+
         UnityAction call = System.Delegate.CreateDelegate(typeof(UnityAction), target, method, false, false)
                            as UnityAction;
 
@@ -4506,6 +4432,31 @@ public static class TutorialSceneBuilder_NEW
 
         UnityEventTools.AddPersistentListener(e, call);
         EditorUtility.SetDirty(owner);
+    }
+
+    /// <summary>Is this target and method on any of the beat's voice-over cue events?</summary>
+    static bool OnACue(TutorialBeat_NEW beat, Object target, string method)
+    {
+        if (beat == null) return false;
+
+        SerializedProperty events = new SerializedObject(beat).FindProperty("cueEvents");
+        if (events == null) return false;
+
+        for (int i = 0; i < events.arraySize; i++)
+        {
+            SerializedProperty calls = events.GetArrayElementAtIndex(i)
+                                             .FindPropertyRelative("onCue.m_PersistentCalls.m_Calls");
+
+            for (int c = 0; c < calls.arraySize; c++)
+            {
+                SerializedProperty call = calls.GetArrayElementAtIndex(c);
+                if (call.FindPropertyRelative("m_Target").objectReferenceValue == target &&
+                    call.FindPropertyRelative("m_MethodName").stringValue == method)
+                    return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>Is this exact target and method already on this event?</summary>

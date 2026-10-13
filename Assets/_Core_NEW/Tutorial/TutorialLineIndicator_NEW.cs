@@ -74,6 +74,19 @@ public class TutorialLineIndicator_NEW : MonoBehaviour
     [Header("Timing")]
     [SerializeField] float fadeSeconds = 0.35f;
 
+    [Header("The line on the bar")]
+    [Tooltip("A box round the line on the bar instead of the arrow under it. Arrows are for the " +
+             "fixed birth point (the green arrow); a box is for a line that moves - see " +
+             "LineOutlineGraphic_NEW. Untick to go back to the arrow.")]
+    [SerializeField] bool outlineInsteadOfArrow = true;
+
+    [SerializeField] RectTransform barOutline;
+    [SerializeField] CanvasGroup barOutlineGroup;
+
+    [Tooltip("Box width, pixels. Its height is the bar's, plus outlinePad above and below.")]
+    [SerializeField] float outlineWidth = 14f;
+    [SerializeField] float outlinePad = 3f;
+
     float _alpha;
 
     float _nextRibbonRead;
@@ -120,7 +133,7 @@ public class TutorialLineIndicator_NEW : MonoBehaviour
 
         bool tracking = spectrum != null && spectrum.HasTrackedLine && _alpha > 0.001f;
 
-        bool barOk = tracking && PlaceBarArrow();
+        bool barOk = tracking && (outlineInsteadOfArrow && barOutline != null ? PlaceBarOutline() : PlaceBarArrow());
         bool trailOk = tracking && PlaceTrailArrow();
 
         ApplyAlpha(barOk, trailOk);
@@ -155,6 +168,19 @@ public class TutorialLineIndicator_NEW : MonoBehaviour
         barArrow.pivot = ArrowTipPivot();
         barArrow.anchoredPosition = new Vector2(0f, -barArrowGap);
         barArrow.localEulerAngles = new Vector3(0f, 0f, arrowSpriteAngle);
+
+        return true;
+    }
+
+    bool PlaceBarOutline()
+    {
+        float x = Mathf.Clamp01(spectrum.TrackedLinePosition);
+
+        barOutline.anchorMin = new Vector2(x, 0f);
+        barOutline.anchorMax = new Vector2(x, 1f);
+        barOutline.pivot = new Vector2(0.5f, 0.5f);
+        barOutline.anchoredPosition = Vector2.zero;
+        barOutline.sizeDelta = new Vector2(outlineWidth, outlinePad * 2f);
 
         return true;
     }
@@ -222,7 +248,10 @@ public class TutorialLineIndicator_NEW : MonoBehaviour
 
     void ApplyAlpha(bool barVisible, bool trailVisible)
     {
-        if (barArrowGroup != null) barArrowGroup.alpha = barVisible ? _alpha : 0f;
+        bool box = outlineInsteadOfArrow && barOutline != null;
+
+        if (barArrowGroup != null) barArrowGroup.alpha = barVisible && !box ? _alpha : 0f;
+        if (barOutlineGroup != null) barOutlineGroup.alpha = barVisible && box ? _alpha : 0f;
         if (trailArrowGroup != null) trailArrowGroup.alpha = trailVisible ? _alpha : 0f;
     }
 }

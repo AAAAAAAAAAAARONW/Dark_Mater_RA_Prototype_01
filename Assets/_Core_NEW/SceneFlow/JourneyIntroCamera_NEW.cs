@@ -191,7 +191,9 @@ public class JourneyIntroCamera_NEW : MonoBehaviour
 
     IEnumerator Run()
     {
-        while (!_revealed) yield return null;
+        // JourneyOpening_NEW holds the screen black while the first line is said; the push in
+        // is the journey appearing, so it waits for that rather than playing behind the black.
+        while (!_revealed || JourneyOpening_NEW.IsHolding) yield return null;
 
         // After a reveal (handoff or our own fade) only the hold; a bare direct start also
         // waits directStartDelay, as it has no fade to give the eye a moment.

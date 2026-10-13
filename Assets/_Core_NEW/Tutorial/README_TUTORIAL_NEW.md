@@ -83,7 +83,7 @@ Tutorial/
 ├─ TutorialEmission_NEW       Phase 2 时序：加速 → 阈值 → 发射（穿过类星体、开拖尾）
 ├─ TutorialFlash_NEW          全屏闪白，颜色和时长由调用方给
 ├─ TutorialCameraShake_NEW    相机位移抖动，幅度由外部驱动
-├─ TutorialVoiceOver_NEW     配音：一条一条说，不抢话，随暂停停，随重置停
+├─ TutorialVoiceOver_NEW     配音：按配音表播，并让拍子等台词（提示时机、门控 latch、cue）
 ├─ Beats/
 │   ├─ Beat_Cinematic_NEW     A1 C1 C3（无动作，按分镜时长走）
 │   ├─ Beat_Zoom_NEW          A2 A3（推进去 / 拉回来 —— 开场那段的教学）
@@ -102,29 +102,62 @@ Tutorial/
 
 ## 配音
 
-文件放在 `Assets/VoiceOver/Tutorial/`，**按文件名对到拍子上**，`Build or Update` 自动填：
+**日常只在一个窗口里调：`Tools > Journey NEW > Voice Over > Timeline`。**
 
-| 文件名 | 去哪 |
+### 数据在哪
+
+| 东西 | 位置 | 谁改 |
+|---|---|---|
+| 台词文字 | `Assets/VoiceOver/VO_Script_Draft_v3.md`（剧本） | 只改剧本，然后在窗口里点 **Import Script**。窗口里不能改字，避免两份文本 |
+| 录音 | `Assets/VoiceOver/Tutorial/`（英文）；以后别的语言放 `Tutorial/zh/` 这种子文件夹 | 换录音见下 |
+| 每拍的时序、cue、录音对应 | 配音表 `Assets/VoiceOver/Tables/VO_Tutorial.asset` + 按阶段分的几张 sheet | Timeline 窗口 |
+| cue 触发什么 | 场景里拍子上的 `cueEvents`（表是资产，指不到场景物体，用 key 连起来） | Timeline 窗口 / Inspector |
+
+第一次跑 `Build or Update` 会自动建表：读剧本、扫录音、按文件名对上。之后 builder 不再碰它。
+
+### 换录音
+
+- **同名覆盖**（最常用）：在文件管理器里用新录音覆盖旧文件。GUID 不变，什么都不用重接。窗口会显示新长度，长度变了的 cue 会标黄等你复核。
+- **新文件**：拖到窗口里那一行的录音格上。拖进来的录音默认认为是照「当前剧本」录的。
+- **一批新文件**：放进文件夹，点 **Scan Recordings**。只填空格，不替换已有的。
+
+文件名规则：`<行id>_随便[_A|_B]`。行 id 是 `A1`（叙述）、`A1_2`（第二句叙述）、`N_A1`（操作提示）、`E2_Before` / `E2_After`、`Ending`。结尾 `_A` / `_B` 表示只属于剧本的 A / B 版本。
+
+**还没录的句子按估算时长静音播放**，debug overlay 上显示文字。所以录音到之前就能先调节奏，录音到了替换上去，其他东西都不用动。
+
+### 每拍的时序（窗口里 Timing 一栏）
+
+| 设置 | 作用 |
 |---|---|
-| `<beatId>_随便.mp3`（如 `A1_LookAround`） | 那一拍的 `voiceOverClip` —— 叙述，拍子一开就说 |
-| `N_<beatId>_随便.mp3`（如 `N_B3_TurnAround`） | 那一拍的 `promptClip` —— 操作指令，叙述说完再说 |
-| `Ending_PullBack.mp3` / `Closing.mp3` | `[Tutorial]/VoiceOver` 上的 `endingClip` / `closingClip`，最后一拍结束、镜头拉远时接连说 |
+| `narrationDelay` | 拍子开始后几秒才开口（剧本里的「Cue: 2 s in」） |
+| `durationMode` | 按时间走的拍子：`Fixed` 用拍子自己的 duration；`FollowNarration` = 台词长度 + `tailSeconds`，以后重录自动跟上 |
+| `hintTiming` | 需要玩家操作的拍子：提示行（连同摇杆图和 A 提示）什么时候出现：开场 / 叙述说完 / 某个 cue |
+| `nudgeDelay` / `nudgeRepeatSeconds` / `nudgeRepeats` | 提示出现后多久说操作提示、隔多久重复、重复几次 |
+| `waitForNarration` | 叙述没说完，拍子不结束 |
 
-beatId 后面的下划线是必须的 —— 它让 `D1_` 不会吃掉 D10 的文件。只填空槽：手动换过的 clip 不会被覆盖。想让某一拍不说话，要把文件改名或挪走，光清空槽位下次会被填回来。对不上任何拍子的文件（目前是 Phase 4 的 E1、N_E2、N_E3）会在 Console 里列出来，等那一拍建出来自动接上。
+**玩家在叙述期间就做了操作**：记下来（门控是 latch 的），台词一说完直接进下一拍，不用再做一遍。
 
-**拍子只存 clip，不负责播。** 播放统一由 `TutorialVoiceOver_NEW` 做，规则：
+台词的三种角色：**Narration**（拍子开始就说）、**Nudge**（操作提示，门控满足就立刻停）、**After action**（门控满足后才说，拍子等它说完，比如 E2 按 B 之后那句）。
 
-1. **叙述不会被下一拍打断。** 玩家很快过了 A1，A2 的台词排在 A1 后面，不叠音。
-2. **排队时拍子已经结束的台词直接丢掉**，不晚说 —— 迟到的叙述讲的是玩家已经不在看的画面。
-3. **操作指令在门控满足的那一刻就停。** 玩家都转过去了还在说「向右看」，读起来像游戏没注意到。
-4. **需要玩家操作的拍子，指令说完 12 秒没动静就再说一遍，最多重复 2 次。**（`promptRepeatSeconds` / `maxPromptRepeats`）
-5. 暂停时台词跟着暂停，恢复时接着说；回到标题卡、F2/数字键跳拍时直接停。
+### cue：让事情发生在台词的某个时刻
 
-调试 overlay 第 12 行是 VO：正在说哪句、进度、排队几句、下一次重复还剩几秒。
+在波形上**双击**加一个 cue，拖动调位置，单击从那里试听。每个 cue 可以选三种定位：从开头算 / 从结尾往前算 / 按比例。录音长度变了的话，cue 标黄（显示「line was X s」），确认没问题点 OK。
 
-**时长对不上会报警告。** 按时间走的拍子如果比自己那句台词短，`Build or Update` 会在 Console 里写出来。台词不会被切，但下一拍的叙述要等它说完，配音会慢慢落后于画面。时长归你调，builder 不改。
+cue 下面就是它在场景里触发的事件。拍子上原本挂在 `onEnter` 的调用，可以在窗口底部「onEnter calls」里一键挪到某个 cue 上；builder 知道去 cue 里找，不会再往 `onEnter` 补一份。
 
-Journey 场景的配音在 `Assets/VoiceOver/Journey/`（J1–J9），由 `JourneyVoiceOver_NEW` 播：打开 gameplay 场景，跑 `Tools > Journey NEW > Voice Over > Wire Journey Voice Over (open scene)`。每层一行（层 id、等哪个转场锚点、延迟、按顺序的 clip），红移演示的台词挂在 `JourneySequence_NEW` 的 F1 / F4 / F5 上，演示本身在 J5 说完后才开始。对应关系写在 `JourneyVoiceOverBuilder_NEW` 的类注释里。
+### A/B 版本和语言
+
+窗口顶部的 Language / Version 下拉框切换整套。某句在当前语言/版本没有 take 就不出声，窗口里会写出来。
+
+### 规则（不随拍子变）
+
+1. 叙述不会被下一拍打断，排队说。
+2. 排队时它的拍子已经结束了，就丢掉不说。
+3. 暂停时台词一起暂停；回标题卡、F2、数字键跳拍时直接停。
+
+**Report** 按钮列出：需要重录的（剧本改了）、还没录的、没核对过文字的、要复核的 cue。
+
+Journey 场景的配音在 `Assets/VoiceOver/Journey/`（J1–J9），还是旧的做法，由 `JourneyVoiceOver_NEW` 播：打开 gameplay 场景，跑 `Tools > Journey NEW > Voice Over > Wire Journey Voice Over (open scene)`。对应关系写在 `JourneyVoiceOverBuilder_NEW` 的类注释里。以后要接进配音表时再迁。
 
 ---
 

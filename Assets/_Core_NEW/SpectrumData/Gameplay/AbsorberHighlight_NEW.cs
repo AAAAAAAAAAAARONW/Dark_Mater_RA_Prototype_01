@@ -69,6 +69,21 @@ public class AbsorberHighlight_NEW : MonoBehaviour
              "absorbers. Off: only the redshift demo's steps highlight.")]
     [SerializeField] bool autoOnCrossings = false;
 
+    [Header("How the line is marked")]
+    [Tooltip("On the bar, a box round the line instead of an arrow under it. Arrows mark the " +
+             "fixed birth point; a box marks a line that moves - see LineOutlineGraphic_NEW.")]
+    [SerializeField] bool outlineOnBar = true;
+
+    [Tooltip("The tutorial's outline on the trail too, round the same line, pulsing with the " +
+             "blinks (PhotonTrailRainbow's _AbsorptionOutline). Same values as the tutorial's " +
+             "TutorialTrailBands_NEW, so the two read as one effect.")]
+    [SerializeField] bool outlineOnTrail = true;
+
+    [SerializeField] float trailOutlineWidth = 0.006f;
+    [SerializeField] float trailOutlineStrength = 3f;
+    [SerializeField] Color trailOutlineColor = new Color(1f, 0.91f, 0.63f, 1f);
+    [SerializeField] float trailOutlineRange = 0.015f;
+
     [Tooltip("A crossing sooner than this after the last highlight began is skipped.")]
     [SerializeField] float minSecondsBetween = 4f;
 
@@ -152,6 +167,16 @@ public class AbsorberHighlight_NEW : MonoBehaviour
         if (source != null && source.IsActive) Begin(source.CurrentZ, "now", true);
     }
 
+    /// <summary>
+    /// Highlight the line from gas at this redshift, wherever it is now. For a line added at
+    /// run time (BakedSpectrumSource_NEW.AddAbsorber returns its redshift), which is not
+    /// one of the bake's marks.
+    /// </summary>
+    public void HighlightLine(float zAbs)
+    {
+        if (source != null && source.IsActive && !float.IsNaN(zAbs)) Begin(zAbs, "added line", true);
+    }
+
     /// <summary>End the highlight now (fades nothing out: for a step that moves on).</summary>
     public void StopHighlight() { Stop(); }
 
@@ -184,6 +209,7 @@ public class AbsorberHighlight_NEW : MonoBehaviour
         }
 
         _bar = Make("Absorber Highlight (bar)", host, AbsorberHighlightGraphic_NEW.Kind.Bar);
+        _bar.outlineOnBar = outlineOnBar;
 
         _canvas = host.GetComponentInParent<Canvas>();
         if (_canvas != null) _canvas = _canvas.rootCanvas;
@@ -307,7 +333,11 @@ public class AbsorberHighlight_NEW : MonoBehaviour
 
     void Stop()
     {
-        if (_running && source != null) source.ClearTrailEmphasis();
+        if (_running && source != null)
+        {
+            source.ClearTrailEmphasis();
+            source.ClearTrailOutline();
+        }
         _running = false;
         Apply(float.NaN, 0f, 0f);
     }
@@ -332,6 +362,11 @@ public class AbsorberHighlight_NEW : MonoBehaviour
         float fade = fadeSeconds <= 0f ? 1f : Mathf.Clamp01(Mathf.Min(_elapsed, _duration - _elapsed) / fadeSeconds);
 
         source.SetTrailEmphasis(barT, blink);
+
+        if (outlineOnTrail)
+            source.SetTrailOutline(source.TrailLineT(_lineZ), trailOutlineStrength * blink,
+                                   trailOutlineWidth, trailOutlineColor, trailOutlineRange);
+
         Apply(barT, blink, fade);
     }
 

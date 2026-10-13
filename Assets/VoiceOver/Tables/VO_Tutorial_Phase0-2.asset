@@ -1,0 +1,298 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a392519fd931e4b4b8c9f48495919567, type: 3}
+  m_Name: VO_Tutorial_Phase0-2
+  m_EditorClassIdentifier: 
+  title: Phase 0-2
+  beats:
+  - beatId: A1
+    settings:
+      narrationDelay: 0.5
+      durationMode: 0
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: A1
+      role: 0
+      takes:
+      - language: en
+        variant: 
+        text: Welcome to the Journey of Light. In this experience, you will cross
+          the universe as a beam of light, and carry its story to Earth.
+        clip: {fileID: 8300000, guid: c1ab99e679e582f4db575bc9dfdb95d7, type: 3}
+        estimatedSeconds: 11
+        status: 1
+        recordedText: 
+      cues: []
+    - id: N_A1
+      role: 1
+      takes:
+      - language: en
+        variant: 
+        text: Use the right stick to look around.
+        clip: {fileID: 8300000, guid: 55a41a51d91c9a64bacc0e19b27fb5a4, type: 3}
+        estimatedSeconds: 2.5
+        status: 1
+        recordedText: 
+      cues: []
+  - beatId: A2
+    settings:
+      narrationDelay: 0
+      durationMode: 0
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: A2
+      role: 0
+      takes:
+      - language: en
+        variant: 
+        text: 'Ahead is a quasar: a black hole feeding on gas so fast that it outshines
+          its whole galaxy. This is the early universe, less than two billion years
+          after the Big Bang.'
+        clip: {fileID: 8300000, guid: 6c6c7cc121e43c14ba7262d86588c04d, type: 3}
+        estimatedSeconds: 12
+        status: 1
+        recordedText: 
+      cues: []
+    - id: N_A2
+      role: 1
+      takes:
+      - language: en
+        variant: 
+        text: Push the left stick forward to zoom in.
+        clip: {fileID: 8300000, guid: 0db93aee1495f9447b727234d1c92ce9, type: 3}
+        estimatedSeconds: 2.5
+        status: 1
+        recordedText: 
+      cues: []
+  - beatId: C1
+    settings:
+      narrationDelay: 2
+      durationMode: 0
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: C1
+      role: 0
+      takes:
+      - language: en
+        variant: 
+        text: 'In a moment, you will leave the quasar as a beam of light: a stream
+          of tiny particles called photons.'
+        clip: {fileID: 8300000, guid: f5f78b7630319bb4db7b41beb70a0ffa, type: 3}
+        estimatedSeconds: 9
+        status: 1
+        recordedText: 
+      cues: []
+  - beatId: C4
+    settings:
+      narrationDelay: 0
+      durationMode: 0
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: C4
+      role: 0
+      takes:
+      - language: en
+        variant: 
+        text: Behind you, the quasar is already a single point of light. Nothing
+          in the universe moves faster than you.
+        clip: {fileID: 8300000, guid: 821ce0b649c224c4ba469d4b4ac2f0af, type: 3}
+        estimatedSeconds: 9
+        status: 1
+        recordedText: 
+      cues: []
+  - beatId: C5
+    settings:
+      narrationDelay: 0
+      durationMode: 0
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: C5
+      role: 0
+      takes:
+      - language: en
+        variant: 
+        text: Ahead of you is twelve billion years of travel. At the far end, a telescope
+          on Earth is waiting.
+        clip: {fileID: 8300000, guid: fe7623cd91eb3a14990e750d6cd2147d, type: 3}
+        estimatedSeconds: 7.5
+        status: 1
+        recordedText: 
+      cues: []
+  - beatId: A3
+    settings:
+      narrationDelay: 0
+      durationMode: 0
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: N_A3
+      role: 1
+      takes:
+      - language: en
+        variant: 
+        text: Pull the left stick back to zoom out.
+        clip: {fileID: 8300000, guid: c5466f71942e4ca4c922c930f7944452, type: 3}
+        estimatedSeconds: 2.5
+        status: 1
+        recordedText: 
+      cues: []
+  - beatId: B1
+    settings:
+      narrationDelay: 0
+      durationMode: 0
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: N_B1
+      role: 1
+      takes:
+      - language: en
+        variant: 
+        text: Something drifted past you. Push the right stick to the right to follow
+          it.
+        clip: {fileID: 8300000, guid: fdd2d68783bed4649890c769f68b305c, type: 3}
+        estimatedSeconds: 4.5
+        status: 1
+        recordedText: 
+      cues: []
+  - beatId: B2
+    settings:
+      narrationDelay: 0
+      durationMode: 0
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: N_B2
+      role: 1
+      takes:
+      - language: en
+        variant: 
+        text: Push the right stick up to look above you.
+        clip: {fileID: 8300000, guid: 0c6c6c3d5412a18488db44da37a2339f, type: 3}
+        estimatedSeconds: 2.5
+        status: 1
+        recordedText: 
+      cues: []
+  - beatId: B3
+    settings:
+      narrationDelay: 0
+      durationMode: 0
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: N_B3
+      role: 1
+      takes:
+      - language: en
+        variant: 
+        text: Hold the right stick to one side and turn all the way around.
+        clip: {fileID: 8300000, guid: 3e08174ce3bd4a0458e71cffd85970dd, type: 3}
+        estimatedSeconds: 3.5
+        status: 1
+        recordedText: 
+      cues: []
+  - beatId: B4
+    settings:
+      narrationDelay: 0
+      durationMode: 0
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: N_B4
+      role: 1
+      takes:
+      - language: en
+        variant: 
+        text: Press A to face forward again.
+        clip: {fileID: 8300000, guid: b51c4b137d33fde48bee3acce53567fd, type: 3}
+        estimatedSeconds: 2
+        status: 1
+        recordedText: 
+      cues: []
+  - beatId: C2
+    settings:
+      narrationDelay: 0
+      durationMode: 0
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: N_C2
+      role: 1
+      takes:
+      - language: en
+        variant: 
+        text: When you are ready, press A, and become light.
+        clip: {fileID: 8300000, guid: 406245690bd3b7b4fb28fcf309022207, type: 3}
+        estimatedSeconds: 3.5
+        status: 1
+        recordedText: 
+      cues: []

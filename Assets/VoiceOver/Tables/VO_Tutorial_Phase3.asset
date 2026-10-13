@@ -1,0 +1,255 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a392519fd931e4b4b8c9f48495919567, type: 3}
+  m_Name: VO_Tutorial_Phase3
+  m_EditorClassIdentifier: 
+  title: Phase 3
+  beats:
+  - beatId: D1
+    settings:
+      narrationDelay: 0
+      durationMode: 1
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: D1
+      role: 0
+      takes:
+      - language: en
+        variant: 
+        text: This streak is your trail. It carries every color of your light, from
+          ultraviolet to infrared.
+        clip: {fileID: 8300000, guid: 3ef25136640fbb144ba26ea73067b20d, type: 3}
+        estimatedSeconds: 7
+        status: 1
+        recordedText: 
+      cues: []
+  - beatId: D2
+    settings:
+      narrationDelay: 0
+      durationMode: 0
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: D2
+      role: 0
+      takes:
+      - language: en
+        variant: 
+        text: Human eyes can only see this narrow band in the middle. The rest is
+          invisible.
+        clip: {fileID: 8300000, guid: 4488b8f3ffc0ec44a88b68fe8af22adb, type: 3}
+        estimatedSeconds: 6.5
+        status: 1
+        recordedText: 
+      cues: []
+  - beatId: D3
+    settings:
+      narrationDelay: 0
+      durationMode: 1
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: D3
+      role: 0
+      takes:
+      - language: en
+        variant: 
+        text: 'This bar is your spectrum: every color you carry, in order from shortest
+          wavelength to longest.'
+        clip: {fileID: 8300000, guid: cd085345a616ed0438fac32763183ad6, type: 3}
+        estimatedSeconds: 7
+        status: 1
+        recordedText: 
+      cues: []
+  - beatId: D4
+    settings:
+      narrationDelay: 1.5
+      durationMode: 0
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: D4
+      role: 0
+      takes:
+      - language: en
+        variant: 
+        text: Ahead is a single atom of hydrogen, the simplest and most common thing
+          in the universe.
+        clip: {fileID: 8300000, guid: 3df727774f2f6814b85d526df79ebc24, type: 3}
+        estimatedSeconds: 7
+        status: 1
+        recordedText: 
+      cues: []
+  - beatId: D5
+    settings:
+      narrationDelay: 0.8
+      durationMode: 1
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: D5
+      role: 0
+      takes:
+      - language: en
+        variant: 
+        text: The hydrogen has absorbed one wavelength of your light. That color
+          is gone, and the black line marks where it was.
+        clip: {fileID: 8300000, guid: 2bb7887434a1e744fb773d84002f5c03, type: 3}
+        estimatedSeconds: 9
+        status: 1
+        recordedText: 
+      cues: []
+  - beatId: D6
+    settings:
+      narrationDelay: 0
+      durationMode: 0
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: D6
+      role: 0
+      takes:
+      - language: en
+        variant: 
+        text: Every hydrogen atom absorbs that same wavelength. The more you pass
+          through, the darker and deeper that line becomes.
+        clip: {fileID: 8300000, guid: 13a47cdd8abf9954a994717be073ed60, type: 3}
+        estimatedSeconds: 8.5
+        status: 1
+        recordedText: 
+      cues: []
+  - beatId: D7
+    settings:
+      narrationDelay: 0
+      durationMode: 0
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: D7
+      role: 0
+      takes:
+      - language: en
+        variant: 
+        text: Space itself is expanding. It stretches your light as you travel, and
+          the line slides toward the red. This is redshift.
+        clip: {fileID: 8300000, guid: fe417890487e2be4d9c9fb9d52424352, type: 3}
+        estimatedSeconds: 9
+        status: 1
+        recordedText: 
+      cues: []
+  - beatId: D8
+    settings:
+      narrationDelay: 0
+      durationMode: 0
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: D8
+      role: 0
+      takes:
+      - language: en
+        variant: 
+        text: Another atom cuts a fresh line, while the first keeps sliding toward
+          red. Line by line, a pattern builds.
+        clip: {fileID: 8300000, guid: a402d44773807d34887746ba21eb41b4, type: 3}
+        estimatedSeconds: 8.5
+        status: 1
+        recordedText: 
+      cues: []
+  - beatId: D9
+    settings:
+      narrationDelay: 0
+      durationMode: 0
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: D9
+      role: 0
+      takes:
+      - language: en
+        variant: 
+        text: 'These lines stay with you forever: a barcode of everything you pass
+          through.'
+        clip: {fileID: 8300000, guid: eb7685486fcaf784c8b185d1ca7699c6, type: 3}
+        estimatedSeconds: 6
+        status: 1
+        recordedText: 
+      cues: []
+  - beatId: D10
+    settings:
+      narrationDelay: 0
+      durationMode: 0
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: N_D10
+      role: 1
+      takes:
+      - language: en
+        variant: 
+        text: Press B to pause. Press it again to carry on.
+        clip: {fileID: 8300000, guid: dc6c816a396dc5543adaf7ceee48f403, type: 3}
+        estimatedSeconds: 3.5
+        status: 1
+        recordedText: 
+      cues: []

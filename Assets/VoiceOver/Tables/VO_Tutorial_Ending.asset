@@ -1,0 +1,63 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a392519fd931e4b4b8c9f48495919567, type: 3}
+  m_Name: VO_Tutorial_Ending
+  m_EditorClassIdentifier: 
+  title: Ending
+  beats:
+  - beatId: Ending
+    settings:
+      narrationDelay: 0.3
+      durationMode: 0
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 0
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 2
+      waitForNarration: 1
+    lines:
+    - id: Ending
+      role: 0
+      takes:
+      - language: en
+        variant: 
+        text: Now your journey begins. At the far end, a telescope on Earth is waiting
+          to read your lines.
+        clip: {fileID: 8300000, guid: 14618286adde1184f9f9b789c174b1e2, type: 3}
+        estimatedSeconds: 7.5
+        status: 1
+        recordedText: 
+      cues: []
+  - beatId: Pause
+    settings:
+      narrationDelay: 0
+      durationMode: 0
+      tailSeconds: 0.5
+      hintTiming: 1
+      hintCue: 
+      nudgeDelay: 2
+      nudgeRepeatSeconds: 12
+      nudgeRepeats: 0
+      waitForNarration: 1
+    lines:
+    - id: N_Pause
+      role: 1
+      takes:
+      - language: en
+        variant: 
+        text: Press B again to resume.
+        clip: {fileID: 8300000, guid: d01427323d7380542899e37935bc9678, type: 3}
+        estimatedSeconds: 0
+        status: 1
+        recordedText: 
+      cues: []

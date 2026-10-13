@@ -38,6 +38,21 @@ using UnityEngine.Events;
 [HierarchyBadge_NEW("VOICE OVER", "#6FA8DC")]
 public class JourneyVoiceOver_NEW : MonoBehaviour
 {
+    /// <summary>Something that happens at a moment inside one of a row's clips.</summary>
+    [Serializable]
+    public class LineCue
+    {
+        [Tooltip("Which of the row's clips. By clip, not by position, so adding a line to " +
+                 "the row cannot move a cue onto the wrong one.")]
+        public AudioClip line;
+
+        [Tooltip("Seconds into that clip. 0 = as it starts.")]
+        [Min(0f)]
+        public float seconds = 0f;
+
+        public UnityEvent onCue = new UnityEvent();
+    }
+
     [Serializable]
     public class LayerLines
     {
@@ -57,6 +72,10 @@ public class JourneyVoiceOver_NEW : MonoBehaviour
 
         [Tooltip("Said in order, one after another.")]
         public AudioClip[] clips = new AudioClip[0];
+
+        [Tooltip("Moments inside the clips: J1's look back fires as J1 starts. Played clip by " +
+                 "clip, so a cue on a clip that is dropped (the layer was left) never fires.")]
+        public LineCue[] cues = new LineCue[0];
 
         [Tooltip("Fires when the last of these clips has finished — or straight after the " +
                  "anchor and delay if there are none, so something hung here cannot be " +
@@ -88,6 +107,10 @@ public class JourneyVoiceOver_NEW : MonoBehaviour
         public AudioClip clip;
         public string layerId;
         public LayerLines finishes;
+
+        /// <summary>The row and clip index it came from, for cues. Null for Say() lines.</summary>
+        public LayerLines row;
+        public int index;
     }
 
     /// <summary>A row whose anchor has fired and whose delay is still running.</summary>
@@ -103,6 +126,7 @@ public class JourneyVoiceOver_NEW : MonoBehaviour
     bool _hasPlaying;
     Line _playing;
     float _gapLeft;
+    bool[] _cueFired = new bool[0];
 
     // -- Public API -----------------------------------------------------------
 
@@ -169,6 +193,7 @@ public class JourneyVoiceOver_NEW : MonoBehaviour
 
         if (_hasPlaying)
         {
+            FireCues(source.isPlaying ? source.time : float.MaxValue);
             if (source.isPlaying) return;
             Finished();
         }
@@ -248,13 +273,22 @@ public class JourneyVoiceOver_NEW : MonoBehaviour
             {
                 clip = row.clips[i],
                 layerId = row.layerId,
-                finishes = i == last ? row : null
+                finishes = i == last ? row : null,
+                row = row,
+                index = i
             });
         }
     }
 
     void DropOtherLayers(string layerId)
     {
+        // Said out loud in the Console, because a line silently skipped looks exactly like a
+        // line that is missing.
+        foreach (Line l in _queue)
+            if (!string.IsNullOrEmpty(l.layerId) && !string.Equals(l.layerId, layerId, StringComparison.OrdinalIgnoreCase))
+                Debug.Log("[JourneyVoiceOver_NEW] Dropped " + l.clip.name + ": the light left " + l.layerId +
+                          " before it was said. Slow that layer, or shorten what comes before it.", this);
+
         _queue.RemoveAll(l => !string.IsNullOrEmpty(l.layerId) &&
                               !string.Equals(l.layerId, layerId, StringComparison.OrdinalIgnoreCase));
 
@@ -275,9 +309,30 @@ public class JourneyVoiceOver_NEW : MonoBehaviour
 
             _playing = line;
             _hasPlaying = true;
+            _cueFired = line.row != null ? new bool[line.row.cues.Length] : new bool[0];
+
+            // A cue at 0 s goes with the first word, not a frame later.
+            FireCues(0f);
 
             if (debugLog) Debug.Log("[JourneyVoiceOver_NEW] " + line.clip.name + ".", this);
             return;
+        }
+    }
+
+    void FireCues(float upTo)
+    {
+        LayerLines row = _playing.row;
+        if (row == null) return;
+
+        for (int i = 0; i < row.cues.Length && i < _cueFired.Length; i++)
+        {
+            LineCue cue = row.cues[i];
+            if (_cueFired[i] || cue == null || cue.line != _playing.clip || cue.seconds > upTo) continue;
+
+            _cueFired[i] = true;
+            cue.onCue.Invoke();
+
+            if (debugLog) Debug.Log("[JourneyVoiceOver_NEW] Cue on " + _playing.clip.name + " at " + cue.seconds + " s.", this);
         }
     }
 

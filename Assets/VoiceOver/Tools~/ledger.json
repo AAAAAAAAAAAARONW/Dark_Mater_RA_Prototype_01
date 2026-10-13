@@ -1,0 +1,452 @@
+{
+  "Journey/Closing.mp3": {
+    "characters": 100,
+    "fingerprint": "5f9317cd769817cd",
+    "generated": "2026-10-13T13:26:08",
+    "installed": true,
+    "line": "Closing",
+    "sent": "[softly] You began as light from an ancient quasar. You arrive as a message from the young universe.",
+    "text": "You began as light from an ancient quasar. You arrive as a message from the young universe."
+  },
+  "Journey/J0.mp3": {
+    "characters": 142,
+    "fingerprint": "013cfe28ce0fc2a0",
+    "generated": "2026-10-13T14:21:36",
+    "installed": true,
+    "line": "J0",
+    "sent": "[calmly] The universe here is less than two billion years old. Its galaxies are young, still gathering gas and making stars faster every year.",
+    "text": "The universe here is less than two billion years old. Its galaxies are young, still gathering gas and making stars faster every year."
+  },
+  "Journey/J1_LeavingQuasar.mp3": {
+    "characters": 99,
+    "fingerprint": "a908c5bc921e7cf3",
+    "generated": "2026-10-13T13:25:33",
+    "installed": true,
+    "line": "J1",
+    "sent": "[warmly] Behind you is where you began. You cannot steer light, but you can look wherever you like.",
+    "text": "Behind you is where you began. You cannot steer light, but you can look wherever you like."
+  },
+  "Journey/J2_JourneyHUD.mp3": {
+    "characters": 132,
+    "fingerprint": "9b28d714f97bb52b",
+    "generated": "2026-10-13T13:25:35",
+    "installed": true,
+    "line": "J2",
+    "sent": "[calmly] At the bottom of the screen, a chain of stops marks your path from the quasar to Earth. The marker shows where you are now.",
+    "text": "At the bottom of the screen, a chain of stops marks your path from the quasar to Earth. The marker shows where you are now."
+  },
+  "Journey/J2b_Readout.mp3": {
+    "characters": 72,
+    "fingerprint": "70f1b2969e8326e7",
+    "generated": "2026-10-13T13:25:36",
+    "installed": true,
+    "line": "J2b",
+    "sent": "[calmly] The clock counts the billions of years you have been traveling.",
+    "text": "The clock counts the billions of years you have been traveling."
+  },
+  "Journey/J3_CosmicWeb1.mp3": {
+    "characters": 133,
+    "fingerprint": "71825a6d0cc787d8",
+    "generated": "2026-10-13T13:25:38",
+    "installed": true,
+    "line": "J3",
+    "sent": "[in awe] This is the cosmic web. Dark matter outweighs ordinary matter five to one, and its threads stretch across vast, empty voids.",
+    "text": "This is the cosmic web. Dark matter outweighs ordinary matter five to one, and its threads stretch across vast, empty voids."
+  },
+  "Journey/J3b.mp3": {
+    "characters": 148,
+    "fingerprint": "0eed88d175d55e42",
+    "generated": "2026-10-13T13:25:41",
+    "installed": true,
+    "line": "J3b",
+    "sent": "[calmly] These yellow threads are hydrogen gas. Each one you pass through absorbs a wavelength of your light and leaves a new line on your spectrum.",
+    "text": "These yellow threads are hydrogen gas. Each one you pass through absorbs a wavelength of your light and leaves a new line on your spectrum."
+  },
+  "Journey/J4_Galaxy.mp3": {
+    "characters": 188,
+    "fingerprint": "e10bcc59a2286b41",
+    "generated": "2026-10-13T14:21:39",
+    "installed": true,
+    "line": "J4",
+    "sent": "[calmly] Ten billion years ago, the universe was making stars faster than at any time before or since. Galaxies grow where the threads of the web cross, and this one is in its busiest age.",
+    "text": "Ten billion years ago, the universe was making stars faster than at any time before or since. Galaxies grow where the threads of the web cross, and this one is in its busiest age."
+  },
+  "Journey/J4b.mp3": {
+    "characters": 164,
+    "fingerprint": "361141283723f4f0",
+    "generated": "2026-10-13T14:21:42",
+    "installed": true,
+    "line": "J4b",
+    "sent": "[calmly] It takes you a hundred thousand years to cross a galaxy like this one. But next to your twelve-billion-year journey, that is less than the blink of an eye.",
+    "text": "It takes you a hundred thousand years to cross a galaxy like this one. But next to your twelve-billion-year journey, that is less than the blink of an eye."
+  },
+  "Journey/J5_CosmicWeb2.mp3": {
+    "characters": 171,
+    "fingerprint": "31271b1037d4348c",
+    "generated": "2026-10-13T13:25:48",
+    "installed": true,
+    "line": "J5",
+    "sent": "[calmly] The web looks different now. Gravity has pulled matter into thicker, denser threads, while dark energy speeds up the expansion of space, stretching the web apart.",
+    "text": "The web looks different now. Gravity has pulled matter into thicker, denser threads, while dark energy speeds up the expansion of space, stretching the web apart."
+  },
+  "Journey/J6_1_Redshift.mp3": {
+    "characters": 175,
+    "fingerprint": "b3a5354f25fb8c26",
+    "generated": "2026-10-13T13:25:51",
+    "installed": true,
+    "line": "J6_1",
+    "sent": "[calmly] Look at the lines on your spectrum. Every one of them has slid toward the red. Space has been stretching your light the whole way, and longer waves look redder to us.",
+    "text": "Look at the lines on your spectrum. Every one of them has slid toward the red. Space has been stretching your light the whole way, and longer waves look redder to us."
+  },
+  "Journey/J6_2_Redshift.mp3": {
+    "characters": 183,
+    "fingerprint": "eaf94b828ab2b338",
+    "generated": "2026-10-13T13:25:54",
+    "installed": true,
+    "line": "J6_2",
+    "sent": "[calmly] By the time you reach Earth, your light will be stretched to nearly five times its original wavelength. What left the quasar as ultraviolet arrives as light our eyes can see.",
+    "text": "By the time you reach Earth, your light will be stretched to nearly five times its original wavelength. What left the quasar as ultraviolet arrives as light our eyes can see."
+  },
+  "Journey/J6_3_Forest.mp3": {
+    "characters": 288,
+    "fingerprint": "977976d47f588a25",
+    "generated": "2026-10-13T13:25:59",
+    "installed": true,
+    "line": "J6_3",
+    "sent": "[thoughtfully] Thousands of hydrogen clouds have cut lines into your light, and each cloud sat at a different distance, so each line was stretched by a different amount. Astronomers call this pattern the Lyman alpha forest. Read like tree rings, it maps the invisible web of the universe.",
+    "text": "Thousands of hydrogen clouds have cut lines into your light, and each cloud sat at a different distance, so each line was stretched by a different amount. Astronomers call this pattern the Lyman-alpha forest. Read like tree rings, it maps the invisible web of the universe."
+  },
+  "Journey/J7_MilkyWay.mp3": {
+    "characters": 138,
+    "fingerprint": "5022866397e49a90",
+    "generated": "2026-10-13T13:26:01",
+    "installed": true,
+    "line": "J7",
+    "sent": "[calmly] Ahead is the Milky Way, home to hundreds of billions of stars. You set out more than seven billion years before our Sun was born.",
+    "text": "Ahead is the Milky Way, home to hundreds of billions of stars. You set out more than seven billion years before our Sun was born."
+  },
+  "Journey/J8_SolarSystem.mp3": {
+    "characters": 108,
+    "fingerprint": "77f7d2a5af22aab5",
+    "generated": "2026-10-13T13:26:03",
+    "installed": true,
+    "line": "J8",
+    "sent": "[calmly] Light from our Sun takes eight minutes to reach Earth. Your journey has taken twelve billion years.",
+    "text": "Light from our Sun takes eight minutes to reach Earth. Your journey has taken twelve billion years."
+  },
+  "Journey/J9_Earth.mp3": {
+    "characters": 173,
+    "fingerprint": "63c2f0f2bea9ae73",
+    "generated": "2026-10-13T13:26:06",
+    "installed": true,
+    "line": "J9",
+    "sent": "[warmly] You have arrived. A telescope collects your light, and astronomers read the lines you carried across the cosmos: a record of twelve billion years of cosmic history.",
+    "text": "You have arrived. A telescope collects your light, and astronomers read the lines you carried across the cosmos: a record of twelve billion years of cosmic history."
+  },
+  "Tutorial/A1_LookAround.mp3": {
+    "characters": 139,
+    "fingerprint": "6cd4570e2cc5da11",
+    "generated": "2026-10-13T13:24:37",
+    "installed": true,
+    "line": "A1",
+    "sent": "[warmly] Welcome to the Journey of Light. In this experience, you will cross the universe as a beam of light, and carry its story to Earth.",
+    "text": "Welcome to the Journey of Light. In this experience, you will cross the universe as a beam of light, and carry its story to Earth."
+  },
+  "Tutorial/A2_ZoomIn.mp3": {
+    "characters": 175,
+    "fingerprint": "c8709c57c5b329a3",
+    "generated": "2026-10-13T13:24:40",
+    "installed": true,
+    "line": "A2",
+    "sent": "[in awe] Ahead is a quasar: a black hole feeding on gas so fast that it outshines its whole galaxy. This is the early universe, less than two billion years after the Big Bang.",
+    "text": "Ahead is a quasar: a black hole feeding on gas so fast that it outshines its whole galaxy. This is the early universe, less than two billion years after the Big Bang."
+  },
+  "Tutorial/C1_SpinUp.mp3": {
+    "characters": 110,
+    "fingerprint": "0ad2aa1356850981",
+    "generated": "2026-10-13T13:24:42",
+    "installed": true,
+    "line": "C1",
+    "sent": "[softly] In a moment, you will leave the quasar as a beam of light: a stream of tiny particles called photons.",
+    "text": "In a moment, you will leave the quasar as a beam of light: a stream of tiny particles called photons."
+  },
+  "Tutorial/C4_LookBack.mp3": {
+    "characters": 114,
+    "fingerprint": "909df5c2b94e45eb",
+    "generated": "2026-10-13T13:24:44",
+    "installed": true,
+    "line": "C4",
+    "sent": "[in awe] Behind you, the quasar is already a single point of light. Nothing in the universe moves faster than you.",
+    "text": "Behind you, the quasar is already a single point of light. Nothing in the universe moves faster than you."
+  },
+  "Tutorial/C5_Recentre.mp3": {
+    "characters": 105,
+    "fingerprint": "fe8ceb8730e280e0",
+    "generated": "2026-10-13T13:24:46",
+    "installed": true,
+    "line": "C5",
+    "sent": "[warmly] Ahead of you is twelve billion years of travel. At the far end, a telescope on Earth is waiting.",
+    "text": "Ahead of you is twelve billion years of travel. At the far end, a telescope on Earth is waiting."
+  },
+  "Tutorial/D1_UVIRUnfold.mp3": {
+    "characters": 103,
+    "fingerprint": "00577dd152a0132c",
+    "generated": "2026-10-13T13:24:48",
+    "installed": true,
+    "line": "D1",
+    "sent": "[calmly] This streak is your trail. It carries every color of your light, from ultraviolet to infrared.",
+    "text": "This streak is your trail. It carries every color of your light, from ultraviolet to infrared."
+  },
+  "Tutorial/D2_VisibleBand.mp3": {
+    "characters": 87,
+    "fingerprint": "5123fff26add7006",
+    "generated": "2026-10-13T13:24:49",
+    "installed": true,
+    "line": "D2",
+    "sent": "[calmly] Human eyes can only see this narrow band in the middle. The rest is invisible.",
+    "text": "Human eyes can only see this narrow band in the middle. The rest is invisible."
+  },
+  "Tutorial/D3_SpectrumBar.mp3": {
+    "characters": 104,
+    "fingerprint": "e250fcf55b8ea9c5",
+    "generated": "2026-10-13T13:24:51",
+    "installed": true,
+    "line": "D3",
+    "sent": "[calmly] This bar is your spectrum: every color you carry, in order from shortest wavelength to longest.",
+    "text": "This bar is your spectrum: every color you carry, in order from shortest wavelength to longest."
+  },
+  "Tutorial/D4_AtomApproaches.mp3": {
+    "characters": 96,
+    "fingerprint": "e9b872f78f9f35dc",
+    "generated": "2026-10-13T13:24:53",
+    "installed": true,
+    "line": "D4",
+    "sent": "[calmly] Ahead is a single atom of hydrogen, the simplest and most common thing in the universe.",
+    "text": "Ahead is a single atom of hydrogen, the simplest and most common thing in the universe."
+  },
+  "Tutorial/D5_Contact.mp3": {
+    "characters": 123,
+    "fingerprint": "51c132922406cf0c",
+    "generated": "2026-10-13T13:24:55",
+    "installed": true,
+    "line": "D5",
+    "sent": "[softly] The hydrogen has absorbed one wavelength of your light. That color is gone, and the black line marks where it was.",
+    "text": "The hydrogen has absorbed one wavelength of your light. That color is gone, and the black line marks where it was."
+  },
+  "Tutorial/D6_FourMoreAtoms.mp3": {
+    "characters": 126,
+    "fingerprint": "979880105e41e656",
+    "generated": "2026-10-13T13:24:58",
+    "installed": true,
+    "line": "D6",
+    "sent": "[calmly] Every hydrogen atom absorbs that same wavelength. The more you pass through, the darker and deeper that line becomes.",
+    "text": "Every hydrogen atom absorbs that same wavelength. The more you pass through, the darker and deeper that line becomes."
+  },
+  "Tutorial/D7_Redshift.mp3": {
+    "characters": 128,
+    "fingerprint": "666fb8ec903bed50",
+    "generated": "2026-10-13T13:25:00",
+    "installed": true,
+    "line": "D7",
+    "sent": "[calmly] Space itself is expanding. It stretches your light as you travel, and the line slides toward the red. This is redshift.",
+    "text": "Space itself is expanding. It stretches your light as you travel, and the line slides toward the red. This is redshift."
+  },
+  "Tutorial/D8_OneMoreAtom.mp3": {
+    "characters": 114,
+    "fingerprint": "636954f43f6cc461",
+    "generated": "2026-10-13T13:25:03",
+    "installed": true,
+    "line": "D8",
+    "sent": "[calmly] Another atom cuts a fresh line, while the first keeps sliding toward red. Line by line, a pattern builds.",
+    "text": "Another atom cuts a fresh line, while the first keeps sliding toward red. Line by line, a pattern builds."
+  },
+  "Tutorial/D9_UVIRFold.mp3": {
+    "characters": 85,
+    "fingerprint": "3c375589cdc61fe3",
+    "generated": "2026-10-13T13:25:04",
+    "installed": true,
+    "line": "D9",
+    "sent": "[calmly] These lines stay with you forever: a barcode of everything you pass through.",
+    "text": "These lines stay with you forever: a barcode of everything you pass through."
+  },
+  "Tutorial/E1_B.mp3": {
+    "characters": 121,
+    "fingerprint": "275d609630fd50a4",
+    "generated": "2026-10-13T13:25:10",
+    "installed": true,
+    "line": "E1_B",
+    "sent": "[softly] The gas ahead is hydrogen, spread thin across the young universe. Something you cannot see is about to shape it.",
+    "text": "The gas ahead is hydrogen, spread thin across the young universe. Something you cannot see is about to shape it."
+  },
+  "Tutorial/E1_StructuredHydrogen.mp3": {
+    "characters": 101,
+    "fingerprint": "26b19b8b0566c8a4",
+    "generated": "2026-10-13T13:25:08",
+    "installed": true,
+    "line": "E1_A",
+    "sent": "[softly] The gas ahead is not scattered at random. Something you cannot see is pulling it into place.",
+    "text": "The gas ahead is not scattered at random. Something you cannot see is pulling it into place."
+  },
+  "Tutorial/E2_After_A.mp3": {
+    "characters": 102,
+    "fingerprint": "02ff03fbf202bf7d",
+    "generated": "2026-10-13T13:25:14",
+    "installed": true,
+    "line": "E2_After_A",
+    "sent": "[softly] Without dark matter, the gas drifts apart. Its gravity is what pulls gas into this structure.",
+    "text": "Without dark matter, the gas drifts apart. Its gravity is what pulls gas into this structure."
+  },
+  "Tutorial/E2_After_B.mp3": {
+    "characters": 123,
+    "fingerprint": "567d452463ac6fa9",
+    "generated": "2026-10-13T13:25:18",
+    "installed": true,
+    "line": "E2_After_B",
+    "sent": "[softly] That is dark matter. Its gravity pulls the gas into this structure: long filaments, with empty voids between them.",
+    "text": "That is dark matter. Its gravity pulls the gas into this structure: long filaments, with empty voids between them."
+  },
+  "Tutorial/E2_Before_A.mp3": {
+    "characters": 100,
+    "fingerprint": "a585a34684a66815",
+    "generated": "2026-10-13T13:25:12",
+    "installed": true,
+    "line": "E2_Before_A",
+    "sent": "[calmly] This is what holds it together: dark matter. We cannot see it, but we can measure its pull.",
+    "text": "This is what holds it together: dark matter. We cannot see it, but we can measure its pull."
+  },
+  "Tutorial/E2_Before_B.mp3": {
+    "characters": 79,
+    "fingerprint": "5c321c4699b54bb4",
+    "generated": "2026-10-13T13:25:16",
+    "installed": true,
+    "line": "E2_Before_B",
+    "sent": "[calmly] On its own, the gas stays scattered, with nothing to hold it together.",
+    "text": "On its own, the gas stays scattered, with nothing to hold it together."
+  },
+  "Tutorial/Ending_PullBack.mp3": {
+    "characters": 101,
+    "fingerprint": "40675274c7905cb9",
+    "generated": "2026-10-13T13:25:06",
+    "installed": true,
+    "line": "Ending",
+    "sent": "[warmly] Now your journey begins. At the far end, a telescope on Earth is waiting to read your lines.",
+    "text": "Now your journey begins. At the far end, a telescope on Earth is waiting to read your lines."
+  },
+  "Tutorial/N_A1_Look.mp3": {
+    "characters": 44,
+    "fingerprint": "c4ed502961dff3e6",
+    "generated": "2026-10-13T13:25:19",
+    "installed": true,
+    "line": "N_A1",
+    "sent": "[gently] Use the right stick to look around.",
+    "text": "Use the right stick to look around."
+  },
+  "Tutorial/N_A2_ZoomIn.mp3": {
+    "characters": 48,
+    "fingerprint": "11cfb82463007c61",
+    "generated": "2026-10-13T13:25:20",
+    "installed": true,
+    "line": "N_A2",
+    "sent": "[gently] Push the left stick forward to zoom in.",
+    "text": "Push the left stick forward to zoom in."
+  },
+  "Tutorial/N_A3_ZoomOut.mp3": {
+    "characters": 46,
+    "fingerprint": "31a02424599cd8b2",
+    "generated": "2026-10-13T13:25:21",
+    "installed": true,
+    "line": "N_A3",
+    "sent": "[gently] Pull the left stick back to zoom out.",
+    "text": "Pull the left stick back to zoom out."
+  },
+  "Tutorial/N_B1_LookRight.mp3": {
+    "characters": 84,
+    "fingerprint": "c7ef8174cf5d4665",
+    "generated": "2026-10-13T13:25:22",
+    "installed": true,
+    "line": "N_B1",
+    "sent": "[gently] Something drifted past you. Push the right stick to the right to follow it.",
+    "text": "Something drifted past you. Push the right stick to the right to follow it."
+  },
+  "Tutorial/N_B2_LookUp.mp3": {
+    "characters": 51,
+    "fingerprint": "fdb3171b895e4312",
+    "generated": "2026-10-13T13:25:23",
+    "installed": true,
+    "line": "N_B2",
+    "sent": "[gently] Push the right stick up to look above you.",
+    "text": "Push the right stick up to look above you."
+  },
+  "Tutorial/N_B3_TurnAround.mp3": {
+    "characters": 70,
+    "fingerprint": "97375fc40d2d038b",
+    "generated": "2026-10-13T13:25:24",
+    "installed": true,
+    "line": "N_B3",
+    "sent": "[gently] Hold the right stick to one side and turn all the way around.",
+    "text": "Hold the right stick to one side and turn all the way around."
+  },
+  "Tutorial/N_B4_Recentre.mp3": {
+    "characters": 39,
+    "fingerprint": "b71a4883d0cd3054",
+    "generated": "2026-10-13T13:25:26",
+    "installed": true,
+    "line": "N_B4",
+    "sent": "[gently] Press A to face forward again.",
+    "text": "Press A to face forward again."
+  },
+  "Tutorial/N_C2_Emit.mp3": {
+    "characters": 55,
+    "fingerprint": "cd39680498aeb3ec",
+    "generated": "2026-10-13T13:25:27",
+    "installed": true,
+    "line": "N_C2",
+    "sent": "[gently] When you are ready, press A, and become light.",
+    "text": "When you are ready, press A, and become light."
+  },
+  "Tutorial/N_D10_Pause.mp3": {
+    "characters": 54,
+    "fingerprint": "b785f387070319f3",
+    "generated": "2026-10-13T13:25:28",
+    "installed": true,
+    "line": "N_D10",
+    "sent": "[gently] Press B to pause. Press it again to carry on.",
+    "text": "Press B to pause. Press it again to carry on."
+  },
+  "Tutorial/N_E2_B.mp3": {
+    "characters": 42,
+    "fingerprint": "09f17d458a90b507",
+    "generated": "2026-10-13T14:55:34",
+    "installed": true,
+    "line": "N_E2_B",
+    "sent": "[gently] Press Y to switch dark matter on.",
+    "text": "Press Y to switch dark matter on."
+  },
+  "Tutorial/N_E2_Slider.mp3": {
+    "characters": 43,
+    "fingerprint": "67561b126bfb6e04",
+    "generated": "2026-10-13T14:55:33",
+    "installed": true,
+    "line": "N_E2_A",
+    "sent": "[gently] Press Y to switch dark matter off.",
+    "text": "Press Y to switch dark matter off."
+  },
+  "Tutorial/N_E3_Begin.mp3": {
+    "characters": 39,
+    "fingerprint": "1699936bde71c6a5",
+    "generated": "2026-10-13T13:25:31",
+    "installed": true,
+    "line": "N_E3",
+    "sent": "[gently] Press A to begin your journey.",
+    "text": "Press A to begin your journey."
+  },
+  "Tutorial/N_Pause.mp3": {
+    "characters": 33,
+    "fingerprint": "bc041def71ac73eb",
+    "generated": "2026-10-13T13:46:56",
+    "installed": true,
+    "line": "N_Pause",
+    "sent": "[gently] Press B again to resume.",
+    "text": "Press B again to resume."
+  }
+}

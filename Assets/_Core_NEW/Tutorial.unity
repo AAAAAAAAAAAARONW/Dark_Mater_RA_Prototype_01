@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.003126846, g: 0.0011778028, b: 0.0077211885, a: 1}
+  m_IndirectSpecularColor: {r: 0.020287119, g: 0.005128104, b: 0.064245366, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -5342,8 +5342,6 @@ MonoBehaviour:
   hintText: 
   builderOwnsCopy: 1
   stickGuide: 0
-  voiceOverClip: {fileID: 8300000, guid: f5f78b7630319bb4db7b41beb70a0ffa, type: 3}
-  promptClip: {fileID: 0}
   advanceMode: 0
   duration: 12
   inputGraceSeconds: 0.15
@@ -5380,6 +5378,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
+  cueEvents: []
   onHalfway:
     m_PersistentCalls:
       m_Calls: []
@@ -5617,8 +5616,6 @@ MonoBehaviour:
   hintText: A  TO  RECENTRE
   builderOwnsCopy: 1
   stickGuide: 0
-  voiceOverClip: {fileID: 8300000, guid: fe7623cd91eb3a14990e750d6cd2147d, type: 3}
-  promptClip: {fileID: 0}
   advanceMode: 1
   duration: 8
   inputGraceSeconds: 0.15
@@ -5633,6 +5630,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
+  cueEvents: []
   promptText: RECENTRE
   promptDelaySeconds: 0
   recentreOnPress: 1
@@ -5806,6 +5804,7 @@ RectTransform:
   - {fileID: 667704048}
   - {fileID: 713946463}
   - {fileID: 19378955}
+  - {fileID: 463016608}
   m_Father: {fileID: 725627644}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -6027,8 +6026,6 @@ MonoBehaviour:
   hintText: 
   builderOwnsCopy: 1
   stickGuide: 0
-  voiceOverClip: {fileID: 8300000, guid: eb7685486fcaf784c8b185d1ca7699c6, type: 3}
-  promptClip: {fileID: 0}
   advanceMode: 0
   duration: 5
   inputGraceSeconds: 0.15
@@ -6065,6 +6062,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
+  cueEvents: []
   onHalfway:
     m_PersistentCalls:
       m_Calls: []
@@ -6284,8 +6282,6 @@ MonoBehaviour:
   hintText: 
   builderOwnsCopy: 1
   stickGuide: 0
-  voiceOverClip: {fileID: 8300000, guid: 3df727774f2f6814b85d526df79ebc24, type: 3}
-  promptClip: {fileID: 0}
   advanceMode: 0
   duration: 10
   inputGraceSeconds: 0.15
@@ -6322,6 +6318,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
+  cueEvents: []
   onHalfway:
     m_PersistentCalls:
       m_Calls: []
@@ -7170,7 +7167,7 @@ MonoBehaviour:
   lineSpread: 0.002
   lineHardness: 1
   outlineWidth: 0.006
-  outlineStrength: 1.2
+  outlineStrength: 3
   outlineColor: {r: 1, g: 0.91, b: 0.63, a: 1}
   outlineRange: 0.015
   spectrum: {fileID: 0}
@@ -7227,11 +7224,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   director: {fileID: 98769950}
   source: {fileID: 352502078}
-  endingClip: {fileID: 8300000, guid: 14618286adde1184f9f9b789c174b1e2, type: 3}
-  closingClip: {fileID: 8300000, guid: c87539a7840b79d44b34095862d25c83, type: 3}
+  table: {fileID: 11400000, guid: 5a69225a4b7c56f44a7d0f07b6de8cf2, type: 2}
   gapSeconds: 0.4
-  promptRepeatSeconds: 12
-  maxPromptRepeats: 2
   debugLog: 0
 --- !u!82 &352502078
 AudioSource:
@@ -7702,6 +7696,84 @@ CanvasGroup:
   m_Interactable: 1
   m_BlocksRaycasts: 1
   m_IgnoreParentGroups: 0
+--- !u!1 &463016607
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 463016608}
+  - component: {fileID: 463016611}
+  - component: {fileID: 463016610}
+  - component: {fileID: 463016609}
+  m_Layer: 0
+  m_Name: LineOutline
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &463016608
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 463016607}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 273198927}
+  m_RootOrder: 6
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0}
+  m_AnchorMax: {x: 0.5, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 14, y: 6}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!225 &463016609
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 463016607}
+  m_Enabled: 1
+  m_Alpha: 0
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
+--- !u!114 &463016610
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 463016607}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f445e79e2720a19459eb4edc96f426d1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 0.93, b: 0.66, a: 1}
+  m_RaycastTarget: 0
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  stroke: 2
+--- !u!222 &463016611
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 463016607}
+  m_CullTransparentMesh: 0
 --- !u!1 &463474429
 GameObject:
   m_ObjectHideFlags: 0
@@ -7752,8 +7824,6 @@ MonoBehaviour:
   hintText: A  TO  RECENTRE
   builderOwnsCopy: 1
   stickGuide: 0
-  voiceOverClip: {fileID: 0}
-  promptClip: {fileID: 8300000, guid: b51c4b137d33fde48bee3acce53567fd, type: 3}
   advanceMode: 1
   duration: 8
   inputGraceSeconds: 0.15
@@ -7768,6 +7838,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
+  cueEvents: []
   promptText: RECENTRE
   promptDelaySeconds: 0
   recentreOnPress: 1
@@ -9910,8 +9981,6 @@ MonoBehaviour:
   hintText: 
   builderOwnsCopy: 1
   stickGuide: 0
-  voiceOverClip: {fileID: 8300000, guid: cd085345a616ed0438fac32763183ad6, type: 3}
-  promptClip: {fileID: 0}
   advanceMode: 0
   duration: 6.2
   inputGraceSeconds: 0.15
@@ -9970,6 +10039,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
+  cueEvents: []
   onHalfway:
     m_PersistentCalls:
       m_Calls: []
@@ -15332,8 +15402,6 @@ MonoBehaviour:
   hintText: 
   builderOwnsCopy: 1
   stickGuide: 0
-  voiceOverClip: {fileID: 8300000, guid: 2bb7887434a1e744fb773d84002f5c03, type: 3}
-  promptClip: {fileID: 0}
   advanceMode: 0
   duration: 8
   inputGraceSeconds: 0.15
@@ -15414,6 +15482,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
+  cueEvents: []
   onHalfway:
     m_PersistentCalls:
       m_Calls: []
@@ -15590,8 +15659,6 @@ MonoBehaviour:
   hintText: 
   builderOwnsCopy: 1
   stickGuide: 0
-  voiceOverClip: {fileID: 0}
-  promptClip: {fileID: 0}
   advanceMode: 0
   duration: 8
   inputGraceSeconds: 0.15
@@ -15617,6 +15684,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
+  cueEvents: []
   onHalfway:
     m_PersistentCalls:
       m_Calls: []
@@ -15972,8 +16040,6 @@ MonoBehaviour:
   hintText: 
   builderOwnsCopy: 1
   stickGuide: 0
-  voiceOverClip: {fileID: 8300000, guid: a402d44773807d34887746ba21eb41b4, type: 3}
-  promptClip: {fileID: 0}
   advanceMode: 0
   duration: 10
   inputGraceSeconds: 0.15
@@ -15999,6 +16065,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
+  cueEvents: []
   onHalfway:
     m_PersistentCalls:
       m_Calls: []
@@ -16362,8 +16429,6 @@ MonoBehaviour:
   hintText: "LEFT STICK  \xB7  ZOOM IN"
   builderOwnsCopy: 1
   stickGuide: 0
-  voiceOverClip: {fileID: 8300000, guid: 6c6c7cc121e43c14ba7262d86588c04d, type: 3}
-  promptClip: {fileID: 8300000, guid: 0db93aee1495f9447b727234d1c92ce9, type: 3}
   advanceMode: 1
   duration: 8
   inputGraceSeconds: 0.15
@@ -16378,6 +16443,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
+  cueEvents: []
   direction: 0
   threshold: 0.55
   zoom: {fileID: 0}
@@ -17276,8 +17342,6 @@ MonoBehaviour:
   hintText: "RIGHT STICK  \xB7  TURN AROUND"
   builderOwnsCopy: 1
   stickGuide: 0
-  voiceOverClip: {fileID: 8300000, guid: 821ce0b649c224c4ba469d4b4ac2f0af, type: 3}
-  promptClip: {fileID: 0}
   advanceMode: 1
   duration: 8
   inputGraceSeconds: 0.15
@@ -17292,6 +17356,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
+  cueEvents: []
   target: {fileID: 1383825947}
   reticleHalfAngle: 18
   holdSeconds: 0
@@ -17702,8 +17767,6 @@ MonoBehaviour:
   hintText: "LEFT STICK  \xB7  ZOOM OUT"
   builderOwnsCopy: 1
   stickGuide: 0
-  voiceOverClip: {fileID: 0}
-  promptClip: {fileID: 8300000, guid: c5466f71942e4ca4c922c930f7944452, type: 3}
   advanceMode: 1
   duration: 8
   inputGraceSeconds: 0.15
@@ -17729,6 +17792,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 1
+  cueEvents: []
   direction: 1
   threshold: 0.15
   zoom: {fileID: 0}
@@ -18212,8 +18276,6 @@ MonoBehaviour:
   hintText: "RIGHT STICK  \xB7  LOOK RIGHT"
   builderOwnsCopy: 1
   stickGuide: 0
-  voiceOverClip: {fileID: 0}
-  promptClip: {fileID: 8300000, guid: fdd2d68783bed4649890c769f68b305c, type: 3}
   advanceMode: 1
   duration: 8
   inputGraceSeconds: 0.15
@@ -18228,6 +18290,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
+  cueEvents: []
   target: {fileID: 375335492}
   reticleHalfAngle: 12
   holdSeconds: 0
@@ -18287,8 +18350,6 @@ MonoBehaviour:
   hintText: "RIGHT STICK  \xB7  LOOK UP"
   builderOwnsCopy: 1
   stickGuide: 0
-  voiceOverClip: {fileID: 0}
-  promptClip: {fileID: 8300000, guid: 0c6c6c3d5412a18488db44da37a2339f, type: 3}
   advanceMode: 1
   duration: 8
   inputGraceSeconds: 0.15
@@ -18314,6 +18375,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
+  cueEvents: []
   target: {fileID: 2057988900}
   reticleHalfAngle: 14
   holdSeconds: 0
@@ -18373,8 +18435,6 @@ MonoBehaviour:
   hintText: "RIGHT STICK  \xB7  TURN AROUND"
   builderOwnsCopy: 1
   stickGuide: 0
-  voiceOverClip: {fileID: 0}
-  promptClip: {fileID: 8300000, guid: 3e08174ce3bd4a0458e71cffd85970dd, type: 3}
   advanceMode: 1
   duration: 8
   inputGraceSeconds: 0.15
@@ -18400,6 +18460,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
+  cueEvents: []
   minYawDegrees: 150
   measureFrom: 0
   disc: {fileID: 586351133}
@@ -18530,8 +18591,6 @@ MonoBehaviour:
   hintText: "RIGHT STICK  \xB7  LOOK AROUND"
   builderOwnsCopy: 1
   stickGuide: 0
-  voiceOverClip: {fileID: 8300000, guid: c1ab99e679e582f4db575bc9dfdb95d7, type: 3}
-  promptClip: {fileID: 8300000, guid: 55a41a51d91c9a64bacc0e19b27fb5a4, type: 3}
   advanceMode: 1
   duration: 8
   inputGraceSeconds: 0.15
@@ -18546,6 +18605,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
+  cueEvents: []
   degreesToSweep: 120
   lookRig: {fileID: 0}
 --- !u!1 &1674241434
@@ -19348,8 +19408,6 @@ MonoBehaviour:
   hintText: 
   builderOwnsCopy: 1
   stickGuide: 0
-  voiceOverClip: {fileID: 8300000, guid: 13a47cdd8abf9954a994717be073ed60, type: 3}
-  promptClip: {fileID: 0}
   advanceMode: 0
   duration: 10
   inputGraceSeconds: 0.15
@@ -19375,6 +19433,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
+  cueEvents: []
   onHalfway:
     m_PersistentCalls:
       m_Calls: []
@@ -19865,8 +19924,6 @@ MonoBehaviour:
   hintText: 
   builderOwnsCopy: 1
   stickGuide: 0
-  voiceOverClip: {fileID: 8300000, guid: 4488b8f3ffc0ec44a88b68fe8af22adb, type: 3}
-  promptClip: {fileID: 0}
   advanceMode: 0
   duration: 12
   inputGraceSeconds: 0.15
@@ -19892,6 +19949,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
+  cueEvents: []
   onHalfway:
     m_PersistentCalls:
       m_Calls: []
@@ -20148,6 +20206,11 @@ MonoBehaviour:
   flipAcross: 0
   arrowSpriteAngle: 90
   fadeSeconds: 0.35
+  outlineInsteadOfArrow: 1
+  barOutline: {fileID: 463016608}
+  barOutlineGroup: {fileID: 463016609}
+  outlineWidth: 14
+  outlinePad: 3
 --- !u!4 &1848122121
 Transform:
   m_ObjectHideFlags: 0
@@ -20409,8 +20472,6 @@ MonoBehaviour:
   hintText: 
   builderOwnsCopy: 1
   stickGuide: 0
-  voiceOverClip: {fileID: 0}
-  promptClip: {fileID: 0}
   advanceMode: 0
   duration: 5
   inputGraceSeconds: 0.15
@@ -20425,6 +20486,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
+  cueEvents: []
   onHalfway:
     m_PersistentCalls:
       m_Calls: []
@@ -20529,8 +20591,6 @@ MonoBehaviour:
   hintText: 
   builderOwnsCopy: 1
   stickGuide: 0
-  voiceOverClip: {fileID: 8300000, guid: fe417890487e2be4d9c9fb9d52424352, type: 3}
-  promptClip: {fileID: 0}
   advanceMode: 0
   duration: 9.6
   inputGraceSeconds: 0.15
@@ -20578,6 +20638,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
+  cueEvents: []
   onHalfway:
     m_PersistentCalls:
       m_Calls: []
@@ -20666,8 +20727,6 @@ MonoBehaviour:
   hintText: B  TO  PAUSE
   builderOwnsCopy: 1
   stickGuide: 0
-  voiceOverClip: {fileID: 0}
-  promptClip: {fileID: 8300000, guid: dc6c816a396dc5543adaf7ceee48f403, type: 3}
   advanceMode: 1
   duration: 8
   inputGraceSeconds: 0.15
@@ -20682,6 +20741,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
+  cueEvents: []
   pause: {fileID: 384702600}
 --- !u!1 &2011223377
 GameObject:
@@ -20981,8 +21041,6 @@ MonoBehaviour:
   hintText: 
   builderOwnsCopy: 1
   stickGuide: 0
-  voiceOverClip: {fileID: 8300000, guid: 3ef25136640fbb144ba26ea73067b20d, type: 3}
-  promptClip: {fileID: 0}
   advanceMode: 0
   duration: 6.5
   inputGraceSeconds: 0.15
@@ -21008,6 +21066,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
+  cueEvents: []
   onHalfway:
     m_PersistentCalls:
       m_Calls: []
@@ -21509,8 +21568,6 @@ MonoBehaviour:
   hintText: A  TO  EMIT
   builderOwnsCopy: 1
   stickGuide: 0
-  voiceOverClip: {fileID: 0}
-  promptClip: {fileID: 8300000, guid: 406245690bd3b7b4fb28fcf309022207, type: 3}
   advanceMode: 1
   duration: 8
   inputGraceSeconds: 0.15
@@ -21536,6 +21593,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   rumbleOnEnter: 0
+  cueEvents: []
   promptText: EMIT
   promptDelaySeconds: 0
   recentreOnPress: 0
