@@ -17,9 +17,9 @@ using UnityEngine;
 ///
 /// The idle watchdog implements the attract return. It counts unscaled time since the
 /// last deliberate input and raises OnIdleTimeout, which TutorialAttract_NEW turns into
-/// a restart. It runs during every beat including the ones that ask for nothing, which
-/// is intended: a visitor who walks away during A1 should not leave the piece parked in
-/// the dark for the next person.
+/// a restart. It counts while a gated beat waits on the player, which is intended: a
+/// visitor who walks away during A1 should not leave the piece parked in the dark for the
+/// next person. It holds at zero through timed beats, which ask for nothing — see TickIdle.
 /// </summary>
 [DisallowMultipleComponent]
 [HierarchyBadge_NEW("TUTORIAL", "#E0A030")]
@@ -342,6 +342,20 @@ public class TutorialDirector_NEW : MonoBehaviour
         if (_state == State.Attract) return;
 
         if (TutorialInput_NEW.AnyInput(idleStickDeadband))
+        {
+            _idleElapsed = 0f;
+            return;
+        }
+
+        // A timed beat asks for nothing, so a visitor sitting still through it is
+        // watching, not gone. Phase D is nine of them back to back (~80 s, longer once the
+        // voice-over stretches them), and counting through it reset the piece in D10
+        // before anyone was asked to touch the pad. The clock picks up again at the next
+        // gate, which opens with a fresh 90 s — so a walk-away still returns to attract.
+        // A pause still counts: that is the visitor who paused and left.
+        TutorialBeat_NEW beat = CurrentBeat;
+        if (_state == State.Running && !TutorialClock_NEW.Paused &&
+            beat != null && beat.Mode == TutorialBeat_NEW.AdvanceMode.Duration)
         {
             _idleElapsed = 0f;
             return;
