@@ -175,6 +175,11 @@ public class QuasarVFX_NEW : MonoBehaviour
              "tutorial does, its whole length adds up over the core and would fill the hole with light.")]
     [Range(0f, 1f)] [SerializeField] float jetOverHole = 0.12f;
 
+    [Tooltip("How near the camera comes, in disc radii from the middle, before the hole fades: gone at " +
+             "this, all there from twice it. 0: the core's glow size (or one and a half of the hole's " +
+             "radii), for flying through the core. Set it small to look at the hole from close by.")]
+    [Min(0f)] [SerializeField] float holeNear = 0f;
+
     [Header("Jets")]
     [Tooltip("Lay the jets along the line through here and this — the light, in the tutorial, so it " +
              "flies in down one jet and is emitted out along the other. Empty: the object's own ±Y.")]
@@ -358,7 +363,7 @@ public class QuasarVFX_NEW : MonoBehaviour
     /// far: one and a half of its radii, so it is gone before it fills the frame, and never
     /// sooner than the core's glow, which the light flies through.
     /// </summary>
-    float HoleNear => Mathf.Max(coreSize, hole * 1.5f);
+    float HoleNear => holeNear > 0f ? holeNear : Mathf.Max(coreSize, hole * 1.5f);
 
     // ── Scripted ────────────────────────────────────────────────────────────
 
@@ -370,6 +375,16 @@ public class QuasarVFX_NEW : MonoBehaviour
     {
         _windStart = Time.time;
         _releaseFrom = -1f;
+    }
+
+    /// <summary>
+    /// Let a wind-up go without erupting: it winds back down over releaseSeconds. For when
+    /// what is wound up for is not the quasar's own flash — the tutorial's light leaving it,
+    /// where a flash of the core would read as the screen blinking.
+    /// </summary>
+    public void LetGo()
+    {
+        if (_windStart >= 0f) Release();
     }
 
     /// <summary>Back to how it was: no wind-up, no eruption under way.</summary>

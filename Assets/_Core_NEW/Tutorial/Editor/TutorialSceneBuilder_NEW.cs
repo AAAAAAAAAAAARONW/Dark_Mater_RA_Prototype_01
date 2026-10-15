@@ -267,10 +267,11 @@ public static class TutorialSceneBuilder_NEW
         QuasarVFX_NEW quasarVfx = BuildQuasarVfx(quasar, player.transform);
 
         // And the galaxy it is the heart of. See BuildHostGalaxy.
-        Transform hostGalaxy = BuildHostGalaxy(quasar);
+        BuildHostGalaxy(quasar);
 
         BuildTravel(player, quasar.transform, lookRig);
-        TutorialDiscOrbit_NEW discOrbit = BuildDiscOrbit(player, quasar.transform, lookRig, hostGalaxy);
+        TutorialPhotonGlow_NEW photonGlow = BuildPhotonGlow(player.transform);
+        TutorialDiscOrbit_NEW discOrbit = BuildDiscOrbit(player, quasar.transform, lookRig, photonGlow);
         BuildDust(player.transform);
         BuildSpeedStreaks(player.transform);
 
@@ -772,18 +773,19 @@ public static class TutorialSceneBuilder_NEW
         QuasarVFX_NEW vfx = AddIfMissing<QuasarVFX_NEW>(go);
         Wire(vfx)
             .Num("innerEdge", 0.03f)
-            .Num("hole", 0.02f)
+            .Num("hole", 0.009f)
+            .Num("holeNear", 0.03f)
             .Num("beaming", 0.3f)
             .Col("hot", new Color(2.5f, 2f, 1.35f, 1f))
             .Col("middle", new Color(2.4f, 1.15f, 0.25f, 1f))
             .Col("rim", new Color(0.9f, 0.2f, 0.03f, 1f))
-            .Num("coreSize", 0.22f)
+            .Num("coreSize", 0.08f)
             .Num("gasBrightness", 0.25f)
             .Col("gasInner", new Color(1f, 0.45f, 0.12f, 1f))
             .Col("gasOuter", new Color(0.35f, 0.18f, 0.12f, 1f))
             .Num("jetLength", 2.5f)
             .Num("jetBrightness", 0.25f)
-            .Num("nearExposure", 0.3f)
+            .Num("nearExposure", 0.1f)
             .Num("filamentSpeed", 0.02f)
             .Num("knotSpeed", 0.05f)
             .Num("blobSpeed", 0.05f)
@@ -815,11 +817,14 @@ public static class TutorialSceneBuilder_NEW
 
     /// <summary>
     /// The galaxy the quasar is the heart of (HostGalaxyVFX_NEW): ten of its disc's radii, so
-    /// the run starts inside it, with stars on every side. Its plane holds the light's way in
-    /// (45° down) and lies level across the view, so the galaxy starts as a band across the sky
-    /// with the quasar at its middle; it need not lie in the quasar's disc's plane, and does
-    /// not. TutorialDiscOrbit_NEW turns it at the launch for the look back. Its look is the
-    /// component's own defaults, but for the nuclear swarm reaching out round the start.
+    /// the run starts inside it, with stars on every side. It need not lie in the quasar's
+    /// disc's plane, and does not: its pole is (0.71, 0.5, 0.5), which puts the light's way in
+    /// (45° down, +z) in its plane — the galaxy starts as a band across the sky with the
+    /// quasar at its middle — and tilts it towards the way out (+x, rising 12°: once round
+    /// from the hold, TutorialDiscOrbit_NEW lets the light go along the gas's way round, on the
+    /// side it came in on), so looking back after the emission it is seen whole, at a slant.
+    /// Its look is the component's own defaults, but for the nuclear swarm reaching out round
+    /// the start.
     /// </summary>
     static Transform BuildHostGalaxy(GameObject quasar)
     {
@@ -828,7 +833,7 @@ public static class TutorialSceneBuilder_NEW
         {
             go.layer = quasar.layer;
             go.transform.localPosition = Vector3.zero;
-            go.transform.localRotation = Quaternion.Euler(45f, 0f, 0f);
+            go.transform.localRotation = Quaternion.FromToRotation(Vector3.up, new Vector3(0.7071f, 0.5f, 0.5f));
             go.transform.localScale = Vector3.one * 5f;   // the quasar is 900: 4500, 10 disc radii
         }
 
@@ -838,12 +843,12 @@ public static class TutorialSceneBuilder_NEW
     }
 
     /// <summary>
-    /// The quasar's pull (TutorialDiscOrbit_NEW): C1 catches the light and draws it down onto
-    /// the disc, C2 carries it round, C3 launches it off. On the player, beside the travel it
-    /// drives.
+    /// The quasar's pull (TutorialDiscOrbit_NEW): C1 carries the light once round the black
+    /// hole down to its edge, C2 holds it there, C3 lets it go with the camera following. On
+    /// the player, beside the travel it drives.
     /// </summary>
     static TutorialDiscOrbit_NEW BuildDiscOrbit(GameObject player, Transform quasar, FirstPersonLookRig_NEW lookRig,
-                                                Transform hostGalaxy)
+                                                TutorialPhotonGlow_NEW glow)
     {
         TutorialDiscOrbit_NEW orbit = AddIfMissing<TutorialDiscOrbit_NEW>(player);
 
@@ -851,10 +856,21 @@ public static class TutorialSceneBuilder_NEW
             .Ref("quasar", quasar)
             .Ref("travel", player.GetComponent<TutorialTravel_NEW>())
             .Ref("lookRig", lookRig)
-            .Ref("revealGalaxy", hostGalaxy)
+            .Ref("glow", glow)
             .Apply();
 
         return orbit;
+    }
+
+    /// <summary>
+    /// The light, seen (TutorialPhotonGlow_NEW): the point the camera watches wait at the black
+    /// hole's edge and follows out. On the player at the trail's head; dark until C1 brings it up.
+    /// </summary>
+    static TutorialPhotonGlow_NEW BuildPhotonGlow(Transform player)
+    {
+        GameObject go = FindOrCreate("Glow", player, player.position);
+        if (IsFresh(go)) go.transform.localPosition = TrailOffset;
+        return AddIfMissing<TutorialPhotonGlow_NEW>(go);
     }
 
     /// <summary>
@@ -1447,10 +1463,15 @@ public static class TutorialSceneBuilder_NEW
             .Apply();
 
         // C1's "the disc accelerates, matter stretches into streaks, brightness rises" is the
-        // quasar winding up, and the emission is it erupting — down the jet the light is
-        // thrown out along.
+        // quasar winding up. At the emission it lets go — not an eruption: its core flashing
+        // white right beside the camera would read as the screen blinking, and the light
+        // leaving is what is to be seen.
         AddCall(c1, "onEnter", quasarVfx, "WindUp");
-        if (emission != null) AddCall(emission, "onEmitted", quasarVfx, "Erupt");
+        if (emission != null)
+        {
+            RemoveCall(emission, "onEmitted", quasarVfx, "Erupt");
+            AddCall(emission, "onEmitted", quasarVfx, "LetGo");
+        }
 
         if (emission == null) return;
 
@@ -3507,12 +3528,17 @@ public static class TutorialSceneBuilder_NEW
             .Ref("quasar", quasar)
             .Ref("discOrbit", discOrbit)
             .Ref("photonTrail", trail != null ? trail.gameObject : null)
-            // Off the disc at 1500 u/s, so by C4 the light is 11000 out, far enough to see the
-            // whole galaxy behind it; up to it over a second, down from it over three.
-            .Num("tunnelSpeedMultiplier", 60f)
-            .Num("tunnelSeconds", 6.5f)
-            .Num("tunnelRiseSeconds", 1f)
+            // Off at 1800 u/s once the camera is with it, so by C4 the light is 9000 to 12000
+            // out, far enough to see the whole galaxy behind it; down from it over three.
+            .Num("tunnelSpeedMultiplier", 72f)
+            .Num("tunnelSeconds", 8.5f)
+            .Num("tunnelRiseSeconds", 1.2f)
             .Num("settleSeconds", 3f)
+            // No white: the light is seen leaving the black hole's edge, the camera following.
+            .Flag("flashAtThreshold", false)
+            .Flag("flashAtEmit", false)
+            .Num("spinUpShake", 0.3f)
+            .Num("thresholdShake", 0.25f)
             .Apply();
 
         return emission;
@@ -4537,6 +4563,25 @@ public static class TutorialSceneBuilder_NEW
         }
 
         return false;
+    }
+
+    /// <summary>Take a call the builder used to wire off an event, saying so.</summary>
+    static void RemoveCall(Object owner, string eventName, Object target, string method)
+    {
+        if (owner == null || target == null) return;
+
+        UnityEvent e = GetEvent(owner, eventName);
+        if (e == null) return;
+
+        for (int i = e.GetPersistentEventCount() - 1; i >= 0; i--)
+        {
+            if (e.GetPersistentTarget(i) != target || e.GetPersistentMethodName(i) != method) continue;
+
+            UnityEventTools.RemovePersistentListener(e, i);
+            EditorUtility.SetDirty(owner);
+            Debug.Log("[TutorialSceneBuilder_NEW] Took " + target.GetType().Name + "." + method + " off " +
+                      owner.name + "." + eventName + ".", owner);
+        }
     }
 
     /// <summary>Is this exact target and method already on this event?</summary>
