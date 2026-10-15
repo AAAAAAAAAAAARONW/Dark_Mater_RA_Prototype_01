@@ -92,14 +92,13 @@ public static class TutorialSceneBuilder_NEW
     /// So a rushing visitor arrives at C1 from about 2100 out and an unhurried one from
     /// 900, and both reach the quasar as C2 opens.
     ///
-    /// LATER: AT THE HEART OF ITS GALAXY. The scientists asked to see the quasar first as the
-    /// bright heart of a galaxy, then be drawn in to it. So it is 18000 out — 2.5 of its
-    /// galaxy's radii (BuildHostGalaxy) — and below, the light coming in at 40° above its disc,
-    /// which lies flat: from here the whole galaxy is in the frame, and A2's zoom finds the
-    /// quasar in its ring. C1 no longer parks at it: TutorialDiscOrbit_NEW draws the light
-    /// down onto the disc from wherever it has got to.
+    /// LATER: AT THE HEART OF ITS GALAXY. The quasar is the heart of a galaxy (BuildHostGalaxy),
+    /// and the run starts inside it: 2600 out, the light coming in at 45° down towards a disc
+    /// that lies flat, the galaxy a band across the sky round it — not seen whole until the
+    /// light looks back after the launch. The hold still parks the cruise at 900, and C1 no
+    /// longer stops there: TutorialDiscOrbit_NEW draws the light down onto the disc.
     /// </summary>
-    static readonly Vector3 QuasarPosition = new Vector3(0f, -11570.2f, 13788.8f);
+    static readonly Vector3 QuasarPosition = new Vector3(0f, -1838.5f, 1838.5f);
 
     /// <summary>Closest the cruise may get. C1's approach is what goes inside it.</summary>
     const float TravelHoldDistance = 900f;
@@ -268,10 +267,10 @@ public static class TutorialSceneBuilder_NEW
         QuasarVFX_NEW quasarVfx = BuildQuasarVfx(quasar, player.transform);
 
         // And the galaxy it is the heart of. See BuildHostGalaxy.
-        BuildHostGalaxy(quasar);
+        Transform hostGalaxy = BuildHostGalaxy(quasar);
 
         BuildTravel(player, quasar.transform, lookRig);
-        TutorialDiscOrbit_NEW discOrbit = BuildDiscOrbit(player, quasar.transform, lookRig);
+        TutorialDiscOrbit_NEW discOrbit = BuildDiscOrbit(player, quasar.transform, lookRig, hostGalaxy);
         BuildDust(player.transform);
         BuildSpeedStreaks(player.transform);
 
@@ -815,24 +814,27 @@ public static class TutorialSceneBuilder_NEW
     }
 
     /// <summary>
-    /// The galaxy the quasar is the heart of (HostGalaxyVFX_NEW): sixteen of its disc's radii
-    /// across, so from the start the whole of it is in the frame and from the disc there are
-    /// stars on every side; tilted 18° off the quasar's disc, as a quasar's disc need not lie
-    /// in its galaxy's plane — and so from the disc the galaxy is a band across the sky rather
-    /// than edge on through the light. Its look is the component's own defaults.
+    /// The galaxy the quasar is the heart of (HostGalaxyVFX_NEW): ten of its disc's radii, so
+    /// the run starts inside it, with stars on every side. Its plane holds the light's way in
+    /// (45° down) and lies level across the view, so the galaxy starts as a band across the sky
+    /// with the quasar at its middle; it need not lie in the quasar's disc's plane, and does
+    /// not. TutorialDiscOrbit_NEW turns it at the launch for the look back. Its look is the
+    /// component's own defaults, but for the nuclear swarm reaching out round the start.
     /// </summary>
-    static void BuildHostGalaxy(GameObject quasar)
+    static Transform BuildHostGalaxy(GameObject quasar)
     {
         GameObject go = FindOrCreate("Host Galaxy", quasar.transform, quasar.transform.position);
         if (IsFresh(go))
         {
             go.layer = quasar.layer;
             go.transform.localPosition = Vector3.zero;
-            go.transform.localRotation = Quaternion.Euler(-18f, 0f, 0f);
-            go.transform.localScale = Vector3.one * 8f;   // the quasar is 900: 7200, 16 disc radii
+            go.transform.localRotation = Quaternion.Euler(45f, 0f, 0f);
+            go.transform.localScale = Vector3.one * 5f;   // the quasar is 900: 4500, 10 disc radii
         }
 
-        AddIfMissing<HostGalaxyVFX_NEW>(go);
+        HostGalaxyVFX_NEW galaxy = AddIfMissing<HostGalaxyVFX_NEW>(go);
+        Wire(galaxy).Num("nucleusReach", 0.3f).Apply();
+        return go.transform;
     }
 
     /// <summary>
@@ -840,7 +842,8 @@ public static class TutorialSceneBuilder_NEW
     /// the disc, C2 carries it round, C3 launches it off. On the player, beside the travel it
     /// drives.
     /// </summary>
-    static TutorialDiscOrbit_NEW BuildDiscOrbit(GameObject player, Transform quasar, FirstPersonLookRig_NEW lookRig)
+    static TutorialDiscOrbit_NEW BuildDiscOrbit(GameObject player, Transform quasar, FirstPersonLookRig_NEW lookRig,
+                                                Transform hostGalaxy)
     {
         TutorialDiscOrbit_NEW orbit = AddIfMissing<TutorialDiscOrbit_NEW>(player);
 
@@ -848,6 +851,7 @@ public static class TutorialSceneBuilder_NEW
             .Ref("quasar", quasar)
             .Ref("travel", player.GetComponent<TutorialTravel_NEW>())
             .Ref("lookRig", lookRig)
+            .Ref("revealGalaxy", hostGalaxy)
             .Apply();
 
         return orbit;
@@ -3386,8 +3390,8 @@ public static class TutorialSceneBuilder_NEW
         // same stick speed feel different and frames the quasar differently.
         camera.fieldOfView = FieldOfView;
 
-        // The quasar starts 18000 units off, its galaxy reaching 10000 past it, and C4 looks
-        // back at all of it from 14000 the other side. The default 1000 far plane would hide
+        // C4 looks back at the whole galaxy from 11000 the other side of the quasar, and it
+        // reaches 6500 past that. The default 1000 far plane would hide
         // it entirely, which is exactly the "nothing is there" symptom.
         camera.farClipPlane = 150000f;
 
@@ -3503,10 +3507,10 @@ public static class TutorialSceneBuilder_NEW
             .Ref("quasar", quasar)
             .Ref("discOrbit", discOrbit)
             .Ref("photonTrail", trail != null ? trail.gameObject : null)
-            // Off the disc at 2000 u/s, so by C4 the light is far enough out to see the whole
-            // galaxy behind it; up to it over a second, down from it over three.
-            .Num("tunnelSpeedMultiplier", 80f)
-            .Num("tunnelSeconds", 5f)
+            // Off the disc at 1500 u/s, so by C4 the light is 11000 out, far enough to see the
+            // whole galaxy behind it; up to it over a second, down from it over three.
+            .Num("tunnelSpeedMultiplier", 60f)
+            .Num("tunnelSeconds", 6.5f)
             .Num("tunnelRiseSeconds", 1f)
             .Num("settleSeconds", 3f)
             .Apply();
