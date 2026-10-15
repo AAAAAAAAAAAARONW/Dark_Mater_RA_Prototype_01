@@ -6,19 +6,29 @@ using UnityEngine;
 /// light is caught, drawn down onto the disc, carried once round the black hole with the gas,
 /// and flung off it from the side.
 ///
-///   Capture   (C1) From wherever the light has got to, a spiral in: falling towards the
-///             quasar, slowly at first and then faster, as distance goes — evenly in how fast
-///             the quasar grows — while it swings round in the way the disc turns and comes
-///             down to just above it. It ends going round with the gas, at the disc's own pace.
-///   Orbit     (C2) Round and round the black hole above the disc, until A.
-///   Launch    (C3) Off the disc from wherever the light has got to: along its orbit, out of the
-///             disc's plane — the way light leaves a disc. TutorialEmission_NEW sets the course
-///             and the speed from what this returns; this turns the view to face it.
+///   Capture   (C1) From wherever the light has got to — close, by C1, at the cruise's hold — a
+///             spiral in: falling towards the quasar as distance goes (evenly in how fast it
+///             grows), swinging round the way the disc turns, slowly at first, and coming down
+///             to just above it. It ends going round with the gas, at the disc's own pace.
+///   Orbit     (C2) Round the black hole above the disc, until A. The view is carried round
+///             with the light, the black hole held in the middle of it, so it is plainly the
+///             thing being circled: the stars and the disc wheel past behind it.
+///   Launch    (C3) Off the side of the disc from wherever the light has got to: along its orbit,
+///             skimming out over the disc's edge, barely rising — and the view turns with it, a
+///             level turn, the black hole sliding away beside it. Level, so that looking back
+///             at it is one turn of the stick.
+///
+/// THE REVEAL. Looking back, after the launch, is the first time the galaxy is seen whole: the
+/// run starts inside it. A galaxy seen from the plane of its quasar's disc can be edge on, and
+/// which way the light leaves depends on when A is pressed — so at the launch, under the white
+/// of the emission's flash, the galaxy (revealGalaxy) is turned on the quasar to be seen at
+/// revealInclination from the way out, face on enough to see it all. Nothing near enough to
+/// see it move is on screen while it does; the attract reset turns it back.
 ///
 /// Travel still owns the transform: this is a path it follows (TutorialTravel_NEW.Carry). The
 /// view is carried round with the light (FirstPersonLookRig_NEW.CarryView) — a player looking
-/// at the core keeps looking at it while being swung round it — and A recentres on the core,
-/// a little ahead of it, which is what "forward" is while circling it.
+/// at the black hole keeps looking at it while being swung round it — and A recentres on it
+/// (leadAngle ahead of it, if set), which is what "forward" is while circling it.
 ///
 /// The disc is the quasar's (QuasarVFX_NEW): its centre, its plane (its transform's XZ, as it
 /// draws it) and its radius, and the way its gas goes round (atan2 of local z and x, rising),
@@ -44,20 +54,28 @@ public class TutorialDiscOrbit_NEW : MonoBehaviour, TutorialTravel_NEW.IPath
     [Range(0.01f, 0.5f)] [SerializeField] float orbitHeight = 0.1f;
 
     [Tooltip("Seconds for one turn round the black hole.")]
-    [Min(1f)] [SerializeField] float secondsPerTurn = 8f;
+    [Min(1f)] [SerializeField] float secondsPerTurn = 10f;
 
     [Tooltip("How far ahead of the core, in degrees round the orbit, the view is carried to look — and " +
-             "where A recentres. 0 straight at the core.")]
-    [Range(0f, 60f)] [SerializeField] float leadAngle = 15f;
+             "where A recentres. 0 straight at the black hole.")]
+    [Range(0f, 60f)] [SerializeField] float leadAngle = 0f;
 
     [Header("Launch")]
-    [Tooltip("How steeply the light leaves the disc, in degrees out of its plane: along the orbit and up " +
-             "away from the disc. Steeper, the galaxy round it is seen more face on when the light looks back.")]
-    [Range(0f, 80f)] [SerializeField] float launchElevation = 38f;
+    [Tooltip("How steeply the light leaves the disc, in degrees out of its plane: along the orbit, skimming " +
+             "over the disc's edge. Low, so that looking back at the quasar is a level turn of the stick.")]
+    [Range(0f, 80f)] [SerializeField] float launchElevation = 4f;
 
-    [Tooltip("Seconds over which the view turns, at the launch, from the core to the way the light is " +
-             "flung — as a body turns with what throws it.")]
-    [Min(0.05f)] [SerializeField] float launchTurnSeconds = 1.4f;
+    [Tooltip("Seconds over which the view turns, at the launch, from the black hole to the way the light " +
+             "is flung — level, as a body turns with what throws it, the black hole sliding away beside it.")]
+    [Min(0.05f)] [SerializeField] float launchTurnSeconds = 1.8f;
+
+    [Header("The reveal")]
+    [Tooltip("The quasar's galaxy. Turned at the launch, under the emission's flash, so that looking back " +
+             "from the way out it is seen at revealInclination — whole, the quasar at its heart. Empty: left as it is.")]
+    [SerializeField] Transform revealGalaxy;
+
+    [Tooltip("How far from face on the galaxy is seen looking back, in degrees: 0 face on, 90 edge on.")]
+    [Range(0f, 85f)] [SerializeField] float revealInclination = 45f;
 
     [Header("Debug")]
     [SerializeField] bool drawGizmo = true;
@@ -78,6 +96,11 @@ public class TutorialDiscOrbit_NEW : MonoBehaviour, TutorialTravel_NEW.IPath
 
     QuasarVFX_NEW _vfx;
 
+    // The galaxy as it was built, to put back on a reset.
+    Quaternion _galaxyRotation;
+    Vector3 _galaxyPosition;
+    bool _galaxyTurned;
+
     /// <summary>True from the capture until the launch.</summary>
     public bool IsCarrying { get { return _phase == Phase.Capture || _phase == Phase.Orbit; } }
 
@@ -94,6 +117,11 @@ public class TutorialDiscOrbit_NEW : MonoBehaviour, TutorialTravel_NEW.IPath
         if (travel == null) travel = GetComponentInParent<TutorialTravel_NEW>();
         if (quasar == null && travel != null) quasar = travel.Destination;
         if (lookRig == null) lookRig = FindObjectOfType<FirstPersonLookRig_NEW>();
+        if (revealGalaxy != null)
+        {
+            _galaxyRotation = revealGalaxy.rotation;
+            _galaxyPosition = revealGalaxy.position;
+        }
     }
 
     // ── The disc ────────────────────────────────────────────────────────────
@@ -159,9 +187,9 @@ public class TutorialDiscOrbit_NEW : MonoBehaviour, TutorialTravel_NEW.IPath
         _theta0 = Mathf.Asin(Mathf.Clamp(up / rho, -1f, 1f));
         _phi0 = Mathf.Atan2(Vector3.Dot(from, d.forward), Vector3.Dot(from, d.right));
 
-        // Swinging round faster as it falls in (as s³), to end at the disc's own pace.
+        // Swinging round faster as it falls in (as s²), to end at the disc's own pace.
         _captureSeconds = Mathf.Max(0.1f, seconds);
-        _sweep = Turn * _captureSeconds / 3f;
+        _sweep = Turn * _captureSeconds / 2f;
 
         _phase = Phase.Capture;
         _elapsed = 0f;
@@ -176,7 +204,8 @@ public class TutorialDiscOrbit_NEW : MonoBehaviour, TutorialTravel_NEW.IPath
     /// <summary>
     /// C3: off the disc. Where the light leaves from — the orbit's entry, if the capture had not
     /// finished (a debug jump replays C1 to C3 in one frame) — and the way it goes: along the
-    /// orbit and up out of the disc's plane. The view turns to face it over launchTurnSeconds.
+    /// orbit, rising launchElevation out of the disc's plane. The view turns, level, to face the
+    /// way out over launchTurnSeconds, and the galaxy is turned for the reveal (see the class).
     /// </summary>
     public Vector3 Launch(out Vector3 from)
     {
@@ -187,18 +216,47 @@ public class TutorialDiscOrbit_NEW : MonoBehaviour, TutorialTravel_NEW.IPath
         }
 
         from = Point(OrbitRho, OrbitTheta, _phi);
-        float e = launchElevation * Mathf.Deg2Rad;
-        Vector3 course = (Mathf.Cos(e) * Along(_phi) + Mathf.Sin(e) * Disc.up).normalized;
-
-        // The view: from where it is carried to now (the core, a little ahead), to the course.
         Vector3 up = Disc.up;
+        float e = launchElevation * Mathf.Deg2Rad;
+        Vector3 course = (Mathf.Cos(e) * Along(_phi) + Mathf.Sin(e) * up).normalized;
+
+        // The view: from the black hole, where it is carried to now, round to the way out —
+        // level, so the turn is the one the stick makes, and so is the turn back.
+        _level = Along(_phi);
         Quaternion before = _hasFrame ? _frame : Quaternion.LookRotation(Forward(from, 1f), up);
-        _turn = Quaternion.LookRotation(course, up) * Quaternion.Inverse(before);
+        _turn = Quaternion.LookRotation(_level, up) * Quaternion.Inverse(before);
         _turnElapsed = 0f;
         _turnDone = 0f;
 
+        TurnGalaxyToFace(course);
+
         _phase = Phase.Launched;
         return course;
+    }
+
+    Vector3 _level;
+
+    /// <summary>
+    /// THE REVEAL (see the class): turn the galaxy on the quasar so that from the way out it is
+    /// seen at revealInclination. Its new pole leans from the level towards the way out.
+    /// </summary>
+    void TurnGalaxyToFace(Vector3 course)
+    {
+        if (revealGalaxy == null) return;
+
+        Vector3 up = Disc.up;
+        Vector3 level = up - Vector3.Dot(up, course) * course;
+        if (level.sqrMagnitude < 1e-6f) return;
+        level.Normalize();
+
+        float i = revealInclination * Mathf.Deg2Rad;
+        Vector3 pole = Mathf.Cos(i) * course + Mathf.Sin(i) * level;
+
+        Vector3 pivot = Disc.position;
+        Quaternion turn = Quaternion.FromToRotation(revealGalaxy.up, pole);
+        revealGalaxy.position = pivot + turn * (revealGalaxy.position - pivot);
+        revealGalaxy.rotation = turn * revealGalaxy.rotation;
+        _galaxyTurned = true;
     }
 
     /// <summary>Back to rest. The attract reset, through the emission.</summary>
@@ -207,6 +265,13 @@ public class TutorialDiscOrbit_NEW : MonoBehaviour, TutorialTravel_NEW.IPath
         _phase = Phase.Idle;
         _turnElapsed = -1f;
         _hasFrame = false;
+
+        if (_galaxyTurned && revealGalaxy != null)
+        {
+            revealGalaxy.rotation = _galaxyRotation;
+            revealGalaxy.position = _galaxyPosition;
+            _galaxyTurned = false;
+        }
     }
 
     // ── The path ────────────────────────────────────────────────────────────
@@ -222,11 +287,11 @@ public class TutorialDiscOrbit_NEW : MonoBehaviour, TutorialTravel_NEW.IPath
             float s = Mathf.Clamp01(_elapsed / _captureSeconds);
 
             // Distance eased on its logarithm, so the quasar grows evenly rather than leaping
-            // at the end; the height angle eased down; the angle round swinging in as s³.
+            // at the end; the height angle eased down; the angle round swinging in as s².
             float e = s * s * s * (s * (s * 6f - 15f) + 10f);
             float rho = Mathf.Exp(Mathf.Lerp(Mathf.Log(_rho0), Mathf.Log(OrbitRho), e));
             float theta = Mathf.Lerp(_theta0, OrbitTheta, s * s * (3f - 2f * s));
-            _phi = _phi0 + _sweep * s * s * s;
+            _phi = _phi0 + _sweep * s * s;
             position = Point(rho, theta, _phi);
 
             if (s >= 1f) _phase = Phase.Orbit;
@@ -284,6 +349,9 @@ public class TutorialDiscOrbit_NEW : MonoBehaviour, TutorialTravel_NEW.IPath
         Quaternion now = Quaternion.Slerp(Quaternion.identity, _turn, eased);
         lookRig.CarryView(now * Quaternion.Inverse(done));
         _turnDone = eased;
+
+        // Forward is the way out, level: A recentres there, and the turn back is the same turn.
+        lookRig.SetForwardAxis(_level);
 
         if (t >= 1f) _turnElapsed = -1f;
     }
