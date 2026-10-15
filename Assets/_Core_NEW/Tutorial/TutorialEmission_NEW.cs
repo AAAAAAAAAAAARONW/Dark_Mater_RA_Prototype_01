@@ -22,12 +22,13 @@ using UnityEngine.Events;
 /// light is going.
 ///
 /// LATER: OFF THE DISC. The scientists' note: the light does not come out of the black hole, or
-/// along its jet — it comes off the disc of gas round it. With a TutorialDiscOrbit_NEW wired, C1
-/// catches the light and draws it down onto the disc instead of parking it at the core, C2 holds
-/// it going round the black hole with the gas, and A flings it off the disc from the side, along
-/// its orbit and up out of its plane, the speed rising to the tunnel's and settling after —
-/// smoothly, over tunnelRiseSeconds and settleSeconds, as fast as it now goes. Without one, the
-/// old way: arrive at the core, and on through it.
+/// along its jet — it comes off the white-hot gas right beside it. With a TutorialDiscOrbit_NEW
+/// wired, C1 carries the light once round the black hole and sets it down at the hole's edge,
+/// C2 holds it there, and A lets it go: it leaves first, at the orbit's departSpeed, the camera
+/// following, and once the camera is with it the speed rises to the tunnel's and later settles
+/// — smoothly, over tunnelRiseSeconds and settleSeconds. With flashAtEmit and flashAtThreshold
+/// off there is no white: the light is the bright thing on screen, and the camera follows it.
+/// Without an orbit, the old way: arrive at the core, and on through it.
 ///
 /// FOR WHOEVER PICKS THIS UP: the three phases are three public methods, in order.
 /// Wire them to C1.onEnter, C2.onSatisfied and C3.onEnter respectively — the builder
@@ -85,6 +86,9 @@ public class TutorialEmission_NEW : MonoBehaviour
     [Range(0f, 1f)]
     [SerializeField] float thresholdShake = 1f;
 
+    [Tooltip("Flash the screen as C2 opens. Off where the light waits at the black hole's edge in view: a white frame there reads as a cut.")]
+    [SerializeField] bool flashAtThreshold = true;
+
     [SerializeField] Color thresholdFlashColor = new Color(1f, 0.97f, 0.92f, 1f);
     [SerializeField] float thresholdFlashHold = 0.02f;
     [SerializeField] float thresholdFlashDecay = 0.9f;
@@ -105,6 +109,9 @@ public class TutorialEmission_NEW : MonoBehaviour
     [Tooltip("Speed after it settles, as a multiple of the cruise speed. C4 is " +
              "'speed settles', not 'speed stops'.")]
     [SerializeField] float settledSpeedMultiplier = 1.6f;
+
+    [Tooltip("Flash the screen at the emission. Off with a TutorialDiscOrbit_NEW: the light is seen leaving, and the camera follows it.")]
+    [SerializeField] bool flashAtEmit = true;
 
     [SerializeField] Color emissionFlashColor = Color.white;
     [SerializeField] float emissionFlashHold = 0.06f;
@@ -131,6 +138,7 @@ public class TutorialEmission_NEW : MonoBehaviour
     float _cruiseSpeed;
     Vector3 _cruiseDirection;
     float _launchSpeed;
+    bool _departing;   // let go from the black hole's edge: see TickTunnel
 
     // Where C1 lands the light, and the line C3 sends it through the quasar on.
     Vector3 _arrivalPoint;
@@ -250,7 +258,7 @@ public class TutorialEmission_NEW : MonoBehaviour
         _elapsed = 0f;
 
         if (shake != null) shake.Amplitude = thresholdShake;
-        if (flash != null) flash.Flash(thresholdFlashColor, thresholdFlashHold, thresholdFlashDecay);
+        if (flash != null && flashAtThreshold) flash.Flash(thresholdFlashColor, thresholdFlashHold, thresholdFlashDecay);
 
         if (debugLog) Debug.Log("[TutorialEmission_NEW] Threshold.", this);
     }
@@ -266,18 +274,21 @@ public class TutorialEmission_NEW : MonoBehaviour
         _elapsed = 0f;
         _through = false;
 
-        if (flash != null) flash.Flash(emissionFlashColor, emissionFlashHold, emissionFlashDecay);
+        if (flash != null && flashAtEmit) flash.Flash(emissionFlashColor, emissionFlashHold, emissionFlashDecay);
 
+        _departing = false;
         if (travel != null && discOrbit != null && discOrbit.IsCarrying)
         {
-            // Off the disc, from wherever round it the light has got to: along its orbit and up
-            // out of its plane. Not through the core, so there is no coming out of it to flash.
+            // Let go at the black hole's edge: off along the gas's way round, from rest, the
+            // camera following (the orbit does that). Not through the core, so there is no
+            // coming out of it to flash.
             Vector3 course = discOrbit.Launch(out Vector3 from);
             if (Vector3.Distance(travel.transform.position, from) > 1f) travel.MoveTo(from);
 
             _through = true;
-            _launchSpeed = discOrbit.OrbitSpeed;
-            travel.SetCourse(course, tunnelRiseSeconds > 0f ? _launchSpeed : _cruiseSpeed * tunnelSpeedMultiplier);
+            _departing = true;
+            _launchSpeed = discOrbit.DepartSpeed;
+            travel.SetCourse(course, 0f);
         }
         else if (travel != null)
         {
@@ -318,6 +329,7 @@ public class TutorialEmission_NEW : MonoBehaviour
         _elapsed = 0f;
         _through = false;
         _hasArrival = false;
+        _departing = false;
 
         if (shake != null) shake.Amplitude = 0f;
         if (flash != null) flash.Clear();
@@ -445,6 +457,26 @@ public class TutorialEmission_NEW : MonoBehaviour
 
         // Up to the tunnel's speed, and later down to the settled one, eased — at the speeds
         // the light now leaves the disc at, a step either way is a jolt.
+        if (_departing && discOrbit != null && _elapsed < tunnelSeconds)
+        {
+            // Let go from rest at the black hole's edge: up to departSpeed while the camera
+            // catches it, then — the camera with it — up to the tunnel's.
+            float chase = discOrbit.ChaseSeconds;
+            float v;
+            if (_elapsed < chase)
+            {
+                float u = Mathf.Clamp01(_elapsed / discOrbit.DepartRiseSeconds);
+                v = discOrbit.DepartSpeed * u * u * (3f - 2f * u);
+            }
+            else
+            {
+                float u = tunnelRiseSeconds > 0f ? Mathf.Clamp01((_elapsed - chase) / tunnelRiseSeconds) : 1f;
+                v = Mathf.Lerp(discOrbit.DepartSpeed, tunnel, u * u * (3f - 2f * u));
+            }
+            if (travel != null) travel.SetSpeed(v);
+            return;
+        }
+
         if (_elapsed < tunnelSeconds)
         {
             if (tunnelRiseSeconds > 0f && travel != null)

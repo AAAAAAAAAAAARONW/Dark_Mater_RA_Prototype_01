@@ -258,6 +258,24 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
         Apply();
     }
 
+    /// <summary>How far the camera is tilted down from the look, degrees (followTilt).</summary>
+    public float FollowTilt { get { return followTilt; } }
+
+    /// <summary>
+    /// Hold the camera back from the light by this much, in the world: it is where the light
+    /// was, not where it is. TutorialDiscOrbit_NEW uses it to watch the light wait at the
+    /// black hole's edge from a little way off, and then to chase it as it leaves — the light
+    /// goes first, and the camera follows. Zero is the follow view as it always is. Applied at
+    /// once, so it can be set after this rig's own Update in the frame.
+    /// </summary>
+    public void SetLag(Vector3 worldLag)
+    {
+        _lag = worldLag;
+        Apply();
+    }
+
+    Vector3 _lag;
+
     /// <summary>
     /// Turn the view with the light, as a body is turned by what carries it: the quasar's
     /// pull swings the light round its disc (TutorialDiscOrbit_NEW), and a view left fixed in
@@ -448,7 +466,7 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
 
         transform.rotation = look * Quaternion.Euler(followTilt, 0f, 0f);
 
-        Vector3 eyeOffset = look * new Vector3(0f, followHeight, -followDistance);
+        Vector3 eyeOffset = look * new Vector3(0f, followHeight, -followDistance) - _lag;
 
         // InverseTransformVector rather than an inverse rotation, so a scaled parent does
         // not quietly shrink or stretch the follow distance.
