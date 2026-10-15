@@ -44,6 +44,11 @@ public class TutorialSpeedStreaks_NEW : MonoBehaviour
     [Tooltip("Fallback when there is no TutorialTravel_NEW to read.")]
     [SerializeField] float fallbackSpeed = 25f;
 
+    [Tooltip("The fastest the streaks run, units a second. The quasar's pull draws the light in at " +
+             "thousands, and it leaves the disc as fast: streaks that fast cross their shell in a frame " +
+             "and flicker as lines, so past this they hold — already a blur. 0 = no limit.")]
+    [Min(0f)] [SerializeField] float maxSpeed = 700f;
+
     [Header("Debug")]
     [SerializeField] bool debugLog = false;
 
@@ -83,6 +88,7 @@ public class TutorialSpeedStreaks_NEW : MonoBehaviour
         // transform is actually doing.
         float speed = travel != null ? travel.CurrentSpeed : fallbackSpeed;
         float streakSpeed = speed * speedMultiplier;
+        if (maxSpeed > 0f) streakSpeed = Mathf.Min(streakSpeed, maxSpeed);
 
         // THE COURSE, NOT +Z. This used to write a fixed velocity of -Z on the reasoning
         // that "the light's forward is +Z", and the light has no forward: the player

@@ -259,6 +259,33 @@ public class FirstPersonLookRig_NEW : MonoBehaviour
     }
 
     /// <summary>
+    /// Turn the view with the light, as a body is turned by what carries it: the quasar's
+    /// pull swings the light round its disc (TutorialDiscOrbit_NEW), and a view left fixed in
+    /// the world would watch the quasar slide off the screen while it was being circled.
+    ///
+    /// The whole view turns — where the player was looking, and where they are going — so a
+    /// player looking at the core keeps looking at it, and one who has turned away keeps
+    /// looking away by as much. Not a lock: the stick still turns it on top, every frame.
+    /// The horizon stays level, as it always is here (no roll).
+    /// </summary>
+    public void CarryView(Quaternion turn)
+    {
+        Carry(ref _yaw, ref _pitch, turn);
+        Carry(ref _appliedYaw, ref _appliedPitch, turn);
+        Apply();
+    }
+
+    void Carry(ref float yaw, ref float pitch, Quaternion turn)
+    {
+        Vector3 look = turn * (Quaternion.Euler(pitch, yaw, 0f) * Vector3.forward);
+        if (look.sqrMagnitude < 1e-6f) return;
+
+        Vector3 euler = Quaternion.LookRotation(look).eulerAngles;
+        yaw += Mathf.DeltaAngle(yaw, euler.y);
+        pitch = Mathf.Clamp(NormaliseAngle(euler.x), minPitch, maxPitch);
+    }
+
+    /// <summary>
     /// Re-read the forward axis from the transform's current rotation. Phase 2 needs
     /// this at C5, when the emission changes what "forward" means.
     /// </summary>

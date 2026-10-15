@@ -18,6 +18,10 @@ using UnityEngine;
 /// things happening TO the player, which is a different claim from the player steering,
 /// and the distinction survives as long as nothing wires a control to them.
 ///
+/// Carry is the third: a path that something else works out — the quasar's pull, catching the
+/// light and swinging it round its disc (TutorialDiscOrbit_NEW) — and that this follows, so the
+/// transform still has one owner. The light is being moved, not steering; nothing reads input.
+///
 /// It replaces an earlier TutorialDrift_NEW that orbited the quasar. That was written
 /// for a staging where the player starts inside the accretion disc; the experience is an
 /// approach, so the motion is a straight line towards the quasar and the orbit is gone.
@@ -63,6 +67,9 @@ public class TutorialTravel_NEW : MonoBehaviour
     Vector3 _startPosition;
     float _startSpeed;
     float _currentSpeed;
+
+    // A path being followed. See Carry.
+    IPath _path;
 
     // Arrival state. See ApproachTo.
     bool _approaching;
@@ -110,6 +117,7 @@ public class TutorialTravel_NEW : MonoBehaviour
     public void ResetToStart()
     {
         _approaching = false;
+        _path = null;
 
         // The next visitor's cruise gets the hold back. Without this, a restart taken
         // after C1 would leave the light free to fly straight through the quasar.
@@ -122,7 +130,14 @@ public class TutorialTravel_NEW : MonoBehaviour
         _homeDirection = _direction;
         speed = _startSpeed;
 
-        if (lookRig != null) lookRig.SetForwardAxis(_direction);
+        // And face it again. The attract snaps the view before this runs, to whatever forward
+        // was — which, after the light has been carried round the quasar's disc, is the core
+        // seen from the disc, not the start's view of the galaxy.
+        if (lookRig != null)
+        {
+            lookRig.SetForwardAxis(_direction);
+            lookRig.SnapToForward();
+        }
     }
 
     /// <summary>
@@ -179,6 +194,7 @@ public class TutorialTravel_NEW : MonoBehaviour
     public void CancelApproach()
     {
         _approaching = false;
+        _path = null;
     }
 
     /// <summary>Change speed without touching the heading. C1's spin-up uses this.</summary>
@@ -193,6 +209,27 @@ public class TutorialTravel_NEW : MonoBehaviour
 
     /// <summary>True while the arrival is running, and false again once it has landed.</summary>
     public bool IsApproaching { get { return _approaching; } }
+
+    /// <summary>A path the light is carried along: where it is after another dt seconds, and which way it is going.</summary>
+    public interface IPath
+    {
+        Vector3 Advance(float dt, out Vector3 heading);
+    }
+
+    /// <summary>True while a path is carrying the light (Carry).</summary>
+    public bool IsCarried { get { return _path != null; } }
+
+    /// <summary>
+    /// Follow a path until something else takes over — SetCourse, SetSpeed, MoveTo, Halt or a
+    /// reset all end it. The heading is the path's, every frame, so the streaks and anything
+    /// else reading Direction follow the curve; the look rig's forward axis is the path's own
+    /// business (round a disc, "forward" is the core, not the way the light is going).
+    /// </summary>
+    public void Carry(IPath path)
+    {
+        _approaching = false;
+        _path = path;
+    }
 
     /// <summary>
     /// Cover the remaining distance to a point in exactly this many seconds, ending at
@@ -219,6 +256,7 @@ public class TutorialTravel_NEW : MonoBehaviour
         _approachShape = shape;
         _approachElapsed = 0f;
         _approaching = true;
+        _path = null;
     }
 
     /// <summary>
@@ -236,6 +274,7 @@ public class TutorialTravel_NEW : MonoBehaviour
     public void Halt()
     {
         _approaching = false;
+        _path = null;
         speed = 0f;
     }
 
@@ -259,7 +298,13 @@ public class TutorialTravel_NEW : MonoBehaviour
     /// </summary>
     void Start()
     {
-        if (lookRig != null) lookRig.SetForwardAxis(_direction);
+        // And face it: the run opens looking at what the light is travelling towards — the
+        // quasar's galaxy, below and ahead — whatever rotation the camera was built with.
+        if (lookRig != null)
+        {
+            lookRig.SetForwardAxis(_direction);
+            lookRig.SnapToForward();
+        }
     }
 
     void Update()
@@ -270,12 +315,23 @@ public class TutorialTravel_NEW : MonoBehaviour
         // The world clock: unscaled, so D2's slow motion slows the world without also
         // stopping the light the whole piece says cannot stop — but zero while paused,
         // the one moment the light is allowed to stand still. See TutorialClock_NEW.
-        if (_approaching) TickApproach(dt);
+        if (_path != null) TickPath(dt);
+        else if (_approaching) TickApproach(dt);
         else transform.position += _direction * (speed * dt);
 
         HoldOffTheDestination();
 
         _currentSpeed = dt > 0f ? Vector3.Distance(before, transform.position) / dt : 0f;
+    }
+
+    void TickPath(float dt)
+    {
+        transform.position = _path.Advance(dt, out Vector3 heading);
+        if (heading.sqrMagnitude > 1e-8f) _direction = heading.normalized;
+
+        // Inside the hold on purpose, as the arrival is (see HoldOffTheDestination).
+        if (destination != null)
+            _insideHold = Vector3.Distance(transform.position, destination.position) < holdDistance;
     }
 
     void TickApproach(float dt)
@@ -321,7 +377,7 @@ public class TutorialTravel_NEW : MonoBehaviour
 
     void HoldOffTheDestination()
     {
-        if (_approaching || _holdReleased || destination == null || holdDistance <= 0f) return;
+        if (_approaching || _path != null || _holdReleased || destination == null || holdDistance <= 0f) return;
 
         Vector3 toDestination = destination.position - transform.position;
         float distance = toDestination.magnitude;

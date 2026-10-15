@@ -91,8 +91,15 @@ public static class TutorialSceneBuilder_NEW
     ///
     /// So a rushing visitor arrives at C1 from about 2100 out and an unhurried one from
     /// 900, and both reach the quasar as C2 opens.
+    ///
+    /// LATER: AT THE HEART OF ITS GALAXY. The scientists asked to see the quasar first as the
+    /// bright heart of a galaxy, then be drawn in to it. So it is 18000 out — 2.5 of its
+    /// galaxy's radii (BuildHostGalaxy) — and below, the light coming in at 40° above its disc,
+    /// which lies flat: from here the whole galaxy is in the frame, and A2's zoom finds the
+    /// quasar in its ring. C1 no longer parks at it: TutorialDiscOrbit_NEW draws the light
+    /// down onto the disc from wherever it has got to.
     /// </summary>
-    static readonly Vector3 QuasarPosition = new Vector3(0f, 0f, 2600f);
+    static readonly Vector3 QuasarPosition = new Vector3(0f, -11570.2f, 13788.8f);
 
     /// <summary>Closest the cruise may get. C1's approach is what goes inside it.</summary>
     const float TravelHoldDistance = 900f;
@@ -257,10 +264,14 @@ public static class TutorialSceneBuilder_NEW
 
         GameObject quasar = BuildQuasar(world.transform);
 
-        // What the quasar looks like, its jets down the light's line. See BuildQuasarVfx.
+        // What the quasar looks like, its disc flat below the light. See BuildQuasarVfx.
         QuasarVFX_NEW quasarVfx = BuildQuasarVfx(quasar, player.transform);
 
+        // And the galaxy it is the heart of. See BuildHostGalaxy.
+        BuildHostGalaxy(quasar);
+
         BuildTravel(player, quasar.transform, lookRig);
+        TutorialDiscOrbit_NEW discOrbit = BuildDiscOrbit(player, quasar.transform, lookRig);
         BuildDust(player.transform);
         BuildSpeedStreaks(player.transform);
 
@@ -337,7 +348,7 @@ public static class TutorialSceneBuilder_NEW
         SeparateTheSticks(lookRig);
         TutorialEmission_NEW emission = BuildEmission(player, lookRig, shake,
                                                       flashObject.GetComponent<TutorialFlash_NEW>(),
-                                                      quasar.transform);
+                                                      quasar.transform, discOrbit);
 
         // ── Phase 3 rig ──────────────────────────────────────────────────────
         TutorialUISlide_NEW spectrumSlide;
@@ -738,6 +749,16 @@ public static class TutorialSceneBuilder_NEW
     ///
     /// The sphere's renderer is switched off on that run too — the two drawn together are
     /// neither design — and left alone after: switching it back on is somebody's decision.
+    ///
+    /// LATER: OFF THE DISC, NOT DOWN THE JET. The light no longer flies in down a jet and out
+    /// along the other: it is caught onto the disc, carried round it and launched off it
+    /// (TutorialDiscOrbit_NEW). So the disc lies flat, below the light's way in, and nothing
+    /// aims the jets — they are faint now, the disc's context, not the light's road. The
+    /// look is the scientists' reference: a white-hot middle with a speck of a black hole
+    /// in it (a fiftieth of the disc), yellow, orange, and an exposure that comes down as the
+    /// camera comes close, so from just above the disc it is gas and not a white-out.
+    /// aimJetAt is no longer wired, on any run: filling it in "because it was empty" would
+    /// turn the disc to face the light.
     /// </summary>
     static QuasarVFX_NEW BuildQuasarVfx(GameObject quasar, Transform player)
     {
@@ -746,16 +767,24 @@ public static class TutorialSceneBuilder_NEW
         {
             go.layer = quasar.layer;
             go.transform.localScale = Vector3.one * 0.5f;
-
-            // Down the line in the Scene view already; aimJetAt keeps it there in play.
-            Vector3 toLight = player.position - quasar.transform.position;
-            if (toLight.sqrMagnitude > 1e-6f)
-                go.transform.rotation = Quaternion.FromToRotation(Vector3.up, toLight.normalized);
+            go.transform.localRotation = Quaternion.identity;
         }
 
         QuasarVFX_NEW vfx = AddIfMissing<QuasarVFX_NEW>(go);
         Wire(vfx)
-            .Ref("aimJetAt", player)
+            .Num("innerEdge", 0.03f)
+            .Num("hole", 0.02f)
+            .Num("beaming", 0.3f)
+            .Col("hot", new Color(2.5f, 2f, 1.35f, 1f))
+            .Col("middle", new Color(2.4f, 1.15f, 0.25f, 1f))
+            .Col("rim", new Color(0.9f, 0.2f, 0.03f, 1f))
+            .Num("coreSize", 0.22f)
+            .Num("gasBrightness", 0.25f)
+            .Col("gasInner", new Color(1f, 0.45f, 0.12f, 1f))
+            .Col("gasOuter", new Color(0.35f, 0.18f, 0.12f, 1f))
+            .Num("jetLength", 2.5f)
+            .Num("jetBrightness", 0.25f)
+            .Num("nearExposure", 0.3f)
             .Num("filamentSpeed", 0.02f)
             .Num("knotSpeed", 0.05f)
             .Num("blobSpeed", 0.05f)
@@ -763,7 +792,7 @@ public static class TutorialSceneBuilder_NEW
             .Vec2("clumpSpeed", new Vector2(0.02f, 0.06f))
             .Num("counterJet", 1f)
             .Num("shadow", 0f)
-            .Num("discBrightness", 0.5f)
+            .Num("discBrightness", 0.8f)
             .Num("sheathBrightness", 0.35f)
             .Flag("eruptWhenSeen", false)
             .Num("eruptEvery", 12f)
@@ -783,6 +812,45 @@ public static class TutorialSceneBuilder_NEW
         }
 
         return vfx;
+    }
+
+    /// <summary>
+    /// The galaxy the quasar is the heart of (HostGalaxyVFX_NEW): sixteen of its disc's radii
+    /// across, so from the start the whole of it is in the frame and from the disc there are
+    /// stars on every side; tilted 18° off the quasar's disc, as a quasar's disc need not lie
+    /// in its galaxy's plane — and so from the disc the galaxy is a band across the sky rather
+    /// than edge on through the light. Its look is the component's own defaults.
+    /// </summary>
+    static void BuildHostGalaxy(GameObject quasar)
+    {
+        GameObject go = FindOrCreate("Host Galaxy", quasar.transform, quasar.transform.position);
+        if (IsFresh(go))
+        {
+            go.layer = quasar.layer;
+            go.transform.localPosition = Vector3.zero;
+            go.transform.localRotation = Quaternion.Euler(-18f, 0f, 0f);
+            go.transform.localScale = Vector3.one * 8f;   // the quasar is 900: 7200, 16 disc radii
+        }
+
+        AddIfMissing<HostGalaxyVFX_NEW>(go);
+    }
+
+    /// <summary>
+    /// The quasar's pull (TutorialDiscOrbit_NEW): C1 catches the light and draws it down onto
+    /// the disc, C2 carries it round, C3 launches it off. On the player, beside the travel it
+    /// drives.
+    /// </summary>
+    static TutorialDiscOrbit_NEW BuildDiscOrbit(GameObject player, Transform quasar, FirstPersonLookRig_NEW lookRig)
+    {
+        TutorialDiscOrbit_NEW orbit = AddIfMissing<TutorialDiscOrbit_NEW>(player);
+
+        Wire(orbit)
+            .Ref("quasar", quasar)
+            .Ref("travel", player.GetComponent<TutorialTravel_NEW>())
+            .Ref("lookRig", lookRig)
+            .Apply();
+
+        return orbit;
     }
 
     /// <summary>
@@ -3318,9 +3386,10 @@ public static class TutorialSceneBuilder_NEW
         // same stick speed feel different and frames the quasar differently.
         camera.fieldOfView = FieldOfView;
 
-        // The quasar starts 6000 units ahead. The default 1000 far plane would hide it
-        // entirely, which is exactly the "nothing is there" symptom.
-        camera.farClipPlane = 20000f;
+        // The quasar starts 18000 units off, its galaxy reaching 10000 past it, and C4 looks
+        // back at all of it from 14000 the other side. The default 1000 far plane would hide
+        // it entirely, which is exactly the "nothing is there" symptom.
+        camera.farClipPlane = 150000f;
 
         return camera;
     }
@@ -3420,7 +3489,7 @@ public static class TutorialSceneBuilder_NEW
     /// </summary>
     static TutorialEmission_NEW BuildEmission(GameObject player, FirstPersonLookRig_NEW lookRig,
                                               TutorialCameraShake_NEW shake, TutorialFlash_NEW flash,
-                                              Transform quasar)
+                                              Transform quasar, TutorialDiscOrbit_NEW discOrbit)
     {
         TutorialEmission_NEW emission = AddIfMissing<TutorialEmission_NEW>(player);
 
@@ -3432,7 +3501,14 @@ public static class TutorialSceneBuilder_NEW
             .Ref("shake", shake)
             .Ref("flash", flash)
             .Ref("quasar", quasar)
+            .Ref("discOrbit", discOrbit)
             .Ref("photonTrail", trail != null ? trail.gameObject : null)
+            // Off the disc at 2000 u/s, so by C4 the light is far enough out to see the whole
+            // galaxy behind it; up to it over a second, down from it over three.
+            .Num("tunnelSpeedMultiplier", 80f)
+            .Num("tunnelSeconds", 5f)
+            .Num("tunnelRiseSeconds", 1f)
+            .Num("settleSeconds", 3f)
             .Apply();
 
         return emission;
@@ -4695,6 +4771,15 @@ public static class TutorialSceneBuilder_NEW
             if (p != null) p.vector3Value = value;
             return this;
         }
+        public Wiring Col(string path, Color value)
+        {
+            if (!_fresh) return this;
+
+            SerializedProperty p = Find(path);
+            if (p != null) p.colorValue = value;
+            return this;
+        }
+
         public Wiring Vec2(string path, Vector2 value)
         {
             if (!_fresh) return this;
