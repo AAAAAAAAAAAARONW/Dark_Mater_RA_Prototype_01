@@ -51,6 +51,12 @@ using UnityEngine;
 /// jets are brightest at their base and fade along their length; and the gas round it is
 /// dimmer, from orange inside to violet outside, with more haze between its filaments.
 ///
+/// LATER: AT THE HEART OF ITS GALAXY. The scientists asked for the quasar as a galaxy's heart,
+/// with a black hole too small to make out: HostGalaxyVFX_NEW draws the galaxy round it, the hole
+/// is a speck in the white-hot middle, and the tutorial carries the light round the disc and
+/// launches it from there. nearExposure brings its brightness down as the camera comes close, as
+/// an eye adapts, so the disc seen from just above it is gas, not a white-out.
+///
 /// IT FADES WITH ITS WORLD. Every shader takes _Color, which WorldSwitcher_NEW and the dives
 /// fade a world by, and it is built before WorldSwitcher_NEW gathers its groups' renderers
 /// (it runs first, by execution order), so a quasar inside a render group comes and goes —
@@ -296,6 +302,16 @@ public class QuasarVFX_NEW : MonoBehaviour
              "wound — so a visitor walking away mid wind-up does not leave it like that.")]
     [Min(0f)] [SerializeField] float windUpHold = 45f;
 
+    [Header("Up close")]
+    [Tooltip("How bright it is with the camera right at it, against 1 from afar: an eye's exposure, so " +
+             "that its disc seen from just above — the tutorial carries the light round it — is gas in " +
+             "white, yellow and orange, not a white-out. 1 = off.")]
+    [Range(0.05f, 1f)] [SerializeField] float nearExposure = 1f;
+
+    [Tooltip("From how far off (disc radii from the middle) the exposure starts to come down, and how " +
+             "near it is all the way down.")]
+    [SerializeField] Vector2 nearExposureRange = new Vector2(3f, 0.6f);
+
     [Header("Variation")]
     [Tooltip("Another quasar looks different with another seed.")]
     [SerializeField] int seed = 0;
@@ -508,7 +524,7 @@ public class QuasarVFX_NEW : MonoBehaviour
         float amount = flicker + windUpFlicker * _activity;
         float pulse = 1f + amount * (Mathf.PerlinNoise(_flickerPhase, seed * 1.37f + 0.5f) - 0.5f) * 2f;
 
-        float bright = Mathf.Lerp(1f, windUpBrightness, _activity);
+        float bright = Mathf.Lerp(1f, windUpBrightness, _activity) * Exposure();
         float age = now - _eruptAt;
 
         foreach (Material m in _materials)
@@ -521,6 +537,17 @@ public class QuasarVFX_NEW : MonoBehaviour
             m.SetFloat(FlareGainId, _eruptGain);
         }
         _matter.SetFloat(StretchId, matterStreak * Mathf.Lerp(1f, windUpStreak, _activity));
+    }
+
+    /// <summary>The eye's exposure for how near the main camera is (nearExposure).</summary>
+    float Exposure()
+    {
+        if (nearExposure >= 1f) return 1f;
+        Camera camera = Camera.main;
+        if (camera == null) return 1f;
+        float d = Vector3.Distance(camera.transform.position, transform.position) / Mathf.Max(Radius, 1e-3f);
+        float t = Mathf.InverseLerp(nearExposureRange.y, nearExposureRange.x, d);
+        return Mathf.Lerp(nearExposure, 1f, t * t * (3f - 2f * t));
     }
 
     static readonly int PaceId = Shader.PropertyToID("_Pace");

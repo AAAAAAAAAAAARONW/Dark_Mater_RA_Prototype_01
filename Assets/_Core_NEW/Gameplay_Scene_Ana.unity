@@ -144113,8 +144113,8 @@ MonoBehaviour:
     coolShare: 0.35
     memberAccent: {r: 0.96, g: 0.69, b: 0.92, a: 1}
     accentShare: 0
-    collapse: 600
-    collapseRadius: 20
+    collapse: 4000
+    collapseRadius: 240
     remnantColor: {r: 1.6, g: 1.55, b: 1.8, a: 1}
     remnantSize: 0.0025
     remnantSpikes: 1
@@ -173738,6 +173738,7 @@ Transform:
   m_Children:
   - {fileID: 2084470762}
   - {fileID: 1735407783}
+  - {fileID: 1413073217}
   m_Father: {fileID: 2068622088}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -304816,13 +304817,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1735407782}
-  m_LocalRotation: {x: 0.70709026, y: 0.011859164, z: -0.009406734, w: 0.7069613}
-  m_LocalPosition: {x: 0, y: 0, z: 66}
+  m_LocalRotation: {x: 0.3255682, y: 0, z: 0, w: 0.9455186}
+  m_LocalPosition: {x: -11, y: -1.576, z: 68.769}
   m_LocalScale: {x: 20, y: 20, z: 20}
   m_Children: []
   m_Father: {fileID: 925622590}
   m_RootOrder: 1
-  m_LocalEulerAnglesHint: {x: 90.199005, y: -86.12799, z: -87.85101}
+  m_LocalEulerAnglesHint: {x: 38, y: 0, z: 0}
 --- !u!114 &1735407784
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -304835,7 +304836,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e6e8d79a60f345b08f19998684c1376b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  innerEdge: 0.07
+  innerEdge: 0.03
   spin: 0.12
   twist: 2.2
   rings: 12
@@ -304843,21 +304844,21 @@ MonoBehaviour:
   dust: 0.75
   tendrils: 0.6
   shimmer: 0.35
-  beaming: 0.5
+  beaming: 0.3
   orbitalSpeed: 0.45
-  hot: {r: 2, g: 2.1, b: 2.5, a: 1}
-  middle: {r: 2.2, g: 1.25, b: 0.4, a: 1}
-  rim: {r: 0.75, g: 0.14, b: 0.05, a: 1}
+  hot: {r: 2.5, g: 2, b: 1.35, a: 1}
+  middle: {r: 2.4, g: 1.15, b: 0.25, a: 1}
+  rim: {r: 0.9, g: 0.2, b: 0.03, a: 1}
   dustColour: {r: 0.03, g: 0.01, b: 0.005, a: 1}
   discBrightness: 0.8
   gasSheets: 3
   gasReach: 2.6
   gasTilt: 14
-  gasInner: {r: 1, g: 0.3, b: 0.08, a: 1}
-  gasOuter: {r: 0.22, g: 0.07, b: 0.32, a: 1}
-  gasBrightness: 0.35
+  gasInner: {r: 1, g: 0.45, b: 0.12, a: 1}
+  gasOuter: {r: 0.35, g: 0.18, b: 0.12, a: 1}
+  gasBrightness: 0.25
   gasWisps: 0.7
-  coreSize: 0.35
+  coreSize: 0.22
   coreHot: {r: 4, g: 3.7, b: 3.2, a: 1}
   coreGlow: {r: 1.1, g: 0.6, b: 0.25, a: 1}
   coreHalo: {r: 0.3, g: 0.1, b: 0.03, a: 1}
@@ -304867,7 +304868,7 @@ MonoBehaviour:
   spikeLength: 0.14
   spikeAngle: 45
   streak: 0.3
-  hole: 0.2
+  hole: 0.02
   holeRing: 1
   lensing: 1
   holeHaze: 0.06
@@ -304877,7 +304878,7 @@ MonoBehaviour:
   jetWidth: 0.035
   jetHeart: {r: 0.75, g: 0.9, b: 1.25, a: 1}
   jetSheath: {r: 0.35, g: 0.55, b: 1.25, a: 1}
-  jetBrightness: 1
+  jetBrightness: 0.25
   counterJet: 0.5
   hollow: 0.6
   sheathBrightness: 0.7
@@ -304913,6 +304914,8 @@ MonoBehaviour:
   windUpStreak: 3
   releaseSeconds: 3
   windUpHold: 45
+  nearExposure: 0.5
+  nearExposureRange: {x: 2.5, y: 0.6}
   seed: 0
 --- !u!1 &1736098598
 GameObject:
@@ -366909,3 +366912,91 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: fc3287f6830a7d1408eb00b6110d455f, type: 3}
+--- !u!1 &1069186793
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1413073217}
+  - component: {fileID: 1573265479}
+  m_Layer: 9
+  m_Name: Host Galaxy
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1413073217
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1069186793}
+  m_LocalRotation: {x: 0.1736482, y: 0, z: 0, w: 0.9848078}
+  m_LocalPosition: {x: -11, y: -1.576, z: 68.769}
+  m_LocalScale: {x: 320, y: 320, z: 320}
+  m_Children: []
+  m_Father: {fileID: 925622590}
+  m_RootOrder: 2
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1573265479
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1069186793}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ff8c0ba5de74a43a0cb196e0198b82a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  pitch: 22
+  bar: {x: 20, y: 0.3, z: 0.1}
+  ring: {x: 0.13, y: 0.016}
+  lopsided: 0.6
+  armWidth: {x: 0.06, y: 0.09}
+  scaleLength: 0.22
+  thickness: {x: 0.05, y: 0.06}
+  dust: 1.2
+  clumps: 1.2
+  haze: 0.5
+  brightness: 0.6
+  depthGlow: 1.8
+  dustVolume: 0.6
+  resolve: {x: 0.03, y: 0.4}
+  bulgeColour: {r: 1.5, g: 1.05, b: 0.55, a: 1}
+  armColour: {r: 1.3, g: 0.92, b: 0.62, a: 1}
+  between: {r: 0.7, g: 0.48, b: 0.32, a: 1}
+  ringColour: {r: 1.7, g: 1.25, b: 0.85, a: 1}
+  clumpColour: {r: 1.7, g: 1.2, b: 0.95, a: 1}
+  glow: {r: 1.2, g: 0.5, b: 0.42, a: 1}
+  plume: {r: 0.55, g: 0.42, b: 0.34, a: 1}
+  dustColour: {r: 0.1, g: 0.05, b: 0.025, a: 1}
+  discGlow: {r: 0.9, g: 0.62, b: 0.4, a: 1}
+  ringGlow: {r: 1.4, g: 0.8, b: 0.55, a: 1}
+  haloColour: {r: 0.45, g: 0.36, b: 0.3, a: 1}
+  gasFlow: 0.012
+  patternSpeed: 0.004
+  twinkle: 0.4
+  armStars: 5000
+  ringStars: 500
+  clumpCount: 70
+  nucleusStars: 6000
+  nucleusReach: 0.22
+  discStars: 7000
+  globulars: 120
+  starSize: 0.0018
+  maxStarSize: 0.01
+  orbitalSpeed: 0.012
+  youngStarColour: {r: 1.4, g: 1.15, b: 0.9, a: 1}
+  ringStarColour: {r: 1.2, g: 0.95, b: 0.7, a: 1}
+  clumpStarColour: {r: 1.3, g: 0.95, b: 0.75, a: 1}
+  nucleusStarColour: {r: 1.6, g: 1.15, b: 0.75, a: 1}
+  discStarColour: {r: 0.32, g: 0.24, b: 0.17, a: 1}
+  globularColour: {r: 0.42, g: 0.36, b: 0.3, a: 1}
+  seed: 0

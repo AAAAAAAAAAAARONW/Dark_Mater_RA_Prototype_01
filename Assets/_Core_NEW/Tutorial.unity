@@ -5855,6 +5855,7 @@ GameObject:
   - component: {fileID: 275155976}
   - component: {fileID: 275155975}
   - component: {fileID: 275155977}
+  - component: {fileID: 1056566443}
   m_Layer: 0
   m_Name: Photon
   m_TagString: Untagged
@@ -5915,6 +5916,7 @@ MonoBehaviour:
   lookRig: {fileID: 714473260}
   shake: {fileID: 714473266}
   flash: {fileID: 1680522747}
+  discOrbit: {fileID: 1056566443}
   photonTrail: {fileID: 351177666}
   spinUpSeconds: 12
   arrivalScreenFill: 2.2
@@ -5949,8 +5951,10 @@ MonoBehaviour:
   thresholdFlashColor: {r: 1, g: 0.97, b: 0.92, a: 1}
   thresholdFlashHold: 0.02
   thresholdFlashDecay: 0.9
-  tunnelSpeedMultiplier: 9
-  tunnelSeconds: 6
+  tunnelSpeedMultiplier: 80
+  tunnelSeconds: 5
+  tunnelRiseSeconds: 1
+  settleSeconds: 3
   settledSpeedMultiplier: 1.6
   emissionFlashColor: {r: 1, g: 1, b: 1, a: 1}
   emissionFlashHold: 0.06
@@ -9449,7 +9453,7 @@ Camera:
     width: 1
     height: 1
   near clip plane: 0.1
-  far clip plane: 20000
+  far clip plane: 150000
   field of view: 40
   orthographic: 0
   orthographic size: 5
@@ -10630,6 +10634,7 @@ MonoBehaviour:
   travel: {fileID: 0}
   speedMultiplier: 1
   fallbackSpeed: 25
+  maxSpeed: 700
   debugLog: 0
 --- !u!199 &861302627
 ParticleSystemRenderer:
@@ -17914,10 +17919,11 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1383825946}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 4375}
+  m_LocalPosition: {x: 0, y: -11570.2, z: 13788.8}
   m_LocalScale: {x: 900, y: 900, z: 900}
   m_Children:
   - {fileID: 1860496579}
+  - {fileID: 400854180}
   m_Father: {fileID: 1048522346}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -20249,7 +20255,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1860496578}
-  m_LocalRotation: {x: -0.7071068, y: -0, z: -0, w: 0.7071068}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0.5, y: 0.5, z: 0.5}
   m_Children: []
@@ -20268,7 +20274,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e6e8d79a60f345b08f19998684c1376b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  innerEdge: 0.07
+  innerEdge: 0.03
   spin: 0.25
   twist: 2.2
   rings: 12
@@ -20276,21 +20282,21 @@ MonoBehaviour:
   dust: 0.75
   tendrils: 0.6
   shimmer: 0.35
-  beaming: 0.5
+  beaming: 0.3
   orbitalSpeed: 0.45
-  hot: {r: 2, g: 2.1, b: 2.5, a: 1}
-  middle: {r: 2.2, g: 1.25, b: 0.4, a: 1}
-  rim: {r: 0.75, g: 0.14, b: 0.05, a: 1}
+  hot: {r: 2.5, g: 2, b: 1.35, a: 1}
+  middle: {r: 2.4, g: 1.15, b: 0.25, a: 1}
+  rim: {r: 0.9, g: 0.2, b: 0.03, a: 1}
   dustColour: {r: 0.03, g: 0.01, b: 0.005, a: 1}
-  discBrightness: 0.5
+  discBrightness: 0.8
   gasSheets: 3
   gasReach: 2.6
   gasTilt: 14
-  gasInner: {r: 1, g: 0.3, b: 0.08, a: 1}
-  gasOuter: {r: 0.22, g: 0.07, b: 0.32, a: 1}
-  gasBrightness: 0.35
+  gasInner: {r: 1, g: 0.45, b: 0.12, a: 1}
+  gasOuter: {r: 0.35, g: 0.18, b: 0.12, a: 1}
+  gasBrightness: 0.25
   gasWisps: 0.7
-  coreSize: 0.35
+  coreSize: 0.22
   coreHot: {r: 4, g: 3.7, b: 3.2, a: 1}
   coreGlow: {r: 1.1, g: 0.6, b: 0.25, a: 1}
   coreHalo: {r: 0.3, g: 0.1, b: 0.03, a: 1}
@@ -20300,17 +20306,17 @@ MonoBehaviour:
   spikeLength: 0.3
   spikeAngle: 45
   streak: 0.6
-  hole: 0.2
+  hole: 0.02
   holeRing: 1
   lensing: 1
   holeHaze: 0.06
   jetOverHole: 0.12
-  aimJetAt: {fileID: 275155976}
-  jetLength: 4.06
+  aimJetAt: {fileID: 0}
+  jetLength: 2.5
   jetWidth: 0.032
   jetHeart: {r: 0.75, g: 0.9, b: 1.25, a: 1}
   jetSheath: {r: 0.35, g: 0.55, b: 1.25, a: 1}
-  jetBrightness: 1
+  jetBrightness: 0.25
   counterJet: 0.5
   hollow: 0.6
   sheathBrightness: 0.7
@@ -20346,6 +20352,8 @@ MonoBehaviour:
   windUpStreak: 3
   releaseSeconds: 3
   windUpHold: 45
+  nearExposure: 0.3
+  nearExposureRange: {x: 3, y: 0.6}
   seed: 0
 --- !u!1 &1865719569
 GameObject:
@@ -21599,3 +21607,113 @@ MonoBehaviour:
   recentreOnPress: 0
   waitForRecentre: 0
   lookRig: {fileID: 714473260}
+--- !u!1 &1981312131
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 400854180}
+  - component: {fileID: 2023898990}
+  m_Layer: 0
+  m_Name: Host Galaxy
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &400854180
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1981312131}
+  m_LocalRotation: {x: -0.1564345, y: 0, z: 0, w: 0.9876883}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 8, y: 8, z: 8}
+  m_Children: []
+  m_Father: {fileID: 1383825947}
+  m_RootOrder: 1
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2023898990
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1981312131}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ff8c0ba5de74a43a0cb196e0198b82a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  pitch: 22
+  bar: {x: 20, y: 0.3, z: 0.1}
+  ring: {x: 0.13, y: 0.016}
+  lopsided: 0.6
+  armWidth: {x: 0.06, y: 0.09}
+  scaleLength: 0.22
+  thickness: {x: 0.05, y: 0.06}
+  dust: 1.2
+  clumps: 1.2
+  haze: 0.5
+  brightness: 0.6
+  depthGlow: 1.8
+  dustVolume: 0.6
+  resolve: {x: 0.03, y: 0.4}
+  bulgeColour: {r: 1.5, g: 1.05, b: 0.55, a: 1}
+  armColour: {r: 1.3, g: 0.92, b: 0.62, a: 1}
+  between: {r: 0.7, g: 0.48, b: 0.32, a: 1}
+  ringColour: {r: 1.7, g: 1.25, b: 0.85, a: 1}
+  clumpColour: {r: 1.7, g: 1.2, b: 0.95, a: 1}
+  glow: {r: 1.2, g: 0.5, b: 0.42, a: 1}
+  plume: {r: 0.55, g: 0.42, b: 0.34, a: 1}
+  dustColour: {r: 0.1, g: 0.05, b: 0.025, a: 1}
+  discGlow: {r: 0.9, g: 0.62, b: 0.4, a: 1}
+  ringGlow: {r: 1.4, g: 0.8, b: 0.55, a: 1}
+  haloColour: {r: 0.45, g: 0.36, b: 0.3, a: 1}
+  gasFlow: 0.012
+  patternSpeed: 0.004
+  twinkle: 0.4
+  armStars: 5000
+  ringStars: 500
+  clumpCount: 70
+  nucleusStars: 6000
+  nucleusReach: 0.22
+  discStars: 7000
+  globulars: 120
+  starSize: 0.0018
+  maxStarSize: 0.01
+  orbitalSpeed: 0.012
+  youngStarColour: {r: 1.4, g: 1.15, b: 0.9, a: 1}
+  ringStarColour: {r: 1.2, g: 0.95, b: 0.7, a: 1}
+  clumpStarColour: {r: 1.3, g: 0.95, b: 0.75, a: 1}
+  nucleusStarColour: {r: 1.6, g: 1.15, b: 0.75, a: 1}
+  discStarColour: {r: 0.32, g: 0.24, b: 0.17, a: 1}
+  globularColour: {r: 0.42, g: 0.36, b: 0.3, a: 1}
+  seed: 0
+--- !u!114 &1056566443
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 275155974}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6d8f40ba01647139f1896183e9d892e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  quasar: {fileID: 1383825947}
+  travel: {fileID: 275155975}
+  lookRig: {fileID: 714473260}
+  orbitRadius: 0.55
+  orbitHeight: 0.1
+  secondsPerTurn: 8
+  leadAngle: 15
+  launchElevation: 38
+  launchTurnSeconds: 1.4
+  drawGizmo: 1

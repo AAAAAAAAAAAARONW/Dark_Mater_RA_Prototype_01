@@ -21,6 +21,14 @@ using UnityEngine.Events;
 /// finds it. And the heading never turns, so A goes on recentring on the direction the
 /// light is going.
 ///
+/// LATER: OFF THE DISC. The scientists' note: the light does not come out of the black hole, or
+/// along its jet — it comes off the disc of gas round it. With a TutorialDiscOrbit_NEW wired, C1
+/// catches the light and draws it down onto the disc instead of parking it at the core, C2 holds
+/// it going round the black hole with the gas, and A flings it off the disc from the side, along
+/// its orbit and up out of its plane, the speed rising to the tunnel's and settling after —
+/// smoothly, over tunnelRiseSeconds and settleSeconds, as fast as it now goes. Without one, the
+/// old way: arrive at the core, and on through it.
+///
 /// FOR WHOEVER PICKS THIS UP: the three phases are three public methods, in order.
 /// Wire them to C1.onEnter, C2.onSatisfied and C3.onEnter respectively — the builder
 /// does that — and tune the serialized values. Nothing here reads a beat id, so the
@@ -35,6 +43,10 @@ public class TutorialEmission_NEW : MonoBehaviour
     [SerializeField] FirstPersonLookRig_NEW lookRig;
     [SerializeField] TutorialCameraShake_NEW shake;
     [SerializeField] TutorialFlash_NEW flash;
+
+    [Tooltip("The quasar's pull: catches the light at C1, carries it round the disc, launches it off " +
+             "the disc at C3. Empty: the light arrives at the core and is emitted on through it.")]
+    [SerializeField] TutorialDiscOrbit_NEW discOrbit;
 
     [Tooltip("The player's photon trail, switched on at the emission. Off before it: the " +
              "light has not left the quasar yet, so it has nothing to leave behind.")]
@@ -84,6 +96,12 @@ public class TutorialEmission_NEW : MonoBehaviour
     [Tooltip("Seconds the tunnel holds before settling towards the cruise speed again.")]
     [SerializeField] float tunnelSeconds = 6f;
 
+    [Tooltip("Seconds the speed takes to rise to the tunnel's from the launch. 0: at once.")]
+    [Min(0f)] [SerializeField] float tunnelRiseSeconds = 0f;
+
+    [Tooltip("Seconds the speed takes to settle from the tunnel's to the settled speed. 0: at once.")]
+    [Min(0f)] [SerializeField] float settleSeconds = 0f;
+
     [Tooltip("Speed after it settles, as a multiple of the cruise speed. C4 is " +
              "'speed settles', not 'speed stops'.")]
     [SerializeField] float settledSpeedMultiplier = 1.6f;
@@ -112,6 +130,7 @@ public class TutorialEmission_NEW : MonoBehaviour
 
     float _cruiseSpeed;
     Vector3 _cruiseDirection;
+    float _launchSpeed;
 
     // Where C1 lands the light, and the line C3 sends it through the quasar on.
     Vector3 _arrivalPoint;
@@ -130,6 +149,7 @@ public class TutorialEmission_NEW : MonoBehaviour
     {
         if (travel == null) travel = GetComponentInParent<TutorialTravel_NEW>();
         if (quasar == null && travel != null) quasar = travel.Destination;
+        if (discOrbit == null) discOrbit = GetComponent<TutorialDiscOrbit_NEW>();
         if (lookRig == null) lookRig = FindObjectOfType<FirstPersonLookRig_NEW>();
         if (shake == null) shake = FindObjectOfType<TutorialCameraShake_NEW>();
         if (flash == null) flash = FindObjectOfType<TutorialFlash_NEW>();
@@ -189,6 +209,14 @@ public class TutorialEmission_NEW : MonoBehaviour
         _phase = Phase.SpinUp;
         _elapsed = 0f;
 
+        // Caught by the quasar and drawn down onto its disc, if it has the pull to.
+        if (discOrbit != null && discOrbit.Capture(spinUpSeconds))
+        {
+            _hasArrival = false;
+            if (debugLog) Debug.Log("[TutorialEmission_NEW] Caught: down onto the disc.", this);
+            return;
+        }
+
         if (travel != null && quasar != null)
         {
             Vector3 fromQuasar = travel.transform.position - quasar.position;
@@ -240,7 +268,18 @@ public class TutorialEmission_NEW : MonoBehaviour
 
         if (flash != null) flash.Flash(emissionFlashColor, emissionFlashHold, emissionFlashDecay);
 
-        if (travel != null)
+        if (travel != null && discOrbit != null && discOrbit.IsCarrying)
+        {
+            // Off the disc, from wherever round it the light has got to: along its orbit and up
+            // out of its plane. Not through the core, so there is no coming out of it to flash.
+            Vector3 course = discOrbit.Launch(out Vector3 from);
+            if (Vector3.Distance(travel.transform.position, from) > 1f) travel.MoveTo(from);
+
+            _through = true;
+            _launchSpeed = discOrbit.OrbitSpeed;
+            travel.SetCourse(course, tunnelRiseSeconds > 0f ? _launchSpeed : _cruiseSpeed * tunnelSpeedMultiplier);
+        }
+        else if (travel != null)
         {
             // A debug jump opens C3 in the same frame as C1, so the arrival has not run and
             // the light is wherever the jump found it: put it where the arrival would have.
@@ -256,7 +295,8 @@ public class TutorialEmission_NEW : MonoBehaviour
 
             _throughCentre = quasar != null ? quasar.position : travel.transform.position;
             _throughCourse = course;
-            travel.SetCourse(course, _cruiseSpeed * tunnelSpeedMultiplier);
+            _launchSpeed = 0f;
+            travel.SetCourse(course, tunnelRiseSeconds > 0f ? 0f : _cruiseSpeed * tunnelSpeedMultiplier);
         }
 
         // The player is the light and now it has somewhere to have been.
@@ -282,6 +322,7 @@ public class TutorialEmission_NEW : MonoBehaviour
         if (shake != null) shake.Amplitude = 0f;
         if (flash != null) flash.Clear();
         if (photonTrail != null) photonTrail.SetActive(false);
+        if (discOrbit != null) discOrbit.Stop();
 
         // travel.ResetToStart puts the heading and speed back; this only has to stop
         // driving them.
@@ -399,9 +440,29 @@ public class TutorialEmission_NEW : MonoBehaviour
 
     void TickTunnel()
     {
-        if (_elapsed < tunnelSeconds) return;
+        float tunnel = _cruiseSpeed * tunnelSpeedMultiplier;
+        float settled = _cruiseSpeed * settledSpeedMultiplier;
 
-        if (travel != null) travel.SetSpeed(_cruiseSpeed * settledSpeedMultiplier);
+        // Up to the tunnel's speed, and later down to the settled one, eased — at the speeds
+        // the light now leaves the disc at, a step either way is a jolt.
+        if (_elapsed < tunnelSeconds)
+        {
+            if (tunnelRiseSeconds > 0f && travel != null)
+            {
+                float u = Mathf.Clamp01(_elapsed / tunnelRiseSeconds);
+                travel.SetSpeed(Mathf.Lerp(_launchSpeed, tunnel, u * u * (3f - 2f * u)));
+            }
+            return;
+        }
+
+        if (settleSeconds > 0f && _elapsed < tunnelSeconds + settleSeconds)
+        {
+            float u = (_elapsed - tunnelSeconds) / settleSeconds;
+            if (travel != null) travel.SetSpeed(Mathf.Lerp(tunnel, settled, u * u * (3f - 2f * u)));
+            return;
+        }
+
+        if (travel != null) travel.SetSpeed(settled);
 
         _phase = Phase.Settled;
 
