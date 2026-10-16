@@ -11,7 +11,9 @@ using UnityEngine;
 /// object's scale, and the Sun is at local (sunRadius, 0, 0) — so the object's +X is the
 /// direction from the galaxy's centre to the Sun. Tools > Journey NEW > Add Milky Way VFX to
 /// Open Scene places it with the Sun on SolarDivePoint, so the dive into the Solar System
-/// starts from where the Sun really is.
+/// starts from where the Sun really is. SolarDivePoint is fixed by the light's path — the
+/// light only goes straight on — so it is the galaxy that moves to it: after changing
+/// sunRadius, Put the Sun on SolarDivePoint (this component's menu) moves the galaxy back.
 ///
 /// THE NUMBERS ARE THE GALAXY'S. Radius 1 is about 16.4 kpc (53,000 light years), the disc as
 /// the face-on maps draw it, and the Sun half way out: 8.2 kpc (26,700 light years), on the
@@ -173,6 +175,37 @@ public class GalaxyVFX_NEW : MonoBehaviour
     public float SunRadius => sunRadius;
 
     int StarTotal => youngStarCount + bulgeStarCount + discStarCount + globularCount + supernovaCount;
+
+    /// <summary>
+    /// Move the galaxy so its Sun is on SolarDivePoint, turned and sized as it is. The point is
+    /// on the light's straight line, which nothing changes, so the galaxy is what moves — for
+    /// after sunRadius has been changed, or the galaxy turned in its plane.
+    /// </summary>
+    [ContextMenu("Put the Sun on SolarDivePoint")]
+    void PutSunOnDivePoint()
+    {
+        const string PointName = "SolarDivePoint";
+        Transform point = null;
+        if (transform.parent != null)
+            foreach (Transform t in transform.parent.GetComponentsInChildren<Transform>(true))
+                if (t.name == PointName) { point = t; break; }
+        if (point == null)
+        {
+            GameObject found = GameObject.Find(PointName);
+            if (found != null) point = found.transform;
+        }
+        if (point == null)
+        {
+            Debug.LogWarning("[GalaxyVFX_NEW] No " + PointName + " to put the Sun on.", this);
+            return;
+        }
+
+#if UNITY_EDITOR
+        UnityEditor.Undo.RecordObject(transform, "Put the Sun on " + PointName);
+#endif
+        transform.position += point.position - SunPosition;
+        Debug.Log("[GalaxyVFX_NEW] Moved the galaxy so its Sun is on " + PointName + " at " + point.position + ".", this);
+    }
 
     void OnEnable() => Build();
 
