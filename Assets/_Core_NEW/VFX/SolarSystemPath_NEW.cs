@@ -91,6 +91,22 @@ public class SolarSystemPath_NEW : MonoBehaviour
         Find();
         _worlds = FindObjectOfType<WorldSwitcher_NEW>();
         _dive = FindObjectOfType<LayerDive_NEW>();
+        WarnIfTilted();
+    }
+
+    /// <summary>
+    /// The orbits are laid out in the plane through the light's line square to this root's
+    /// up. Tip the root out of that (it was once tilted 15 degrees to show the orbits) and
+    /// the planets leave the light's level and Earth its line; sliding cannot put that right.
+    /// </summary>
+    void WarnIfTilted()
+    {
+        Vector3 d = pathDirection.sqrMagnitude > 1e-8f ? pathDirection.normalized : Vector3.forward;
+        float off = Mathf.Abs(Vector3.Dot(transform.up, d));
+        if (off > 0.01f)
+            Debug.LogWarning("[SolarSystemPath_NEW] '" + name + "' is tilted " + (Mathf.Asin(Mathf.Min(1f, off)) * Mathf.Rad2Deg).ToString("0.#") +
+                             " degrees out of the light's line: its planets are not level with the light and Earth is off " +
+                             "its path. Turn it about Y only, then Lay Out Along the Photon's Path.", this);
     }
 
     void LateUpdate()

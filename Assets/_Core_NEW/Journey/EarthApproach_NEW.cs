@@ -1,29 +1,20 @@
 using UnityEngine;
 
 /// <summary>
-/// The light ends its journey IN the Earth: across the Solar System it bends its course onto
-/// the Earth, and the gate into the Earth layer sits just past it, so the switch to the
-/// ending happens the moment the light goes in.
+/// The light ends its journey IN the Earth: the gate into the Earth layer sits just past
+/// Earth's centre, so the switch to the ending happens the moment the light goes in.
 ///
-/// WHY IT IS NEEDED. The light flies straight along +Z. The Solar System's Earth is tiny
-/// (about 0.12 units across in the world) and, since the system was tilted so its orbits
-/// read as orbits, sits a few units off that line. And the Earth gate was a flat plane at
-/// z 743.6, a few units BEFORE the Earth, so the light switched to the ending without ever
-/// reaching it. Nothing in the picture said "it arrives here".
+/// THE LIGHT NEVER TURNS. It used to: in the Solar System layer this bent the light's course
+/// onto Earth every frame, and aimed it straight at Earth's centre over the last few units.
+/// So whenever Earth was off the line — the Solar System tilted, as it once was, by 15
+/// degrees, leaving Earth 1.5 above the light — the light visibly turned. Light only goes
+/// straight on. SolarSystemPath_NEW puts Earth on the light's line instead (in the editor,
+/// and in play while the system is out of sight), so there is nothing here to steer.
 ///
-/// HOW.
-///   Steering: in steerLayerId, every frame the course turns towards the Earth's actual
-///     position (so it stays right if the system is moved or tilted again), smoothly at
-///     turnRate. Within lockDistance it aims straight at the centre, so a target this small
-///     is not missed by a hair.
-///   Gate: on Awake the Earth gate is moved along Z to gateBeyondEarth past the Earth's
-///     centre. Awake, because UniverseJourneyTracker_NEW reads every gate's Z in its Start
-///     for the distance readout; moved here, it reads the new one. Only Z changes: the gate
-///     is a wide plane, so it is still crossed wherever the course goes.
-///
-/// Uses PlayerRig_NEW.SetMovementDirection; DarkMatterBend_NEW treats an external direction
-/// as its new baseline when it is not bending, so the two do not fight. The Solar System has
-/// no dark matter in it.
+/// Gate: on Awake the Earth gate is moved along Z to gateBeyondEarth past the Earth's
+/// centre. Awake, because UniverseJourneyTracker_NEW reads every gate's Z in its Start for
+/// the distance readout; moved here, it reads the new one. Only Z changes: the gate is a
+/// wide plane, so it is still crossed wherever Earth sits across it.
 /// </summary>
 [DefaultExecutionOrder(-200)]
 [DisallowMultipleComponent]
@@ -37,22 +28,6 @@ public class EarthApproach_NEW : MonoBehaviour
     [Tooltip("The gate into the Earth layer.")]
     [SerializeField] LayerGate_NEW earthGate;
 
-    [SerializeField] PlayerRig_NEW player;
-    [SerializeField] LayerState_NEW layerState;
-
-    [Header("Steering")]
-    [Tooltip("The layer in which the course bends onto the Earth.")]
-    [SerializeField] string steerLayerId = "SolarSystem";
-
-    [Tooltip("How fast the course turns towards the Earth, per second. Higher = a tighter, " +
-             "more visible turn; lower = a gentle drift.")]
-    [Min(0.05f)]
-    [SerializeField] float turnRate = 1.2f;
-
-    [Tooltip("Closer than this, the course points straight at the Earth's centre.")]
-    [Min(0.1f)]
-    [SerializeField] float lockDistance = 6f;
-
     [Header("Gate")]
     [SerializeField] bool moveGate = true;
 
@@ -64,14 +39,12 @@ public class EarthApproach_NEW : MonoBehaviour
 
     void Awake()
     {
-        if (player == null) player = FindObjectOfType<PlayerRig_NEW>();
-        if (layerState == null) layerState = FindObjectOfType<LayerState_NEW>();
         if (earth == null) earth = FindEarth();
         if (earthGate == null) earthGate = FindGate("Earth");
 
         if (earth == null)
         {
-            Debug.LogWarning("[EarthApproach_NEW] No Earth found. The light flies straight.", this);
+            Debug.LogWarning("[EarthApproach_NEW] No Earth found; the Earth gate is left where it is.", this);
             enabled = false;
             return;
         }
@@ -85,24 +58,6 @@ public class EarthApproach_NEW : MonoBehaviour
 
             earthGate.transform.position = new Vector3(p.x, p.y, z);
         }
-    }
-
-    void Update()
-    {
-        if (player == null || earth == null || layerState == null) return;
-        if (!string.Equals(layerState.CurrentLayerId, steerLayerId, System.StringComparison.OrdinalIgnoreCase)) return;
-
-        Vector3 to = earth.position - player.transform.position;
-        if (to.z <= 0f) return;    // past it: the gate has the rest
-
-        Vector3 want = to.normalized;
-        Vector3 now = player.MovementDirection;
-
-        Vector3 dir = to.magnitude <= lockDistance
-            ? want
-            : Vector3.Slerp(now, want, 1f - Mathf.Exp(-turnRate * Time.deltaTime));
-
-        player.SetMovementDirection(dir);
     }
 
     static Transform FindEarth()
@@ -129,6 +84,6 @@ public class EarthApproach_NEW : MonoBehaviour
         if (!DebugView_NEW.Gizmos || earth == null) return;
 
         Gizmos.color = new Color(0.3f, 0.6f, 1f, 0.8f);
-        Gizmos.DrawWireSphere(earth.position, lockDistance);
+        Gizmos.DrawWireSphere(earth.position, 1f);
     }
 }

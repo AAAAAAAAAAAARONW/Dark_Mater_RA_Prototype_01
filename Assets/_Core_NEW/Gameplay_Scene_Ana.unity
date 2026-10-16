@@ -118138,11 +118138,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   earth: {fileID: 0}
   earthGate: {fileID: 0}
-  player: {fileID: 0}
-  layerState: {fileID: 0}
-  steerLayerId: SolarSystem
-  turnRate: 1.2
-  lockDistance: 6
   moveGate: 1
   gateBeyondEarth: 0.25
   debugLog: 0
@@ -345842,7 +345837,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2059859076}
-  m_LocalRotation: {x: -0.12516253, y: 0.2812911, z: -0.037032664, w: 0.9507041}
+  m_LocalRotation: {x: -0, y: 0.28371835, z: -0, w: 0.95890766}
   m_LocalPosition: {x: -8, y: 0, z: 737.6}
   m_LocalScale: {x: 0.09999999, y: 0.099999994, z: 0.09999999}
   m_Children:
