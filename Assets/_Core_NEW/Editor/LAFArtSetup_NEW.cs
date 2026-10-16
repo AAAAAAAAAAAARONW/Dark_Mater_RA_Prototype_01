@@ -265,10 +265,33 @@ public static class LAFArtSetup_NEW
 
         // The visible band's two edges: on the UV band's right side and the IR band's left,
         // so they sit exactly on the boundaries and fold away with those bands.
-        EnsureBandEdge(bands.transform.Find("UV"), 1f, style);
-        EnsureBandEdge(bands.transform.Find("IR"), 0f, style);
+        Image startEdge = EnsureBandEdge(bands.transform.Find("UV"), 1f, style);
+        Image endEdge = EnsureBandEdge(bands.transform.Find("IR"), 0f, style);
+
+        // Wavelength ticks on those edges, as a spectrum plot's axis marks them, in place of
+        // the UV / VISIBLE / IR names. The name labels are kept in the scene, switched off.
+        TMP_Text template = null;
+        foreach (TMP_Text label in bands.GetComponentsInChildren<TMP_Text>(true))
+            if (label.name == "Label") { template = label; break; }
+
+        TMP_Text startTick = EnsureTick(startEdge, "4000 Å", template, style);
+        TMP_Text endTick = EnsureTick(endEdge, "7000 Å", template, style);
+
+        SerializedObject ts = new SerializedObject(bands);
+        SetRefIfEmpty(ts, "visibleStartEdge", startEdge);
+        SetRefIfEmpty(ts, "visibleStartTick", startTick);
+        SetRefIfEmpty(ts, "visibleEndEdge", endEdge);
+        SetRefIfEmpty(ts, "visibleEndTick", endTick);
+        ts.ApplyModifiedProperties();
 
         if (!style) return;
+
+        foreach (TMP_Text label in bands.GetComponentsInChildren<TMP_Text>(true))
+        {
+            if (label.name != "Label") continue;
+            Undo.RecordObject(label.gameObject, "Retire band name");
+            label.gameObject.SetActive(false);
+        }
 
         // The bands: still the lesson, but quieter, with the art's green labels.
         foreach (string name in new[] { "UV", "IR" })
@@ -281,14 +304,6 @@ public static class LAFArtSetup_NEW
             Color c = tint.color;
             c.a = BandTintAlpha;
             tint.color = c;
-        }
-
-        foreach (TMP_Text label in bands.GetComponentsInChildren<TMP_Text>(true))
-        {
-            if (label.name != "Label") continue;
-
-            Undo.RecordObject(label, "LAF band label");
-            label.color = new Color(ArtGreen.r, ArtGreen.g, ArtGreen.b, 0.8f);
         }
 
         // The blink where a line is cut: cream, like the arrow that then follows it.
@@ -325,13 +340,13 @@ public static class LAFArtSetup_NEW
     }
 
     /// <summary>A one-pixel line down one side of a band (x 0 = left, 1 = right).</summary>
-    static void EnsureBandEdge(Transform band, float x, bool style)
+    static Image EnsureBandEdge(Transform band, float x, bool style)
     {
-        if (band == null) return;
+        if (band == null) return null;
 
         bool isNew = band.Find(BandEdgeName) == null;
         Image edge = FindOrCreateImage((RectTransform)band, BandEdgeName);
-        if (!isNew && !style) return;
+        if (!isNew && !style) return edge;
 
         Undo.RecordObject(edge, "LAF band edge");
         edge.color = BandEdgeColour;
@@ -344,6 +359,56 @@ public static class LAFArtSetup_NEW
         rect.pivot = new Vector2(0.5f, 0.5f);
         rect.anchoredPosition = Vector2.zero;
         rect.sizeDelta = new Vector2(BandEdgeWidth, 0f);
+        return edge;
+    }
+
+    /// <summary>A wavelength label above an edge line, styled like the band names it replaces.</summary>
+    static TMP_Text EnsureTick(Image edge, string text, TMP_Text template, bool style)
+    {
+        if (edge == null) return null;
+
+        Transform existing = edge.transform.Find("Tick");
+        TMP_Text tick = existing != null ? existing.GetComponent<TMP_Text>() : null;
+        bool isNew = tick == null;
+
+        if (isNew)
+        {
+            GameObject go = new GameObject("Tick", typeof(RectTransform));
+            Undo.RegisterCreatedObjectUndo(go, "Create tick");
+            go.layer = edge.gameObject.layer;
+            go.transform.SetParent(edge.transform, false);
+            tick = Undo.AddComponent<TextMeshProUGUI>(go);
+        }
+
+        if (!isNew && !style) return tick;
+
+        Undo.RecordObject(tick, "LAF tick");
+        tick.text = text;
+        if (template != null)
+        {
+            tick.font = template.font;
+            tick.fontSharedMaterial = template.fontSharedMaterial;
+            tick.fontSize = template.fontSize;
+        }
+        tick.alignment = TextAlignmentOptions.Center;
+        tick.enableWordWrapping = false;
+        tick.raycastTarget = false;
+        tick.color = new Color(ArtGreen.r, ArtGreen.g, ArtGreen.b, 0.8f);
+
+        RectTransform rect = tick.rectTransform;
+        Undo.RecordObject(rect, "LAF tick");
+        rect.anchorMin = new Vector2(0.5f, 1f);
+        rect.anchorMax = new Vector2(0.5f, 1f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = new Vector2(0f, 10f);
+        rect.sizeDelta = new Vector2(80f, 18f);
+        return tick;
+    }
+
+    static void SetRefIfEmpty(SerializedObject so, string field, Object value)
+    {
+        SerializedProperty p = so.FindProperty(field);
+        if (p != null && p.objectReferenceValue == null && value != null) p.objectReferenceValue = value;
     }
 
     // ── Shared styling ───────────────────────────────────────────────────────

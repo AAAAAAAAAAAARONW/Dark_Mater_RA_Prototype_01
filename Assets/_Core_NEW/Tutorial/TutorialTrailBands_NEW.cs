@@ -85,6 +85,11 @@ public class TutorialTrailBands_NEW : MonoBehaviour
     [SerializeField] float orientBehindLight = 1.5f;
 
     [Header("Unfold / fold UV and IR")]
+    [Tooltip("Show UV and IR the whole way through, tutorial and journey alike: the ribbon starts " +
+             "open and D1's unfold and D9's fold do nothing. The light always carries them; the " +
+             "spectrum bar always plots them. Off: the old crop-to-visible story.")]
+    [SerializeField] bool alwaysUnfolded = true;
+
     [Tooltip("Seconds for the ribbon to widen from the visible band to the full spectrum, " +
              "or back.")]
     [SerializeField] float unfoldSeconds = 2.5f;
@@ -253,7 +258,7 @@ public class TutorialTrailBands_NEW : MonoBehaviour
 
     public void UnfoldUVIR() { _unfoldTarget = 1f; }
 
-    public void FoldUVIR() { _unfoldTarget = 0f; }
+    public void FoldUVIR() { if (!alwaysUnfolded) _unfoldTarget = 0f; }
 
     public void FlashVisible() { _flashElapsed = 0f; }
 
@@ -264,7 +269,7 @@ public class TutorialTrailBands_NEW : MonoBehaviour
     /// <summary>Visible band only, no redshift, nothing flashing. Before D1, and after attract.</summary>
     public void ResetForAttract()
     {
-        _unfold = _unfoldTarget = 0f;
+        _unfold = _unfoldTarget = alwaysUnfolded ? 1f : 0f;
         _redden = _reddenTarget = 0f;
         _flashElapsed = -1f;
         _blinkElapsed = -1f;

@@ -373,7 +373,10 @@ public static class JourneyVoiceOverBuilder_NEW
     /// </summary>
     static void WireFilament(JourneyVoiceOver_NEW voiceOver)
     {
-        FilamentAbsorber_NEW filament = UnityEngine.Object.FindObjectOfType<FilamentAbsorber_NEW>();
+        // A filament, not the galaxy-edge absorber, which says nothing.
+        FilamentAbsorber_NEW filament = null;
+        foreach (FilamentAbsorber_NEW a in UnityEngine.Object.FindObjectsOfType<FilamentAbsorber_NEW>())
+            if (a.AbsorberKind == FilamentAbsorber_NEW.Kind.Filament) { filament = a; break; }
 
         if (filament == null)
         {

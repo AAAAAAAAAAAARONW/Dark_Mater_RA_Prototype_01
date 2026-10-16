@@ -98,14 +98,33 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
     public enum TrailLook
     {
         Rainbow = 0,
-        RealWavelengths = 1
+        RealWavelengths = 1,
+
+        /// <summary>
+        /// The bar's own axis, in real-wavelength colours: every line sits at the same place
+        /// across the ribbon as on the LAF bar. UV and IR are greyed and dimmed like the
+        /// tutorial's, so only the visible band is a rainbow.
+        /// </summary>
+        BarAxis = 2
     }
 
     [Tooltip("RAINBOW (default): the trail is the piece's evenly spread seven-colour rainbow, as always — " +
              "no separate UV or IR bands (those belong to the tutorial's demonstration). Lines sit across " +
              "it in step with the bar: same position, from the left edge to the right.\n\n" +
-             "REAL WAVELENGTHS: colours are true wavelengths, with UV / visible / IR shares (below).")]
+             "REAL WAVELENGTHS: colours are true wavelengths, with UV / visible / IR shares (below).\n\n" +
+             "BAR AXIS: true wavelengths on the bar's own axis, so a line is at the same place on the ribbon " +
+             "as on the bar; UV and IR greyed and dimmed (below), as in the tutorial.")]
     [SerializeField] TrailLook trailLook = TrailLook.Rainbow;
+
+    [Tooltip("Bar-axis look: brightness of UV and IR (0–1 of full). The tutorial's value, so the ribbon " +
+             "looks the same either side of the handoff.")]
+    [Range(0f, 1f)]
+    [SerializeField] float trailInvisibleBrightness = 0.55f;
+
+    [Tooltip("Bar-axis look: how much of its colour UV and IR keep (0 = grey, 1 = full violet / red). " +
+             "Low, so only the visible band is a rainbow and colour itself says 'this you can see'.")]
+    [Range(0f, 1f)]
+    [SerializeField] float trailInvisibleSaturation = 0.3f;
 
     [Tooltip("Rainbow look: a margin on the ribbon's short-wavelength edge where no line sits — the trail " +
              "shader fades the edge, and a just-born line would vanish into it.")]
@@ -328,7 +347,17 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
     ///
     /// Width in km/s on the line's own scale: about 600 is one bar column.
     /// </summary>
-    public float AddAbsorber(float depth, float widthKmS)
+    public float AddAbsorber(float depth, float widthKmS) { return AddAbsorber(depth, widthKmS, false); }
+
+    /// <summary>
+    /// The same, with a choice of shape. damped false: the filament's soft Gaussian dip, widthKmS
+    /// its sigma. damped true: the line of the dense gas round a galaxy (a damped Lyman-alpha
+    /// system) — so much hydrogen that the line's own wings absorb, so it bottoms out flat and
+    /// black and fades out slowly on both sides. widthKmS is then the trough's full width where
+    /// a third of the light is left; about 1800 is a modest one (N_HI about 3e20 per cm²),
+    /// 3200 a strong one (about 1e21).
+    /// </summary>
+    public float AddAbsorber(float depth, float widthKmS, bool damped)
     {
         if (!_active || _arrival != Arrival.Journey) return float.NaN;
 
@@ -336,7 +365,8 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
         {
             zAbs = _zNow,
             depth = Mathf.Clamp01(depth),
-            sigmaLn = Mathf.Max(1f, widthKmS) / 299792.458
+            sigmaLn = Mathf.Max(1f, damped ? widthKmS * 0.5f : widthKmS) / 299792.458,
+            damped = damped
         });
 
         // On screen this frame, not at the next row change.
@@ -349,8 +379,16 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
     {
         public double zAbs;
         public float depth;
+        /// <summary>Gaussian: sigma. Damped: the half width where the optical depth is 1.</summary>
         public double sigmaLn;
+        public bool damped;
     }
+
+    /// <summary>
+    /// How far out a damped line's wings are drawn, in its half widths. The wings fall as
+    /// exp(-1/x²): 2% of the light still taken at 7, and the cut-off is tapered to nothing there.
+    /// </summary>
+    const double DampedReach = 7.0;
 
     readonly System.Collections.Generic.List<ExtraLine> _extraLines = new System.Collections.Generic.List<ExtraLine>();
 
@@ -371,7 +409,7 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
             if (e.zAbs < _zDisplay) continue;
 
             double centre = Math.Log(BakedSpectrumData_NEW.LymanAlphaA * (1.0 + e.zAbs) / (1.0 + _zDisplay));
-            double reach = e.sigmaLn * 4.0;
+            double reach = e.sigmaLn * (e.damped ? DampedReach : 4.0);
 
             int from = Math.Max(0, (int)Math.Floor((centre - reach - lnStart) / lnStep));
             int to = Math.Min(values.Length - 1, (int)Math.Ceiling((centre + reach - lnStart) / lnStep));
@@ -379,11 +417,23 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
             for (int i = from; i <= to; i++)
             {
                 double x = (lnStart + i * lnStep - centre) / e.sigmaLn;
-                float dip = e.depth * (float)Math.Exp(-0.5 * x * x);
+                float dip = e.depth * (e.damped ? DampedDip(x) : (float)Math.Exp(-0.5 * x * x));
 
                 values[i] = absorption ? 1f - (1f - values[i]) * (1f - dip) : values[i] * (1f - dip);
             }
         }
+    }
+
+    /// <summary>
+    /// A damped line's absorption, x in half widths from its centre. Far from the centre the
+    /// optical depth of a damping wing falls as 1/x², so the light left is exp(-1/x²): none at
+    /// the centre, a third at x = 1, about 80% at 2. Tapered so it reaches exactly 0 at DampedReach.
+    /// </summary>
+    static float DampedDip(double x)
+    {
+        double x2 = x * x;
+        double tau = 1.0 / Math.Max(x2, 1e-6) - 1.0 / (DampedReach * DampedReach);
+        return tau <= 0.0 ? 0f : (float)(1.0 - Math.Exp(-tau));
     }
 
     static readonly int OutlineWidthId = Shader.PropertyToID("_AbsorptionOutlineWidth");
@@ -1142,7 +1192,7 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
         _segLn[4] = Math.Log(Math.Max(_data.LambdaMin * 1.03, _data.LambdaMax));
         _segT[0] = 0f; _segT[1] = a; _segT[2] = a + b; _segT[3] = a + b + c; _segT[4] = 1f;
 
-        if (trailLook == TrailLook.Rainbow)
+        if (trailLook == TrailLook.Rainbow || trailLook == TrailLook.BarAxis)
         {
             // One rainbow across the ribbon: the bar's axis laid on it evenly after a small margin
             // (lines stay off the faded edge). The break points only keep the same machinery.
@@ -1298,6 +1348,40 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
     /// Colour the ribbon by real wavelength on its piecewise axis (fixed: the trail keeps the
     /// journey axis even during the arrival zoom, as its data does), and set its direction.
     /// </summary>
+    /// <summary>
+    /// Bar-axis colours, the tutorial's treatment: real wavelengths, UV and IR greyed and
+    /// dimmed. UV holds its brightness across the bar's range (that is where the forest is,
+    /// and black lines need something to be cut into) and fades only through the far-UV
+    /// margin to the ribbon's edge; IR fades from the visible edge out to the other edge.
+    /// </summary>
+    void FillBarAxisColours(Color uvBase, Color irBase)
+    {
+        Color grey = new Color(0.62f, 0.62f, 0.66f, 1f);
+        Color uv = Color.Lerp(grey, uvBase, trailInvisibleSaturation) * trailInvisibleBrightness;
+        Color ir = Color.Lerp(grey, irBase, trailInvisibleSaturation) * trailInvisibleBrightness;
+        uv.a = ir.a = 1f;
+
+        TrailSpectrumColours_NEW.Fill(_trailPixels, t => Math.Exp(TrailLn(t)), uv, ir);
+
+        BuildTrailAxis();
+        float margin = _segT[1], visEnd = _segT[3];
+        int w = _trailPixels.Length;
+        for (int x = 0; x < w; x++)
+        {
+            float t = (x + 0.5f) / w;
+            double lambda = Math.Exp(TrailLn(t));
+            if (lambda >= 3850.0 && lambda <= 7150.0) continue;   // the visible band and its blends
+
+            float k = lambda < 3850.0
+                ? (t >= margin ? 1f : Mathf.SmoothStep(0f, 1f, margin > 0f ? t / margin : 1f))
+                : 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(visEnd, 1f, t));
+
+            Color32 p = _trailPixels[x];
+            _trailPixels[x] = new Color32((byte)(p.r * k), (byte)(p.g * k), (byte)(p.b * k),
+                                          (byte)(255f * Mathf.Clamp01(k * 1.5f)));
+        }
+    }
+
     void ApplyTrailColours()
     {
         if (_trailRenderer == null || _data == null) return;
@@ -1311,6 +1395,7 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
         Color ir = irBase * irB; ir.a = irB;
 
         if (trailLook == TrailLook.Rainbow) TrailSpectrumColours_NEW.FillRainbow(_trailPixels);
+        else if (trailLook == TrailLook.BarAxis) FillBarAxisColours(uvBase, irBase);
         else TrailSpectrumColours_NEW.Fill(_trailPixels, t => Math.Exp(TrailLn(t)), uv, ir);
         _trailTex.SetPixels32(_trailPixels);
         _trailTex.Apply(false);

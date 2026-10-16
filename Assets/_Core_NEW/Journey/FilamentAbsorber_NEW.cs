@@ -21,33 +21,58 @@ using UnityEngine.Events;
 /// the one deliberate teaching representation in the journey's spectrum; the bake is not
 /// changed, and every other line is still the bake's.
 ///
+/// GALAXY EDGE. The same component, kind GalaxyEdge, placed where the light enters the
+/// galaxy's outskirts: the dense gas round a galaxy, far more hydrogen in the light's way than
+/// in a filament. Its line is damped — a broad black trough with slowly fading wings, several
+/// columns wide on the bar, next to the filament's one-column notch — and blinks in its own
+/// colour, so the player sees two kinds of gas leave two kinds of line. It says nothing (J4 is
+/// said as the light arrives); give it a firstTimeLine to change that. "Said once" is kept per
+/// kind, so a filament crossed first never silences it.
+///
 /// Same trigger rule as LayerGate_NEW: the player's collider, tagged Player.
 /// </summary>
 [RequireComponent(typeof(Collider))]
 [HierarchyBadge_NEW("FILAMENT", "#E0C040")]
 public class FilamentAbsorber_NEW : MonoBehaviour
 {
+    public enum Kind
+    {
+        /// <summary>A yellow filament of the cosmic web: a soft, narrow line.</summary>
+        Filament,
+        /// <summary>The gas round a galaxy, at its edge: a damped line, broad and black.</summary>
+        GalaxyEdge
+    }
+
+    [Tooltip("Filament: a soft narrow line, yellow highlight. GalaxyEdge: a damped line (a flat " +
+             "black trough with wings), highlighted in edgeColor.")]
+    [SerializeField] Kind kind = Kind.Filament;
+
     [Header("Wiring (found if empty)")]
     [SerializeField] BakedSpectrumSource_NEW source;
     [SerializeField] AbsorberHighlight_NEW highlight;
     [SerializeField] JourneyVoiceOver_NEW voiceOver;
 
     [Header("The line")]
-    [Tooltip("How deep, 0–1. 0.9 reads as a clear dark line without a hard black gap.")]
+    [Tooltip("How deep, 0–1. Filament: 0.9 reads as a clear dark line without a hard black gap. " +
+             "GalaxyEdge: 1, black at the bottom, as a damped line is.")]
     [Range(0f, 1f)]
     [SerializeField] float depth = 0.9f;
 
     [Tooltip("Width in km/s. About 600 is one column of the bar; under that it can vanish " +
-             "between columns.")]
+             "between columns. Filament: the dip's sigma, 700. GalaxyEdge: the trough's full " +
+             "width where a third of the light is left, 3200 (a strong one); the wings reach about 3x further.")]
     [Min(50f)]
     [SerializeField] float widthKmS = 700f;
 
     [Tooltip("Blink it and point at it, as the tutorial does.")]
     [SerializeField] bool highlightLine = true;
 
+    [Tooltip("GalaxyEdge only: the highlight's colour, apart from the filament's yellow.")]
+    [SerializeField] Color edgeColor = new Color(0.45f, 0.9f, 1f, 1f);
+
     [Header("The voice")]
-    [Tooltip("Said the first time any filament is crossed in a run: J3b. Leave empty on the " +
-             "others.")]
+    [Tooltip("Said the first time an absorber of this kind is crossed in a run: J3b on a " +
+             "filament. Leave empty on the others, and on the galaxy edge.")]
     [SerializeField] AudioClip firstTimeLine;
 
     [Header("Trigger")]
@@ -58,13 +83,15 @@ public class FilamentAbsorber_NEW : MonoBehaviour
 
     [SerializeField] bool debugLog = false;
 
-    /// <summary>Shared by every filament: J3b is said once per run, whichever is crossed first.</summary>
-    static bool _lineSaid;
+    /// <summary>Per kind, shared by every absorber of it: J3b is said once per run, whichever filament is crossed first.</summary>
+    static readonly bool[] _lineSaid = new bool[System.Enum.GetValues(typeof(Kind)).Length];
 
     bool _crossed;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    static void ResetStatics() { _lineSaid = false; }
+    static void ResetStatics() { System.Array.Clear(_lineSaid, 0, _lineSaid.Length); }
+
+    public Kind AbsorberKind { get { return kind; } }
 
     void Awake()
     {
@@ -86,14 +113,20 @@ public class FilamentAbsorber_NEW : MonoBehaviour
         if (!string.IsNullOrEmpty(playerTag) && !other.CompareTag(playerTag)) return;
 
         _crossed = true;
+        FlightRecorder_NEW.Point("Filament", "crossed " + name);
 
-        float z = source != null ? source.AddAbsorber(depth, widthKmS) : float.NaN;
+        bool edge = kind == Kind.GalaxyEdge;
+        float z = source != null ? source.AddAbsorber(depth, widthKmS, edge) : float.NaN;
 
-        if (highlightLine && highlight != null && !float.IsNaN(z)) highlight.HighlightLine(z);
-
-        if (!_lineSaid && firstTimeLine != null && voiceOver != null)
+        if (highlightLine && highlight != null && !float.IsNaN(z))
         {
-            _lineSaid = true;
+            if (edge) highlight.HighlightLine(z, edgeColor, widthKmS);
+            else highlight.HighlightLine(z);
+        }
+
+        if (!_lineSaid[(int)kind] && firstTimeLine != null && voiceOver != null)
+        {
+            _lineSaid[(int)kind] = true;
             voiceOver.Say(firstTimeLine);
         }
 
@@ -116,7 +149,8 @@ public class FilamentAbsorber_NEW : MonoBehaviour
         Collider c = GetComponent<Collider>();
         if (c == null) return;
 
-        Gizmos.color = new Color(1f, 0.8f, 0.2f, 0.35f);
+        Gizmos.color = kind == Kind.GalaxyEdge ? new Color(edgeColor.r, edgeColor.g, edgeColor.b, 0.35f)
+                                               : new Color(1f, 0.8f, 0.2f, 0.35f);
         Gizmos.DrawWireCube(c.bounds.center, c.bounds.size);
     }
 }

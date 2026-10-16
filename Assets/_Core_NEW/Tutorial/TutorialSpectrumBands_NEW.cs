@@ -55,6 +55,19 @@ public class TutorialSpectrumBands_NEW : MonoBehaviour
              "here; its size, rotation and gap are its own.")]
     [SerializeField] RectTransform birthArrow;
 
+    [Tooltip("Keep UV and IR marked the whole way through: D9's fold does nothing. A spectrum " +
+             "plot always covers its full range.")]
+    [SerializeField] bool alwaysOpen = true;
+
+    [Header("Wavelength ticks")]
+    [Tooltip("Where visible light starts and ends, as the axis of a real spectrum plot marks " +
+             "it: a line and a wavelength, in place of UV / VISIBLE / IR names. The line and its " +
+             "label are hidden while that wavelength is off the bar (the zoom into the UV).")]
+    [SerializeField] Graphic visibleStartEdge;
+    [SerializeField] TMP_Text visibleStartTick;
+    [SerializeField] Graphic visibleEndEdge;
+    [SerializeField] TMP_Text visibleEndTick;
+
     [Tooltip("A band's UV / VISIBLE / IR label is hidden while the band is narrower than " +
              "the label plus this many pixels. When the bar zooms into the UV the visible and " +
              "IR bands are squeezed against the right edge, and their labels landed on top of " +
@@ -90,7 +103,7 @@ public class TutorialSpectrumBands_NEW : MonoBehaviour
 
     public void UnfoldUVIR() { _openTarget = 1f; }
 
-    public void FoldUVIR() { _openTarget = 0f; }
+    public void FoldUVIR() { if (!alwaysOpen) _openTarget = 0f; }
 
     public void FlashVisible() { _flashElapsed = 0f; }
 
@@ -153,6 +166,8 @@ public class TutorialSpectrumBands_NEW : MonoBehaviour
         FitLabel(visibleBand, (visEnd - visStart) * barWidth);
         FitLabel(irBand, (1f - visEnd) * barWidth);
 
+        PlaceTicks(visStart, visEnd, barWidth);
+
         if (uvGroup != null) uvGroup.alpha = _open;
         if (irGroup != null) irGroup.alpha = _open;
 
@@ -184,6 +199,30 @@ public class TutorialSpectrumBands_NEW : MonoBehaviour
             c.a = Pulse(_blinkElapsed, lineBlinkSeconds, lineBlinkCount) * 0.9f;
             lineMarkerImage.color = c;
         }
+    }
+
+    /// <summary>
+    /// The 4000 and 7000 Å edges and their labels. A position pinned at the bar's end means
+    /// the wavelength is off the bar (the zoom), so that tick goes; and when the two crowd
+    /// together the 7000 label gives way rather than printing over the 4000.
+    /// </summary>
+    void PlaceTicks(float visStart, float visEnd, float barWidth)
+    {
+        bool startOn = visStart > 0.001f && visStart < 0.999f;
+        bool endOn = visEnd > 0.001f && visEnd < 0.999f;
+
+        Show(visibleStartEdge, startOn);
+        Show(visibleStartTick, startOn);
+        Show(visibleEndEdge, endOn);
+
+        bool endLabelFits = !startOn || visibleStartTick == null ||
+                            (visEnd - visStart) * barWidth >= visibleStartTick.preferredWidth + labelPadding;
+        Show(visibleEndTick, endOn && endLabelFits);
+    }
+
+    static void Show(Behaviour b, bool on)
+    {
+        if (b != null && b.enabled != on) b.enabled = on;
     }
 
     /// <summary>Show a band's label only while the band is wide enough to hold it.</summary>

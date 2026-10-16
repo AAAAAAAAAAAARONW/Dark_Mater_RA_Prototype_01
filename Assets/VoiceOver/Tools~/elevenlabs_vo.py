@@ -175,7 +175,8 @@ def table_row(row, section, current, lines):
 
 
 def parse_journey(text):
-    """**J1 · ...** headers and their quotes. Several quotes under one header are J6_1, J6_2..."""
+    """**J1 · ...** headers and their quotes. Several quotes under one header are J6_1, J6_2...
+    An id may carry parts (J3_DMon_Before) and a nudge prefix (N_J3_DMon)."""
     groups = []                 # [id, [quotes]]
     current = None
     quote = []
@@ -195,7 +196,7 @@ def parse_journey(text):
             continue
         flush()
 
-        m = re.match(r"^\*\*(J\d+[a-z]?|Closing)\b[^*]*\*\*", row)
+        m = re.match(r"^\*\*((?:N_)?J\d+[a-z]?(?:_[A-Za-z0-9]+)*|Closing)\b[^*]*\*\*", row)
         if m:
             current = m.group(1)
             groups.append([current, []])
@@ -376,7 +377,7 @@ def load_config(need_voice=True):
 
 def select(args):
     cfg = load_config()
-    script = os.path.join(VO_ROOT, cfg.get("script", "VO_Script_Draft_v5.md"))
+    script = os.path.join(VO_ROOT, cfg.get("script", "VO_Script_Draft_v6.md"))
     lines = parse_script(script)
     assign_files(lines)
 

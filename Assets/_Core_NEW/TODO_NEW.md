@@ -4,40 +4,71 @@
 
 ---
 
-## 🟡 摆放黄色纤维触发框（J3b）
+## 🟡 第一个 cosmic web：暗物质时刻 + 拉长 + 摆纤维（10 月 16 日）
 
-**状态：** 占位框已由工具生成，位置还没调。不调也不会报错，但 J3b 可能在看不见纤维的地方触发，或者光根本没穿过它，J3b 就不说了。
+**改了什么：** 光**不再停下**。J3 说完后，旁白讲暗物质，提示 `Y · SHOW DARK MATTER` 和这句一起出现，玩家边飞边按 Y。没按的话，那句说完 1.5 秒提示一次，6 秒后自动切换。为了放得下这一分钟的台词，第一个 cosmic web 要**拉长**（速度不变）。新加了 **Flight Path** 窗口：在 Scene 里画出光的路径、秒数刻度、每句台词的位置，以及自动找到的黄色纤维。
 
-**它是干什么的：** 光穿过这个框时，会在光谱条和光尾上加一条吸收线，闪烁并用箭头指着它，第一次穿过时说 J3b（*"These yellow threads are hydrogen gas…"*）。所以框要放在**一条看得见的黄色纤维上**，让玩家看到「穿过黄色的东西 → 冒出一条线」。
+**代码已写好、编译通过（Unity 外编译）。下面按顺序做：**
 
-**前提：** 已经在 `Gameplay_Scene_Ana` 跑过 `Tools > Journey NEW > Voice Over > Wire Journey Voice Over (open scene)`，Hierarchy 里有 `Filament_BeforeGalaxy`。
+### 0 · 先按阶段整理场景（防止拖错）
 
-**步骤：**
+1. `Tools > Journey NEW > Layout > Stages`，点 **Group scene by stage**。Hierarchy 里会多一个 `Journey Stages`，下面 `1 · Quasar` … `7 · Earth`，每个阶段放着：它的世界（render layer）、结束它的门、它里面的触发框（J3b 纤维、galaxy edge、Earth arrival…）。世界里的位置一点都不变，Ctrl+Z 可以撤销。**Ctrl+S 保存。**
+2. 要调哪个阶段，就点那一行的 **Focus**：Scene 视图里只能点到这个阶段的门和触发框，web、其他阶段、相机都点不到。要挪 web 本身时点 **Whole stage**。做完点 **Unlock all**。
+3. 每个阶段下面还列出了相关设置（暗物质时刻、红移演示、dive、旁白），点 **Select** 直接跳过去。
+4. 以后新加了触发框，点 **Re-group** 会把它放进对应的阶段（按位置判断）。
 
-1. 打开 `Gameplay_Scene_Ana`，在 Hierarchy 搜索框里输入 `Filament_BeforeGalaxy`，选中它。
-2. 打开 gizmo：`Tools > Journey NEW > Debug View` 里把 Gizmos 打开，Scene 视图右上角的 **Gizmos** 按钮也要开。这个框会显示成**黄色线框**。
-3. **找一条合适的黄色纤维：**
-   - 在 Macro 层（第一个 cosmic web），进入 galaxy 的门 `Layer_MacrotoMicro`（z ≈ 265）**之前**；
-   - 光的路径会穿过它；
-   - 最好在 J3 说完之后才碰到。Macro 层速度约 5 单位/秒，J3 约 9 秒，所以离 Macro 入口门 `Layer_QuasartoMacro`（z ≈ 135）**至少 50 个单位**，大约 z 在 190～250 之间。
-   - 省事的找法：进 Play，按 **2** 跳到 Macro，看光飞过哪条黄色纤维时画面最好看，记下那时 debug 左上角显示的 `player Z`。
-4. 退出 Play，选中 `Filament_BeforeGalaxy`，把 **Position 的 z** 改成刚才记下的值。
-5. 调 **Box Collider 的 Size**：x、y 要盖住光的路径（看黄色线框有没有罩住飞行路线），z 保持 3 左右就行（相当于纤维的厚度）。
-6. **Ctrl+S 保存场景。**
-7. 再进 Play、按 2 验证：光穿过那条纤维时，光谱条上冒出一条新线，闪三下，有箭头跟着它往红端滑，同时说 J3b。
+### 1 · 更新暗物质时刻
 
-**可调参数**（选中物体后，在 `FilamentAbsorber_NEW` 组件上）：
+1. 回到 Unity，等编译完，Console 里没有红色 error。
+2. 打开 `Gameplay_Scene_Ana`。`DarkMatterStop` 物体上的组件现在叫 `DarkMatterMoment_NEW`（同一个组件改了名，接线都还在）。可以把物体改名为 `DarkMatterMoment`，不改也行。
+3. 选中它，在 Inspector 里确认 **Version**、**Auto After Line = 6**、**Nudge After Line = 1.5**、**Hint With Before Line ✔**。
 
-| 参数 | 默认 | 作用 |
-|---|---|---|
-| Depth | 0.9 | 线有多黑，0～1 |
-| Width Km S | 700 | 线多宽。约 600 = 光谱条一格，太细可能看不见 |
-| Highlight Line | ✔ | 闪烁并加箭头 |
-| First Time Line | J3b | 第一次穿过时说的话。以后加别的纤维，这一栏留空 |
+### 2 · 先看看现在的路径和时间
 
-**以后想加更多纤维：** 复制这个物体挪到别处，把 First Time Line 清空。J3b 每次游玩只说一次，不管先穿过哪个。
+1. 打开 `Tools > Journey NEW > Flight Path`。Scene 视图里会出现光的路径：每层一个颜色，每秒一个小刻度，每 5 秒一个带 `+5 s` 的刻度；**黄色加粗的地方是光穿过黄色纤维**，旁边标 `F1 Macro +12.3 s`。
+2. 窗口里 **Record in Play mode** 默认打开。进 Play，按 **2** 跳到 Macro，飞到 galaxy 门为止，然后停止 Play。窗口和 Scene 里会出现每句台词的蓝色条（从哪开始、到哪结束）和 Y、nudge、自动切换这些点。
+3. 看第一个 cosmic web 的总时长和台词是不是被下一个门截断。如果 Console 里有 `[DarkMatterMoment_NEW] Ended early`，就说明太短了。
 
-**为什么要手动放：** 烘焙数据里吸收线森林在 z 2.46 就冻结了，正好在第一个 cosmic web 之前，所以那里不会自然出现新线。这条线是有意加的「教学表达」，详见 `BakedSpectrumSource_NEW.AddAbsorber` 的注释。
+### 3 · 拉长第一个 cosmic web
+
+1. `Tools > Journey NEW > Layout > Lengthen First Cosmic Web…`。
+2. 窗口显示现在的长度和秒数（约 130 单位 ÷ 5 单位/秒 ≈ 26 秒）。在 **Seconds wanted** 填想要的秒数（默认 62），点 **Set extra**，会算出要加的长度（约 +175）。
+3. **The web itself** 选一种：
+   - **Scale**（默认）：web 整体等比放大，长得和原来一样，只是更大；光在里面显得更小、更慢。
+   - **Stretch**：只沿路径方向拉长，纤维沿路径方向变长。
+   - **Leave**：web 不动，新加的那段可能是空的，需要你手动补。
+4. 看下面的列表（会被往后挪的物体），点 **Lengthen by …**。去 galaxy 的 dive 会自动跟着调整，仍然对准原来那团黄色星系团。
+5. **Ctrl+S 保存场景。** 不满意就 Ctrl+Z。
+
+### 4 · 把 J3b 放到一条纤维上
+
+1. 回到 Flight Path 窗口。Macro 下面列着找到的纤维：`F3  +41.2 → +41.8 s  z 341.0  peak 0.90`。
+2. 挑一条在**暗物质那句说完之后**的纤维（对照列表里 VO 那几行的结束时间），点 **Frame** 在 Scene 里看它，满意就点 **J3b here**，触发框会挪过去、贴合纤维厚度。
+3. 找不到合适的：调 **Threshold**（越低找到的越多）和 **Probe radius**（离光中心多远的气体也算）。
+4. Ctrl+S 保存。再进 Play、按 2 飞一遍：穿过那条纤维时光谱条上冒出新线，说 J3b。录下来之后，Scene 里那个点会和黄色标记对上。
+
+### 录音
+
+剧本 `VO_Script_Draft_v6.md` 已更新（J3 缩短 + 暗物质 6 句）。在 `Assets/VoiceOver/Tools~`：
+```
+python elevenlabs_vo.py generate --go --only J3,J3_DMon_Before,J3_DMon_After,N_J3_DMon,J3_DMoff_Before,J3_DMoff_After,N_J3_DMoff
+python elevenlabs_vo.py install
+```
+约 860 字符（账号剩约 1,185）。装好后再跑一次 `Tools > Journey NEW > Dark Matter > Build Dark Matter Moment (open scene)`，录音会填进空槽；然后再飞一遍、录一次，看真实长度。
+
+**可调参数：**
+
+| 在哪 | 参数 | 默认 | 作用 |
+|---|---|---|---|
+| `DarkMatterMoment_NEW` | Version | HiddenByDefault | A/B：ShownByDefault = 一开始有暗物质，Y 隐藏 |
+| | Hint With Before Line | ✔ | 提示和那句一起出现；关掉 = 那句说完才出现 |
+| | Nudge After Line | 1.5 | 那句说完几秒说「按 Y」 |
+| | Auto After Line | 6 | 那句说完几秒自动切换 |
+| `DM_Scaffold.mat` | Colour / Opacity / Emission | 蓝 / 0.55 / 1.4 | 暗物质的样子 |
+| `Dark Matter Scaffold` | Reveal Seconds | 2.5 | 显示/隐藏用几秒 |
+| Flight Path 窗口 | Threshold / Probe radius / Voice lane offset | 0.35 / 0.4 / 1.6 | 纤维检测和画法 |
+
+**注意：** 录音存在 `Library/JourneyFlightRecording.json`，只在你这台电脑上。挪 web 不影响录音；挪门或改速度后，要把那一层再飞一遍。
 
 ---
 
@@ -59,4 +90,4 @@
 
 ## 已定
 
-- E2 暗物质开关用 **Y** 键（剧本已改）。Phase 4 还没做，做的时候 E2 的门控、提示行和按键图都要用 Y。
+- 暗物质开关用 **Y** 键（B 是暂停）。**10 月 16 日改：不在 tutorial 的 Phase 4 教，改在旅程第一个 cosmic web 里边飞边教**（`DarkMatterMoment_NEW`，光不停）。Y 显示/隐藏的是暗物质的「画出来的样子」，气体不动。Tutorial 的 E1/E2 不做了，录音不用。PlayStation 手柄上是 ○。

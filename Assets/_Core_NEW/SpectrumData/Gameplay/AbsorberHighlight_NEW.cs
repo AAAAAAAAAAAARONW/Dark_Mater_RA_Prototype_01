@@ -138,6 +138,11 @@ public class AbsorberHighlight_NEW : MonoBehaviour
     Vector2 _arrowTip;
     bool _arrowValid;
     bool _oriented;
+    Color _tint;
+    bool _tinted;
+    float _lineWidthKmS;
+    float _barSpanT;
+    float _baseOutlineWidth = -1f;
 
     /// <summary>
     /// Highlight the first line — the one the player's own atom cut in the tutorial (mark [0]).
@@ -175,6 +180,20 @@ public class AbsorberHighlight_NEW : MonoBehaviour
     public void HighlightLine(float zAbs)
     {
         if (source != null && source.IsActive && !float.IsNaN(zAbs)) Begin(zAbs, "added line", true);
+    }
+
+    /// <summary>
+    /// The same in another colour, with the box on the bar and the outline on the trail widened
+    /// to cover a line widthKmS wide (a wide line in the narrow box reads as the box missing it).
+    /// For the galaxy-edge absorber, so it is not mistaken for a filament's line.
+    /// </summary>
+    public void HighlightLine(float zAbs, Color tint, float widthKmS)
+    {
+        if (source == null || !source.IsActive || float.IsNaN(zAbs)) return;
+        Begin(zAbs, "added line", true);
+        SetTint(tint);
+        _tinted = true;
+        _lineWidthKmS = Mathf.Max(0f, widthKmS);
     }
 
     /// <summary>End the highlight now (fades nothing out: for a step that moves on).</summary>
@@ -327,8 +346,36 @@ public class AbsorberHighlight_NEW : MonoBehaviour
         _duration = manual ? stepSeconds : followSeconds;
         _elapsed = 0f;
         _lineZ = zLine;
+        _lineWidthKmS = 0f;
+        _barSpanT = 0f;
+        _tinted = false;
+        SetTint(color);
         if (debugLog) Debug.Log("[AbsorberHighlight_NEW] Highlight " + why + ": the line of gas at z " + zLine.ToString("0.0000") +
                                 " (light at z " + source.CurrentZ.ToString("0.0000") + ").", this);
+    }
+
+    /// <summary>The colour of this highlight: the arrow, the column, the box and the trail outline.</summary>
+    void SetTint(Color c)
+    {
+        _tint = c;
+        Color col = c;
+        col.a = columnOpacity;
+        if (_bar != null) { _bar.arrowColor = c; _bar.columnColor = col; }
+        if (_trailArrow != null) { _trailArrow.arrowColor = c; _trailArrow.columnColor = col; }
+    }
+
+    /// <summary>
+    /// How far either side of the line, 0–1 across the bar or the trail, a line widthKmS wide
+    /// reaches: out to one full width from its centre, past the black trough and into its wings.
+    /// </summary>
+    float HalfSpan(float t, float tWide)
+    {
+        return float.IsNaN(t) || float.IsNaN(tWide) ? 0f : Mathf.Abs(tWide - t);
+    }
+
+    float WideZ()
+    {
+        return _lineZ + (1f + _lineZ) * _lineWidthKmS / 299792.458f;
     }
 
     void Stop()
@@ -363,9 +410,17 @@ public class AbsorberHighlight_NEW : MonoBehaviour
 
         source.SetTrailEmphasis(barT, blink);
 
+        bool wide = _lineWidthKmS > 0f;
+        float wideZ = wide ? WideZ() : _lineZ;
+        _barSpanT = wide ? HalfSpan(barT, source.BarLineT(wideZ)) : 0f;
+
         if (outlineOnTrail)
-            source.SetTrailOutline(source.TrailLineT(_lineZ), trailOutlineStrength * blink,
-                                   trailOutlineWidth, trailOutlineColor, trailOutlineRange);
+        {
+            float trailT = source.TrailLineT(_lineZ);
+            float range = wide ? Mathf.Max(trailOutlineRange, 2f * HalfSpan(trailT, source.TrailLineT(wideZ))) : trailOutlineRange;
+            source.SetTrailOutline(trailT, trailOutlineStrength * blink,
+                                   trailOutlineWidth, _tinted ? _tint : trailOutlineColor, range);
+        }
 
         Apply(barT, blink, fade);
     }
@@ -376,6 +431,8 @@ public class AbsorberHighlight_NEW : MonoBehaviour
         {
             Rect band = Band();
             _bar.band = band;
+            if (_baseOutlineWidth < 0f) _baseOutlineWidth = _bar.outlineWidth;
+            _bar.outlineWidth = Mathf.Max(_baseOutlineWidth, 2f * _barSpanT * band.width);
             _bar.x = float.IsNaN(barT) ? band.xMin : Mathf.Clamp(band.xMin + barT * band.width, band.xMin + 1f, band.xMax - 1f);
             _bar.columnAlpha = columnAlpha;
             _bar.arrowAlpha = arrowAlpha;

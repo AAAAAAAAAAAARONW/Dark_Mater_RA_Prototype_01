@@ -118,6 +118,16 @@ public sealed class PadProfile_NEW
     /// <summary>The letter printed on the plastic for pause.</summary>
     public readonly string pauseGlyph;
 
+    /// <summary>
+    /// Y: show or hide dark matter (DarkMatterStop_NEW, in the first cosmic web). Not B,
+    /// which is pause everywhere; not X, which sits beside A where the thumb rests, so it
+    /// is the easiest button to press by accident. Y is a deliberate reach.
+    /// </summary>
+    public readonly KeyCode toggleButton;
+
+    /// <summary>The letter printed on the plastic for the dark matter toggle.</summary>
+    public readonly string toggleGlyph;
+
     // -- Feel ----------------------------------------------------------------
 
     /// <summary>
@@ -135,8 +145,8 @@ public sealed class PadProfile_NEW
         string leftStickXAxis, string leftStickYAxis, bool leftStickYInvert,
         string rightStickXAxis, string rightStickYAxis, bool rightStickYInvert,
         string dpadXAxis, string dpadYAxis,
-        KeyCode confirmButton, KeyCode confirmAltButton, KeyCode pauseButton,
-        string confirmGlyph, string pauseGlyph,
+        KeyCode confirmButton, KeyCode confirmAltButton, KeyCode pauseButton, KeyCode toggleButton,
+        string confirmGlyph, string pauseGlyph, string toggleGlyph,
         float stickDeadband)
     {
         this.id = id;
@@ -153,8 +163,10 @@ public sealed class PadProfile_NEW
         this.confirmButton = confirmButton;
         this.confirmAltButton = confirmAltButton;
         this.pauseButton = pauseButton;
+        this.toggleButton = toggleButton;
         this.confirmGlyph = confirmGlyph;
         this.pauseGlyph = pauseGlyph;
+        this.toggleGlyph = toggleGlyph;
         this.stickDeadband = stickDeadband;
     }
 
@@ -175,8 +187,8 @@ public sealed class PadProfile_NEW
         "RightStickX", "RightStickY", false,
         // Xbox reports its D-pad on axes 6 and 7.
         "Joy6", "Joy7",
-        KeyCode.JoystickButton0, KeyCode.None, KeyCode.JoystickButton1,
-        "A", "B",
+        KeyCode.JoystickButton0, KeyCode.None, KeyCode.JoystickButton1, KeyCode.JoystickButton3,
+        "A", "B", "Y",
         0.1f);
 
     /// <summary>
@@ -187,8 +199,8 @@ public sealed class PadProfile_NEW
     /// reading the Xbox names on this pad turns the view when you pull L2.
     ///
     /// Triangle is pause because it is the one face button nothing else claims: Square
-    /// is button 0 (accepted as confirm), Cross is button 1 (confirm), Circle is button
-    /// 2 (X's slot on Xbox, which the journey uses for its HUD).
+    /// is button 0 (accepted as confirm), Cross is button 1 (confirm). That leaves Circle
+    /// (button 2) for the dark matter toggle, which is Y on the other two pads.
     /// </summary>
     public static readonly PadProfile_NEW PlayStation = new PadProfile_NEW(
         "PlayStation", "DualSense / DualShock",
@@ -197,8 +209,8 @@ public sealed class PadProfile_NEW
         // PadRightStickY already carries invert: 1 in InputManager.asset.
         "PadRightStickX", "PadRightStickY", false,
         "", "",
-        KeyCode.JoystickButton1, KeyCode.JoystickButton0, KeyCode.JoystickButton3,
-        "✕", "△",
+        KeyCode.JoystickButton1, KeyCode.JoystickButton0, KeyCode.JoystickButton3, KeyCode.JoystickButton2,
+        "✕", "△", "○",
         0.1f);
 
     /// <summary>
@@ -221,7 +233,7 @@ public sealed class PadProfile_NEW
     ///     A  sends button 1   (Xbox's B)   -> confirm
     ///     B  sends button 2   (Xbox's X)   -> pause
     ///     X  sends button 0   (Xbox's A)   -> unused
-    ///     Y  sends button 3   (Xbox's Y)   -> unused
+    ///     Y  sends button 3   (Xbox's Y)   -> dark matter toggle
     ///
     /// UNVERIFIED, AND IT MATTERS: rightStickYInvert and leftStickYInvert are set to the
     /// same convention as every other pad here (push away = up), but the Joy* axes are
@@ -235,8 +247,8 @@ public sealed class PadProfile_NEW
         "Joy5", "Joy6", true,
         "Joy3", "Joy4", true,
         "Joy1", "Joy2",
-        KeyCode.JoystickButton1, KeyCode.None, KeyCode.JoystickButton2,
-        "A", "B",
+        KeyCode.JoystickButton1, KeyCode.None, KeyCode.JoystickButton2, KeyCode.JoystickButton3,
+        "A", "B", "Y",
         0.15f);
 
     /// <summary>

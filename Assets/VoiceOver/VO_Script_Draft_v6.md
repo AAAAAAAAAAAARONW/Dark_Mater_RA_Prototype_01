@@ -1,13 +1,13 @@
-# Draft v5 · 15 October 2026
+# Draft v6 · 16 October 2026
 
-v3 (13 Oct) + v4 journey revision (14 Oct) + **v5: the scientists' feedback (15 Oct)**. Changes are marked **[v3]**, **[v4]**, **[v5]** inline; v5's are listed under "Changes in v5".
+v3 (13 Oct) + v4 journey revision (14 Oct) + v5: the scientists' feedback (15 Oct) + **v6: dark matter gets its own moment in the journey (16 Oct)**. Changes are marked **[v3]** to **[v6]** inline; v6's are listed under "Changes in v6".
 
 > Draft v2 plus the team's notes. Every change is marked **[v3]** inline and listed under "Changes in v3" at the end. Lines that are unchanged from v2 do not need to be re-recorded. The list of lines to re-record is at the end.
 
 ## Rules
 
 - The voice tells the story. It never gives instructions. "Look right" and "press A" belong to the hint line.
-- One line per beat at most. Control beats (A3, B1 to B4, C2, D10, E3) get no story VO. A1 and A2 keep their story lines and also get a nudge. **[v3]** E2, the dark matter toggle, is the one exception: it gets one line before the press and one after it. It is the only beat where the press itself is the point of the story.
+- One line per beat at most. Control beats (A3, B1 to B4, C2, D10, E3) get no story VO. A1 and A2 keep their story lines and also get a nudge. **[v6]** The dark matter moment in the journey (J3, first cosmic web) is the one exception: it gets one line before the press and one after it. It is the only moment where the press itself is the point of the story. (Until v5 this was E2 in the tutorial.)
 - Paced at about 140 words per minute (2.3 words per second). Every line lists its estimated read time.
 - Voice direction: calm, close, second person. Wonder, not lecture. **[v5]** **Female voice** (scientists' request). The whole set is re-recorded once in the new voice, after the scientists' yes/no pass.
 - **[v3]** Say "absorb" and "wavelength" when describing what hydrogen does to light, not "take". Absorption removes the light at one wavelength, and that is why a color goes missing.
@@ -81,6 +81,8 @@ Any beat, not only D10. Plays once, 2 s after the visitor pauses, if they have n
 > Press B again to resume.
 
 ### Phase 4 · Handoff (deferred, not built)
+
+> **[v6] Superseded: dark matter moved to the journey.** It is taught in the first cosmic web, right after the tutorial, while the light flies on (Part 2, "J3 · Dark matter moment"). There, Y shows or hides a drawing of the dark matter under the gas; the gas does not move. E1 and E2 below are kept for reference only: they are not built, and their recordings are not used.
 
 **[v3] The slider is now a toggle, and it is written in two versions.** The team will playtest both and keep one:
 
@@ -164,11 +166,50 @@ Optional readout cue · ≈5 s
 
 > The clock counts the billions of years you have been traveling.
 
-**J3 · First cosmic web** **[v5]** · ≈14.5 s
+**J3 · First cosmic web** **[v6]** · ≈9.5 s
 
-Dark matter as the scaffolding, the gas as the beacon that traces it (scientists' feedback). The E2 toggle still says how dark matter's gravity shapes the gas.
+**[v6]** Shortened: it now only names the web. The dark matter explanation (scaffolding, five to one, the beacon) moved into the moment that follows, where the visitor can see it.
 
-> This is the cosmic web. Dark matter is its scaffolding: invisible, and five times heavier than ordinary matter. Gas gathers along its threads, a beacon that shows us where the dark matter lies.
+> This is the cosmic web, the largest structure in the universe. Its threads of gas stretch for hundreds of millions of light-years.
+
+### J3 · Dark matter moment **[v6]**
+
+The light never stops: stopping it changes the trail, and the journey never waits. When J3 has been said, the before line plays and the hint line comes up with it. The visitor presses Y while flying; the after line plays while the dark matter eases in or out (2.5 s). J3b follows at the next yellow filament the light flies through.
+
+The first cosmic web is lengthened to hold it, at the same speed (5 units/s): J3, the moment and J3b come to about a minute. The Flight Path view in the Scene shows where each line falls along the path.
+
+- **Two versions, one Inspector switch** (`DarkMatterStop_NEW.version`), for the team to playtest. Only these lines and the hint differ.
+  - **Version A · shown by default** (`ShownByDefault`): the dark matter is on screen as the visitor arrives; Y hides it.
+  - **Version B · hidden by default** (`HiddenByDefault`, the build's default): only the gas is on screen; Y shows the dark matter under it.
+- **Y shows or hides a drawing.** The gas does not move. The dark matter is drawn as a soft glow, wider than the gas threads, that grows out of them. The lines never name its colour, so the art can change it without a re-record.
+- **If nobody presses Y:** the nudge plays 1.5 s after the before line, once. 6 s after the before line the toggle happens on its own and the after line plays, so a walk-up visitor still sees it and hears why.
+- **Pressing during the before line** counts. The dark matter moves at once, and the after line follows the before line.
+- After the moment, Y keeps working, silently, for the rest of the first cosmic web.
+- Hint line: `Y · HIDE DARK MATTER` (A) or `Y · SHOW DARK MATTER` (B).
+
+**J3_DMon_Before · Version A, before Y** · ≈12 s
+
+> The soft glow around these threads is dark matter, drawn so you can see it. It gives off no light, yet it outweighs ordinary matter five to one.
+
+**J3_DMon_After · Version A, after Y (dark matter hidden)** · ≈13 s
+
+> Without it on screen, only the gas remains. Dark matter's gravity pulled the gas into this structure, so the gas is a beacon, showing us where the dark matter lies.
+
+**N_J3_DMon · Version A, nudge** · ≈2.5 s
+
+> Press Y to hide the dark matter.
+
+**J3_DMoff_Before · Version B, before Y** · ≈10 s
+
+> There is far too little gas here to pull itself into threads like these. Something you cannot see is holding it in place.
+
+**J3_DMoff_After · Version B, after Y (dark matter shown)** · ≈14 s
+
+> This is dark matter, drawn so you can see it. It gives off no light, yet it outweighs ordinary matter five to one, and its gravity pulls the gas into this structure.
+
+**N_J3_DMoff · Version B, nudge** · ≈3 s
+
+> Press Y to see what holds it together.
 
 **J3b · First pass through a yellow filament** **[v5]** · ≈12.5 s · **Said once per run**
 
@@ -225,6 +266,19 @@ Each is the duration field on the beat. The builder never overwrites a tuned val
 
 Lengthening D5 also lengthens its slow motion.
 
+## Changes in v6 (dark matter moment, 16 October)
+
+| Note | What changed |
+| --- | --- |
+| A dedicated place to explain dark matter, taught like the tutorial: how to show and hide it, with VO | New **J3 · Dark matter moment** in the first cosmic web: before line with the Y hint, press, after line. Built as `DarkMatterMoment_NEW`. |
+| Do not stop: stopping changes the trail; keep flying | The light never stops. The press is offered while flying (6 s after the before line, then automatic), and the first cosmic web is lengthened at the same speed so the lines fit. |
+| Not B, which is pause | Y, as decided in v4. |
+| Two versions, default on / default off | Version A (shown, Y hides) and Version B (hidden, Y shows), one Inspector switch. |
+| Dark matter's gravity pulls gas into this structure | In both after lines. |
+| Dark matter and the filament callout both in the first cosmic web; the second one is absorption and redshift | J3, the moment and J3b are all in the first cosmic web. J5 and J6 are unchanged. |
+| Y shows or hides the drawing; the gas does not move | The moment's lines are about what is drawn, not a what-if. Tutorial E1/E2 (the gas drifting apart) are superseded. |
+| J3 | Shortened to name the web only; the dark matter lines moved into the moment. |
+
 ## Changes in v5 (scientists' feedback, 15 October)
 
 | Feedback | What changed |
@@ -259,10 +313,15 @@ Lengthening D5 also lengthens its slow motion.
 ## Open questions (new in v3)
 
 1. ~~B is already pause in the tutorial.~~ **Decided (v4): the toggle is on Y.** B stays pause everywhere (GDD §4, one button one meaning). Y rather than X because X sits beside A, where the thumb has rested for the whole tutorial, so it is the easiest button to press by accident; Y is a deliberate reach, which suits a switch. **[v4]**
-2. **Is the toggle in the journey too?** If the player can switch dark matter on and off in the first cosmic web, J3 might need its own after-press line. Right now it assumes the toggle is only used in E2.
+2. ~~Is the toggle in the journey too?~~ **Decided (v6): it is only in the journey**, at the dark matter moment. It is no longer in the tutorial.
 3. **J3b needs gameplay work.** That means a one-time trigger on the first filament absorption, plus an on-screen marker at the same moment. Neither exists yet.
 
 ## Science to check
+
+- **[v6] "The largest structure in the universe" (J3).** The cosmic web is the largest known structure. Its filaments are typically tens of megaparsecs long, a hundred million light-years and more, so "hundreds of millions of light-years" holds for its threads. Correct.
+- **[v6] "Far too little gas here to pull itself into threads like these" (J3_DMoff_Before).** Ordinary matter is about one sixth of all matter, and until recombination it was held smooth by radiation. On its own it could not have collapsed into the web in the time available; dark matter's gravity had a head start, and the gas fell into it. A fair simplification.
+- **[v6] "Drawn so you can see it" (both versions).** Dark matter gives off no light. The glow on screen is a drawing, and the lines say so, so no visitor leaves thinking dark matter can be seen.
+- **[v6] "Outweighs ordinary matter five to one."** Same figure as J3 in v5 (≈ 5.3 : 1, Planck 2018). Correct.
 
 - **[v5] "A cloud of hydrogen gas" (D4–D8).** The measurements reflect enormous numbers of atoms in a region of gas, not one atom; "cloud" is the scientists' preferred word.
 - **[v5] "Outshines all the galaxy's stars" (A2).** A luminous quasar is typically 10 to 100 or more times brighter than its whole host galaxy. Correct.
@@ -287,6 +346,16 @@ Lengthening D5 also lengthens its slow motion.
 - **J5, "dark energy is about to start speeding up the expansion".** The expansion starts accelerating at z ≈ 0.6 to 0.7, about 6 Gyr ago, just after the second cosmic web (z ≈ 0.8, 7 Gyr ago). v3 said it was already speeding up, which was about a billion years early. **[v4]**
 
 ## To re-record
+
+**[v6]** New lines and one rewrite, for the dark matter moment (about 860 characters). File names are the line ids, so `install` puts them where `Build Dark Matter Moment` looks for them:
+
+| Line | File | Why |
+| --- | --- | --- |
+| J3 | `J3_CosmicWeb1` (overwritten in place) | shortened |
+| J3_DMon_Before, J3_DMon_After, N_J3_DMon | new | Version A |
+| J3_DMoff_Before, J3_DMoff_After, N_J3_DMoff | new | Version B |
+
+The v3 list below is kept for reference.
 
 The recordings in `Assets/VoiceOver` were made from an earlier draft. These lines changed in v3 and need new takes:
 

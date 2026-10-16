@@ -62,6 +62,9 @@ public static class InputScheme_NEW
     /// <summary>Keyboard stand-in for B.</summary>
     public const KeyCode PauseKey = KeyCode.P;
 
+    /// <summary>Keyboard stand-in for Y.</summary>
+    public const KeyCode ToggleKey = KeyCode.Y;
+
     public const string MouseXAxis = "Mouse X";
     public const string MouseYAxis = "Mouse Y";
 
@@ -426,6 +429,19 @@ public static class InputScheme_NEW
 
         return pad.pauseButton != KeyCode.None && Input.GetKeyDown(pad.pauseButton);
     }
+
+    /// <summary>Y, pressed this frame. Shows or hides dark matter.</summary>
+    public static bool ToggleDown()
+    {
+        if (Input.GetKeyDown(ToggleKey)) return true;
+
+        PadProfile_NEW pad = Pad;
+
+        return pad.toggleButton != KeyCode.None && Input.GetKeyDown(pad.toggleButton);
+    }
+
+    /// <summary>The letter printed on this pad for the dark matter toggle.</summary>
+    public static string ToggleGlyph() { return Pad.toggleGlyph; }
 
     /// <summary>The letter printed on this pad for confirm, for a prompt to draw.</summary>
     public static string ConfirmGlyph() { return Pad.confirmGlyph; }
