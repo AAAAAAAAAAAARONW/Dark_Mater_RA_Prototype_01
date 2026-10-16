@@ -8,8 +8,8 @@ using UnityEngine;
 ///
 /// It takes the galaxy's centre and the tilt of its disc from the Milky Way already there
 /// ('Milky Way - Spiral Arms'), turns the new one in that plane until its Sun lies towards
-/// SolarDivePoint, and sizes it so the Sun is at its real fraction of the way out (0.39) —
-/// which, for the existing layout, is the same radius as before. The old one is switched
+/// SolarDivePoint, and sizes it so the Sun is at its real fraction of the way out (0.5, half
+/// way: 8.2 of 16.4 kpc; GalaxyVFX_NEW.sunRadius). The old one is switched
 /// off, not deleted: switch it back on to compare. Without an old one it builds the plane
 /// from the group and keeps SolarDivePoint where it is.
 ///
@@ -56,7 +56,7 @@ static class JourneyGalaxyMenu_NEW
 
         // The plane: the old galaxy's, or the group's tipped back as the old one was.
         Vector3 normal = old != null ? old.up : group.rotation * Quaternion.Euler(FallbackTilt) * Vector3.up;
-        float sunFraction = 0.39f;
+        float sunFraction = 0.5f;   // GalaxyVFX_NEW's sunRadius, as it is made
         Vector3 centre;
         Vector3 towardsSun;
         float radius;

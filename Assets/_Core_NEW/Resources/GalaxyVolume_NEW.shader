@@ -24,7 +24,7 @@ Shader "Custom/GalaxyVolume_NEW"
         _Color ("Fade (all four channels, as WorldSwitcher_NEW sets it)", Color) = (1, 1, 1, 1)
         _Side ("Half: 1 the camera's side of the disc, -1 the far side", Float) = 1
         _Box ("Box half size (x, y, z)", Vector) = (1.1, 0.45, 1.1, 0)
-        _Bar ("Bar: angle (deg), length, width", Vector) = (27, 0.24, 0.075, 0)
+        _Bar ("Bar: angle (deg), length, width", Vector) = (-27, 0.28, 0.075, 0)
         _Warp ("Warp at the rim (of the radius)", Float) = 0.15
         _Thickness ("Old disc scale height at the centre, and its flare", Vector) = (0.028, 0.04, 0, 0)
         _Volume ("Brightness", Range(0, 4)) = 1
