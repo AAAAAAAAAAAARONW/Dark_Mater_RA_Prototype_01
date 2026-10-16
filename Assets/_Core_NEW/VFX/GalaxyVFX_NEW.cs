@@ -13,10 +13,15 @@ using UnityEngine;
 /// Open Scene places it with the Sun on SolarDivePoint, so the dive into the Solar System
 /// starts from where the Sun really is.
 ///
-/// THE NUMBERS ARE THE GALAXY'S. Arms pitched 12.5°; a bar about a third of the Sun's
-/// distance long, 27° off the Sun's line; an exponential old disc; the Sun 0.39 of the way
-/// out, between Sagittarius just inside it and Perseus outside — 26,000 of the 65,000 light
-/// years the reference maps run to.
+/// THE NUMBERS ARE THE GALAXY'S. Radius 1 is about 16.4 kpc (53,000 light years), the disc as
+/// the face-on maps draw it, and the Sun half way out: 8.2 kpc (26,700 light years), on the
+/// Orion spur between Sagittarius-Carina just inside it (7 kpc) and Perseus outside (10 kpc),
+/// the Outer arm near the rim (14 kpc). Arms pitched 12.5°; the bar 4.6 kpc each way, 27° off
+/// the Sun's line, its near end on the side the Sun is going round towards (the first
+/// quadrant, as seen from the Sun) — Scutum-Centaurus springing from that end and passing
+/// between the Sun and the centre, Perseus from the far one; an exponential old disc, 2.6 kpc.
+/// Seen from this object's +Y the galaxy turns clockwise: +Y is the north galactic pole, the
+/// side the "you are here" maps are drawn from.
 ///
 /// IT HAS DEPTH. Around the gas sheet, the light of the old stars as a volume: the bulge boxy
 /// and peanut-shaped (the bar seen from its side, as the infrared maps show it), the thick old
@@ -57,8 +62,10 @@ using UnityEngine;
 public class GalaxyVFX_NEW : MonoBehaviour
 {
     [Header("Structure (radius 1 is this object's scale)")]
-    [Tooltip("Where the Sun is, as a fraction of the radius. 0.39: 26,000 light years of 65,000.")]
-    [Range(0.2f, 0.7f)] [SerializeField] float sunRadius = 0.39f;
+    [Tooltip("Where the Sun is, as a fraction of the radius. 0.5: 8.2 kpc (26,700 light years) of a disc " +
+             "16.4 kpc in radius: half way out, as the face-on maps have it. The arms are laid out " +
+             "round it, so it stays on the Orion spur whatever this is.")]
+    [Range(0.2f, 0.7f)] [SerializeField] float sunRadius = 0.5f;
 
     [Tooltip("How tightly the arms wind, in degrees. The Milky Way's are about 12°.")]
     [Range(5f, 25f)] [SerializeField] float pitch = 12.5f;
@@ -69,8 +76,10 @@ public class GalaxyVFX_NEW : MonoBehaviour
     [Tooltip("The two major arms, the two minor ones, and the Orion spur.")]
     [SerializeField] Vector3 armStrength = new Vector3(1f, 0.4f, 0.45f);
 
-    [Tooltip("The bar's angle off the Sun's line in degrees, its half length and half width.")]
-    [SerializeField] Vector3 bar = new Vector3(27f, 0.24f, 0.075f);
+    [Tooltip("The bar's angle off the Sun's line in degrees, its half length and half width. The angle " +
+             "is negative: the near end is on the side the Sun is going round towards (the first quadrant), " +
+             "as the real bar's is, where Scutum-Centaurus springs from.")]
+    [SerializeField] Vector3 bar = new Vector3(-27f, 0.28f, 0.075f);
 
     [Tooltip("The old disc's exponential scale length, of the radius.")]
     [Range(0.05f, 0.4f)] [SerializeField] float scaleLength = 0.16f;

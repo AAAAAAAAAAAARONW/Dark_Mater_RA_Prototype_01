@@ -36,9 +36,9 @@ Shader "Custom/GalaxyStars_NEW"
     {
         _Color ("Fade (all four channels, as WorldSwitcher_NEW sets it)", Color) = (1, 1, 1, 1)
         [NoScaleOffset] _Noise ("Noise (QuasarNoise_NEW), for the arms' wander", 2D) = "gray" {}
-        _SunRadius ("The Sun's radius (of the disc's)", Float) = 0.39
+        _SunRadius ("The Sun's radius (of the disc's)", Float) = 0.5
         _Pitch ("Arm pitch, degrees", Float) = 12.5
-        _Bar ("Bar: angle (deg), length, width", Vector) = (27, 0.24, 0.075, 0)
+        _Bar ("Bar: angle (deg), length, width", Vector) = (-27, 0.28, 0.075, 0)
         _Warp ("Warp at the rim (of the radius)", Float) = 0.15
         _Speed ("Orbital speed, radii a second (flat curve)", Float) = 0.02
         _FrameSpin ("The Sun's own turn added back: 0 the Sun's frame, 1 all of it", Range(0, 1)) = 1

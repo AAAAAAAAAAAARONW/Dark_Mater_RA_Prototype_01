@@ -215339,11 +215339,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d7c89ee04c4ef7235e073eaccac8180e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sunRadius: 0.39
+  sunRadius: 0.5
   pitch: 12.5
   armWidth: {x: 0.022, y: 0.04}
   armStrength: {x: 1, y: 0.4, z: 0.45}
-  bar: {x: 27, y: 0.24, z: 0.075}
+  bar: {x: -27, y: 0.28, z: 0.075}
   scaleLength: 0.16
   warp: 0.15
   thickness: {x: 0.028, y: 0.04}
@@ -244972,7 +244972,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1404368438}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -3.8466673, y: -5.4640718, z: 506.76785}
+  m_LocalPosition: {x: -7.4493656, y: -4.4087025, z: 509.0311}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 1040261708}

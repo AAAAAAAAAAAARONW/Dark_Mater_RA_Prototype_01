@@ -272,10 +272,12 @@ static class JourneyDiveMenu_NEW
     /// the frame. None of it was ever on screen: a yellow light was all there was to see. So
     /// nothing swells and nothing is hidden, and the camera keeps the star in frame.
     ///
-    ///   the star   SolarDivePoint, in the galaxy's disc 15 out from its middle, 4 left of the
-    ///              flight line and 20 past the gate — where, from the camera, it sits beside
-    ///              the photon, not behind it — is where the Sun is: a point the size of the
-    ///              galaxy's own stars (starSize), warm white like them, from the gate on.
+    ///   the star   SolarDivePoint, where the Sun really is in the Milky Way (GalaxyVFX_NEW's
+    ///              SunPosition): half way out, on the Orion spur between the Sagittarius and
+    ///              Perseus arms — in Ana about 8 left of the flight line and 22 past the gate,
+    ///              where, from the camera, it sits beside the photon, not behind it. A point
+    ///              the size of the galaxy's own stars (starSize), warm white like them, from
+    ///              the gate on.
     ///   spiral     5.5 seconds. The galaxy grows twelve times round it while turning 90
     ///              degrees anticlockwise seen from above — the way the planets go — so its
     ///              stars stream out of the frame along curves, as if the camera spiralled
@@ -375,8 +377,9 @@ static class JourneyDiveMenu_NEW
     /// <summary>
     /// The point in the Milky Way's disc the Solar dive goes into, under the MilkyWay group:
     /// found there if it is there, and made if not. Made — or, with <paramref name="place"/>,
-    /// moved back — it sits in the plane of the galaxy's Disk particle system, 4 left of the
-    /// flight line and 20 past the gate's centre (see SolarDive).
+    /// moved back — it is on the Sun of the galaxy's GalaxyVFX_NEW, half way out on the Orion
+    /// spur, as in the real Milky Way. Without one (the older galaxies), in the plane of its
+    /// disc, 4 left of the flight line and 20 past the gate's centre (see SolarDive).
     /// </summary>
     static Transform SolarDivePoint(WorldSwitcher_NEW worlds, bool place)
     {
@@ -403,7 +406,8 @@ static class JourneyDiveMenu_NEW
         // The polished galaxy has a tilted volumetric disc, not a Disk particle system.
         // Keep the legacy lookup for the other scenes that still use the old galaxy.
         MilkyWayStars_NEW spiral = galaxy.GetComponentInChildren<MilkyWayStars_NEW>(false);
-        if (gate == null || (disk == null && spiral == null))
+        GalaxyVFX_NEW milkyWay = galaxy.GetComponentInChildren<GalaxyVFX_NEW>(false);
+        if (milkyWay == null && (gate == null || (disk == null && spiral == null)))
         {
             Debug.LogWarning("Journey NEW: no SolarSystem gate or galactic disc in the Milky Way, so " +
                              "the Solar dive point was not placed. Make an object named " + SolarDivePointName +
@@ -411,13 +415,22 @@ static class JourneyDiveMenu_NEW
             return point;
         }
 
-        Collider c = gate.GetComponent<Collider>();
-        Vector3 at = c != null ? c.bounds.center : gate.transform.position;
-        Vector3 centre = spiral != null ? spiral.transform.position : disk.transform.position;
-        Vector3 normal = spiral != null ? spiral.transform.up : Vector3.up;
-        Vector3 spot = new Vector3(at.x - 4f, centre.y, at.z + 20f);
-        if (Mathf.Abs(normal.y) > 0.01f)
-            spot.y = centre.y - (normal.x * (spot.x - centre.x) + normal.z * (spot.z - centre.z)) / normal.y;
+        Vector3 spot;
+        if (milkyWay != null)
+        {
+            // Where the Sun really is: the galaxy draws its arms round it.
+            spot = milkyWay.SunPosition;
+        }
+        else
+        {
+            Collider c = gate.GetComponent<Collider>();
+            Vector3 at = c != null ? c.bounds.center : gate.transform.position;
+            Vector3 centre = spiral != null ? spiral.transform.position : disk.transform.position;
+            Vector3 normal = spiral != null ? spiral.transform.up : Vector3.up;
+            spot = new Vector3(at.x - 4f, centre.y, at.z + 20f);
+            if (Mathf.Abs(normal.y) > 0.01f)
+                spot.y = centre.y - (normal.x * (spot.x - centre.x) + normal.z * (spot.z - centre.z)) / normal.y;
+        }
 
         if (point == null)
         {
@@ -433,13 +446,17 @@ static class JourneyDiveMenu_NEW
         else
         {
             Undo.RecordObject(point, "Place Solar dive point");
-            Debug.Log("Journey NEW: " + SolarDivePointName + " was at " + point.position + ". From there the " +
-                      "camera could not see the dive: it has to be in the disc and in frame, beside the photon.", point);
+            Debug.Log("Journey NEW: " + SolarDivePointName + " was at " + point.position + (milkyWay != null
+                          ? ", off the Milky Way's Sun."
+                          : ". From there the camera could not see the dive: it has to be in the disc and in frame, beside the photon."),
+                      point);
         }
 
         point.position = spot;
         Debug.Log("Journey NEW: " + SolarDivePointName + " is in the Milky Way's disc at " + spot + " — the Solar " +
-                  "dive goes into it. Move it within the disc to dive elsewhere; keep it in frame and off the photon.", point);
+                  "dive goes into it. " + (milkyWay != null
+                      ? "It is where the Sun is; to move it, move the Sun (GalaxyVFX_NEW's sunRadius, or turn the galaxy in its plane)."
+                      : "Move it within the disc to dive elsewhere; keep it in frame and off the photon."), point);
         return point;
     }
 

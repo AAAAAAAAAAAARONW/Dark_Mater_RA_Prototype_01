@@ -53,11 +53,11 @@ Shader "Custom/GalaxyDisc_NEW"
     {
         _Color ("Fade (all four channels, as WorldSwitcher_NEW sets it)", Color) = (1, 1, 1, 1)
         [NoScaleOffset] _Noise ("Noise (QuasarNoise_NEW)", 2D) = "gray" {}
-        _SunRadius ("The Sun's radius (of the disc's)", Range(0.2, 0.7)) = 0.39
+        _SunRadius ("The Sun's radius (of the disc's)", Range(0.2, 0.7)) = 0.5
         _Pitch ("Arm pitch, degrees", Range(5, 25)) = 12.5
         _ArmWidth ("Arm width at the centre, and its growth outward", Vector) = (0.022, 0.04, 0, 0)
         _ArmStrength ("Major arms, minor arms, Orion spur", Vector) = (1, 0.4, 0.45, 0)
-        _Bar ("Bar: angle (deg), length, width", Vector) = (27, 0.24, 0.075, 0)
+        _Bar ("Bar: angle (deg), length, width", Vector) = (-27, 0.28, 0.075, 0)
         _ScaleLength ("Old disc scale length (of the radius)", Float) = 0.16
         _Dust ("Dust", Range(0, 2)) = 0.85
         _HII ("Star-forming regions", Range(0, 3)) = 1.3
