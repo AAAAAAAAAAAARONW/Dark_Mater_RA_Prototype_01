@@ -1,4 +1,6 @@
-# Draft v3 · 13 October 2026 (journey revised: v4, 14 October)
+# Draft v5 · 15 October 2026
+
+v3 (13 Oct) + v4 journey revision (14 Oct) + **v5: the scientists' feedback (15 Oct)**. Changes are marked **[v3]**, **[v4]**, **[v5]** inline; v5's are listed under "Changes in v5".
 
 > Draft v2 plus the team's notes. Every change is marked **[v3]** inline and listed under "Changes in v3" at the end. Lines that are unchanged from v2 do not need to be re-recorded. The list of lines to re-record is at the end.
 
@@ -7,7 +9,7 @@
 - The voice tells the story. It never gives instructions. "Look right" and "press A" belong to the hint line.
 - One line per beat at most. Control beats (A3, B1 to B4, C2, D10, E3) get no story VO. A1 and A2 keep their story lines and also get a nudge. **[v3]** E2, the dark matter toggle, is the one exception: it gets one line before the press and one after it. It is the only beat where the press itself is the point of the story.
 - Paced at about 140 words per minute (2.3 words per second). Every line lists its estimated read time.
-- Voice direction: calm, close, second person. Wonder, not lecture.
+- Voice direction: calm, close, second person. Wonder, not lecture. **[v5]** **Female voice** (scientists' request). The whole set is re-recorded once in the new voice, after the scientists' yes/no pass.
 - **[v3]** Say "absorb" and "wavelength" when describing what hydrogen does to light, not "take". Absorption removes the light at one wavelength, and that is why a color goes missing.
 - Gated beats (A1, A2, C4, C5) hold until their line has finished. Cinematic beats use the durations in the table at the end.
 
@@ -23,9 +25,9 @@ No VO. The title card loops all day in the gallery.
 
 > Welcome to the Journey of Light. In this experience, you will cross the universe as a beam of light, and carry its story to Earth.
 
-**A2 · Zoom in** · Gate: zoom past 0.55 · ≈12 s
+**A2 · Zoom in** **[v5]** · Gate: zoom past 0.55 · ≈17 s
 
-> Ahead is a quasar: a black hole feeding on gas so fast that it outshines its whole galaxy. This is the early universe, less than two billion years after the Big Bang.
+> Ahead is a quasar: the blazing heart of a young galaxy, where a black hole feeds on gas so fast it outshines all the galaxy's stars. This is the early universe, less than two billion years after the Big Bang.
 
 **A3 · Zoom out** · No VO. The mote and the rumble carry it.
 
@@ -41,9 +43,9 @@ No VO. All four are control beats.
 
 **C2 · Emit, C3 · Emission** · No VO. C3 belongs to the emission sound.
 
-**C4 · Look back** · Gate: quasar in frame · ≈9 s
+**C4 · Look back** **[v5]** · Gate: quasar in frame · ≈11 s
 
-> Behind you, the quasar is already a single point of light. Nothing in the universe moves faster than you.
+> Behind you, the quasar is already shrinking: a bright point at the heart of a faint galaxy. Nothing in the universe moves faster than you.
 
 **C5 · Recentre** · Gate: recentre complete · ≈7.5 s **[v3]**
 
@@ -55,12 +57,12 @@ No VO. All four are control beats.
 | --- | --- | --- | --- |
 | **D1** UV / IR unfold | 7 s | This streak is your trail. It carries every color of your light, from ultraviolet to infrared. | 7 s |
 | **D2** Visible band flashes | 7 s | Human eyes can only see this narrow band in the middle. The rest is invisible. | 6.5 s, starts as the band flashes |
-| **D3** Spectrum bar appears | 7 s | **[v3]** This bar is your spectrum: every color you carry, in order from shortest wavelength to longest. | 7 s |
-| **D4** Atom approaches | 10 s (ends on contact) | Ahead is a single atom of hydrogen, the simplest and most common thing in the universe. | 7 s, from 1.5 s in. Finishes before contact. |
-| **D5** Contact, 0.2× slow motion | **[v3]** 10 s | **[v3]** The hydrogen has absorbed one wavelength of your light. That color is gone, and the black line marks where it was. | 9 s, from 0.8 s after contact, so the impact lands first. |
-| **D6** Four more atoms | 10 s | **[v3]** Every hydrogen atom absorbs that same wavelength. The more you pass through, the darker and deeper that line becomes. | 8.5 s |
+| **D3** Spectrum bar appears | 7 s | **[v5]** This bar is your spectrum: every color you carry, laid out from purple to red. | 6.5 s |
+| **D4** Gas cloud approaches **[v5]** | 10 s (ends on contact) | **[v5]** Ahead is a cloud of hydrogen gas, the simplest and most common material in the universe. | 7 s, from 1.5 s in. Finishes before contact. |
+| **D5** Contact, 0.2× slow motion | **[v3]** 10 s | **[v5]** The gas has absorbed one wavelength of your light. That color is gone, and the black line marks where it was. | 9 s, from 0.8 s after contact, so the impact lands first. |
+| **D6** More gas **[v5]** | 10 s | **[v5]** Every cloud of hydrogen absorbs that same wavelength. The more gas you pass through, the darker and deeper that line becomes. | 9 s |
 | **D7** Redshift | 10 s | Space itself is expanding. It stretches your light as you travel, and the line slides toward the red. This is redshift. | 9 s |
-| **D8** One more atom | 10 s | Another atom cuts a fresh line, while the first keeps sliding toward red. Line by line, a pattern builds. | 8.5 s. "Cuts a fresh line" lands near the 6 s impact. |
+| **D8** One more cloud **[v5]** | 10 s | **[v5]** Another cloud cuts a fresh line, while the first keeps sliding toward red. Line by line, a pattern builds. | 8.5 s. "Cuts a fresh line" lands near the 6 s impact. |
 | **D9** UV / IR fold away | 7 s | These lines stay with you forever: a barcode of everything you pass through. | 6 s |
 | **D10** Pause gate | gated | No VO |  |
 
@@ -162,17 +164,17 @@ Optional readout cue · ≈5 s
 
 > The clock counts the billions of years you have been traveling.
 
-**J3 · First cosmic web** **[v3]** · ≈9 s
+**J3 · First cosmic web** **[v5]** · ≈14.5 s
 
-The toggle in E2 now says how dark matter's gravity shapes the gas, so J3 no longer repeats it. J3 keeps the scale.
+Dark matter as the scaffolding, the gas as the beacon that traces it (scientists' feedback). The E2 toggle still says how dark matter's gravity shapes the gas.
 
-> This is the cosmic web. Dark matter outweighs ordinary matter five to one, and its threads stretch across vast, empty voids.
+> This is the cosmic web. Dark matter is its scaffolding: invisible, and five times heavier than ordinary matter. Gas gathers along its threads, a beacon that shows us where the dark matter lies.
 
-**J3b · First pass through a yellow filament** **[v3]** · ≈11 s · **Said once per run**
+**J3b · First pass through a yellow filament** **[v5]** · ≈12.5 s · **Said once per run**
 
 Trigger (gameplay): the first time the photon passes through a yellow filament and the absorption line appears on the spectrum. The game should mark the same moment on screen, also once, for example with the tutorial's arrows pointing at the new line on the bar. After that, filaments and lines go by without comment; J6 picks the idea up again.
 
-> These yellow threads are hydrogen gas. Each one you pass through absorbs a wavelength of your light and leaves a new line on your spectrum.
+> These yellow threads are hydrogen gas. No stars light them, but each one you pass through absorbs a wavelength of your light and leaves a line on your spectrum.
 
 **J4 · Intermediate galaxy** **[v4]** · ≈14.5 s · The galaxy is now ten billion years ago, not seven
 
@@ -192,7 +194,9 @@ Trigger (gameplay): the first time the photon passes through a yellow filament a
 
 > By the time you reach Earth, your light will be stretched to nearly five times its original wavelength. What left the quasar as ultraviolet arrives as light our eyes can see.
 
-> Thousands of hydrogen clouds have cut lines into your light, and each cloud sat at a different distance, so each line was stretched by a different amount. Astronomers call this pattern the Lyman-alpha forest. Read like tree rings, it maps the invisible web of the universe.
+**[v5]** J6_3 · ≈19 s. The tree-ring analogy has moved to J9, so it is not heard next to the word "forest".
+
+> Thousands of hydrogen clouds have cut lines into your light, each stretched by a different amount. Maps of galaxies show only where stars shine; these lines reveal the gas in between, and the hidden web it traces. Astronomers call this pattern the Lyman-alpha forest.
 
 **J7 · Milky Way** · ≈10 s
 
@@ -202,13 +206,13 @@ Trigger (gameplay): the first time the photon passes through a yellow filament a
 
 > Light from our Sun takes eight minutes to reach Earth. Your journey has taken twelve billion years.
 
-**J9 · Earth, Pasadena** · ≈11 s
+**J9 · Earth, Pasadena** **[v5]** · ≈15.5 s · Night side of the Earth, at a telescope
 
-> You have arrived. A telescope collects your light, and astronomers read the lines you carried across the cosmos: a record of twelve billion years of cosmic history.
+> You have arrived, on Earth's night side. A telescope collects your light, and astronomers read the lines you carried. Like tree rings, each one marks a moment of your journey: twelve billion years of cosmic history.
 
-**Closing · over the end video** · ≈6 s
+**Closing · over the end video** **[v5]** · ≈15 s
 
-> You began as light from an ancient quasar. You arrive as a message from the young universe.
+> From lines like these, astronomers learn how the cosmic web formed and what it is made of. Together with simulations and theory, your light helps tell where we came from, and where we are going.
 
 ## Durations to change (tutorial)
 
@@ -220,6 +224,22 @@ Each is the duration field on the beat. The builder never overwrites a tuned val
 | Suggested | 7 s | 7 s | 7 s | **[v3]** 10 s | 10 s | 7 s | 7 to 9 s |
 
 Lengthening D5 also lengthens its slow motion.
+
+## Changes in v5 (scientists' feedback, 15 October)
+
+| Feedback | What changed |
+| --- | --- |
+| Use a female voice | Voice direction. The whole set is re-recorded once, after the yes/no pass. |
+| Quasar as the bright heart of a galaxy | A2: "the blazing heart of a young galaxy … outshines all the galaxy's stars". C4: looking back, "a bright point at the heart of a faint galaxy". |
+| Wavelength "from purple toward red" | D3: "every color you carry, laid out from purple to red". |
+| A cloud of hydrogen gas, not a single atom | D4, D5, D6, D8: cloud / gas instead of atom. Absorption grows with more gas. Beat names updated (Gas cloud approaches, More gas, One more cloud). |
+| Dark matter as scaffolding, gas as the beacon | J3 rewritten. J4's "galaxies grow where the threads of the web cross" kept. |
+| The forest's value | J3b: "No stars light them". J6_3: maps of galaxies show only where stars shine; these lines reveal the gas in between and the web it traces. |
+| Separate tree rings from "forest" | Tree rings moved from J6_3 to J9, minutes later. |
+| "Cluster" | No VO line uses it. On screen: the journey HUD card `GalaxyCluster` (art may say "Galaxy Cluster") needs checking. The milestone text "infant star clusters" is correct as it is. |
+| Ending: what astronomers learn | J9 and Closing rewritten: night side, telescope; how the web formed, what it is made of; with simulations and theory; where we came from and where we are going. |
+
+**Unchanged in v5:** A1, C1, C5, D1, D2, D7, D9, the tutorial ending, E1, E2, J0, J1, J2, J2b, J4, J4b, J5, J6_1, J6_2, J7, J8, all nudges.
 
 ## Changes in v3
 
@@ -243,6 +263,13 @@ Lengthening D5 also lengthens its slow motion.
 3. **J3b needs gameplay work.** That means a one-time trigger on the first filament absorption, plus an on-screen marker at the same moment. Neither exists yet.
 
 ## Science to check
+
+- **[v5] "A cloud of hydrogen gas" (D4–D8).** The measurements reflect enormous numbers of atoms in a region of gas, not one atom; "cloud" is the scientists' preferred word.
+- **[v5] "Outshines all the galaxy's stars" (A2).** A luminous quasar is typically 10 to 100 or more times brighter than its whole host galaxy. Correct.
+- **[v5] "Five times heavier than ordinary matter" (J3).** Dark matter to ordinary matter ≈ 5.3 : 1 (Planck 2018). Correct.
+- **[v5] "No stars light them" (J3b).** The gas in intergalactic filaments is mostly far from any galaxy, so it is not lit by stars; it is seen only by what it absorbs. A fair simplification.
+- **[v5] "Maps of galaxies show only where stars shine" (J6_3).** A simplification of the scientists' point: galaxy surveys trace light from stars in the densest regions, while the forest traces diffuse gas through more of the volume.
+- **[v5] "Like tree rings, each one marks a moment of your journey" (J9).** Each line comes from gas at a different distance along the path, so the lines are a record ordered in time. Kept away from the word "forest" on purpose.
 
 - **"Less than two billion years after the Big Bang."** z = 3.62 → 1.74 Gyr after the Big Bang (Planck 2018). Correct.
 - **"Nearly five times."** 1 + z = 4.62. Correct.

@@ -376,7 +376,7 @@ def load_config(need_voice=True):
 
 def select(args):
     cfg = load_config()
-    script = os.path.join(VO_ROOT, cfg.get("script", "VO_Script_Draft_v3.md"))
+    script = os.path.join(VO_ROOT, cfg.get("script", "VO_Script_Draft_v5.md"))
     lines = parse_script(script)
     assign_files(lines)
 

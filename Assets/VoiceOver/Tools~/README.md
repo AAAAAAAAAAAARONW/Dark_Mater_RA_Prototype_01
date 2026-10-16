@@ -1,6 +1,6 @@
 # ElevenLabs 配音生成
 
-逐句生成 `VO_Script_Draft_v3.md`（Tutorial + Journey）的 AI 配音，文件名直接对上 Unity 里的配音表。这个文件夹名字以 `~` 结尾，Unity 不会导入它。
+逐句生成 `VO_Script_Draft_v5.md`（Tutorial + Journey）的 AI 配音，文件名直接对上 Unity 里的配音表。这个文件夹名字以 `~` 结尾，Unity 不会导入它。
 
 ## 第一次
 
