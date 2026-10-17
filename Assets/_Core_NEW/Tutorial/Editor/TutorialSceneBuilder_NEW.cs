@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.Events;
 using UnityEngine;
@@ -2403,14 +2404,13 @@ public static class TutorialSceneBuilder_NEW
         // a ten-to-one anisotropic pen. That is a hack the journey can keep; a new
         // object does not need to inherit it.
         //
-        // TOP CENTRE, which is this bar's permanent home. Every other element already
-        // has a side of the screen: the reticle owns the middle, the range map the top
+        // CENTRED ON A DISPLAY ROW, which is this bar's home. Horizontally every other
+        // element already has a side: the reticle owns the middle, the range map the top
         // right, the zoom gauge the right edge, and the legend, hint and confirm prompt
-        // the bottom edge.
+        // the bottom edge. Vertically the bar owns one row of the wall, which is the
+        // cleaner claim — a row is a physical panel, so the bar cannot straddle a seam.
         //
-        // It sits above that bottom stack rather than at the top, which is a change —
-        // see SpectrumBarPosition for the reading it buys and for the gap it has to
-        // keep.
+        // It appears a row lower and climbs into place at D3. See SpectrumBarRow.
         GameObject bar = UIObject("SpectrumBar", canvas, SpectrumBarAnchor,
                                   SpectrumBarPosition, SpectrumBarSize);
 
@@ -2579,6 +2579,33 @@ public static class TutorialSceneBuilder_NEW
                          p => p.vector2Value = SpectrumBarPosition,
                          "spectrum bar docks at the top strip again.");
 
+        // The same migration for the top-strip journey, which predates the bar being tied
+        // to a display row. On the wall that dock is row 1, overhead at 78 degrees.
+        RepairSerialized(spectrumSlide, "from",
+                         p => Approximately(p.vector2Value, TopStripSpectrumBarEntry),
+                         p => p.vector2Value = SpectrumBarEntry,
+                         "spectrum bar now rises from row " + SpectrumBarEntryRow + ".");
+
+        RepairSerialized(spectrumSlide, "to",
+                         p => Approximately(p.vector2Value, TopStripSpectrumBarPosition),
+                         p => p.vector2Value = SpectrumBarPosition,
+                         "spectrum bar now docks on row " + SpectrumBarRow + ".");
+
+        // And for a journey authored against different rows. Same reasoning as
+        // BuildPastSpectrumBarPlacements: the rows will move again, so the test is "some
+        // row centre this builder would not write now" rather than a list of old numbers.
+        // A journey somebody has hand-tuned to a position that is not a row centre is left
+        // alone, which is the line the whole file holds.
+        RepairSerialized(spectrumSlide, "from",
+                         p => IsOtherRowCentre(p.vector2Value, SpectrumBarEntryRow),
+                         p => p.vector2Value = SpectrumBarEntry,
+                         "spectrum bar now rises from row " + SpectrumBarEntryRow + ".");
+
+        RepairSerialized(spectrumSlide, "to",
+                         p => IsOtherRowCentre(p.vector2Value, SpectrumBarRow),
+                         p => p.vector2Value = SpectrumBarPosition,
+                         "spectrum bar now docks on row " + SpectrumBarRow + ".");
+
         // Nothing is on screen before D1. TutorialSpectrum_NEW hides it on Awake as
         // well, so a scene saved with the bar up does not flash it for a frame.
         if (IsFresh(bar)) bar.SetActive(false);
@@ -2587,12 +2614,34 @@ public static class TutorialSceneBuilder_NEW
     }
 
     /// <summary>
-    /// Where the spectrum bar lives, anchored to the top edge of the canvas.
+    /// The height the HUD canvas is authored on. See BuildCanvas: the canvas is 1080 units
+    /// tall in the wall's shape, so one display row is a seventh of this.
+    /// </summary>
+    const float CanvasReferenceHeight = 1080f;
+
+    /// <summary>
+    /// The display row the spectrum bar docks on, and the row it rises from.
     ///
-    /// Every other element has a side: the reticle owns the middle, the range map the
-    /// top right, the zoom gauge the right edge, and the legend, hint and A prompt the
-    /// bottom. The top strip is the only place a readout can live without moving
-    /// something the player has already learned to find.
+    /// It appears on row 3 and climbs one row to settle on row 2. One row is 154 canvas
+    /// units, which sounds small and is not: on the wall a row is 575 mm tall, so the bar
+    /// travels half a metre of physical surface and crosses a seam to get there. That climb
+    /// is what makes it read as having found its place rather than as having been put there.
+    ///
+    /// Moving either is a one-line change — the positions are derived from the row, and the
+    /// migration below carries an existing scene across without listing the old rows by
+    /// hand.
+    /// </summary>
+    const int SpectrumBarRow = 2;
+    const int SpectrumBarEntryRow = 3;
+
+    /// <summary>
+    /// Where the spectrum bar lives: the centre of SpectrumBarRow, anchored to the top edge
+    /// of the canvas.
+    ///
+    /// Horizontally every other element has a side — the reticle owns the middle, the range
+    /// map the top right, the zoom gauge the right edge, and the legend, hint and A prompt
+    /// the bottom. Vertically the bar now owns one row of the wall, which is the cleaner
+    /// claim: a row is a physical panel, so the bar cannot drift across a seam.
     ///
     /// IT WAS TRIED AT THE BOTTOM, on the reasoning that a readout of the light belongs
     /// near the light. It does not pay: the bottom already carries the three things the
@@ -2600,22 +2649,43 @@ public static class TutorialSceneBuilder_NEW
     /// Putting it in among them buys a few hundred pixels of proximity and costs the
     /// separation between "do this" and "look at this".
     /// </summary>
-    static readonly Vector2 SpectrumBarPosition = new Vector2(0f, -78f);
+    static readonly Vector2 SpectrumBarPosition = RowCentre(SpectrumBarRow);
 
     /// <summary>
-    /// Where it comes in from at D1 — lower and nearer the middle, so the drift upward
-    /// is a real movement rather than a nudge.
-    ///
-    /// Still anchored to the top edge, so this is 420 pixels down from it: below the
-    /// centre line on a 1080 canvas, clear of the reticle, and plainly not where a HUD
-    /// element belongs. Ending up at the top is what makes it read as having found its
-    /// place rather than as having been put there.
+    /// Where it comes in from at D1 — the centre of SpectrumBarEntryRow, one row below the
+    /// dock, so the drift upward is a real movement rather than a nudge.
     /// </summary>
-    static readonly Vector2 SpectrumBarEntry = new Vector2(0f, -420f);
+    static readonly Vector2 SpectrumBarEntry = RowCentre(SpectrumBarEntryRow);
+
+    /// <summary>
+    /// The centre of a display row as an anchoredPosition under SpectrumBarAnchor, which is
+    /// the canvas's top edge.
+    ///
+    /// Taken from VizlabDisplay_NEW rather than written out, so the bar follows the display
+    /// geometry if the row data is ever replaced with Chris's real corner table. Row
+    /// fractions count up from the bottom; an anchoredPosition under a top-edge anchor
+    /// counts down, hence the flip.
+    /// </summary>
+    static Vector2 RowCentre(int row)
+    {
+        float yMin, yMax;
+        VizlabDisplay_NEW.GetRowAnchorFractions(row, out yMin, out yMax);
+
+        float centreFromBottom = (yMin + yMax) * 0.5f;
+        return new Vector2(0f, -(1f - centreFromBottom) * CanvasReferenceHeight);
+    }
 
     /// <summary>The bottom-edge dock and entry this builder wrote for one commit.</summary>
     static readonly Vector2 PastSpectrumBarPosition = new Vector2(0f, 360f);
     static readonly Vector2 PastSpectrumBarEntry = new Vector2(0f, 700f);
+
+    /// <summary>
+    /// The top-strip dock and entry, from before the bar was tied to a display row. These
+    /// predate the row scheme: the bar sat 78 pixels under the top edge, which on the wall
+    /// is row 1, overhead at 78 degrees.
+    /// </summary>
+    static readonly Vector2 TopStripSpectrumBarPosition = new Vector2(0f, -78f);
+    static readonly Vector2 TopStripSpectrumBarEntry = new Vector2(0f, -420f);
 
     /// <summary>
     /// How big it is. Wide and shallow, because a spectrum is read left to right and its
@@ -2638,12 +2708,46 @@ public static class TutorialSceneBuilder_NEW
     ///
     /// Each entry is position then size.
     /// </summary>
-    static readonly Vector2[] PastSpectrumBarPlacements =
+    static readonly Vector2[] PastSpectrumBarPlacements = BuildPastSpectrumBarPlacements();
+
+    static Vector2[] BuildPastSpectrumBarPlacements()
     {
-        PastSpectrumBarPosition, SpectrumBarSize,         // bottom edge, fourth guess
-        new Vector2(0f, -90f),  new Vector2(560f, 90f),   // below centre, second guess
-        new Vector2(0f, -40f),  new Vector2(720f, 200f)   // centre slab, first guess
-    };
+        var past = new List<Vector2>
+        {
+            TopStripSpectrumBarPosition, SpectrumBarSize,     // top strip, fifth guess
+            PastSpectrumBarPosition, SpectrumBarSize,         // bottom edge, fourth guess
+            new Vector2(0f, -90f),  new Vector2(560f, 90f),   // below centre, second guess
+            new Vector2(0f, -40f),  new Vector2(720f, 200f),  // centre slab, first guess
+        };
+
+        // And the centre of every row that is not the current dock. The dock has already
+        // changed row once and will again; listing the old rows by hand means the list goes
+        // stale the next time it moves, and a scene quietly keeps a dock nobody chose.
+        for (int row = 1; row <= VizlabDisplay_NEW.RowCount; row++)
+        {
+            if (row == SpectrumBarRow) continue;
+
+            past.Add(RowCentre(row));
+            past.Add(SpectrumBarSize);
+        }
+
+        return past.ToArray();
+    }
+
+    /// <summary>
+    /// True when this is the centre of some display row other than keepRow — that is, a
+    /// position an earlier run of this builder authored and the current one would not.
+    /// </summary>
+    static bool IsOtherRowCentre(Vector2 value, int keepRow)
+    {
+        for (int row = 1; row <= VizlabDisplay_NEW.RowCount; row++)
+        {
+            if (row == keepRow) continue;
+            if (Approximately(value, RowCentre(row))) return true;
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// Move a spectrum bar the builder placed badly to where it belongs now.

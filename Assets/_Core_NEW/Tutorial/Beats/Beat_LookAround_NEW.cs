@@ -43,7 +43,11 @@ public class Beat_LookAround_NEW : TutorialBeat_NEW
     float _swept;
     float _lastYaw;
     float _lastPitch;
-    bool _forced;
+    // NOT _forced: the base class already serializes a field by that name, and Unity
+    // cannot carry the same field name twice in one hierarchy. The two are read by
+    // different callers — this one by GateSatisfied, the base's by IsSatisfied and
+    // WasForced — so they both have to exist. Renaming this back reintroduces the warning.
+    bool _gateForced;
 
     /// <summary>How much of the sweep is done, 0 to 1. The debug overlay reads it.</summary>
     public float Progress
@@ -70,7 +74,7 @@ public class Beat_LookAround_NEW : TutorialBeat_NEW
     protected override void OnBeatEnter()
     {
         _swept = 0f;
-        _forced = false;
+        _gateForced = false;
 
         if (lookRig == null) lookRig = FindObjectOfType<FirstPersonLookRig_NEW>();
 
@@ -104,14 +108,14 @@ public class Beat_LookAround_NEW : TutorialBeat_NEW
 
     protected override bool GateSatisfied()
     {
-        if (_forced) return true;
+        if (_gateForced) return true;
 
         return _swept >= degreesToSweep;
     }
 
     protected override void OnForceSatisfy()
     {
-        _forced = true;
+        _gateForced = true;
     }
 
     public override string GateStatus()

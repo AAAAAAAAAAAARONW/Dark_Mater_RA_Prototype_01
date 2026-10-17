@@ -62,7 +62,11 @@ public class Beat_Zoom_NEW : TutorialBeat_NEW
     // player has to be on the wrong side of the threshold before crossing it counts.
     bool _mustLeaveFirst;
 
-    bool _forced;
+    // NOT _forced: the base class already serializes a field by that name, and Unity
+    // cannot carry the same field name twice in one hierarchy. The two are read by
+    // different callers — this one by GateSatisfied, the base's by IsSatisfied and
+    // WasForced — so they both have to exist. Renaming this back reintroduces the warning.
+    bool _gateForced;
 
     /// <summary>Which way this beat asks the view to move. Read by nothing yet; here so
     /// a wrong hint line can be caught without opening the Inspector.</summary>
@@ -119,7 +123,7 @@ public class Beat_Zoom_NEW : TutorialBeat_NEW
 
     protected override void OnBeatEnter()
     {
-        _forced = false;
+        _gateForced = false;
 
         if (zoom == null) zoom = FindObjectOfType<TutorialZoom_NEW>();
 
@@ -142,7 +146,7 @@ public class Beat_Zoom_NEW : TutorialBeat_NEW
 
     protected override bool GateSatisfied()
     {
-        if (_forced) return true;
+        if (_gateForced) return true;
         if (zoom == null) return false;
         if (_mustLeaveFirst) return false;
 
@@ -151,7 +155,7 @@ public class Beat_Zoom_NEW : TutorialBeat_NEW
 
     protected override void OnForceSatisfy()
     {
-        _forced = true;
+        _gateForced = true;
     }
 
     /// <summary>Is the zoom on the far side of this beat's threshold?</summary>

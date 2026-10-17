@@ -40,11 +40,15 @@ public class Beat_Inspect_NEW : TutorialBeat_NEW
     [SerializeField] TutorialPause_NEW pause;
 
     int _resumesAtEnter;
-    bool _forced;
+    // NOT _forced: the base class already serializes a field by that name, and Unity
+    // cannot carry the same field name twice in one hierarchy. The two are read by
+    // different callers — this one by GateSatisfied, the base's by IsSatisfied and
+    // WasForced — so they both have to exist. Renaming this back reintroduces the warning.
+    bool _gateForced;
 
     protected override void OnBeatEnter()
     {
-        _forced = false;
+        _gateForced = false;
 
         if (pause == null) pause = FindObjectOfType<TutorialPause_NEW>();
 
@@ -60,7 +64,7 @@ public class Beat_Inspect_NEW : TutorialBeat_NEW
 
     protected override bool GateSatisfied()
     {
-        if (_forced) return true;
+        if (_gateForced) return true;
         if (pause == null) return false;
 
         return pause.ResumeCount > _resumesAtEnter;
@@ -68,7 +72,7 @@ public class Beat_Inspect_NEW : TutorialBeat_NEW
 
     protected override void OnForceSatisfy()
     {
-        _forced = true;
+        _gateForced = true;
     }
 
     public override string GateStatus()

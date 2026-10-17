@@ -49,7 +49,11 @@ public class Beat_Confirm_NEW : TutorialBeat_NEW
     [SerializeField] FirstPersonLookRig_NEW lookRig;
 
     bool _pressed;
-    bool _forced;
+    // NOT _forced: the base class already serializes a field by that name, and Unity
+    // cannot carry the same field name twice in one hierarchy. The two are read by
+    // different callers — this one by GateSatisfied, the base's by IsSatisfied and
+    // WasForced — so they both have to exist. Renaming this back reintroduces the warning.
+    bool _gateForced;
 
     /// <summary>Read by TutorialHUD_NEW to decide what the prompt says.</summary>
     public string PromptText { get { return promptText; } }
@@ -63,7 +67,7 @@ public class Beat_Confirm_NEW : TutorialBeat_NEW
     protected override void OnBeatEnter()
     {
         _pressed = false;
-        _forced = false;
+        _gateForced = false;
 
         if (lookRig == null) lookRig = FindObjectOfType<FirstPersonLookRig_NEW>();
 
@@ -95,7 +99,7 @@ public class Beat_Confirm_NEW : TutorialBeat_NEW
 
     protected override bool GateSatisfied()
     {
-        if (_forced) return true;
+        if (_gateForced) return true;
         if (!_pressed) return false;
 
         if (waitForRecentre && lookRig != null && lookRig.IsRecentring) return false;
@@ -105,7 +109,7 @@ public class Beat_Confirm_NEW : TutorialBeat_NEW
 
     protected override void OnForceSatisfy()
     {
-        _forced = true;
+        _gateForced = true;
     }
 
     public override string GateStatus()

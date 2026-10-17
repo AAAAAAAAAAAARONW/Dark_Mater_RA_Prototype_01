@@ -57,7 +57,11 @@ public class Beat_TurnAround_NEW : TutorialBeat_NEW
     [Header("Wiring")]
     [SerializeField] FirstPersonLookRig_NEW lookRig;
 
-    bool _forced;
+    // NOT _forced: the base class already serializes a field by that name, and Unity
+    // cannot carry the same field name twice in one hierarchy. The two are read by
+    // different callers — this one by GateSatisfied, the base's by IsSatisfied and
+    // WasForced — so they both have to exist. Renaming this back reintroduces the warning.
+    bool _gateForced;
 
     /// <summary>
     /// Push the look stick sideways, the short way round to the disc, by as much of the
@@ -130,7 +134,7 @@ public class Beat_TurnAround_NEW : TutorialBeat_NEW
 
     protected override void OnBeatEnter()
     {
-        _forced = false;
+        _gateForced = false;
         _way = 0f;
 
         if (lookRig == null) lookRig = FindObjectOfType<FirstPersonLookRig_NEW>();
@@ -151,7 +155,7 @@ public class Beat_TurnAround_NEW : TutorialBeat_NEW
 
     protected override bool GateSatisfied()
     {
-        if (_forced) return true;
+        if (_gateForced) return true;
         if (lookRig == null || disc == null) return false;
 
         return TurnedFar() && DiscInFrame();
@@ -159,7 +163,7 @@ public class Beat_TurnAround_NEW : TutorialBeat_NEW
 
     protected override void OnForceSatisfy()
     {
-        _forced = true;
+        _gateForced = true;
     }
 
     bool TurnedFar()

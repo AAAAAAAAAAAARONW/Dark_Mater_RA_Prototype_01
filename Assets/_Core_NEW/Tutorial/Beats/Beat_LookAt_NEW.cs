@@ -74,7 +74,11 @@ public class Beat_LookAt_NEW : TutorialBeat_NEW
     [SerializeField] float placeDistance = 45f;
 
     float _insideFor;
-    bool _forced;
+    // NOT _forced: the base class already serializes a field by that name, and Unity
+    // cannot carry the same field name twice in one hierarchy. The two are read by
+    // different callers — this one by GateSatisfied, the base's by IsSatisfied and
+    // WasForced — so they both have to exist. Renaming this back reintroduces the warning.
+    bool _gateForced;
 
     /// <summary>
     /// Push the look stick towards the target, by as much as is still missing.
@@ -178,7 +182,7 @@ public class Beat_LookAt_NEW : TutorialBeat_NEW
     protected override void OnBeatEnter()
     {
         _insideFor = 0f;
-        _forced = false;
+        _gateForced = false;
 
         if (lookRig == null) lookRig = FindObjectOfType<FirstPersonLookRig_NEW>();
 
@@ -235,14 +239,14 @@ public class Beat_LookAt_NEW : TutorialBeat_NEW
 
     protected override bool GateSatisfied()
     {
-        if (_forced) return true;
+        if (_gateForced) return true;
 
         return _insideFor >= holdSeconds && IsInside();
     }
 
     protected override void OnForceSatisfy()
     {
-        _forced = true;
+        _gateForced = true;
     }
 
     bool IsInside()
