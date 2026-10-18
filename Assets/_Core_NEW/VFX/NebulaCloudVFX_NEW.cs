@@ -5,8 +5,9 @@ using UnityEngine;
 /// a translucent, reddish-purple nebula like the Orion Nebula — gas glowing red and pink
 /// where the stars born inside it light it, violet and blue further out, torn by dark lanes
 /// of dust, a few bright stars in its hollow heart; and see-through, so what is behind it
-/// shows through. Its shape is a few lumps grown together, stretched one way, with torn,
-/// wispy edges — a different ragged outline from every side, never a sphere.
+/// shows through. Its shape is a streak: lumps of different sizes strung along the object's
+/// x, knocked off the line, with torn, wispy edges — a different ragged outline from every
+/// side, never a sphere. Turn the object to turn the streak.
 ///
 /// Where it is used:
 ///   the journey   Tools > Journey NEW > Add Nebulae To Second Cosmic Web scatters a few in
@@ -14,7 +15,9 @@ using UnityEngine;
 ///                 path: the hydrogen clouds that cut the lines of the Lyman-alpha forest, seen
 ///                 (J6: "thousands of hydrogen clouds have cut lines into your light").
 ///   the tutorial  TutorialAtom_NEW's body (D4 to D8): the gas cloud that closes on the light
-///                 and absorbs a wavelength of it, where there used to be a glowing atom.
+///                 and absorbs a wavelength of it, where there used to be a glowing atom. Cold
+///                 neutral hydrogen, not a nebula: the builder colours it cold blue, lit only
+///                 at its heart, with no stars, so the two things are two things.
 ///
 /// Put it on an empty object: the cloud fits inside a sphere of this object's scale in
 /// radius, and fills about three quarters of it. It

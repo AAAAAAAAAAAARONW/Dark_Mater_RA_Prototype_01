@@ -65,15 +65,19 @@ public class TutorialDirector_NEW : MonoBehaviour
              "through InputProfilePinner_NEW and should never need this. See PadProfile_NEW.")]
     [SerializeField] KeyCode padLayoutKey = KeyCode.F3;
 
-    [Tooltip("First beat of each phase, in storyboard order. Number key 1 jumps to the " +
-             "first entry, 2 to the second, and so on — the same convention as " +
-             "LayerDebugJump_NEW uses in the journey, so it is one habit and not two.\n\n" +
-             "Key 4 is Phase 3, which is where Phase 3 work is driven from. An id that " +
-             "does not exist yet logs a warning and changes nothing, so the unbuilt " +
-             "phases can sit in this list until they are built.\n\n" +
+    [Tooltip("Where the number keys jump: key 1 to the first entry, 2 to the second, and so " +
+             "on — the same convention as LayerDebugJump_NEW uses in the journey, so it is " +
+             "one habit and not two.\n\n" +
+             "1 is C2, the light waiting beside the black hole to be emitted; 2 is D4, the " +
+             "first cloud of hydrogen closing on the light — the two places the work is " +
+             "driven from. Then the first beat of each phase. An id that does not exist " +
+             "logs a warning and changes nothing.\n\n" +
              "Behind DebugView_NEW.Overlay like the other debug keys, so the exhibition " +
              "build cannot be jumped out of its own storyboard.")]
-    [SerializeField] string[] debugPhaseJumps = { "A1", "B1", "C1", "D1", "E1" };
+    [SerializeField] string[] debugPhaseJumps = DefaultPhaseJumps;
+
+    /// <summary>The number keys' targets as built: 1 C2, 2 D4, then the start of each phase.</summary>
+    public static string[] DefaultPhaseJumps { get { return new[] { "C2", "D4", "A1", "B1", "C1", "D1" }; } }
 
     [Tooltip("On a jump, open and close every beat before the target first, so the world " +
              "arrives in the state the skipped frames would have left it in.\n\n" +
@@ -373,7 +377,9 @@ public class TutorialDirector_NEW : MonoBehaviour
     }
 
     /// <summary>
-    /// Number keys jump to the first beat of each phase.
+    /// Number keys jump to the beats in debugPhaseJumps: 1 to the light waiting to be
+    /// emitted (C2), 2 to the first cloud of hydrogen (D4), then the first beat of each
+    /// phase.
     ///
     /// Both the number row and the keypad, matching LayerDebugJump_NEW so the two debug
     /// tools in this project answer to the same fingers.

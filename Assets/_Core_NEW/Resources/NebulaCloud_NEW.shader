@@ -96,23 +96,28 @@ Shader "Custom/NebulaCloud_NEW"
                 return lerp(a, b, f);
             }
 
-            // The cloud's body: not a sphere but six lumps grown together, one near the
-            // middle and the rest round it, each where the seed puts it and as big as the
-            // seed makes it, the whole stretched one way as the seed has it. 1 deep inside a
-            // lump, 0 at its edge, less outside; and never past the sphere the cloud is
-            // drawn in.
+            // The cloud's body: not a sphere but a streak — six lumps of different sizes
+            // strung along one axis (the object's x, tipped by the seed), each knocked off
+            // the line a little, thicker in the middle, thinner or fatter across as the seed
+            // has it. 1 deep inside a lump, 0 at its edge, less outside; and never past the
+            // sphere the cloud is drawn in. Turn the object to turn the streak.
             float Body(float3 p)
             {
-                float3 stretch = 1.0 + (float3(Hash(_Seed * 3.3 + 31.0), Hash(_Seed * 3.3 + 32.0), Hash(_Seed * 3.3 + 33.0)) - 0.5) * 0.9;
-                float3 q = p * stretch;
+                float s0 = _Seed * 3.3;
+                float3 axis = normalize(float3(1.0, (Hash(s0 + 31.0) - 0.5) * 0.8, (Hash(s0 + 32.0) - 0.5) * 0.8));
+                float across = 0.8 + 0.5 * Hash(s0 + 33.0);
                 float env = -1.0;
                 [unroll]
                 for (int l = 0; l < 6; l++)
                 {
-                    float s = _Seed * 3.3 + l * 11.7;
-                    float3 c = (float3(Hash(s + 1.0), Hash(s + 2.0), Hash(s + 3.0)) * 2.0 - 1.0) * (l == 0 ? 0.18 : 0.46);
-                    float r = (l == 0 ? 0.36 : 0.18) + 0.26 * Hash(s + 4.0);
-                    env = max(env, 1.0 - length(q - c) / r);
+                    float s = s0 + l * 11.7;
+                    float along = (l / 5.0 * 2.0 - 1.0) * 0.45 * (0.7 + 0.3 * Hash(s + 5.0));
+                    float3 off = (float3(Hash(s + 1.0), Hash(s + 2.0), Hash(s + 3.0)) - 0.5) * 0.36;
+                    float3 c = axis * along + off - axis * dot(off, axis) * 0.5;
+                    float r = 0.2 + 0.2 * Hash(s + 4.0) + 0.14 * (1.0 - abs(along) / 0.45);
+                    float3 d = p - c;
+                    float a = dot(d, axis);
+                    env = max(env, 1.0 - length(axis * a + (d - axis * a) * across) / r);
                 }
                 return min(env, (0.95 - length(p)) * 3.0);
             }

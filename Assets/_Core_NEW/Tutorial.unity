@@ -5507,11 +5507,12 @@ MonoBehaviour:
   skipBeatKey: 283
   padLayoutKey: 284
   debugPhaseJumps:
+  - C2
+  - D4
   - A1
   - B1
   - C1
   - D1
-  - E1
   replayPriorBeats: 1
   debugLog: 0
 --- !u!1 &116189724
@@ -6194,7 +6195,7 @@ Light:
   serializedVersion: 10
   m_Type: 2
   m_Shape: 0
-  m_Color: {r: 1, g: 0.55, b: 0.75, a: 1}
+  m_Color: {r: 0.6, g: 0.85, b: 1, a: 1}
   m_Intensity: 1
   m_Range: 40
   m_SpotAngle: 30
@@ -8250,7 +8251,7 @@ MonoBehaviour:
   glowAtImpact: 2.2
   halo: {fileID: 524791517}
   haloAtSpawn: 5
-  haloAtImpact: 3.2
+  haloAtImpact: 0.6
   shimmer: 0.12
   shimmerSpeed: 2.7
   approachShape:
@@ -8370,7 +8371,7 @@ Light:
   serializedVersion: 10
   m_Type: 2
   m_Shape: 0
-  m_Color: {r: 1, g: 0.55, b: 0.75, a: 1}
+  m_Color: {r: 0.6, g: 0.85, b: 1, a: 1}
   m_Intensity: 1
   m_Range: 40
   m_SpotAngle: 30
@@ -16121,7 +16122,7 @@ Light:
   serializedVersion: 10
   m_Type: 2
   m_Shape: 0
-  m_Color: {r: 1, g: 0.55, b: 0.75, a: 1}
+  m_Color: {r: 0.6, g: 0.85, b: 1, a: 1}
   m_Intensity: 1
   m_Range: 40
   m_SpotAngle: 30
@@ -16368,7 +16369,7 @@ MonoBehaviour:
   glowAtImpact: 2.2
   halo: {fileID: 931366021}
   haloAtSpawn: 5
-  haloAtImpact: 3.2
+  haloAtImpact: 0.6
   shimmer: 0.12
   shimmerSpeed: 2.7
   approachShape:
@@ -16691,7 +16692,7 @@ MonoBehaviour:
   glowAtImpact: 2.2
   halo: {fileID: 28152729}
   haloAtSpawn: 5
-  haloAtImpact: 3.2
+  haloAtImpact: 0.6
   shimmer: 0.12
   shimmerSpeed: 2.7
   approachShape:
@@ -16842,7 +16843,7 @@ MonoBehaviour:
   glowAtImpact: 2.2
   halo: {fileID: 805408591}
   haloAtSpawn: 5
-  haloAtImpact: 3.2
+  haloAtImpact: 0.6
   shimmer: 0.12
   shimmerSpeed: 2.7
   approachShape:
@@ -17055,7 +17056,7 @@ MonoBehaviour:
   glowAtImpact: 2.2
   halo: {fileID: 2037171467}
   haloAtSpawn: 5
-  haloAtImpact: 3.2
+  haloAtImpact: 0.6
   shimmer: 0.12
   shimmerSpeed: 2.7
   approachShape:
@@ -18068,7 +18069,7 @@ Light:
   serializedVersion: 10
   m_Type: 2
   m_Shape: 0
-  m_Color: {r: 1, g: 0.55, b: 0.75, a: 1}
+  m_Color: {r: 0.6, g: 0.85, b: 1, a: 1}
   m_Intensity: 1
   m_Range: 40
   m_SpotAngle: 30
@@ -18241,7 +18242,7 @@ Light:
   serializedVersion: 10
   m_Type: 2
   m_Shape: 0
-  m_Color: {r: 1, g: 0.55, b: 0.75, a: 1}
+  m_Color: {r: 0.6, g: 0.85, b: 1, a: 1}
   m_Intensity: 1
   m_Range: 40
   m_SpotAngle: 30
@@ -18408,7 +18409,7 @@ Light:
   serializedVersion: 10
   m_Type: 2
   m_Shape: 0
-  m_Color: {r: 1, g: 0.55, b: 0.75, a: 1}
+  m_Color: {r: 0.6, g: 0.85, b: 1, a: 1}
   m_Intensity: 1
   m_Range: 40
   m_SpotAngle: 30
@@ -18692,8 +18693,8 @@ MonoBehaviour:
       m_Calls: []
   rumbleOnEnter: 0
   cueEvents: []
-  minYawDegrees: 150
-  measureFrom: 0
+  minYawDegrees: 120
+  measureFrom: 1
   disc: {fileID: 586351133}
   discInFrameHalfAngle: 40
   sideCommitDegrees: 20
@@ -18881,7 +18882,7 @@ MonoBehaviour:
   glowAtImpact: 2.2
   halo: {fileID: 1236512129}
   haloAtSpawn: 5
-  haloAtImpact: 3.2
+  haloAtImpact: 0.6
   shimmer: 0.12
   shimmerSpeed: 2.7
   approachShape:
@@ -22083,7 +22084,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1334320702}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0.169532, y: -0.03758434, z: 0.2131514, w: 0.9614639}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 2, y: 2, z: 2}
   m_Children: []
@@ -22103,6 +22104,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   seed: 0
+  stars: 2
+  hollow: 0.35
+  lit: {r: 0.55, g: 1.25, b: 1.45, a: 1}
+  mid: {r: 0.18, g: 0.5, b: 0.95, a: 1}
+  rim: {r: 0.08, g: 0.2, b: 0.45, a: 1}
+  dustColour: {r: 0.015, g: 0.025, b: 0.04, a: 1}
+  starColour: {r: 0, g: 0, b: 0, a: 1}
 --- !u!1 &1783258696
 GameObject:
   m_ObjectHideFlags: 0
@@ -22127,7 +22135,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1783258696}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0.1808421, y: -0.168638, z: 0.6608199, w: 0.7086426}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 2, y: 2, z: 2}
   m_Children: []
@@ -22147,6 +22155,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   seed: 1
+  stars: 2
+  hollow: 0.35
+  lit: {r: 0.55, g: 1.25, b: 1.45, a: 1}
+  mid: {r: 0.18, g: 0.5, b: 0.95, a: 1}
+  rim: {r: 0.08, g: 0.2, b: 0.45, a: 1}
+  dustColour: {r: 0.015, g: 0.025, b: 0.04, a: 1}
+  starColour: {r: 0, g: 0, b: 0, a: 1}
 --- !u!1 &1680520363
 GameObject:
   m_ObjectHideFlags: 0
@@ -22171,7 +22186,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1680520363}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0.02792283, y: -0.0942659, z: 0.9541746, w: 0.2826394}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 2, y: 2, z: 2}
   m_Children: []
@@ -22191,6 +22206,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   seed: 2
+  stars: 2
+  hollow: 0.35
+  lit: {r: 0.55, g: 1.25, b: 1.45, a: 1}
+  mid: {r: 0.18, g: 0.5, b: 0.95, a: 1}
+  rim: {r: 0.08, g: 0.2, b: 0.45, a: 1}
+  dustColour: {r: 0.015, g: 0.025, b: 0.04, a: 1}
+  starColour: {r: 0, g: 0, b: 0, a: 1}
 --- !u!1 &1394581969
 GameObject:
   m_ObjectHideFlags: 0
@@ -22215,7 +22237,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1394581969}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0.04235883, y: -0.169892, z: 0.9553065, w: -0.2381847}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 2, y: 2, z: 2}
   m_Children: []
@@ -22235,6 +22257,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   seed: 3
+  stars: 2
+  hollow: 0.35
+  lit: {r: 0.55, g: 1.25, b: 1.45, a: 1}
+  mid: {r: 0.18, g: 0.5, b: 0.95, a: 1}
+  rim: {r: 0.08, g: 0.2, b: 0.45, a: 1}
+  dustColour: {r: 0.015, g: 0.025, b: 0.04, a: 1}
+  starColour: {r: 0, g: 0, b: 0, a: 1}
 --- !u!1 &1939486714
 GameObject:
   m_ObjectHideFlags: 0
@@ -22259,7 +22288,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1939486714}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0.1728038, y: -0.1758464, z: 0.6912339, w: -0.6792736}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 2, y: 2, z: 2}
   m_Children: []
@@ -22279,6 +22308,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   seed: 4
+  stars: 2
+  hollow: 0.35
+  lit: {r: 0.55, g: 1.25, b: 1.45, a: 1}
+  mid: {r: 0.18, g: 0.5, b: 0.95, a: 1}
+  rim: {r: 0.08, g: 0.2, b: 0.45, a: 1}
+  dustColour: {r: 0.015, g: 0.025, b: 0.04, a: 1}
+  starColour: {r: 0, g: 0, b: 0, a: 1}
 --- !u!1 &495098244
 GameObject:
   m_ObjectHideFlags: 0
@@ -22303,7 +22339,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 495098244}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0.09428337, y: -0.02526315, z: 0.2575831, w: -0.9613133}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 2, y: 2, z: 2}
   m_Children: []
@@ -22323,3 +22359,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   seed: 5
+  stars: 2
+  hollow: 0.35
+  lit: {r: 0.55, g: 1.25, b: 1.45, a: 1}
+  mid: {r: 0.18, g: 0.5, b: 0.95, a: 1}
+  rim: {r: 0.08, g: 0.2, b: 0.45, a: 1}
+  dustColour: {r: 0.015, g: 0.025, b: 0.04, a: 1}
+  starColour: {r: 0, g: 0, b: 0, a: 1}

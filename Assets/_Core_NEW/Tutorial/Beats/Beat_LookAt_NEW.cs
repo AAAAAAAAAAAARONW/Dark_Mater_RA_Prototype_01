@@ -18,6 +18,15 @@ using UnityEngine;
 /// The direction the player has to look is encoded by where the target sits in the
 /// scene, not by a field here. That keeps "look right" a property of the world rather
 /// than a second place to keep in sync with it.
+///
+/// THE MOVEMENT COUNTS TOO (turnSatisfies). The reticle alone was too strict in the
+/// room: a visitor told LOOK RIGHT who turned right — and went past the mote, or not
+/// quite to it, or started from somewhere the mote was not where the words said — had
+/// done what the hint asked and was not let through. So the gate is also met by the
+/// turn itself: the view moved, from where it was when the beat opened, most of the way
+/// towards the target on each axis the target was outside the reticle on — right for
+/// B1, up for B2 — and for a target behind the player (C4's quasar) by turning round
+/// either way. The mote still blooms when the gate opens, whichever half opened it.
 /// </summary>
 [HierarchyBadge_NEW("BEAT LOOK", "#40A0C0")]
 public class Beat_LookAt_NEW : TutorialBeat_NEW
@@ -73,7 +82,28 @@ public class Beat_LookAt_NEW : TutorialBeat_NEW
              "is a distance it keeps as the light travels.")]
     [SerializeField] float placeDistance = 45f;
 
+    [Header("Turn")]
+    [Tooltip("Also satisfied by the MOVEMENT the hint asks for: the view turned, from where " +
+             "it was when the beat opened, most of the way towards the target on each axis " +
+             "the target was outside the reticle on — whether or not the target ends up in " +
+             "the reticle. A player who turns right as told has done the thing, wherever " +
+             "they were looking to begin with and however far past the mote they go.")]
+    [SerializeField] bool turnSatisfies = true;
+
+    [Tooltip("How much of the way to the target the turn has to go, 0 to 1.")]
+    [Range(0.3f, 1f)]
+    [SerializeField] float turnFraction = 0.8f;
+
+    [Tooltip("A target this far or further round from the view centre, in yaw, is behind the " +
+             "player: the ask is to turn round, either way is right, and this many degrees of " +
+             "turn is enough.")]
+    [SerializeField] float turnAroundDegrees = 110f;
+
     float _insideFor;
+    float _yawAtStart;
+    float _pitchAtStart;
+    Vector2 _bearingAtStart;
+    bool _bloomed;
     // NOT _forced: the base class already serializes a field by that name, and Unity
     // cannot carry the same field name twice in one hierarchy. The two are read by
     // different callers — this one by GateSatisfied, the base's by IsSatisfied and
@@ -199,6 +229,44 @@ public class Beat_LookAt_NEW : TutorialBeat_NEW
 
         if (activateTargetOnEnter && target != null && !target.gameObject.activeSelf)
             target.gameObject.SetActive(true);
+
+        // Where the view is as the ask is made, and where the target is from there: the
+        // turn is measured against these.
+        _bloomed = false;
+        if (lookRig != null)
+        {
+            _yawAtStart = lookRig.Yaw;
+            _pitchAtStart = lookRig.Pitch;
+            _bearingAtStart = target != null ? BearingToTarget() : Vector2.zero;
+        }
+    }
+
+    /// <summary>
+    /// Has the view moved the way the hint asked, by most of the way to the target?
+    ///
+    /// Yaw with shortest-angle deltas, so a spin is not a turn; pitch is clamped and is
+    /// just a difference. Positive yaw is right, and the rig's pitch grows looking down,
+    /// so the start minus the current pitch is how far the player has looked up. Only the
+    /// part of each axis the reticle would not already forgive is asked for, as
+    /// OutsideReticle leaves it — straight right for B1, straight up for B2.
+    /// </summary>
+    bool TurnedAsAsked()
+    {
+        if (!turnSatisfies || lookRig == null) return false;
+
+        float turnedRight = Mathf.DeltaAngle(_yawAtStart, lookRig.Yaw);
+        float lookedUp = _pitchAtStart - lookRig.Pitch;
+
+        if (Mathf.Abs(_bearingAtStart.x) >= turnAroundDegrees)
+            return Mathf.Abs(turnedRight) >= turnAroundDegrees;
+
+        Vector2 need = OutsideReticle(_bearingAtStart, reticleHalfAngle) * turnFraction;
+
+        bool yawDone = Mathf.Abs(need.x) < 0.001f || (Mathf.Sign(turnedRight) == Mathf.Sign(need.x) &&
+                                                       Mathf.Abs(turnedRight) >= Mathf.Abs(need.x));
+        bool pitchDone = Mathf.Abs(need.y) < 0.001f || (Mathf.Sign(lookedUp) == Mathf.Sign(need.y) &&
+                                                         Mathf.Abs(lookedUp) >= Mathf.Abs(need.y));
+        return yawDone && pitchDone;
     }
 
     /// <summary>
@@ -229,19 +297,30 @@ public class Beat_LookAt_NEW : TutorialBeat_NEW
 
             // The bloom is the reward for catching it, so it fires on the first frame
             // inside regardless of holdSeconds.
-            if (mote != null) mote.Bloom();
+            Bloom();
         }
         else
         {
             _insideFor = 0f;
         }
+
+        // The same reward for doing the movement the hint asked, so the beat never ends
+        // on a turn with nothing having answered it.
+        if (TurnedAsAsked()) Bloom();
+    }
+
+    void Bloom()
+    {
+        if (mote == null || _bloomed) return;
+        _bloomed = true;
+        mote.Bloom();
     }
 
     protected override bool GateSatisfied()
     {
         if (_gateForced) return true;
 
-        return _insideFor >= holdSeconds && IsInside();
+        return (_insideFor >= holdSeconds && IsInside()) || TurnedAsAsked();
     }
 
     protected override void OnForceSatisfy()
@@ -262,6 +341,9 @@ public class Beat_LookAt_NEW : TutorialBeat_NEW
         Vector3 toTarget = target.position - lookRig.transform.position;
         float angle = Vector3.Angle(lookRig.transform.forward, toTarget);
 
-        return string.Format("target {0:F0}deg / need <{1:F0}deg", angle, reticleHalfAngle);
+        return string.Format("target {0:F0}deg / need <{1:F0}deg   turned {2:F0} right {3:F0} up {4}",
+                             angle, reticleHalfAngle,
+                             Mathf.DeltaAngle(_yawAtStart, lookRig.Yaw), _pitchAtStart - lookRig.Pitch,
+                             TurnedAsAsked() ? "ok" : "--");
     }
 }

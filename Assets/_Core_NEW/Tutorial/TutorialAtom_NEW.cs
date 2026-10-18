@@ -90,12 +90,14 @@ public class TutorialAtom_NEW : MonoBehaviour
              "is two pixels of flat colour.")]
     [SerializeField] Transform halo;
 
-    [Tooltip("Halo size relative to the core, at spawn and at impact. Larger than the " +
-             "core throughout: the glow is the thing that is seen and the core is the " +
-             "thing inside it.")]
+    [Tooltip("Halo size relative to the body, at spawn and at impact. Large at spawn: at 200 " +
+             "metres the halo is the thing that is seen. Small at impact: by then the body is " +
+             "the cloud of gas, ragged and several metres across, and a round glow over it " +
+             "would make it a ball again — so the halo shrinks into a point of light at its " +
+             "heart.")]
     [SerializeField] float haloAtSpawn = 5f;
 
-    [SerializeField] float haloAtImpact = 3.2f;
+    [SerializeField] float haloAtImpact = 0.6f;
 
     [Tooltip("Depth of the brightness flutter, 0 to 1. Small. A point of light that is " +
              "perfectly steady reads as a UI element; one that breathes slightly reads " +
