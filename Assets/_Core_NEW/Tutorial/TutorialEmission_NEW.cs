@@ -257,6 +257,10 @@ public class TutorialEmission_NEW : MonoBehaviour
         _phase = Phase.Threshold;
         _elapsed = 0f;
 
+        // Waiting means waiting at the edge: a debug jump to C2 (number key 1) has only
+        // just started C1's capture, so it is finished here at once.
+        if (discOrbit != null) discOrbit.SkipToWait();
+
         if (shake != null) shake.Amplitude = thresholdShake;
         if (flash != null && flashAtThreshold) flash.Flash(thresholdFlashColor, thresholdFlashHold, thresholdFlashDecay);
 

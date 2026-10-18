@@ -103,6 +103,8 @@ static class JourneyNebulaMenu_NEW
             Transform t = go.transform;
             t.SetParent(parent.transform, false);
             t.position = from + heading * (c.along * length) + right * c.right + up * c.up;
+            // Each streak at its own angle: the cloud's shape lies along its own x.
+            t.rotation = Lie(c.seed);
             t.localScale = Vector3.one * (c.radius / parentScale);
             NebulaCloudVFX_NEW cloud = go.AddComponent<NebulaCloudVFX_NEW>();
             var so = new SerializedObject(cloud);
@@ -117,6 +119,12 @@ static class JourneyNebulaMenu_NEW
 
     [MenuItem(MenuPath, true)]
     static bool AddNebulaeValidate() => !Application.isPlaying;
+
+    /// <summary>How a cloud lies, from its seed: the same for the menu and the scene as patched.</summary>
+    static Quaternion Lie(int seed)
+    {
+        return Quaternion.Euler(40f * Mathf.Sin(seed * 1.7f), 53f * seed, 30f * Mathf.Cos(seed * 2.3f));
+    }
 
     static bool GateCentre(string layerId, out Vector3 centre)
     {

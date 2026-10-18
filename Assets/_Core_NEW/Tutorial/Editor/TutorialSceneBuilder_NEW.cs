@@ -335,6 +335,8 @@ public static class TutorialSceneBuilder_NEW
         GameObject directorObject = FindOrCreate("Director", root.transform, Vector3.zero);
         TutorialDirector_NEW director = AddIfMissing<TutorialDirector_NEW>(directorObject);
 
+        RepairPhaseJumps(director);
+
         GameObject beats = FindOrCreate("Beats", directorObject.transform, Vector3.zero);
 
         // ── Phase 2 rig ──────────────────────────────────────────────────────
@@ -1349,9 +1351,25 @@ public static class TutorialSceneBuilder_NEW
             .Enum("advanceMode", (int)TutorialBeat_NEW.AdvanceMode.PlayerAction)
             .Ref("disc", moteC.transform)
             .Ref("lookRig", lookRig)
-            .Num("minYawDegrees", 150f)
+            .Num("minYawDegrees", 120f)
+            .Enum("measureFrom", (int)Beat_TurnAround_NEW.YawReference.BeatStart)
+            .Flag("requireDiscInFrame", false)
             .Num("discInFrameHalfAngle", 40f)
             .Apply();
+
+        // The turn is the gate now: from wherever the player is looking as B3 opens, 120
+        // degrees either way, with or without the mote in frame. The old gate (150 from
+        // the jet axis and the mote in frame) was not passed by visitors who had turned
+        // round as told. requireDiscInFrame is a new field and arrives off on its own.
+        RepairSerialized(b3, "minYawDegrees",
+                         p => Mathf.Approximately(p.floatValue, 150f),
+                         p => p.floatValue = 120f,
+                         "B3 opens at 120 degrees of turn, not 150.");
+
+        RepairSerialized(b3, "measureFrom",
+                         p => p.enumValueIndex == (int)Beat_TurnAround_NEW.YawReference.JetAxis,
+                         p => p.enumValueIndex = (int)Beat_TurnAround_NEW.YawReference.BeatStart,
+                         "B3 measures its turn from where the player is looking as it opens.");
 
         Beat_Confirm_NEW b4 = Beat<Beat_Confirm_NEW>(parent, "B4");
         Wire(b4)
@@ -2906,9 +2924,9 @@ public static class TutorialSceneBuilder_NEW
     }
 
     /// <summary>
-    /// Give the halo the cloud's pink, on a material generated while the atom was blue —
-    /// or white: the halo material was generated on Mobile/Particles/Additive, which has
-    /// no tint, so every blue this builder wrote went nowhere and the halo was white.
+    /// Give the halo the cloud's colour, on a material generated with another — or with
+    /// none: the halo material was generated on Mobile/Particles/Additive, which has no
+    /// tint, so every colour this builder wrote went nowhere and the halo was white.
     ///
     /// Same reasoning and the same narrow test as RepairAtomCoreTranslucency: a material
     /// with no tint property is moved to the legacy additive shader, which has one; a
@@ -2919,6 +2937,7 @@ public static class TutorialSceneBuilder_NEW
     {
         new Color(0.38f, 0.62f, 0.92f, 0.5f),
         new Color(0.22f, 0.34f, 0.52f, 0.30f),
+        new Color(0.80f, 0.35f, 0.70f, 0.42f),
     };
 
     static void RepairAtomHaloColour()
@@ -2952,8 +2971,7 @@ public static class TutorialSceneBuilder_NEW
         EditorUtility.SetDirty(halo);
         AssetDatabase.SaveAssets();
 
-        Debug.LogWarning("[TutorialSceneBuilder_NEW] The atom's halo is pink now, the colour of " +
-                         "the cloud of gas inside it." +
+        Debug.LogWarning("[TutorialSceneBuilder_NEW] The atom's halo is the cloud's cold blue now." +
                          (untintable ? " It was on Mobile/Particles/Additive, which has no tint, " +
                                        "so it was white; it is on " + halo.shader.name + " now."
                                      : ""), halo);
@@ -3019,19 +3037,70 @@ public static class TutorialSceneBuilder_NEW
     }
 
     /// <summary>
-    /// Give the point light of an atom built when it was blue the cloud's pink. Only the
-    /// exact colour this builder used to write is changed.
+    /// Give the point light of an atom the cloud's cold blue. Only a colour this builder
+    /// used to write is changed.
     /// </summary>
     static void RepairAtomLightColour(Light glow)
     {
-        if (glow == null || !Approximately(glow.color, PastAtomLightColour)) return;
+        if (glow == null) return;
+
+        bool past = false;
+        foreach (Color c in PastAtomLightColours) past |= Approximately(glow.color, c);
+        if (!past) return;
 
         Undo.RecordObject(glow, "Repair atom light colour");
         glow.color = AtomLightColour;
         EditorUtility.SetDirty(glow);
 
-        Debug.LogWarning("[TutorialSceneBuilder_NEW] The atom's light is pink now, the colour of " +
-                         "the cloud of gas it is inside.", glow);
+        Debug.LogWarning("[TutorialSceneBuilder_NEW] The atom's light is the cloud's cold blue now.", glow);
+    }
+
+    /// <summary>
+    /// The tutorial cloud's colours: cold neutral hydrogen, lit only by the light that is
+    /// in it. Not the journey's nebulae, which are star-forming and reddish-purple.
+    /// </summary>
+    static readonly Color TutorialCloudLit = new Color(0.55f, 1.25f, 1.45f);
+    static readonly Color TutorialCloudMid = new Color(0.18f, 0.5f, 0.95f);
+    static readonly Color TutorialCloudRim = new Color(0.08f, 0.2f, 0.45f);
+    static readonly Color TutorialCloudDust = new Color(0.015f, 0.025f, 0.04f);
+
+    /// <summary>
+    /// How the cloud lies: its streak (the cloud's own x) across the line of approach,
+    /// rolled to its own angle and tipped a little, so no two atoms show the same shape
+    /// and none comes in end on.
+    /// </summary>
+    static Quaternion CloudLie(int seed)
+    {
+        return Quaternion.Euler(20f + 10f * Mathf.Sin(seed * 2.1f), 0f, 25f + 61f * seed);
+    }
+
+    /// <summary>
+    /// The number keys: 1 to the light waiting to be emitted (C2), 2 to the first cloud of
+    /// hydrogen closing on it (D4), then the first beat of each phase. A director still
+    /// carrying the list this builder used to write gets the new one; a list somebody
+    /// changed is left alone.
+    /// </summary>
+    static readonly string[] PastPhaseJumps = { "A1", "B1", "C1", "D1", "E1" };
+
+    static void RepairPhaseJumps(TutorialDirector_NEW director)
+    {
+        if (director == null || IsFresh(director)) return;
+
+        var so = new SerializedObject(director);
+        SerializedProperty list = so.FindProperty("debugPhaseJumps");
+        if (list == null || !list.isArray || list.arraySize != PastPhaseJumps.Length) return;
+
+        for (int i = 0; i < PastPhaseJumps.Length; i++)
+            if (list.GetArrayElementAtIndex(i).stringValue != PastPhaseJumps[i]) return;
+
+        string[] jumps = TutorialDirector_NEW.DefaultPhaseJumps;
+        list.arraySize = jumps.Length;
+        for (int i = 0; i < jumps.Length; i++) list.GetArrayElementAtIndex(i).stringValue = jumps[i];
+        so.ApplyModifiedPropertiesWithoutUndo();
+
+        Debug.LogWarning("[TutorialSceneBuilder_NEW] Debug number keys: 1 jumps to C2 (the light waiting " +
+                         "to be emitted), 2 to D4 (the first cloud of hydrogen), 3 onwards to the start " +
+                         "of each phase. With the debug overlay on (Tools > Journey NEW > Debug View).", director);
     }
 
     /// <summary>
@@ -3208,9 +3277,18 @@ public static class TutorialSceneBuilder_NEW
     /// </summary>
     const float CloudOfAtom = 2f;
 
-    /// <summary>The point light's colour: the cloud's pink, on the trail as it closes.</summary>
-    static readonly Color AtomLightColour = new Color(1f, 0.55f, 0.75f);
-    static readonly Color PastAtomLightColour = new Color(0.72f, 0.86f, 1f);
+    /// <summary>The point light's colour: the cloud's cold blue, on the trail as it closes.</summary>
+    static readonly Color AtomLightColour = new Color(0.6f, 0.85f, 1f);
+
+    /// <summary>What this builder used to write: the first cold blue, then the nebula pink.</summary>
+    static readonly Color[] PastAtomLightColours =
+    {
+        new Color(0.72f, 0.86f, 1f),
+        new Color(1f, 0.55f, 0.75f),
+    };
+
+    /// <summary>How far the atom's halo has shrunk to at impact: a point of light in the cloud's heart.</summary>
+    const float HaloAtImpact = 0.6f;
 
     static TutorialAtom_NEW BuildAtom(Transform world, Transform camera, TutorialTravel_NEW travel)
     {
@@ -3222,11 +3300,20 @@ public static class TutorialSceneBuilder_NEW
                                       string name, int cloudSeed)
     {
         // A cloud of gas inside a soft halo. The scientists asked for hydrogen to be met
-        // as a cloud, not a ball (LARC, 14 October): translucent, reddish-purple, the
-        // Orion Nebula the reference. The cloud is a NebulaCloudVFX_NEW on a child, riding
-        // the approach's growth. The halo is what makes it read as a point of pink light
-        // at 200 metres, where the cloud itself is nothing; the point light puts the same
-        // colour on the trail as it closes.
+        // as a cloud, not a ball (LARC, 14 October). The cloud is a NebulaCloudVFX_NEW on
+        // a child, riding the approach's growth: a ragged streak of gas, turned so the
+        // streak lies across the view, each atom's at its own angle.
+        //
+        // COLD, NOT THE NEBULA'S PINK. This is not a star-forming nebula (those are the
+        // reddish-purple clouds the journey flies through in the second cosmic web): it is
+        // a cloud of cold neutral hydrogen, the kind that cuts the Lyman-alpha line, and it
+        // only glows where the light itself is in it. So it is dim blue-grey at its edges
+        // and cold cyan-white at its heart, with no stars inside; the halo and the point
+        // light are the same cold blue. Two things, two colours.
+        //
+        // The halo is what makes it read as a point of light at 200 metres, where the
+        // cloud itself is nothing, and shrinks into the cloud's heart by impact, so no
+        // round glow sits over the ragged shape.
         //
         // The sphere this used to be is still the object — its scale is the approach —
         // with its renderer off. Switch the renderer back on to see the old core.
@@ -3254,16 +3341,22 @@ public static class TutorialSceneBuilder_NEW
         if (IsFresh(cloudObject))
         {
             cloudObject.transform.localPosition = Vector3.zero;
+            cloudObject.transform.localRotation = CloudLie(cloudSeed);
             cloudObject.transform.localScale = Vector3.one * CloudOfAtom;
 
             NebulaCloudVFX_NEW cloud = AddIfMissing<NebulaCloudVFX_NEW>(cloudObject);
 
-            // Through SerializedObject like Wire, which has no int: the seed is the one
-            // thing on the cloud the builder sets, the look is the component's own.
-            var cloudProperties = new SerializedObject(cloud);
-            SerializedProperty seed = cloudProperties.FindProperty("seed");
-            if (seed != null) seed.intValue = cloudSeed;
-            cloudProperties.ApplyModifiedPropertiesWithoutUndo();
+            Wire(cloud)
+                .Int("seed", cloudSeed)
+                .Int("stars", 2)
+                .Num("hollow", 0.35f)
+                .Col("lit", TutorialCloudLit)
+                .Col("mid", TutorialCloudMid)
+                .Col("rim", TutorialCloudRim)
+                .Col("dustColour", TutorialCloudDust)
+                // No stars: the "stars" only shape where the gas is lit, at its heart.
+                .Col("starColour", Color.black)
+                .Apply();
         }
 
         GameObject halo = FindOrCreate("Halo", go.transform, Vector3.zero);
@@ -3328,6 +3421,14 @@ public static class TutorialSceneBuilder_NEW
                          p => Mathf.Approximately(p.floatValue, 0.4f),
                          p => p.floatValue = 0.15f,
                          "atom's light dimmed at spawn, to keep the growth through the approach.");
+
+        // The halo used to be 3.2 times the body at impact: a round glow over the whole
+        // cloud, which made the cloud a ball whatever shape the gas was.
+        RepairSerialized(atom, "haloAtImpact",
+                         p => Mathf.Approximately(p.floatValue, 3.2f),
+                         p => p.floatValue = HaloAtImpact,
+                         "atom's halo shrinks into the cloud's heart by impact, instead of a round " +
+                         "glow over the whole cloud.");
 
         // Nothing is on screen before D1. TutorialAtom_NEW also hides itself on Awake.
         if (IsFresh(go)) go.SetActive(false);
@@ -5028,6 +5129,15 @@ public static class TutorialSceneBuilder_NEW
 
             SerializedProperty p = Find(path);
             if (p != null) p.vector3Value = value;
+            return this;
+        }
+
+        public Wiring Int(string path, int value)
+        {
+            if (!_fresh) return this;
+
+            SerializedProperty p = Find(path);
+            if (p != null) p.intValue = value;
             return this;
         }
         public Wiring Col(string path, Color value)

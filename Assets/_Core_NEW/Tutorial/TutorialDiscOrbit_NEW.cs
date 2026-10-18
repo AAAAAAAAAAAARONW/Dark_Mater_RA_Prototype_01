@@ -241,6 +241,17 @@ public class TutorialDiscOrbit_NEW : MonoBehaviour, TutorialTravel_NEW.IPath
         return _course;
     }
 
+    /// <summary>
+    /// C2, when the capture has not finished: the light at the edge at once, waiting. A
+    /// debug jump opens C1 and C2 in one frame, so the capture it started would otherwise
+    /// play out under C2's prompt; in a playthrough the capture is over by then and this
+    /// does nothing.
+    /// </summary>
+    public void SkipToWait()
+    {
+        if (_phase == Phase.Capture) ArriveNow();
+    }
+
     /// <summary>Back to rest. The attract reset, through the emission.</summary>
     public void Stop()
     {

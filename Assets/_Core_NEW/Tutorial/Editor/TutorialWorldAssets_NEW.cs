@@ -453,15 +453,15 @@ public static class TutorialWorldAssets_NEW
     }
 
     /// <summary>
-    /// The halo's tint: the pink of the cloud of gas it surrounds (NebulaCloudVFX_NEW,
-    /// the atom's body since the scientists asked for hydrogen to be met as a cloud),
-    /// so that at 200 metres, where the cloud itself is nothing, a point of pink light
-    /// is what arrives.
+    /// The halo's tint: the cold blue of the cloud of gas it surrounds (NebulaCloudVFX_NEW,
+    /// the atom's body since the scientists asked for hydrogen to be met as a cloud — cold
+    /// neutral hydrogen, not the journey's pink nebulae), so that at 200 metres, where the
+    /// cloud itself is nothing, a point of cold light is what arrives.
     ///
     /// Well under white: additive stacks, and the halo overlaps itself at the centre. The
     /// shader doubles tint and alpha, so this is half of what is seen.
     /// </summary>
-    public static readonly Color AtomHaloTint = new Color(0.80f, 0.35f, 0.70f, 0.42f);
+    public static readonly Color AtomHaloTint = new Color(0.45f, 0.78f, 1f, 0.4f);
 
     /// <summary>The halo's colour, in one place so the builder can put it on a material generated before it.</summary>
     public static void ApplyAtomHaloLook(Material material)
