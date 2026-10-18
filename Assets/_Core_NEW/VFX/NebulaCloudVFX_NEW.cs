@@ -5,7 +5,8 @@ using UnityEngine;
 /// a translucent, reddish-purple nebula like the Orion Nebula — gas glowing red and pink
 /// where the stars born inside it light it, violet and blue further out, torn by dark lanes
 /// of dust, a few bright stars in its hollow heart; and see-through, so what is behind it
-/// shows through.
+/// shows through. Its shape is a few lumps grown together, stretched one way, with torn,
+/// wispy edges — a different ragged outline from every side, never a sphere.
 ///
 /// Where it is used:
 ///   the journey   Tools > Journey NEW > Add Nebulae To Second Cosmic Web scatters a few in
@@ -15,7 +16,8 @@ using UnityEngine;
 ///   the tutorial  TutorialAtom_NEW's body (D4 to D8): the gas cloud that closes on the light
 ///                 and absorbs a wavelength of it, where there used to be a glowing atom.
 ///
-/// Put it on an empty object: the cloud is a sphere of this object's scale in radius. It
+/// Put it on an empty object: the cloud fits inside a sphere of this object's scale in
+/// radius, and fills about three quarters of it. It
 /// builds what it draws — one sphere, drawn from its back faces so it works from inside — as
 /// a hidden child that is never saved, in the editor too, and fades with its world through
 /// _Color, built before WorldSwitcher_NEW gathers renderers.
@@ -31,12 +33,12 @@ using UnityEngine;
 public class NebulaCloudVFX_NEW : MonoBehaviour
 {
     [Header("Gas")]
-    [Tooltip("Which cloud: where its wisps, its lanes and its stars fall.")]
+    [Tooltip("Which cloud: the shape of its lumps, and where its wisps, its lanes and its stars fall.")]
     [SerializeField] int seed = 0;
 
     [Range(0f, 2f)] [SerializeField] float density = 0.85f;
 
-    [Tooltip("How soft the gas's edges are: how far inside the sphere it starts to thin.")]
+    [Tooltip("How far the wisps reach out past the body's lumps.")]
     [Range(0.1f, 1f)] [SerializeField] float softness = 0.5f;
 
     [Tooltip("How hollow the middle is, round the stars that have blown the gas clear.")]
@@ -80,7 +82,7 @@ public class NebulaCloudVFX_NEW : MonoBehaviour
     Mesh _mesh;
     bool _dirty;
 
-    /// <summary>The cloud's radius, in world units.</summary>
+    /// <summary>The cloud's bound, in world units: the radius the gas never reaches past.</summary>
     public float Radius => transform.lossyScale.x;
 
     void OnEnable() => Build();

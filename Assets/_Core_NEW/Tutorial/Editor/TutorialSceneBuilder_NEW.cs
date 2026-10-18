@@ -3201,11 +3201,12 @@ public static class TutorialSceneBuilder_NEW
     }
 
     /// <summary>
-    /// The cloud's radius as a multiple of the atom's scale, which is the approach: 0.4 m
-    /// at spawn, where it is the halo that is seen, and 3.8 m at impact — larger than
-    /// impactRadius, so the light is inside the gas when the line is cut.
+    /// The cloud's bound as a multiple of the atom's scale, which is the approach: 0.5 m at
+    /// spawn, where it is the halo that is seen, and 4.8 m at impact. The gas is a ragged
+    /// shape filling about three quarters of that — still well past impactRadius, so the
+    /// light is inside the gas when the line is cut.
     /// </summary>
-    const float CloudOfAtom = 1.6f;
+    const float CloudOfAtom = 2f;
 
     /// <summary>The point light's colour: the cloud's pink, on the trail as it closes.</summary>
     static readonly Color AtomLightColour = new Color(1f, 0.55f, 0.75f);
