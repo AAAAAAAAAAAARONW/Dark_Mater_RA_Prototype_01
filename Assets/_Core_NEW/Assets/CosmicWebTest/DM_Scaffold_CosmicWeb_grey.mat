@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 6
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: DM_Scaffold_CosmicWeb_grey
+  m_Shader: {fileID: 4800000, guid: 8854f0a1e271af1498e0b917521acfa2, type: 3}
+  m_ShaderKeywords: 
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _BakedTex:
+        m_Texture: {fileID: 11700000, guid: 57d0430d8597f924f91748535a5a1146, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Floats:
+    - _Absorption: 0.8
+    - _AlphaFog: 1.25
+    - _Density: 1.2
+    - _Emission: 1.4
+    - _LayerAroundPhoton: 0
+    - _Opacity: 0.55
+    - _RevealSoftness: 0.25
+    - _SplitPart: 0
+    - _StepWorldLength: 0.6
+    - _Steps: 24
+    m_Colors:
+    - _Color: {r: 0.62, g: 0.62, b: 0.68, a: 1}
