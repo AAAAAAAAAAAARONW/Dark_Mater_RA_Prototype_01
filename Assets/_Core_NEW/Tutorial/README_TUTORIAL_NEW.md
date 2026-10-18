@@ -660,7 +660,7 @@ C2 是全片唯一 A 不等于复位的拍子（它是发射）。`Beat_Confirm_
 
 | Frame | 复用 | 需要新增 |
 |---|---|---|
-| D1–D4 | `Beat_Cinematic_NEW` | 单个氢原子、原子团、光谱条的空态与单线态、`Time.timeScale = 0.2` 的吸收拍 |
+| D1–D4 | `Beat_Cinematic_NEW` | 单团氢气云（`TutorialAtom_NEW` + 子物体 `Cloud` 上的 `NebulaCloudVFX_NEW`，10 月 14 日 LARC 会议后从「一个氢原子」改成半透明红紫色的气体云）、气云团、光谱条的空态与单线态、`Time.timeScale = 0.2` 的吸收拍 |
 | D5 | 新的 inspect 拍子 | **被三个面部按键阻塞** |
 | E1 | `Beat_Cinematic_NEW` | 结构化纤维（复用现有 cosmic web） |
 | E2 | 新的滑杆拍子 | 暗物质滑杆 UI，门控是「推到两端」 |

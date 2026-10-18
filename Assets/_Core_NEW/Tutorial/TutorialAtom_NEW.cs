@@ -31,6 +31,13 @@ using UnityEngine.Serialization;
 ///
 /// Nothing here requires art. Scale and an optional Light are driven directly, so a
 /// grey sphere works for whitebox; onImpact is the seam for the real thing.
+///
+/// LATER: IT LOOKS LIKE A CLOUD OF GAS. The scientists' note (LARC, 14 October): hydrogen is
+/// met as a cloud, not one big atom — a translucent, reddish-purple nebula, the Orion Nebula
+/// the reference; the script now says "a cloud of hydrogen gas" (D4 to D8). The body is a
+/// NebulaCloudVFX_NEW on a child named Cloud (the builder adds it), which rides the approach's
+/// growth; the halo and the light take its colour, so at 200 metres it is still a point of
+/// pink light arriving. One cloud is still one cause: the pairing above holds.
 /// </summary>
 [DisallowMultipleComponent]
 [HierarchyBadge_NEW("ATOM", "#8FD4E8")]

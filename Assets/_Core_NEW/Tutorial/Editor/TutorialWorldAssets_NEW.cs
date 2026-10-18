@@ -435,7 +435,7 @@ public static class TutorialWorldAssets_NEW
         Material existing = AssetDatabase.LoadAssetAtPath<Material>(AtomHaloMaterialPath);
         if (existing != null) return existing;
 
-        Shader shader = FindAdditiveParticleShader();
+        Shader shader = TintableAdditiveParticleShader();
         if (shader == null) return null;
 
         EnsureFolder();
@@ -444,15 +444,52 @@ public static class TutorialWorldAssets_NEW
         material.name = "TutorialAtomHalo";
         material.mainTexture = SoftDot();
 
-        // Cool, and well under white: additive stacks, and the halo overlaps itself at
-        // the centre where the core already is.
-        if (material.HasProperty("_TintColor"))
-            material.SetColor("_TintColor", new Color(0.38f, 0.62f, 0.92f, 0.5f));
+        ApplyAtomHaloLook(material);
 
         AssetDatabase.CreateAsset(material, AtomHaloMaterialPath);
         Debug.Log("[TutorialWorldAssets_NEW] Generated " + AtomHaloMaterialPath + ".");
 
         return material;
+    }
+
+    /// <summary>
+    /// The halo's tint: the pink of the cloud of gas it surrounds (NebulaCloudVFX_NEW,
+    /// the atom's body since the scientists asked for hydrogen to be met as a cloud),
+    /// so that at 200 metres, where the cloud itself is nothing, a point of pink light
+    /// is what arrives.
+    ///
+    /// Well under white: additive stacks, and the halo overlaps itself at the centre. The
+    /// shader doubles tint and alpha, so this is half of what is seen.
+    /// </summary>
+    public static readonly Color AtomHaloTint = new Color(0.80f, 0.35f, 0.70f, 0.42f);
+
+    /// <summary>The halo's colour, in one place so the builder can put it on a material generated before it.</summary>
+    public static void ApplyAtomHaloLook(Material material)
+    {
+        if (material == null) return;
+
+        if (material.HasProperty("_TintColor"))
+            material.SetColor("_TintColor", AtomHaloTint);
+    }
+
+    /// <summary>
+    /// An additive particle shader WITH a tint. Mobile/Particles/Additive, which
+    /// FindAdditiveParticleShader prefers, has no colour at all — texture times vertex
+    /// colour, and a quad's vertex colour is white — which is why the halo was white for
+    /// as long as it was on it, whatever the builder wrote. The legacy one has _TintColor.
+    /// </summary>
+    public static Shader TintableAdditiveParticleShader()
+    {
+        Shader shader = Shader.Find("Legacy Shaders/Particles/Additive");
+        if (shader != null) return shader;
+
+        shader = Shader.Find("Particles/Additive");
+        if (shader != null) return shader;
+
+        Debug.LogWarning("[TutorialWorldAssets_NEW] No tintable additive particle shader found; " +
+                         "the atom's halo will be white rather than the cloud's pink.");
+
+        return FindAdditiveParticleShader();
     }
 
     public static Material DiscDustMaterial()
