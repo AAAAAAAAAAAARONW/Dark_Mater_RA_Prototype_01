@@ -6,12 +6,18 @@ Shader "Custom/NebulaCloud_NEW"
     // dark lanes of dust, with a few bright stars in its hollow heart; and see-through, so what
     // is behind it (the web's threads, the stars) shows through.
     //
-    // CHEAP. One ray a pixel through the cloud's sphere, a dozen samples, each a few reads of
-    // the shared noise texture (QuasarNoise_NEW) on three planes for a three-dimensional
-    // density. Drawn from the sphere's back faces, so it works from inside too: the light
-    // flies through these, and the camera with it. Near the camera the gas is left out
-    // (_Resolve), so from inside it is a glow all round and a tint on what is beyond, not a
-    // flat wall of colour.
+    // NOT ROUND. The body is a few lumps grown together where the seed puts them, each pushed
+    // about by the big noise so none is a ball, and where the body thins only the noise's
+    // thicker parts and the ridged filaments pass — so the edge is torn into wisps and the
+    // outline is a different ragged shape from every side. The sphere it is drawn in is only
+    // the bound; the gas never reaches it.
+    //
+    // CHEAP. One ray a pixel through the cloud's sphere, a dozen samples, each eight reads of
+    // the shared noise texture (QuasarNoise_NEW), blended between two slabs for a
+    // three-dimensional density. Drawn from the sphere's back faces, so it works from inside
+    // too: the light flies through these, and the camera with it. Near the camera the gas is
+    // left out (_Resolve), so from inside it is a glow all round and a tint on what is
+    // beyond, not a flat wall of colour.
     //
     // Premultiplied over what is behind. _Color fades it. In Resources so a build has it.
 
@@ -21,7 +27,7 @@ Shader "Custom/NebulaCloud_NEW"
         [NoScaleOffset] _Noise ("Noise (QuasarNoise_NEW)", 2D) = "gray" {}
         _Seed ("Seed", Float) = 0
         _Density ("Density", Range(0, 2)) = 0.85
-        _Softness ("How soft the gas's edges are", Range(0.1, 1)) = 0.5
+        _Softness ("How far the wisps reach out past the body's lumps", Range(0.1, 1)) = 0.5
         _Hollow ("How hollow the middle is, round the stars", Range(0, 1)) = 0.6
         _DustAmount ("Dust lanes", Range(0, 2)) = 0.9
         _Brightness ("Brightness", Range(0, 4)) = 1
@@ -77,17 +83,38 @@ Shader "Custom/NebulaCloud_NEW"
 
             // Noise in three dimensions from the shared sheet: the sheet read at two slabs in
             // z, each shifted by its own hash, and the two blended — so there is no plane the
-            // noise is constant along, and two reads do it.
+            // noise is constant along, and two reads give all four channels (R, G soft; B
+            // ridged; A fine).
             float2 Slab(float z) { return float2(Hash(z * 1.7 + 0.3), Hash(z * 2.3 + 0.9)); }
-            float Noise3(float3 q, float channel)
+            float4 Noise4(float3 q)
             {
                 float z = q.z * 6.0;
                 float zi = floor(z), f = z - zi;
                 f = f * f * (3.0 - 2.0 * f);
                 float4 a = tex2Dlod(_Noise, float4(q.xy + Slab(zi), 0, 0));
                 float4 b = tex2Dlod(_Noise, float4(q.xy + Slab(zi + 1.0), 0, 0));
-                float4 n = lerp(a, b, f);
-                return channel < 0.5 ? n.r : channel < 1.5 ? n.g : channel < 2.5 ? n.b : n.a;
+                return lerp(a, b, f);
+            }
+
+            // The cloud's body: not a sphere but six lumps grown together, one near the
+            // middle and the rest round it, each where the seed puts it and as big as the
+            // seed makes it, the whole stretched one way as the seed has it. 1 deep inside a
+            // lump, 0 at its edge, less outside; and never past the sphere the cloud is
+            // drawn in.
+            float Body(float3 p)
+            {
+                float3 stretch = 1.0 + (float3(Hash(_Seed * 3.3 + 31.0), Hash(_Seed * 3.3 + 32.0), Hash(_Seed * 3.3 + 33.0)) - 0.5) * 0.9;
+                float3 q = p * stretch;
+                float env = -1.0;
+                [unroll]
+                for (int l = 0; l < 6; l++)
+                {
+                    float s = _Seed * 3.3 + l * 11.7;
+                    float3 c = (float3(Hash(s + 1.0), Hash(s + 2.0), Hash(s + 3.0)) * 2.0 - 1.0) * (l == 0 ? 0.18 : 0.46);
+                    float r = (l == 0 ? 0.36 : 0.18) + 0.26 * Hash(s + 4.0);
+                    env = max(env, 1.0 - length(q - c) / r);
+                }
+                return min(env, (0.95 - length(p)) * 3.0);
             }
 
             // The star i inside the cloud: where, and how bright. A few, off centre, in its hollow.
@@ -95,7 +122,7 @@ Shader "Custom/NebulaCloud_NEW"
             {
                 float s = _Seed * 5.1 + i * 7.7;
                 float3 p = float3(Hash(s + 1.0), Hash(s + 2.0), Hash(s + 3.0)) * 2.0 - 1.0;
-                p *= 0.15 * (0.4 + 0.6 * Hash(s + 4.0));
+                p *= 0.28 * (0.4 + 0.6 * Hash(s + 4.0));
                 bright = (0.5 + 0.8 * Hash(s + 5.0)) * saturate(_Stars.x - i) * _Stars.y;
                 return p;
             }
@@ -134,15 +161,25 @@ Shader "Custom/NebulaCloud_NEW"
                     float3 p = o + d * t;
                     float R = length(p);
 
-                    // The gas: noise at three scales, only its thicker part (so it is wisps, not
-                    // a ball), thinning to nothing well inside the sphere, hollow in the middle.
-                    float n = Noise3(p * 1.1 + flow, 0.0) * 0.55 + Noise3(p * 2.6 + flow * 1.5 + 3.1, 1.0) * 0.3 + Noise3(p * 5.5 + 7.7, 3.0) * 0.15;
-                    float shell = smoothstep(1.0, 0.3 + 0.3 * _Softness, R);
+                    // The gas: noise at three scales. The big one also pushes the body's lumps
+                    // about (the warp), so no lump is round; and the thinner the body, the
+                    // more of the noise is cut away — only its thicker parts and the ridged
+                    // filaments pass at the edge — so the edge is wisps, not a soft ball.
+                    // Hollow in the middle, round the stars.
+                    float4 n0 = Noise4(p * 0.6 + flow * 0.5 + 9.0);
+                    float4 n1 = Noise4(p * 1.1 + flow);
+                    float4 n2 = Noise4(p * 2.6 + flow * 1.5 + 3.1);
+                    float4 n3 = Noise4(p * 5.5 + 7.7);
+                    float3 warp = (n0.gba - 0.5) * 0.6;
+                    float env = Body(p + warp);
+                    float thin = saturate(1.0 - env);
+                    float n = n1.r * 0.45 + n2.r * 0.3 + n3.a * 0.2 + (n0.r - 0.5) * 0.3 + (n1.b - 0.5) * 0.35 * thin;
+                    float thr = 0.28 + (0.3 + 0.35 * _Softness) * thin + 0.2 * saturate(-env * 2.0) - 0.1 * _Density;
                     float hollow = lerp(1.0, smoothstep(0.06, 0.4, R), _Hollow);
-                    float gas = saturate((n - 0.6 + 0.1 * _Density) * 6.0) * shell * hollow;
+                    float gas = saturate((n - thr) * 6.0) * smoothstep(-0.5, 0.1, env) * hollow;
 
                     // Dust: torn lanes through the gas (the sheet's blue channel is ridged).
-                    float dust = smoothstep(0.62, 0.82, Noise3(p * 1.6 + flow * 0.6 + 1.3, 2.0)) * shell * _DustAmount * smoothstep(0.08, 0.3, R);
+                    float dust = smoothstep(0.6, 0.8, n2.b) * saturate(env + 0.3) * _DustAmount * smoothstep(0.08, 0.3, R);
 
                     // The stars' light on the gas: red-pink close to them, violet, then blue.
                     float lit = 0.0;
