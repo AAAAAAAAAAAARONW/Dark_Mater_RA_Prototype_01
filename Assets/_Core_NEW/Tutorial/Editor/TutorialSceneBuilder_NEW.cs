@@ -364,7 +364,7 @@ public static class TutorialSceneBuilder_NEW
         // materials rather than the first one repairing an asset the other two have
         // already been handed.
         RepairAtomCoreTranslucency();
-        RepairAtomHaloBrightness();
+        RepairAtomHaloColour();
 
         TutorialAtom_NEW atom = BuildAtom(world.transform, camera.transform, travel);
         TutorialAtomCluster_NEW cluster = BuildAtomCluster(world.transform, camera.transform,
@@ -1521,12 +1521,12 @@ public static class TutorialSceneBuilder_NEW
     ///   D1   UV and IR unfold out of the trail's edges.
     ///   D2   The visible band flashes: the part of the light eyes can see.
     ///   D3   The spectrum bar appears, with UV, visible and IR marked on it.
-    ///   D4   The bar moves up; an atom closes on the light.
+    ///   D4   The bar moves up; a cloud of hydrogen gas closes on the light.
     ///   D5   Contact, 0.2x: a line appears on the light and on the bar, and blinks.
-    ///   D6   More atoms. No redshift yet, so they all absorb at the same wavelength and
+    ///   D6   More clouds. No redshift yet, so they all absorb at the same wavelength and
     ///        the same line deepens.
     ///   D7   Redshift begins. The bands stay put; the spectrum and its line slide red.
-    ///   D8   One more atom during the redshift. It absorbs at the same wavelength as
+    ///   D8   One more cloud during the redshift. It absorbs at the same wavelength as
     ///        before, but the old line has moved — a second line. This is how the
     ///        Lyman-alpha forest forms.
     ///   D9   UV and IR fold away.
@@ -1549,7 +1549,7 @@ public static class TutorialSceneBuilder_NEW
             "The spectrum. The bar appears, empty, with UV, visible and IR marked on it.");
 
         Beat_Cinematic_NEW d4 = Cinematic(parent, "D4", 10f,
-            "Approach. The bar moves up out of the way; a single hydrogen atom closes on " +
+            "Approach. The bar moves up out of the way; a cloud of hydrogen gas closes on " +
             "the light.");
 
         Beat_Cinematic_NEW d5 = Cinematic(parent, "D5", 8f,
@@ -1561,9 +1561,9 @@ public static class TutorialSceneBuilder_NEW
         Wire(d5).Flag("useScaledTime", false).Apply();
 
         Beat_Cinematic_NEW d6 = Cinematic(parent, "D6", 10f,
-            "More atoms, one after another. Every one absorbs the same wavelength — that " +
+            "More clouds, one after another. Every one absorbs the same wavelength — that " +
             "is what hydrogen does — but the spectrum has carried the last mark redward " +
-            "by the time the next arrives, so each atom cuts its own line and a row of " +
+            "by the time the next arrives, so each cloud cuts its own line and a row of " +
             "them builds up. This is a forest forming.");
 
         Beat_Cinematic_NEW d7 = Cinematic(parent, "D7", 9.6f,
@@ -1573,10 +1573,10 @@ public static class TutorialSceneBuilder_NEW
             "moving toward red together.");
 
         Beat_Cinematic_NEW d8 = Cinematic(parent, "D8", 10f,
-            "One more atom, with the row already on screen. It absorbs at the same " +
+            "One more cloud, with the row already on screen. It absorbs at the same " +
             "wavelength as all the others and lands at the blue end of the row, which is " +
             "where the newest line always is — the spacing is a record of the distance " +
-            "between the atoms that made them.");
+            "between the clouds that made them.");
 
         Beat_Cinematic_NEW d9 = Cinematic(parent, "D9", 5f,
             "UV and IR fold away, leaving the visible light and the lines carried in it.");
@@ -2318,7 +2318,7 @@ public static class TutorialSceneBuilder_NEW
                                             TutorialSpectrum_NEW spectrum,
                                             TutorialSpectrumBands_NEW spectrumBands)
     {
-        TutorialAtom_NEW atom = BuildAtom(world, camera, travel, "Atom_D8");
+        TutorialAtom_NEW atom = BuildAtom(world, camera, travel, "Atom_D8", 5);
 
         Wire(atom)
             .Num("spawnDistance", 160f)
@@ -2906,30 +2906,57 @@ public static class TutorialSceneBuilder_NEW
     }
 
     /// <summary>
-    /// Take the glare off the halo, on a material generated while it was bright.
+    /// Give the halo the cloud's pink, on a material generated while the atom was blue —
+    /// or white: the halo material was generated on Mobile/Particles/Additive, which has
+    /// no tint, so every blue this builder wrote went nowhere and the halo was white.
     ///
-    /// Same reasoning and the same narrow test as RepairAtomCoreTranslucency: only the
-    /// exact tint this builder used to write is replaced.
+    /// Same reasoning and the same narrow test as RepairAtomCoreTranslucency: a material
+    /// with no tint property is moved to the legacy additive shader, which has one; a
+    /// material still on a tint this builder used to write is retinted. Anything else is
+    /// somebody's choice.
     /// </summary>
-    static readonly Color PastAtomHaloTint = new Color(0.38f, 0.62f, 0.92f, 0.5f);
-    static readonly Color AtomHaloTint = new Color(0.22f, 0.34f, 0.52f, 0.30f);
+    static readonly Color[] PastAtomHaloTints =
+    {
+        new Color(0.38f, 0.62f, 0.92f, 0.5f),
+        new Color(0.22f, 0.34f, 0.52f, 0.30f),
+    };
 
-    static void RepairAtomHaloBrightness()
+    static void RepairAtomHaloColour()
     {
         Material halo = TutorialWorldAssets_NEW.AtomHaloMaterial();
-        if (halo == null || !halo.HasProperty("_TintColor")) return;
+        if (halo == null) return;
 
-        Color tint = halo.GetColor("_TintColor");
+        bool untintable = !halo.HasProperty("_TintColor");
 
-        if (!Approximately(tint, PastAtomHaloTint)) return;
+        if (!untintable)
+        {
+            Color tint = halo.GetColor("_TintColor");
 
-        Undo.RecordObject(halo, "Repair atom halo brightness");
-        halo.SetColor("_TintColor", AtomHaloTint);
+            bool past = false;
+            foreach (Color c in PastAtomHaloTints) past |= Approximately(tint, c);
+            if (!past) return;
+        }
+
+        Undo.RecordObject(halo, "Repair atom halo colour");
+
+        if (untintable)
+        {
+            Shader tintable = TutorialWorldAssets_NEW.TintableAdditiveParticleShader();
+            if (tintable == null) return;
+
+            halo.shader = tintable;
+            if (!halo.HasProperty("_TintColor")) return;
+        }
+
+        TutorialWorldAssets_NEW.ApplyAtomHaloLook(halo);
         EditorUtility.SetDirty(halo);
         AssetDatabase.SaveAssets();
 
-        Debug.LogWarning("[TutorialSceneBuilder_NEW] Dimmed the atom's halo. Additive stacks, " +
-                         "and it overlaps itself at the centre where the core already is.", halo);
+        Debug.LogWarning("[TutorialSceneBuilder_NEW] The atom's halo is pink now, the colour of " +
+                         "the cloud of gas inside it." +
+                         (untintable ? " It was on Mobile/Particles/Additive, which has no tint, " +
+                                       "so it was white; it is on " + halo.shader.name + " now."
+                                     : ""), halo);
     }
 
     static bool Approximately(Color a, Color b)
@@ -2968,6 +2995,43 @@ public static class TutorialSceneBuilder_NEW
                          "was still using the guide motes' warm yellow, which reads as a " +
                          "fourth mote inside a cold halo — and the atom is the first thing " +
                          "in the piece that is not a guide.", renderer);
+    }
+
+    /// <summary>
+    /// Switch off the core sphere of an atom built when it was a ball, now that its body
+    /// is the cloud of gas. Narrow like the other repairs: only a renderer still on this
+    /// builder's core material, and still on, is changed.
+    /// </summary>
+    static void RepairAtomCoreHidden(MeshRenderer renderer)
+    {
+        if (renderer == null || !renderer.enabled) return;
+
+        Material core = TutorialWorldAssets_NEW.AtomCoreMaterial();
+        if (core == null || renderer.sharedMaterial != core) return;
+
+        Undo.RecordObject(renderer, "Hide atom core");
+        renderer.enabled = false;
+        EditorUtility.SetDirty(renderer);
+
+        Debug.LogWarning("[TutorialSceneBuilder_NEW] Switched off the atom's core sphere: the " +
+                         "atom is a cloud of gas now (its Cloud child), as the scientists asked. " +
+                         "Switch the renderer back on to compare.", renderer);
+    }
+
+    /// <summary>
+    /// Give the point light of an atom built when it was blue the cloud's pink. Only the
+    /// exact colour this builder used to write is changed.
+    /// </summary>
+    static void RepairAtomLightColour(Light glow)
+    {
+        if (glow == null || !Approximately(glow.color, PastAtomLightColour)) return;
+
+        Undo.RecordObject(glow, "Repair atom light colour");
+        glow.color = AtomLightColour;
+        EditorUtility.SetDirty(glow);
+
+        Debug.LogWarning("[TutorialSceneBuilder_NEW] The atom's light is pink now, the colour of " +
+                         "the cloud of gas it is inside.", glow);
     }
 
     /// <summary>
@@ -3106,7 +3170,7 @@ public static class TutorialSceneBuilder_NEW
 
         for (int i = 0; i < ClusterSpread.Length; i++)
         {
-            TutorialAtom_NEW atom = BuildAtom(root.transform, camera, travel, "Atom_D4_" + (i + 1));
+            TutorialAtom_NEW atom = BuildAtom(root.transform, camera, travel, "Atom_D4_" + (i + 1), i + 1);
 
             Wire(atom)
                 .Vec2("spawnSpread", ClusterSpread[i])
@@ -3136,18 +3200,35 @@ public static class TutorialSceneBuilder_NEW
         return cluster;
     }
 
+    /// <summary>
+    /// The cloud's radius as a multiple of the atom's scale, which is the approach: 0.4 m
+    /// at spawn, where it is the halo that is seen, and 3.8 m at impact — larger than
+    /// impactRadius, so the light is inside the gas when the line is cut.
+    /// </summary>
+    const float CloudOfAtom = 1.6f;
+
+    /// <summary>The point light's colour: the cloud's pink, on the trail as it closes.</summary>
+    static readonly Color AtomLightColour = new Color(1f, 0.55f, 0.75f);
+    static readonly Color PastAtomLightColour = new Color(0.72f, 0.86f, 1f);
+
     static TutorialAtom_NEW BuildAtom(Transform world, Transform camera, TutorialTravel_NEW travel)
     {
-        return BuildAtom(world, camera, travel, "Atom_D1");
+        return BuildAtom(world, camera, travel, "Atom_D1", 0);
     }
 
+    /// <param name="cloudSeed">Which cloud: each atom gets its own wisps, lanes and stars.</param>
     static TutorialAtom_NEW BuildAtom(Transform world, Transform camera, TutorialTravel_NEW travel,
-                                      string name)
+                                      string name, int cloudSeed)
     {
-        // A hard core inside a soft halo. The core gives it an edge so it still reads as
-        // an object at 200 metres; the halo is what makes it read as light rather than
-        // as a grey ball. Cold white against the motes' warm yellow, because this is the
-        // first thing in the piece that is not a guide.
+        // A cloud of gas inside a soft halo. The scientists asked for hydrogen to be met
+        // as a cloud, not a ball (LARC, 14 October): translucent, reddish-purple, the
+        // Orion Nebula the reference. The cloud is a NebulaCloudVFX_NEW on a child, riding
+        // the approach's growth. The halo is what makes it read as a point of pink light
+        // at 200 metres, where the cloud itself is nothing; the point light puts the same
+        // colour on the trail as it closes.
+        //
+        // The sphere this used to be is still the object — its scale is the approach —
+        // with its renderer off. Switch the renderer back on to see the old core.
         GameObject go = Primitive(name, world, Vector3.zero, Vector3.one * 0.5f);
 
         MeshRenderer renderer = go.GetComponent<MeshRenderer>();
@@ -3159,10 +3240,29 @@ public static class TutorialSceneBuilder_NEW
 
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             renderer.receiveShadows = false;
+            renderer.enabled = false;
         }
         else
         {
             RepairAtomCoreMaterial(renderer);
+            RepairAtomCoreHidden(renderer);
+        }
+
+        GameObject cloudObject = FindOrCreate("Cloud", go.transform, Vector3.zero);
+
+        if (IsFresh(cloudObject))
+        {
+            cloudObject.transform.localPosition = Vector3.zero;
+            cloudObject.transform.localScale = Vector3.one * CloudOfAtom;
+
+            NebulaCloudVFX_NEW cloud = AddIfMissing<NebulaCloudVFX_NEW>(cloudObject);
+
+            // Through SerializedObject like Wire, which has no int: the seed is the one
+            // thing on the cloud the builder sets, the look is the component's own.
+            var cloudProperties = new SerializedObject(cloud);
+            SerializedProperty seed = cloudProperties.FindProperty("seed");
+            if (seed != null) seed.intValue = cloudSeed;
+            cloudProperties.ApplyModifiedPropertiesWithoutUndo();
         }
 
         GameObject halo = FindOrCreate("Halo", go.transform, Vector3.zero);
@@ -3192,9 +3292,14 @@ public static class TutorialSceneBuilder_NEW
             glow.range = 40f;
             glow.shadows = LightShadows.None;
 
-            // Cooler than a mote's warm yellow. Hydrogen is not one of the guides, and
-            // the player should not be waiting for it to bloom the way B1's mote did.
-            glow.color = new Color(0.72f, 0.86f, 1f);
+            // The cloud's pink, not a mote's warm yellow. Hydrogen is not one of the
+            // guides, and the player should not be waiting for it to bloom the way B1's
+            // mote did.
+            glow.color = AtomLightColour;
+        }
+        else
+        {
+            RepairAtomLightColour(glow);
         }
 
         TutorialAtom_NEW atom = AddIfMissing<TutorialAtom_NEW>(go);

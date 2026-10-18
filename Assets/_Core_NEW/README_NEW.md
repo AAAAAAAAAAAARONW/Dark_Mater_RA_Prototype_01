@@ -214,6 +214,17 @@ SolarSystem → SolarSystem
 
 Earth 没有组是**有意的**（结局是视频过场）。新版遇到找不到的 layerId 会保持现状并打一条 warning，不会像旧版那样把整个世界隐藏。
 
+### 4b · 第一个星系与第二段 cosmic web 的星云
+
+两个都是运行时自建隐藏子物体的 VFX（和 `GalaxyVFX_NEW` / `HostGalaxyVFX_NEW` 一个路数：`_Color` 跟着 `WorldSwitcher_NEW` 淡入淡出，shader 在 `Resources/` 里），场景里只存一个空物体和参数：
+
+| 物体 | 组件 | 在哪 | 重摆菜单 |
+|---|---|---|---|
+| `Render Layers/GalaxyLayer/Young Galaxy VFX` | `YoungGalaxyVFX_NEW` | 半径 28，盘面倾斜 28°，盘面在 Micro 门后 35 处横过光的路线，中心偏到路线右侧 0.4 R，光从团块之间穿过 | `Tools > Journey NEW > Add Young Galaxy VFX to Open Scene`（旧的 `GalaxyPrototype`、`Galaxy2` 会被关掉，不删） |
+| `Render Layers/CosmicWeb/Nebulae` | 7 × `NebulaCloudVFX_NEW` | 沿 CosmicWeb 门到 MilkyWay 门那一段按比例摆，两团在光的路线上 | `Tools > Journey NEW > Add Nebulae To Second Cosmic Web` |
+
+年轻星系是宇宙正午的星系（J4 那一段台词）：没有旋臂，一打巨大的恒星形成团块、厚而湍动的盘、两条从外面流进来的冷气体流、上下的星风，故意和银河系（蓝白大旋臂）、类星体宿主（桃金双臂加星暴环）都不一样。星云是 LARC 10 月 14 日要的「半透明红紫色的氢气云」，纯视觉，不接光谱（Lyman-alpha forest 的线还是 bake 的）。Tutorial D4–D8 的氢原子也换成了同一个 `NebulaCloudVFX_NEW`。
+
 ### 5 · 六扇门
 
 每扇门加 `LayerGate_NEW`（layerId 照抄），禁用旧的 `LayerTriggerVolumeTest`。

@@ -77,6 +77,9 @@ python elevenlabs_vo.py install
 - [ ] **重新生成 3 句**：J5（第二个 cosmic web 的「70 亿年前」那句，上次没生成成功）和 E2 的两条 Y 键操作提示。共 283 字符。在 `Assets/VoiceOver/Tools~` 跑 `plan` → `generate --go` → `install`。
 - [ ] **Ana 场景加上「光撞进地球」**：`Tools > Journey NEW > Solar System > Aim the Light at Earth`，保存场景。
 - [ ] **Tutorial 场景跑一次 Build or Update**：光谱条上跟着吸收线走的标记从箭头换成了方框（`LineOutline`）。
+- [ ] **Tutorial 里的氢原子换成了气体云**（LARC 10 月 14 日：半透明、红紫色、参考猎户座星云）。场景已经改好：D4–D8 的每个 `Atom_*` 下多了一个 `Cloud` 子物体（`NebulaCloudVFX_NEW`），原来的小球渲染器关掉了，光晕和点光源改成了粉色（`TutorialAtomHalo.mat` 换到了 Legacy Particles/Additive，才能上色）。试玩 D4：远处先是一个粉色光点，靠近时长成一团云，撞上时光在云里面、光谱上出现那条线。嫌云太大/太小改 `Cloud` 的 scale（现在 1.6，撞击时半径约 3.8 米）。
+- [ ] **Ana 的第一个星系换成了「年轻星系」**（`YoungGalaxyVFX_NEW`：没有旋臂，一打巨大的恒星形成团块，蓝白的星团裹着品红色的电离氢，厚而湍动的紫蓝色盘，两条从外面流进来的冷气体流，上下吹出的星风）。它在 `Render Layers/GalaxyLayer/Young Galaxy VFX`，半径 28，盘面倾斜 28°，光从团块之间穿过盘面、离开时星系落在身后。旧的 `GalaxyPrototype`/`Galaxy2` 还在，只是关着。以后重摆用 `Tools > Journey NEW > Add Young Galaxy VFX to Open Scene`（先删掉旧的）。
+- [ ] **第二段 cosmic web 里多了 7 团星云**（`Render Layers/CosmicWeb/Nebulae`，`NebulaCloudVFX_NEW`，纯视觉，不接光谱）：两团在光的路径上会直接穿过去，其余在纤维之间不同远近。重摆用 `Tools > Journey NEW > Add Nebulae To Second Cosmic Web`。按 3 跳到 CosmicWeb 看一遍：云应该是半透明的、能看见后面的纤维，从里面穿过时四周是一圈红紫色的光，不是一堵墙。
 - [ ] **开场：黑 0.1 秒后淡入**（出生点 z 100，开场这层全速约 14 秒）。在 Ana 场景跑一次 Wire Journey Voice Over 并保存：会加上 `JourneyOpening_NEW`，把 J2、J2b 从开场挪到星系，开场延迟从 3 秒改成 1 秒。试玩时检查：黑一下就淡入、光开始飞；J0 说完接着 J1；Console 里没有 `Dropped J1…`。
 - [ ] **Ana 场景再跑一次 Wire Journey Voice Over 并保存**：会撤掉上一轮写进场景的开场减速。
 - [ ] **Solar System 镜头**：`Tools > Journey NEW > Solar System > Camera Preset` 把视角放宽并把相机拉远；`Tilt the System` 把太阳系平面倾斜 15°，让轨道看起来是椭圆而不是一条线。两个可以分别用 Ctrl+Z 撤销，满意就保存场景。
