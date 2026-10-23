@@ -10,12 +10,23 @@ Shader "Custom/CosmicWebNebula_NEW"
     // clusters (Core, Coreyellow2) keep their own material: they are the galaxies' light.
     //
     // CHEAP. No ray march. The filament mesh is the gas's shape, so each pixel of it is shaded
-    // once: how squarely the eye looks through the thread there (its soft edge), one read of
-    // the web's own bake for where the gas is thick, and two reads of a small tiling 3D noise
-    // for clumps, lanes and which gas is lit. Three texture reads and no loop, where the baked
+    // once: how squarely the eye looks through the thread there, one read of the web's own
+    // bake for where the gas is thick, two reads of a small tiling 3D noise for clumps, lanes
+    // and which gas is lit, and one of the soft-edge field (below). Four texture reads and no
+    // loop, where the baked
     // volume it replaces (Custom/PreBakedCloudVolume) took 16 to 32 reads in a loop on every
     // layer of the mesh under every pixel. Front and back faces both draw (a thread seen
     // through is two layers of gas), so where threads cross the light builds up.
+    //
+    // SOFT EDGES. Much of the web is thin sheets and threads, closed shells whose rim turns
+    // round in a hair's width: shaded by the surface alone the gas stopped there in a hard line.
+    // So each mesh comes with a small 3D field baked from it (_Soft: its surface area round
+    // each point, blurred over a few world units), high in the middle of a sheet or a thread
+    // and falling off towards its rim, its tip and round a stray fragment. The gas fades with
+    // it, the fade broken up by the noise, so the edges go ragged and wispy rather than either
+    // hard or blurred. One more texture read. The fields are baked from the meshes by
+    // Assets/_Core_NEW/Assets/CosmicWebNebula/Tools~/bake_soft_edges.py; the meshes import
+    // with fully smooth normals (smoothing angle 180), so a rim's normals turn smoothly too.
     //
     // Up close the gas thins out, so flying through a thread is a glow round the light, not a
     // wall; the noise's finer octave gives way to its mean where it would get smaller than a
@@ -28,6 +39,10 @@ Shader "Custom/CosmicWebNebula_NEW"
     {
         [NoScaleOffset] _BakedTex ("The web's bake (where the gas is thick)", 3D) = "" {}
         [NoScaleOffset] _Noise ("Tiling 3D noise (WebNebulaNoise_NEW)", 3D) = "" {}
+        [NoScaleOffset] _Soft ("Soft edges: the mesh's own field (sqrt stored)", 3D) = "" {}
+        _SoftMin ("Soft edges: the field's box in object space, its lowest corner", Vector) = (-0.06, -0.05, -0.044, 0)
+        _SoftSize ("Soft edges: the field's box, its size", Vector) = (0.133, 0.093, 0.086, 0)
+        _SoftEdge ("Soft edges: fade in from x to y of the field, ragged by z; (-1, 0, 0) off", Vector) = (0.12, 0.75, 0.45, 0)
         _NoiseScale ("Noise tiles per world unit", Float) = 0.025
         _Drift ("Drift, world units a second", Vector) = (0.4, 0.15, 0.25, 0)
         _Opacity ("Opacity (WorldSwitcher_NEW fades this)", Range(0, 1)) = 0.85
@@ -59,9 +74,9 @@ Shader "Custom/CosmicWebNebula_NEW"
             #pragma target 3.0
             #include "UnityCG.cginc"
 
-            sampler3D _BakedTex, _Noise;
+            sampler3D _BakedTex, _Noise, _Soft;
             float _NoiseScale, _Opacity, _Emission, _Brightness, _Edge, _Absorb, _Dust, _Baked;
-            float4 _Drift, _CameraFade;
+            float4 _Drift, _CameraFade, _SoftMin, _SoftSize, _SoftEdge;
             float4 _Lit, _Mid, _Rim;
             fixed4 _DustColor;
 
@@ -115,9 +130,16 @@ Shader "Custom/CosmicWebNebula_NEW"
                 float lanes = n1.g * 0.55 + n2.g * 0.45;
                 float warm = n1.b * 0.7 + n2.a * 0.3;
 
+                // Soft edges: thinning towards the rim of a sheet, the tip of a thread and round
+                // a stray fragment, raggedly.
+                float shape = tex3D(_Soft, (i.obj - _SoftMin.xyz) / _SoftSize.xyz).r;
+                shape *= shape;
+                float edge = smoothstep(_SoftEdge.x, _SoftEdge.y,
+                                        shape + (n1.a * 0.6 + n2.a * 0.4 - 0.5) * _SoftEdge.z * (1.0 - shape * 0.5));
+
                 // How much gas the eye looks through: broken into clumps with thin gaps between,
                 // so a thread is a ragged cloud, not a tube.
-                float amount = body * (0.25 + 0.75 * thick) * (0.25 + 0.75 * smoothstep(0.3, 0.75, gas));
+                float amount = body * edge * (0.25 + 0.75 * thick) * (0.25 + 0.75 * smoothstep(0.3, 0.75, gas));
 
                 // Blue-violet and thin at the edges, purple through, lilac where thick and lit.
                 float3 colour = lerp(_Rim.rgb, _Mid.rgb, smoothstep(0.1, 0.55, body * (0.6 + gas)));
@@ -125,7 +147,7 @@ Shader "Custom/CosmicWebNebula_NEW"
                 colour = lerp(colour, _Lit.rgb, lit * smoothstep(0.25, 0.75, body));
 
                 // Dark lanes of dust, through the middle of a thread rather than its edge.
-                float dust = smoothstep(0.62, 0.85, lanes) * smoothstep(0.2, 0.7, body) * _Dust;
+                float dust = smoothstep(0.62, 0.85, lanes) * smoothstep(0.2, 0.7, body) * edge * _Dust;
 
                 float near = smoothstep(_CameraFade.x, _CameraFade.y, distance);
                 float3 light = colour * amount * (1.0 - 0.85 * saturate(dust)) * _Emission * _Brightness * 0.13;
