@@ -14,6 +14,10 @@ Shader "Custom/RingGalaxyStars_NEW"
     //   4 intruder   the companion's stars: a warm, flattened, edge-on swarm
     //   5 halo       a few old stars and clusters all round, dim
     //
+    // They go round with the ring, the old ones faster near the nucleus; the ring's stars flare as
+    // a ripple crosses them and every star twinkles; stars stream along the bridge into the ring
+    // and out along the tidal tail.
+    //
     // Additive points, never thinner than two pixels, never bigger than _MaxSize of the screen,
     // so one passing close is still a star. _Color fades it star by star, as GalaxyStars_NEW does.
 
@@ -21,7 +25,8 @@ Shader "Custom/RingGalaxyStars_NEW"
     {
         _Color ("Fade (all four channels, as WorldSwitcher_NEW sets it)", Color) = (1, 1, 1, 1)
         _Seed ("Seed", Float) = 0
-        _Turn ("Turn, radians a second", Float) = 0.004
+        _Turn ("Turn, radians a second", Float) = 0.02
+        _Ripple ("Ripples: seconds to spread, strength; twinkle; a knot's life, seconds", Vector) = (14, 1, 0.6, 50)
         _Ring ("Ring: radius, half width, lopsidedness, egg-shape", Vector) = (0.72, 0.085, 0.85, 0.12)
         _CompTilt ("The intruder's disc turned about its long axis, radians", Float) = -0.785
         _Comp ("The intruder: where (of the radius), and its size", Vector) = (-0.98, 0.0, -0.05, 0.3)
@@ -101,12 +106,15 @@ Shader "Custom/RingGalaxyStars_NEW"
                     else
                     {
                         // Along the ring.
-                        float a = s0 * RG_TAU + _Turn * T;
+                        float a0 = s0 * RG_TAU;
+                        float a = a0 + _Turn * T;
                         float r = RGRingR(a) + Gauss(s1) * RGWidth(a) * 0.55;
                         position = float3(cos(a) * r, Gauss(frac(s1 * 7.7)) * h * 1.8, sin(a) * r);
-                        // Bunched along the ring, as its gas is, with gaps (no regular pattern).
-                        float bunch = saturate(0.45 + 0.55 * sin(a * 3.0 + _Seed * 1.3) * sin(a * 7.3 + 1.7) + 0.35 * sin(a * 13.1 + 4.2));
-                        colour = _RingStars.rgb * RGBright(a) * (0.1 + 1.2 * bunch) * (0.1 + 1.1 * pow(frac(s2 * 41.3), 4.0));
+                        // Bunched along the ring, as its gas is, with gaps (no regular pattern);
+                        // the bunches go round with it.
+                        float bunch = saturate(0.45 + 0.55 * sin(a0 * 3.0 + _Seed * 1.3) * sin(a0 * 7.3 + 1.7) + 0.35 * sin(a0 * 13.1 + 4.2));
+                        colour = _RingStars.rgb * RGBright(a) * (0.1 + 1.2 * bunch) * (0.1 + 1.1 * pow(frac(s2 * 41.3), 4.0))
+                               * (1.0 + 1.5 * RGRipple(position.xz, T));
                     }
                     size *= 0.6 + 1.4 * pow(frac(s0 * 17.3), 3.0);
                 }
@@ -128,7 +136,7 @@ Shader "Custom/RingGalaxyStars_NEW"
                     // Old: warm, thickest round the nucleus, all through the middle.
                     float2 nuc = RGNucleus();
                     float r = min(-0.12 * log(1.0 - s2 * 0.985), 0.6);
-                    float a = s0 * RG_TAU + _Turn * T * 0.8;
+                    float a = s0 * RG_TAU + _Turn * T * (0.6 + 1.4 * exp(-r / 0.12));
                     position = float3(nuc.x + cos(a) * r, Gauss(frac(s1 * 7.7)) * h * (1.0 + 2.0 * exp(-r / 0.08)), nuc.y + sin(a) * r);
                     colour = _OldStars.rgb * (0.15 + 0.45 * frac(s1 * 41.3)) * smoothstep(0.6, 0.3, r);
                     size *= 0.55 + 0.35 * frac(s0 * 11.1);
@@ -147,15 +155,15 @@ Shader "Custom/RingGalaxyStars_NEW"
                     }
                     else if (s2 < 0.62)
                     {
-                        // Along the intruder's tidal tail.
-                        float f = frac(s0 * 3.7 + s1 * 0.13);
+                        // Along the intruder's tidal tail, streaming out.
+                        float f = frac(s0 * 3.7 + s1 * 0.13 + T * 0.012);
                         position = RGTail(f) + float3(Gauss(frac(s1 * 23.9 + s2 * 5.3)), Gauss(frac(s2 * 31.3 + s0 * 7.1)) * 0.4, Gauss(frac(s0 * 17.1 + s1 * 3.7))) * 0.035 * (0.6 + f);
-                        colour = _CompStars.rgb * (0.3 + 0.6 * frac(s1 * 17.3)) * (1.0 - 0.6 * f);
+                        colour = _CompStars.rgb * (0.3 + 0.6 * frac(s1 * 17.3)) * (1.0 - 0.6 * f) * smoothstep(1.0, 0.8, f) * smoothstep(0.0, 0.05, f);
                     }
                     else if (s2 < 0.85)
                     {
-                        // Along the bridge back to the intruder.
-                        float f = frac(s0 * 3.7 + s1 * 0.13);
+                        // Along the bridge, streaming from the intruder into the ring.
+                        float f = frac(s0 * 3.7 + s1 * 0.13 - T * 0.02);
                         position = RGBridge(f) + float3(Gauss(frac(s1 * 23.9 + s2 * 5.3)), Gauss(frac(s2 * 31.3 + s0 * 7.1)) * 0.6, Gauss(frac(s0 * 17.1 + s1 * 3.7))) * 0.05;
                         colour = _Debris.rgb * (0.2 + 0.5 * frac(s1 * 17.3)) * (0.5 + 0.5 * sin(f * 3.14159));
                     }
@@ -198,6 +206,9 @@ Shader "Custom/RingGalaxyStars_NEW"
                     size *= 0.8 + 1.2 * cluster;
                     shape.x = cluster;
                 }
+
+                // Every star twinkles but the knots' glowing gas.
+                if (kind > 1.5 || kind < 0.5) colour *= RGTwinkle(s0, s1, T);
 
                 float scale = length(mul((float3x3)unity_ObjectToWorld, float3(1, 0, 0)));
                 float3 view = mul(UNITY_MATRIX_V, mul(unity_ObjectToWorld, float4(position, 1.0))).xyz;

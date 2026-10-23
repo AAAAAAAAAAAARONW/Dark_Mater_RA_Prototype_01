@@ -3,7 +3,8 @@ Shader "Custom/RingGalaxyVolume_NEW"
     // The ring galaxy's glow in depth (RingGalaxyVFX_NEW; its shape is in RingGalaxy_NEW.cginc):
     // a faint haze under the ring's clusters, its knots as glowing puffs, the nucleus, the intruder
     // as a warm streak with its tidal tail, the bridge of gas between them and a faint halo — so from
-    // the light's low, slanting view it has body, not just a painted plane.
+    // the light's low, slanting view it has body, not just a painted plane. The ring's haze
+    // brightens where a ripple crosses it (RGRipple) and the knots flare and fade (RGKnot).
     //
     // EXACT, NOT MARCHED. Every part is a soft blob — a 3D gaussian, stretched and turned — and
     // the light of a gaussian along a straight ray has a closed form (an erf), so each pixel adds
@@ -25,7 +26,8 @@ Shader "Custom/RingGalaxyVolume_NEW"
         _Side ("Half: 1 the camera's side of the plane, -1 the far side", Float) = 1
         _Box ("Box half size (x, y, z)", Vector) = (2.4, 0.6, 2.4, 0)
         _Seed ("Seed", Float) = 0
-        _Turn ("Turn, radians a second", Float) = 0.004
+        _Turn ("Turn, radians a second", Float) = 0.02
+        _Ripple ("Ripples: seconds to spread, strength; twinkle; a knot's life, seconds", Vector) = (14, 1, 0.6, 50)
         _Ring ("Ring: radius, half width, lopsidedness, egg-shape", Vector) = (0.72, 0.085, 0.85, 0.12)
         _CompTilt ("The intruder's disc turned about its long axis, radians", Float) = -0.785
         _Comp ("The intruder: where (of the radius), and its size", Vector) = (-0.98, 0.0, -0.05, 0.3)
@@ -154,7 +156,7 @@ Shader "Custom/RingGalaxyVolume_NEW"
                     float rr = RGRingR(a);
                     float3 c = float3(cos(a), 0.0, sin(a)) * rr;
                     // A faint haze under the ring's clusters, uneven, not a glowing tube.
-                    float b = RGBright(a) * (0.3 + 0.9 * RGHash(j * 4.7 + 0.3));
+                    float b = RGBright(a) * (0.3 + 0.9 * RGHash(j * 4.7 + 0.3)) * (1.0 + 0.8 * RGRipple(c.xz, T));
                     light += _Gas.rgb * (0.06 * b * haze) * FlatBlob(c, a + 1.5707963, float3(rr * 0.19, h * 2.0, RGWidth(a) * 1.1));
                 }
 

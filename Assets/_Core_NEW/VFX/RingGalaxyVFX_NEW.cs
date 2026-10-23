@@ -21,13 +21,20 @@ using UnityEngine;
 /// Not the Milky Way (GalaxyVFX_NEW: a grand barred spiral) and not the quasar's host
 /// (HostGalaxyVFX_NEW: two lopsided arms).
 ///
+/// It moves, so it is alive: the ring and what is in it go round; every few seconds a ripple
+/// spreads out from the nucleus, faint across the empty middle, and lights the ring and its knots
+/// as it crosses them — the wave that made the ring, shown again; the knots light up, go round a
+/// while and fade as others light up elsewhere; stars stream along the bridge into the ring and
+/// out along the tail; every star twinkles.
+///
 /// Put it on an empty object in the Micro render group. Its disc lies in the object's XZ plane,
 /// the intruder off to -X, and its radius is the object's scale. Tools > Journey NEW > Replace
-/// First Galaxy with Ring Galaxy puts it where the old first galaxy's disc was, tipped 45° to
-/// face the light so the ring is an oval ahead of it with the streak running into its left side,
-/// and switches the old one off. The light flies on through the ring's hazy middle. As the other galaxies do, it builds what it draws as hidden children that are
-/// never saved, in the editor too, and fades with its world through _Color, built before
-/// WorldSwitcher_NEW gathers renderers.
+/// First Galaxy with Ring Galaxy puts it ahead of the light and well below its line, tipped 18°
+/// to face it, small enough to be seen whole as the light comes in from the Micro gate (an oval
+/// with the streak running into its left side), and switches the old galaxy off. The light flies
+/// on over it, never through it. As the other galaxies do, it builds what it draws as hidden
+/// children that are never saved, in the editor too, and fades with its world through _Color,
+/// built before WorldSwitcher_NEW gathers renderers.
 ///
 /// CHEAP. One sheet worked out per pixel with a handful of noise reads (QuasarNoise_NEW); the
 /// glow in depth added up exactly from some forty soft blobs (no ray marching); the stars one
@@ -43,8 +50,8 @@ public class RingGalaxyVFX_NEW : MonoBehaviour
     [Tooltip("Which galaxy: where its knots fall, how its ring wobbles.")]
     [SerializeField] int seed = 0;
 
-    [Tooltip("How fast the ring and what is in it go round, radians a second. Slow: it is a galaxy.")]
-    [SerializeField] float turn = 0.004f;
+    [Tooltip("How fast the ring and what is in it go round, radians a second: slow, but to be seen going round in the time the light takes to reach it.")]
+    [SerializeField] float turn = 0.02f;
 
     [Tooltip("The ring's radius, of the galaxy's.")]
     [Range(0.4f, 0.9f)] [SerializeField] float ringRadius = 0.72f;
@@ -64,12 +71,23 @@ public class RingGalaxyVFX_NEW : MonoBehaviour
     [Tooltip("The intruder's size: the half length of its bright body, of the galaxy's radius. Its tail runs on beyond.")]
     [Range(0.1f, 0.5f)] [SerializeField] float intruderSize = 0.3f;
 
-    [Tooltip("How far the intruder's disc is turned about its long axis, degrees. The opposite of this object's tilt " +
-             "towards the light (the menu tips it 45°) keeps it edge on to the light: a streak with a dust lane.")]
-    [Range(-90f, 90f)] [SerializeField] float intruderTilt = -45f;
+    [Tooltip("How far the intruder's disc is turned about its long axis, degrees. The opposite of how steeply the light " +
+             "looks at the ring's plane (the menu tips it 18° towards the light, and the light looks down at it about " +
+             "17° more) keeps it edge on to the light: a streak with a dust lane.")]
+    [Range(-90f, 90f)] [SerializeField] float intruderTilt = -35f;
 
     [Tooltip("The ring's and the disc's half thickness, of the radius.")]
     [Range(0.01f, 0.08f)] [SerializeField] float thickness = 0.03f;
+
+    [Header("Motion")]
+    [Tooltip("Seconds for a ripple to spread from the nucleus out past the ring. Two are always going, half this apart.")]
+    [Min(1f)] [SerializeField] float rippleSeconds = 14f;
+    [Tooltip("How bright the ripples are, and how much the ring and its knots flare as one crosses them. 0 none.")]
+    [Range(0f, 2f)] [SerializeField] float ripples = 1f;
+    [Tooltip("How much the stars twinkle. 0 steady.")]
+    [Range(0f, 1f)] [SerializeField] float twinkle = 0.6f;
+    [Tooltip("About how long each knot of star formation lasts, seconds, going round with the ring, before it fades and another lights up elsewhere.")]
+    [Min(5f)] [SerializeField] float knotLife = 50f;
 
     [Header("Look")]
     [Tooltip("The giant knots of star formation along the ring.")]
@@ -257,6 +275,7 @@ public class RingGalaxyVFX_NEW : MonoBehaviour
             m.SetVector("_Ring", ring);
             m.SetVector("_Comp", comp);
             m.SetFloat("_CompTilt", intruderTilt * Mathf.Deg2Rad);
+            m.SetVector("_Ripple", new Vector4(Mathf.Max(rippleSeconds, 1f), ripples, twinkle, Mathf.Max(knotLife, 5f)));
         }
 
         _disc.SetTexture("_Noise", QuasarNoise_NEW.Texture);

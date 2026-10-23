@@ -174,10 +174,11 @@ public class LayerDive_NEW : MonoBehaviour
 
         /// <summary>
         /// Starting values for a gate that goes up a scale, tuned for the galaxy back out to
-        /// the cosmic web (see COMING OUT on the class). Measured against the scene: 2000
-        /// galaxies spread evenly 20 to 160 out round the Micro galaxy put 100 to 350 in view
-        /// while the photon crosses it, dim; over the last 5 units (four seconds at Micro's
-        /// speed) they brighten; about 100 are in view at the gate. The camera starts round
+        /// the cosmic web (see COMING OUT on the class). Measured against the scene: 1000
+        /// galaxies spread evenly 20 to 160 out round the Micro galaxy, unseen while the photon
+        /// crosses it (shown dim all along, they were a few hundred white dots over the first
+        /// galaxy); over the last 5 units (four seconds at Micro's speed) they come in; about
+        /// 50 are in view at the gate. The camera starts round
         /// 0.8 seconds in and has the cluster in frame by 1.75, the photon to the left in
         /// front of it; its glow, gold rather than yellow and under the bloom while it is
         /// big, is 17 degrees across then, 5 at the peak and a 1-degree knot by 5 seconds,
@@ -198,7 +199,7 @@ public class LayerDive_NEW : MonoBehaviour
                 dissolveFrom = 0.4f,
                 lightIntensity = 0f,
                 whiteout = 0f,
-                memberCount = 2000,
+                memberCount = 1000,
                 crowdRadius = 160f,
                 memberSize = 1.2f,
                 resolveZoom = 30f,
@@ -215,7 +216,7 @@ public class LayerDive_NEW : MonoBehaviour
                 lookBackUntil = 7.2f,
                 lookBackSwing = 1.4f,
                 lookBackDolly = 2f,
-                ambientCrowd = 0.3f,
+                ambientCrowd = 0f,
                 approachCrowd = 0.8f,
                 diveCrowd = 0.8f,
                 coolShare = 0.35f,

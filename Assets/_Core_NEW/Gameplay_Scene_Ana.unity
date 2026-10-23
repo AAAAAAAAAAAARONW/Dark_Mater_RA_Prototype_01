@@ -118483,13 +118483,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 299825320}
-  m_LocalRotation: {x: -0.3826834, y: 0, z: 0, w: 0.9238795}
-  m_LocalPosition: {x: 0.6399807, y: -13.36051, z: 482.2527}
-  m_LocalScale: {x: 48, y: 48, z: 48}
+  m_LocalRotation: {x: -0.15643448, y: 0, z: 0, w: 0.98768836}
+  m_LocalPosition: {x: 4.15333, y: -21.89, z: 482.86798}
+  m_LocalScale: {x: 15, y: 15, z: 15}
   m_Children: []
   m_Father: {fileID: 388645245}
   m_RootOrder: 3
-  m_LocalEulerAnglesHint: {x: -45, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: -18, y: 0, z: 0}
 --- !u!114 &688588742
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -144350,7 +144350,7 @@ MonoBehaviour:
     whiteoutFrom: 0.7
     lightHold: 0
     resolve: 1
-    memberCount: 2000
+    memberCount: 1000
     crowdRadius: 160
     memberSize: 1.2
     resolveZoom: 30
@@ -144369,7 +144369,7 @@ MonoBehaviour:
     lookBackUntil: 7.2
     lookBackSwing: 1.4
     lookBackDolly: 2
-    ambientCrowd: 0.3
+    ambientCrowd: 0
     approachCrowd: 0.8
     diveCrowd: 0.8
     memberWarm: {r: 1, g: 0.82, b: 0.55, a: 1}
