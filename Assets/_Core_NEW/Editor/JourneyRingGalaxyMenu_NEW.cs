@@ -8,9 +8,15 @@ using UnityEngine;
 /// IN PLACE. The first galaxy the light meets was Winnie's particle spiral, the Galaxy2 prefab:
 /// a level disc about 46 units in radius, its middle 12.5 below the light's line and about 79
 /// past the Micro gate, so the light flies in over it for J4 and J4b. The ring galaxy goes
-/// exactly there — the centre of the old disc (its "Disk" child), level, the same size — and the
-/// old one is switched off, not deleted: switch it back on to compare. Only the Micro group is
-/// touched; the Milky Way (MilkyWayLayer) and its own legacy galaxy art are not.
+/// exactly there — the centre of the old disc (its "Disk" child), the same size — and the old one
+/// is switched off, not deleted: switch it back on to compare. Only the Micro group is touched;
+/// the Milky Way (MilkyWayLayer) and its own legacy galaxy art are not.
+///
+/// TIPPED TO FACE THE LIGHT, Tilt degrees about the light's right, so the ring is seen as an
+/// oval ahead with the intruder's streak running into its left side, as in the Hubble picture of
+/// Arp 148, rather than as a floor under the light. At 45° the light's line passes through the
+/// ring's plane inside the ring, a little before the gate out of the galaxy (CosmicWeb). The
+/// intruder's own turn (RingGalaxyVFX_NEW.intruderTilt, -45 by default) keeps it edge on.
 ///
 /// If the old galaxy is not there, the ring galaxy goes where it would have been, from the Micro
 /// gate and the light's line. If a ring galaxy is already in the group, it is moved rather than a
@@ -25,6 +31,9 @@ static class JourneyRingGalaxyMenu_NEW
 
     /// <summary>The old first galaxy's radius, in world units: its disc's 46, and its stars' size on top.</summary>
     const float Radius = 48f;
+
+    /// <summary>How far the ring is tipped up to face the light, degrees. Keep RingGalaxyVFX_NEW.intruderTilt its opposite.</summary>
+    const float Tilt = 45f;
 
     /// <summary>Where the old disc's middle was, if it is not in the scene to measure: past the Micro gate along the light's line, below it, to its right.</summary>
     const float CentrePastGate = 79.4f;
@@ -78,11 +87,12 @@ static class JourneyRingGalaxyMenu_NEW
             Undo.AddComponent<RingGalaxyVFX_NEW>(go);
         }
 
-        // Level, as the old disc was, the intruder (+X) off to the light's right.
+        // Facing along the light, the intruder (-X) off to its left, then tipped up towards it.
         Transform t = go.transform;
         t.position = centre;
         Vector3 flat = Vector3.ProjectOnPlane(heading, Vector3.up);
-        t.rotation = flat.sqrMagnitude > 1e-6f ? Quaternion.LookRotation(flat.normalized, Vector3.up) : Quaternion.identity;
+        Quaternion facing = flat.sqrMagnitude > 1e-6f ? Quaternion.LookRotation(flat.normalized, Vector3.up) : Quaternion.identity;
+        t.rotation = Quaternion.AngleAxis(-Tilt, facing * Vector3.right) * facing;
         float parentScale = Mathf.Max(group.lossyScale.x, 1e-6f);
         t.localScale = Vector3.one * (Radius / parentScale);
 
@@ -99,9 +109,9 @@ static class JourneyRingGalaxyMenu_NEW
 
         Selection.activeGameObject = go;
         Debug.Log(string.Format(
-            "Journey NEW: '{0}' is the first galaxy now, radius {1:0}, level, centred at {2} ({3}){4}. Save the scene to keep it.",
+            "Journey NEW: '{0}' is the first galaxy now, radius {1:0}, tipped {5:0}° to face the light, centred at {2} ({3}){4}. Save the scene to keep it.",
             ObjectName, Radius, centre, measured ? "where the old disc's middle was" : "from the Micro gate",
-            hidden > 0 ? "; the old galaxy (" + hidden + ") switched off" : ""), go);
+            hidden > 0 ? "; the old galaxy (" + hidden + ") switched off" : "", Tilt), go);
     }
 
     [MenuItem(MenuPath, true)]

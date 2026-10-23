@@ -9,21 +9,23 @@ using UnityEngine;
 /// since. Galaxies grow where the threads of the web cross, and this one is in its busiest age."
 /// Galaxies grew by running into each other, and this one has just been run through: a smaller
 /// galaxy fell straight through its disc, and the ripple that sent out through the gas is
-/// lighting a burst of new stars all round it.
-///   ring      a great blue ring of new stars, lumpy and lopsided, brightest and widest on the
-///             intruder's side, knotted with pink regions of ionised hydrogen
-///   middle    emptied by the ripple: the old yellow nucleus off centre in a small dusty ring of
-///             its own, the old disc's faint warm light, faint spokes out to the ring
-///   intruder  the smaller galaxy that went through, still near: a warm streak aimed back at the
-///             ring, a tidal tail curling off its far side, a thin bridge of gas to the ring
-///   outside   what is left of the old disc, and a plume of gas pulled out towards the intruder
-/// The Cartwheel Galaxy and Arp 148 are the pictures. Not the Milky Way (GalaxyVFX_NEW: a grand
-/// barred spiral) and not the quasar's host (HostGalaxyVFX_NEW: two lopsided arms).
+/// lighting a burst of new stars all round it. Arp 148 (Mayall's Object) is the picture:
+///   ring      a great loop of blue star clusters with a few pink knots, bunched with gaps, thick
+///             and bright on the far side and opening out thin and faint where the intruder is
+///   middle    a dim haze inside the ring; the old nucleus barely seen
+///   intruder  the smaller galaxy that went through, touching the ring's edge: a long bright
+///             streak at right angles to the ring, a dark lane of dust along its middle, its tail
+///             drawn out away from the ring — ring and streak together the "question mark"
+///             Nicholas Mayall described in 1940
+///   outside   what is left of the old disc, and a plume of gas towards the intruder
+/// Not the Milky Way (GalaxyVFX_NEW: a grand barred spiral) and not the quasar's host
+/// (HostGalaxyVFX_NEW: two lopsided arms).
 ///
 /// Put it on an empty object in the Micro render group. Its disc lies in the object's XZ plane,
-/// the intruder off to +X, and its radius is the object's scale. Tools > Journey NEW > Replace
-/// First Galaxy with Ring Galaxy puts it where the old first galaxy's disc was and switches the
-/// old one off. As the other galaxies do, it builds what it draws as hidden children that are
+/// the intruder off to -X, and its radius is the object's scale. Tools > Journey NEW > Replace
+/// First Galaxy with Ring Galaxy puts it where the old first galaxy's disc was, tipped 45° to
+/// face the light so the ring is an oval ahead of it with the streak running into its left side,
+/// and switches the old one off. The light flies on through the ring's hazy middle. As the other galaxies do, it builds what it draws as hidden children that are
 /// never saved, in the editor too, and fades with its world through _Color, built before
 /// WorldSwitcher_NEW gathers renderers.
 ///
@@ -48,19 +50,23 @@ public class RingGalaxyVFX_NEW : MonoBehaviour
     [Range(0.4f, 0.9f)] [SerializeField] float ringRadius = 0.72f;
 
     [Tooltip("The ring's half width, of the galaxy's radius.")]
-    [Range(0.02f, 0.2f)] [SerializeField] float ringWidth = 0.1f;
+    [Range(0.02f, 0.2f)] [SerializeField] float ringWidth = 0.085f;
 
-    [Tooltip("How much brighter and wider the ring is on the intruder's side, 0 even all round.")]
-    [Range(0f, 1f)] [SerializeField] float lopsided = 0.9f;
+    [Tooltip("How much brighter and wider the ring is on the far side from the intruder, 0 even all round.")]
+    [Range(0f, 1f)] [SerializeField] float lopsided = 0.85f;
 
-    [Tooltip("How egg-shaped the ring is, its long side towards the intruder.")]
-    [Range(0f, 0.25f)] [SerializeField] float eggShape = 0.1f;
+    [Tooltip("How egg-shaped the ring is, its long side away from the intruder.")]
+    [Range(0f, 0.25f)] [SerializeField] float eggShape = 0.12f;
 
     [Tooltip("Where the intruder is, of the galaxy's radius, in this object's space.")]
-    [SerializeField] Vector3 intruder = new Vector3(1.15f, 0.12f, 0.6f);
+    [SerializeField] Vector3 intruder = new Vector3(-0.98f, 0f, -0.05f);
 
-    [Tooltip("The intruder's size: the half length of its streak, of the galaxy's radius.")]
-    [Range(0.1f, 0.5f)] [SerializeField] float intruderSize = 0.26f;
+    [Tooltip("The intruder's size: the half length of its bright body, of the galaxy's radius. Its tail runs on beyond.")]
+    [Range(0.1f, 0.5f)] [SerializeField] float intruderSize = 0.3f;
+
+    [Tooltip("How far the intruder's disc is turned about its long axis, degrees. The opposite of this object's tilt " +
+             "towards the light (the menu tips it 45°) keeps it edge on to the light: a streak with a dust lane.")]
+    [Range(-90f, 90f)] [SerializeField] float intruderTilt = -45f;
 
     [Tooltip("The ring's and the disc's half thickness, of the radius.")]
     [Range(0.01f, 0.08f)] [SerializeField] float thickness = 0.03f;
@@ -69,8 +75,8 @@ public class RingGalaxyVFX_NEW : MonoBehaviour
     [Tooltip("The giant knots of star formation along the ring.")]
     [Range(0f, 3f)] [SerializeField] float knots = 1f;
     [Tooltip("The faint spokes from the nucleus out to the ring.")]
-    [Range(0f, 2f)] [SerializeField] float spokes = 1f;
-    [Tooltip("The old disc's faint light in the emptied middle.")]
+    [Range(0f, 2f)] [SerializeField] float spokes = 0f;
+    [Tooltip("The dim haze inside the ring.")]
     [Range(0f, 2f)] [SerializeField] float interior = 1f;
     [Tooltip("The plume of gas pulled out towards the intruder.")]
     [Range(0f, 2f)] [SerializeField] float plume = 1f;
@@ -80,7 +86,7 @@ public class RingGalaxyVFX_NEW : MonoBehaviour
     [Range(0f, 4f)] [SerializeField] float depthGlow = 1f;
 
     [ColorUsage(false, true)] [SerializeField] Color nucleusColour = new Color(1.6f, 1.05f, 0.55f, 1f);
-    [ColorUsage(false, true)] [SerializeField] Color innerColour = new Color(0.55f, 0.42f, 0.32f, 1f);
+    [ColorUsage(false, true)] [SerializeField] Color innerColour = new Color(0.3f, 0.38f, 0.62f, 1f);
     [ColorUsage(false, true)] [SerializeField] Color spokeColour = new Color(0.45f, 0.55f, 0.85f, 1f);
     [ColorUsage(false, true)] [SerializeField] Color ringColour = new Color(0.45f, 0.62f, 1.25f, 1f);
     [ColorUsage(false, true)] [SerializeField] Color knotCoreColour = new Color(1.5f, 1.75f, 2.4f, 1f);
@@ -97,7 +103,7 @@ public class RingGalaxyVFX_NEW : MonoBehaviour
     [Tooltip("Soft pink blobs of glowing gas, a few to each knot.")]
     [Range(0, 500)] [SerializeField] int knotGlows = 140;
     [Tooltip("The old disc's stars, thickest round the nucleus.")]
-    [Range(0, 20000)] [SerializeField] int oldStars = 7000;
+    [Range(0, 20000)] [SerializeField] int oldStars = 3000;
     [Tooltip("Faint stars along the spokes, the intruder's tail, the bridge and the plume.")]
     [Range(0, 8000)] [SerializeField] int debrisStars = 3500;
     [Range(0, 12000)] [SerializeField] int intruderStars = 5000;
@@ -250,6 +256,7 @@ public class RingGalaxyVFX_NEW : MonoBehaviour
             m.SetFloat("_Turn", turn);
             m.SetVector("_Ring", ring);
             m.SetVector("_Comp", comp);
+            m.SetFloat("_CompTilt", intruderTilt * Mathf.Deg2Rad);
         }
 
         _disc.SetTexture("_Noise", QuasarNoise_NEW.Texture);

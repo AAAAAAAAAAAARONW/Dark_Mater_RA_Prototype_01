@@ -25,16 +25,17 @@ Shader "Custom/RingGalaxyDisc_NEW"
         [NoScaleOffset] _Noise ("Noise (QuasarNoise_NEW)", 2D) = "gray" {}
         _Seed ("Seed", Float) = 0
         _Turn ("Turn, radians a second", Float) = 0.004
-        _Ring ("Ring: radius, half width, lopsidedness, egg-shape", Vector) = (0.72, 0.1, 0.9, 0.1)
-        _Comp ("The intruder: where (of the radius), and its size", Vector) = (1.15, 0.12, 0.6, 0.26)
+        _Ring ("Ring: radius, half width, lopsidedness, egg-shape", Vector) = (0.72, 0.085, 0.85, 0.12)
+        _CompTilt ("The intruder's disc turned about its long axis, radians", Float) = -0.785
+        _Comp ("The intruder: where (of the radius), and its size", Vector) = (-0.98, 0.0, -0.05, 0.3)
         _Knots ("Knots of star formation", Range(0, 3)) = 1
-        _Spokes ("Spokes", Range(0, 2)) = 1
+        _Spokes ("Spokes", Range(0, 2)) = 0
         _Interior ("The emptied middle's old light", Range(0, 2)) = 1
         _Plume ("The plume towards the intruder", Range(0, 2)) = 1
         _Dust ("Dust", Range(0, 2)) = 1
         _Brightness ("Brightness", Range(0, 3)) = 0.6
         [HDR] _Core ("Nucleus", Color) = (1.6, 1.05, 0.55, 1)
-        [HDR] _Inner ("The old disc in the middle", Color) = (0.55, 0.42, 0.32, 1)
+        [HDR] _Inner ("The haze in the middle", Color) = (0.3, 0.38, 0.62, 1)
         [HDR] _Spoke ("Spokes", Color) = (0.45, 0.55, 0.85, 1)
         [HDR] _Gas ("The ring", Color) = (0.45, 0.62, 1.25, 1)
         [HDR] _Clump ("Knot cores", Color) = (1.5, 1.75, 2.4, 1)
@@ -141,9 +142,11 @@ Shader "Custom/RingGalaxyDisc_NEW"
                 float2 pn = p - RGNucleus();
                 float rn = length(pn);
                 float inside = smoothstep(ringR, ringR * 0.72, r);
-                float oldDisc = exp(-rn / 0.11) * 0.3 * inside;
-                float core = exp(-rn / 0.022) + 0.25 * exp(-RGSq(rn / 0.08));
-                float innerRing = exp(-RGSq((rn - 0.16) / 0.035)) * (0.35 + 0.8 * nB.a);
+                // A dim haze of the old disc's stars inside the ring, and the old nucleus barely
+                // there in it: the ring is the thing seen, as in Arp 148.
+                float oldDisc = (0.02 + 0.07 * exp(-rn / 0.2)) * inside * (0.55 + 0.6 * nc.a);
+                float core = 0.14 * exp(-rn / 0.03) + 0.06 * exp(-RGSq(rn / 0.1));
+                float innerRing = 0.0;
                 // Spokes: straight-ish, broad and faint, breaking up as they go out.
                 float an = atan2(pn.y, pn.x) - _Turn * T * 0.8;
                 float spokes = pow(saturate(0.5 + 0.5 * cos(7.0 * an + (nc.g - 0.5) * 0.9 + rn * 1.5)), 12.0)
@@ -152,24 +155,24 @@ Shader "Custom/RingGalaxyDisc_NEW"
                 // Outside: what is left of the old disc, and the plume pulled towards the intruder.
                 float beyond = max(d, 0.0);
                 float outer = d > 0.0 ? exp(-d / 0.08) * 0.12 * (0.5 + nc.b) : 0.0;
-                float toward = exp(-RGSq(RGAngleTo(a, RGBrightAngle() + 0.2) / 0.4));
+                float toward = exp(-RGSq(RGAngleTo(a, RGIntruderAngle()) / 0.4));
                 float plume = toward * smoothstep(0.0, 0.08, d) * exp(-beyond / 0.28)
                             * (0.1 + 0.9 * smoothstep(0.55, 0.85, nB.b)) * smoothstep(1.6, 1.15, r) * 0.6;
 
                 // Dust: a thin lane along the ring's inner edge, patches round the nucleus.
                 float laneRing = exp(-RGSq((d + w * 1.05) / (w * 0.45))) * smoothstep(0.45, 0.8, nA.b);
-                float dust = saturate((laneRing * 0.7 * bunch + exp(-RGSq((rn - 0.1) / 0.03)) * 0.25 * smoothstep(0.35, 0.7, nB.b)) * _Dust);
+                float dust = saturate(laneRing * 0.7 * bunch * _Dust);
 
                 // Up close the ring's clusters are stars (RingGalaxyStars_NEW), each one drawn: the
                 // painted texture of them gives way, so the ring under the light is not a carpet.
                 float3 camera = mul(unity_WorldToObject, float4(_WorldSpaceCameraPos, 1.0)).xyz;
                 float3 toCamera = camera - i.local;
-                float near = lerp(0.3, 1.0, smoothstep(0.25, 0.75, length(toCamera)));
+                float near = lerp(0.06, 1.0, smoothstep(0.35, 1.4, length(toCamera)));
                 ring *= near;
                 knotlets *= near;
                 specks *= near;
 
-                float3 light = _Core.rgb * core * 1.3
+                float3 light = _Core.rgb * core
                              + _Inner.rgb * (oldDisc * _Interior + innerRing * 0.35)
                              + _Spoke.rgb * spokes * 0.1 * _Spokes
                              + _Gas.rgb * ring * 1.6

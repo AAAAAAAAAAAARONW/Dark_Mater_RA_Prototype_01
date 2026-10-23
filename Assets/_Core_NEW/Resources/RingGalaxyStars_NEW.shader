@@ -22,8 +22,9 @@ Shader "Custom/RingGalaxyStars_NEW"
         _Color ("Fade (all four channels, as WorldSwitcher_NEW sets it)", Color) = (1, 1, 1, 1)
         _Seed ("Seed", Float) = 0
         _Turn ("Turn, radians a second", Float) = 0.004
-        _Ring ("Ring: radius, half width, lopsidedness, egg-shape", Vector) = (0.72, 0.1, 0.9, 0.1)
-        _Comp ("The intruder: where (of the radius), and its size", Vector) = (1.15, 0.12, 0.6, 0.26)
+        _Ring ("Ring: radius, half width, lopsidedness, egg-shape", Vector) = (0.72, 0.085, 0.85, 0.12)
+        _CompTilt ("The intruder's disc turned about its long axis, radians", Float) = -0.785
+        _Comp ("The intruder: where (of the radius), and its size", Vector) = (-0.98, 0.0, -0.05, 0.3)
         _Size ("Star size (of the radius)", Float) = 0.0018
         _MaxSize ("Largest on screen, of half its height", Float) = 0.01
         [HDR] _RingStars ("Ring stars", Color) = (1.5, 1.75, 2.4, 1)
@@ -161,7 +162,7 @@ Shader "Custom/RingGalaxyStars_NEW"
                     else
                     {
                         // The plume, pulled out of the ring towards the intruder.
-                        float a = RGBrightAngle() + 0.2 + Gauss(s0) * 0.4;
+                        float a = RGIntruderAngle() + Gauss(s0) * 0.4;
                         float r = RGRingR(a) + 0.05 + abs(Gauss(s1)) * 0.25;
                         position = float3(cos(a) * r, Gauss(frac(s1 * 5.3)) * h * 2.0, sin(a) * r);
                         colour = _Debris.rgb * (0.12 + 0.35 * frac(s2 * 21.7));
@@ -175,7 +176,9 @@ Shader "Custom/RingGalaxyStars_NEW"
                     RGCompanionFrame(L, W, N);
                     float sz = _Comp.w;
                     float g0 = Gauss(frac(s0 * 17.1 + s1 * 3.7)), g1 = Gauss(frac(s1 * 23.9 + s2 * 5.3)), g2 = Gauss(frac(s2 * 31.3 + s0 * 7.1));
-                    float3 off = L * g0 * sz * 0.4 + W * g1 * sz * 0.17 + N * g2 * sz * 0.06;
+                    // Off the dust lane along its middle, where the starlight is hidden.
+                    float lane = sign(g2) * (abs(g2) + 0.9 * exp(-g0 * g0));
+                    float3 off = L * g0 * sz * 0.4 + W * g1 * sz * 0.17 + N * lane * sz * 0.045;
                     float core = step(frac(s0 * 53.1 + s2 * 11.3), 0.3);
                     off *= lerp(1.0, 0.3, core);
                     position = _Comp.xyz + off;
