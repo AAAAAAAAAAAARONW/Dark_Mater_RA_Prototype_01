@@ -6,9 +6,9 @@
 // pull sent a ripple outward through the gas like a stone dropped in a pond, and where the
 // ripple crowds the gas together stars are forming in a burst: a great blue ring, knotted with
 // pink regions of ionised hydrogen, round an emptied middle in which the old yellow nucleus sits
-// off centre, joined to the ring by faint spokes. The intruder is still near, an edge-on streak
-// off to one side with a thin bridge of gas trailing back to the ring, which is brightest and
-// widest on its side. (The Cartwheel Galaxy and Arp 148 are the pictures.)
+// off centre, joined to the ring by faint spokes. The intruder is still near: a warm streak aimed
+// back at the ring, a tidal tail curling off its far side and a thin bridge of gas to the ring,
+// which is brightest and widest on its side. (The Cartwheel Galaxy and Arp 148 are the pictures.)
 //
 // Object space: the plane is XZ, radius 1 is the object's scale, the ring's own centre is the
 // origin. Plane coordinates are float2(x, z).
@@ -49,11 +49,11 @@ float RGRingR(float a) { return _Ring.x * (1.0 + _Ring.w * cos(a - RGBrightAngle
 float RGBright(float a)
 {
     float c = 0.5 + 0.5 * cos(a - RGBrightAngle());
-    return lerp(1.0, 0.3 + 1.15 * c * c, _Ring.z);
+    return lerp(1.0, 0.1 + 1.45 * c * c, _Ring.z);
 }
 
 // The ring's half width at angle a: wider where it is brighter.
-float RGWidth(float a) { return _Ring.y * (0.55 + 0.45 * RGBright(a)); }
+float RGWidth(float a) { return _Ring.y * (0.35 + 0.65 * RGBright(a)); }
 
 // Knot i: a giant region of star formation on the ring — where, how big, how bright. Scattered
 // unevenly, crowded on the intruder's side, some in big complexes; they go round with the ring.
@@ -61,38 +61,49 @@ void RGKnot(int i, float T, out float2 p, out float size, out float bright)
 {
     float h0 = RGHash(i * 7.31 + 1.7), h1 = RGHash(i * 3.17 + 5.3);
     float h2 = RGHash(i * 5.71 + 9.1), h3 = RGHash(i * 1.93 + 2.9);
-    // Half of them pulled towards the bright side: uneven spacing, crowded where the ring is thick.
-    float u = (i + h0) / RG_KNOTS * 2.0 - 1.0;
-    float pull = frac(i * 0.5) < 0.25 ? 0.55 : 0.0;
-    float a0 = RGBrightAngle() + 3.14159 * u * (1.0 - pull * (1.0 - abs(u)));
+    // At random round the ring, not spaced out: they bunch and leave gaps, as real ones do, and
+    // crowd towards the bright side.
+    float u = h0 * 2.0 - 1.0;
+    float a0 = RGBrightAngle() + 3.14159 * sign(u) * pow(abs(u), 1.8);
     float a = a0 + _Turn * T;
-    float r = RGRingR(a) + (h1 - 0.5) * RGWidth(a) * 1.2;
+    float r = RGRingR(a) + (h1 - 0.5) * RGWidth(a) * 1.4;
     p = float2(cos(a), sin(a)) * r;
     float b = RGBright(a);
-    bright = b * (0.25 + 1.0 * h2 * h2);
-    size = (0.018 + 0.05 * h3 * h3 * h3) * (0.6 + 0.4 * b);
+    bright = b * (0.15 + 1.0 * h2 * h2 * h2);
+    size = (0.015 + 0.045 * h3 * h3 * h3) * (0.6 + 0.4 * b);
 }
 
-// The intruder's frame: L its long axis, W across its disc, N through it (its disc is the L-W
-// plane). Tipped up out of the big galaxy's plane, so from the light it is a streak.
+// The intruder's frame: L its long axis, pointing back at the ring it came through, W across
+// its disc, N through it (its disc is the L-W plane, nearly level). From the light it is a
+// streak aimed at the ring, as the intruder of Arp 148 is.
 void RGCompanionFrame(out float3 L, out float3 W, out float3 N)
 {
-    L = normalize(float3(-0.25, 0.35, 1.0));
+    L = normalize(float3(-_Comp.x, 0.12, -_Comp.z));
     W = normalize(cross(float3(0.0, 1.0, 0.0), L));
     N = cross(L, W);
 }
 
-// The bridge of gas trailing from the ring back to the intruder, s 0 at the ring to 1 at it:
-// arcing up out of the plane and bowing to one side.
+// The bridge of gas from the ring back to the intruder, s 0 at the ring to 1 at it: nearly
+// straight, the intruder's own streak drawn out towards the ring, sagging a little.
 float3 RGBridge(float s)
 {
+    float3 L, W, N;
+    RGCompanionFrame(L, W, N);
     float a = RGBrightAngle();
-    float3 from = float3(cos(a), 0.0, sin(a)) * RGRingR(a) * 1.04;
-    float3 to = _Comp.xyz;
-    float3 along = to - from;
-    float3 side = normalize(cross(float3(0.0, 1.0, 0.0), along));
+    float3 from = float3(cos(a), 0.0, sin(a)) * RGRingR(a) * 1.02;
+    float3 to = _Comp.xyz + L * _Comp.w * 0.5;
     float bow = sin(s * 3.14159);
-    return lerp(from, to, s) + float3(0.0, 0.08, 0.0) * bow - side * 0.14 * bow;
+    return lerp(from, to, s) + float3(0.0, 0.03, 0.0) * bow + W * 0.04 * bow;
+}
+
+// The intruder's tidal tail, s 0 at it to 1 at the end: drawn out of its far side, away from
+// the ring, curling as it goes.
+float3 RGTail(float s)
+{
+    float3 L, W, N;
+    RGCompanionFrame(L, W, N);
+    float3 from = _Comp.xyz - L * _Comp.w * 0.5;
+    return from - L * _Comp.w * 2.2 * s + W * _Comp.w * 1.1 * s * s + N * _Comp.w * 0.15 * s;
 }
 
 #endif

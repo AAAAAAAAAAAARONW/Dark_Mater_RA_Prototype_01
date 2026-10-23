@@ -1,8 +1,8 @@
 Shader "Custom/RingGalaxyVolume_NEW"
 {
     // The ring galaxy's glow in depth (RingGalaxyVFX_NEW; its shape is in RingGalaxy_NEW.cginc):
-    // the ring standing up as a band of light, its knots as glowing beads, the nucleus, the
-    // intruder as an edge-on streak, the bridge of gas between them and a faint halo — so from
+    // a faint haze under the ring's clusters, its knots as glowing puffs, the nucleus, the intruder
+    // as a warm streak with its tidal tail, the bridge of gas between them and a faint halo — so from
     // the light's low, slanting view it has body, not just a painted plane.
     //
     // EXACT, NOT MARCHED. Every part is a soft blob — a 3D gaussian, stretched and turned — and
@@ -26,14 +26,14 @@ Shader "Custom/RingGalaxyVolume_NEW"
         _Box ("Box half size (x, y, z)", Vector) = (2.4, 0.6, 2.4, 0)
         _Seed ("Seed", Float) = 0
         _Turn ("Turn, radians a second", Float) = 0.004
-        _Ring ("Ring: radius, half width, lopsidedness, egg-shape", Vector) = (0.72, 0.09, 0.75, 0.1)
-        _Comp ("The intruder: where (of the radius), and its size", Vector) = (1.32, 0.14, 0.34, 0.28)
+        _Ring ("Ring: radius, half width, lopsidedness, egg-shape", Vector) = (0.72, 0.1, 0.9, 0.1)
+        _Comp ("The intruder: where (of the radius), and its size", Vector) = (1.15, 0.12, 0.6, 0.26)
         _Volume ("Brightness", Range(0, 4)) = 1
         _Thickness ("Ring and disc half thickness (of the radius)", Float) = 0.03
         [HDR] _Core ("Nucleus", Color) = (1.6, 1.05, 0.55, 1)
         [HDR] _Inner ("The old disc in the middle", Color) = (0.55, 0.42, 0.32, 1)
         [HDR] _Gas ("The ring", Color) = (0.45, 0.62, 1.25, 1)
-        [HDR] _Glow ("Knots", Color) = (1.8, 0.6, 1.0, 1)
+        [HDR] _Glow ("Knots", Color) = (1.4, 0.6, 1.1, 1)
         [HDR] _CompColor ("The intruder", Color) = (1.5, 1.2, 0.85, 1)
         [HDR] _PlumeColor ("The bridge", Color) = (0.35, 0.5, 0.95, 1)
         [HDR] _Halo ("Halo", Color) = (0.3, 0.32, 0.5, 1)
@@ -147,10 +147,9 @@ Shader "Custom/RingGalaxyVolume_NEW"
                     float a = (j + 0.5) / 16.0 * RG_TAU;
                     float rr = RGRingR(a);
                     float3 c = float3(cos(a), 0.0, sin(a)) * rr;
-                    // Bunched like the face: some beads bright, some all but gone.
-                    float bunch = saturate(0.5 + 0.9 * sin(a * 11.0 + _Seed + sin(a * 4.0) * 2.0));
-                    float b = RGBright(a) * (0.2 + 0.8 * bunch) * (0.6 + 0.8 * RGHash(j * 4.7 + 0.3));
-                    light += _Gas.rgb * (0.3 * b) * FlatBlob(c, a + 1.5707963, float3(rr * 0.17, h, RGWidth(a) * 0.9));
+                    // A faint haze under the ring's clusters, uneven, not a glowing tube.
+                    float b = RGBright(a) * (0.3 + 0.9 * RGHash(j * 4.7 + 0.3));
+                    light += _Gas.rgb * (0.1 * b) * FlatBlob(c, a + 1.5707963, float3(rr * 0.19, h * 1.6, RGWidth(a) * 1.1));
                 }
 
                 // The knots, as beads of pink light standing up a little out of the ring.
@@ -159,7 +158,7 @@ Shader "Custom/RingGalaxyVolume_NEW"
                 {
                     float2 kp; float ks, kb;
                     RGKnot(k, T, kp, ks, kb);
-                    light += _Glow.rgb * (0.6 * kb) * FlatBlob(float3(kp.x, 0.0, kp.y), 0.0, float3(ks, max(ks * 0.7, h), ks));
+                    light += _Glow.rgb * (0.3 * kb) * FlatBlob(float3(kp.x, 0.0, kp.y), 0.0, float3(ks, max(ks, h), ks));
                 }
 
                 // The nucleus and the old disc round it.
@@ -167,16 +166,27 @@ Shader "Custom/RingGalaxyVolume_NEW"
                 float3 cn = float3(nuc.x, 0.0, nuc.y);
                 light += _Core.rgb * 0.8 * FlatBlob(cn, 0.0, float3(0.03, 0.025, 0.03));
                 light += _Core.rgb * 0.15 * FlatBlob(cn, 0.0, float3(0.09, 0.06, 0.09));
-                light += _Inner.rgb * 0.05 * FlatBlob(cn * 0.5, 0.0, float3(0.42, h * 1.3, 0.42));
+                light += _Inner.rgb * 0.03 * FlatBlob(cn, 0.0, float3(0.25, h * 1.3, 0.25));
 
                 // The intruder: an edge-on disc with a bright middle and a faint round halo.
                 float3 L, W, N;
                 RGCompanionFrame(L, W, N);
                 float size = _Comp.w;
                 float3 cc = _Comp.xyz;
-                light += _CompColor.rgb * 0.6 * Blob(cc, L, N, W, float3(0.16, 0.08, 0.12) * size);
-                light += _CompColor.rgb * 0.22 * Blob(cc, L, N, W, float3(1.0, 0.09, 0.32) * size);
-                light += _CompColor.rgb * 0.06 * Blob(cc, L, N, W, float3(0.6, 0.45, 0.5) * size);
+                light += _Core.rgb * 0.7 * Blob(cc, L, N, W, float3(0.12, 0.09, 0.1) * size);
+                light += _CompColor.rgb * 0.18 * Blob(cc, L, N, W, float3(0.6, 0.14, 0.3) * size);
+                light += _CompColor.rgb * 0.03 * Blob(cc, L, N, W, float3(0.9, 0.4, 0.55) * size);
+
+                // Its tidal tail, drawn out of the far side.
+                [loop]
+                for (int q = 0; q < 4; q++)
+                {
+                    float f = (q + 0.5) / 4.0;
+                    float3 c = RGTail(f);
+                    float3 along = normalize(RGTail(f + 0.05) - RGTail(max(f - 0.05, 0.0)));
+                    float3 across = normalize(cross(float3(0.0, 1.0, 0.0), along));
+                    light += _CompColor.rgb * (0.07 * (1.0 - 0.6 * f)) * Blob(c, along, cross(along, across), across, float3(0.16, 0.04, 0.07) * (0.6 + f));
+                }
 
                 // The bridge of gas from the ring back to it.
                 [loop]

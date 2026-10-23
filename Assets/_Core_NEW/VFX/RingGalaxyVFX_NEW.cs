@@ -14,14 +14,14 @@ using UnityEngine;
 ///             intruder's side, knotted with pink regions of ionised hydrogen
 ///   middle    emptied by the ripple: the old yellow nucleus off centre in a small dusty ring of
 ///             its own, the old disc's faint warm light, faint spokes out to the ring
-///   intruder  the smaller galaxy that went through, still near: an edge-on streak off to one
-///             side, warm, with a thin bridge of gas trailing back to the ring
+///   intruder  the smaller galaxy that went through, still near: a warm streak aimed back at the
+///             ring, a tidal tail curling off its far side, a thin bridge of gas to the ring
 ///   outside   what is left of the old disc, and a plume of gas pulled out towards the intruder
 /// The Cartwheel Galaxy and Arp 148 are the pictures. Not the Milky Way (GalaxyVFX_NEW: a grand
 /// barred spiral) and not the quasar's host (HostGalaxyVFX_NEW: two lopsided arms).
 ///
 /// Put it on an empty object in the Micro render group. Its disc lies in the object's XZ plane,
-/// the intruder towards +X, and its radius is the object's scale. Tools > Journey NEW > Replace
+/// the intruder off to +X, and its radius is the object's scale. Tools > Journey NEW > Replace
 /// First Galaxy with Ring Galaxy puts it where the old first galaxy's disc was and switches the
 /// old one off. As the other galaxies do, it builds what it draws as hidden children that are
 /// never saved, in the editor too, and fades with its world through _Color, built before
@@ -48,19 +48,19 @@ public class RingGalaxyVFX_NEW : MonoBehaviour
     [Range(0.4f, 0.9f)] [SerializeField] float ringRadius = 0.72f;
 
     [Tooltip("The ring's half width, of the galaxy's radius.")]
-    [Range(0.02f, 0.2f)] [SerializeField] float ringWidth = 0.09f;
+    [Range(0.02f, 0.2f)] [SerializeField] float ringWidth = 0.1f;
 
     [Tooltip("How much brighter and wider the ring is on the intruder's side, 0 even all round.")]
-    [Range(0f, 1f)] [SerializeField] float lopsided = 0.75f;
+    [Range(0f, 1f)] [SerializeField] float lopsided = 0.9f;
 
     [Tooltip("How egg-shaped the ring is, its long side towards the intruder.")]
     [Range(0f, 0.25f)] [SerializeField] float eggShape = 0.1f;
 
     [Tooltip("Where the intruder is, of the galaxy's radius, in this object's space.")]
-    [SerializeField] Vector3 intruder = new Vector3(1.32f, 0.14f, 0.34f);
+    [SerializeField] Vector3 intruder = new Vector3(1.15f, 0.12f, 0.6f);
 
     [Tooltip("The intruder's size: the half length of its streak, of the galaxy's radius.")]
-    [Range(0.1f, 0.5f)] [SerializeField] float intruderSize = 0.28f;
+    [Range(0.1f, 0.5f)] [SerializeField] float intruderSize = 0.26f;
 
     [Tooltip("The ring's and the disc's half thickness, of the radius.")]
     [Range(0.01f, 0.08f)] [SerializeField] float thickness = 0.03f;
@@ -85,7 +85,7 @@ public class RingGalaxyVFX_NEW : MonoBehaviour
     [ColorUsage(false, true)] [SerializeField] Color ringColour = new Color(0.45f, 0.62f, 1.25f, 1f);
     [ColorUsage(false, true)] [SerializeField] Color knotCoreColour = new Color(1.5f, 1.75f, 2.4f, 1f);
     [Tooltip("The glow of ionised hydrogen round the knots.")]
-    [ColorUsage(false, true)] [SerializeField] Color knotGlowColour = new Color(1.8f, 0.55f, 0.9f, 1f);
+    [ColorUsage(false, true)] [SerializeField] Color knotGlowColour = new Color(1.4f, 0.6f, 1.1f, 1f);
     [ColorUsage(false, true)] [SerializeField] Color plumeColour = new Color(0.35f, 0.5f, 0.95f, 1f);
     [SerializeField] Color dustColour = new Color(0.05f, 0.03f, 0.03f, 1f);
     [ColorUsage(false, true)] [SerializeField] Color intruderColour = new Color(1.5f, 1.2f, 0.85f, 1f);
@@ -93,13 +93,13 @@ public class RingGalaxyVFX_NEW : MonoBehaviour
 
     [Header("Stars")]
     [Tooltip("Young stars along the ring and crowded into its knots.")]
-    [Range(0, 20000)] [SerializeField] int ringStars = 9000;
+    [Range(0, 20000)] [SerializeField] int ringStars = 12000;
     [Tooltip("Soft pink blobs of glowing gas, a few to each knot.")]
     [Range(0, 500)] [SerializeField] int knotGlows = 140;
     [Tooltip("The old disc's stars, thickest round the nucleus.")]
     [Range(0, 20000)] [SerializeField] int oldStars = 7000;
-    [Tooltip("Faint stars along the spokes, the bridge and the plume.")]
-    [Range(0, 8000)] [SerializeField] int debrisStars = 2500;
+    [Tooltip("Faint stars along the spokes, the intruder's tail, the bridge and the plume.")]
+    [Range(0, 8000)] [SerializeField] int debrisStars = 3500;
     [Range(0, 12000)] [SerializeField] int intruderStars = 5000;
     [Range(0, 5000)] [SerializeField] int haloStars = 1200;
     [Tooltip("Their size, as a fraction of the radius. Never less than two pixels on screen.")]
@@ -107,7 +107,7 @@ public class RingGalaxyVFX_NEW : MonoBehaviour
     [Tooltip("The largest a star is drawn, of half the screen's height — so one passing close is still a star.")]
     [Min(0.001f)] [SerializeField] float maxStarSize = 0.01f;
     [ColorUsage(false, true)] [SerializeField] Color ringStarColour = new Color(1.5f, 1.75f, 2.4f, 1f);
-    [ColorUsage(false, true)] [SerializeField] Color knotStarGlow = new Color(1.7f, 0.6f, 1f, 1f);
+    [ColorUsage(false, true)] [SerializeField] Color knotStarGlow = new Color(1.4f, 0.6f, 1.1f, 1f);
     [ColorUsage(false, true)] [SerializeField] Color oldStarColour = new Color(0.75f, 0.6f, 0.42f, 1f);
     [ColorUsage(false, true)] [SerializeField] Color debrisColour = new Color(0.45f, 0.6f, 1f, 1f);
     [ColorUsage(false, true)] [SerializeField] Color intruderStarColour = new Color(1.2f, 1f, 0.75f, 1f);

@@ -9,7 +9,8 @@ Shader "Custom/RingGalaxyStars_NEW"
     //   1 glow       the knots' ionised gas: soft pink blobs, a few to each knot
     //   2 old        the old disc's stars, warm and faint, thickest round the nucleus, all
     //                through the emptied middle
-    //   3 debris     faint blue stars along the spokes, the bridge and the plume
+    //   3 debris     faint blue stars along the spokes, the bridge and the plume, and warm ones
+    //                along the intruder's tidal tail
     //   4 intruder   the companion's stars: a warm, flattened, edge-on swarm
     //   5 halo       a few old stars and clusters all round, dim
     //
@@ -21,12 +22,12 @@ Shader "Custom/RingGalaxyStars_NEW"
         _Color ("Fade (all four channels, as WorldSwitcher_NEW sets it)", Color) = (1, 1, 1, 1)
         _Seed ("Seed", Float) = 0
         _Turn ("Turn, radians a second", Float) = 0.004
-        _Ring ("Ring: radius, half width, lopsidedness, egg-shape", Vector) = (0.72, 0.09, 0.75, 0.1)
-        _Comp ("The intruder: where (of the radius), and its size", Vector) = (1.32, 0.14, 0.34, 0.28)
+        _Ring ("Ring: radius, half width, lopsidedness, egg-shape", Vector) = (0.72, 0.1, 0.9, 0.1)
+        _Comp ("The intruder: where (of the radius), and its size", Vector) = (1.15, 0.12, 0.6, 0.26)
         _Size ("Star size (of the radius)", Float) = 0.0018
         _MaxSize ("Largest on screen, of half its height", Float) = 0.01
         [HDR] _RingStars ("Ring stars", Color) = (1.5, 1.75, 2.4, 1)
-        [HDR] _Glow ("Knot glow", Color) = (1.7, 0.6, 1.0, 1)
+        [HDR] _Glow ("Knot glow", Color) = (1.4, 0.6, 1.1, 1)
         [HDR] _OldStars ("Old stars", Color) = (0.75, 0.6, 0.42, 1)
         [HDR] _Debris ("Spokes, bridge and plume", Color) = (0.45, 0.6, 1.0, 1)
         [HDR] _CompStars ("The intruder's stars", Color) = (1.2, 1.0, 0.75, 1)
@@ -91,7 +92,7 @@ Shader "Custom/RingGalaxyStars_NEW"
                         int which = (int)floor(s2 / 0.45 * RG_KNOTS) % RG_KNOTS;
                         float2 kp; float ks, kb;
                         RGKnot(which, T, kp, ks, kb);
-                        float3 off = float3(Gauss(frac(s0 * 17.1 + s1 * 3.7)), Gauss(frac(s1 * 23.9 + s2 * 5.3)) * 0.5,
+                        float3 off = float3(Gauss(frac(s0 * 17.1 + s1 * 3.7)), Gauss(frac(s1 * 23.9 + s2 * 5.3)) * 0.8,
                                             Gauss(frac(s2 * 31.3 + s0 * 7.1))) * ks * 0.55;
                         position = float3(kp.x, 0.0, kp.y) + off;
                         colour = _RingStars.rgb * kb * (0.2 + 1.4 * pow(frac(s1 * 31.7), 4.0));
@@ -101,12 +102,12 @@ Shader "Custom/RingGalaxyStars_NEW"
                         // Along the ring.
                         float a = s0 * RG_TAU + _Turn * T;
                         float r = RGRingR(a) + Gauss(s1) * RGWidth(a) * 0.55;
-                        position = float3(cos(a) * r, Gauss(frac(s1 * 7.7)) * h, sin(a) * r);
-                        // Clumped along the ring, as its gas is: bunches and gaps.
-                        float bunch = saturate(0.5 + 0.9 * sin(a * 11.0 + _Seed + sin(a * 4.0) * 2.0));
-                        colour = _RingStars.rgb * RGBright(a) * (0.25 + bunch) * (0.12 + 0.9 * pow(frac(s2 * 41.3), 3.0));
+                        position = float3(cos(a) * r, Gauss(frac(s1 * 7.7)) * h * 1.8, sin(a) * r);
+                        // Bunched along the ring, as its gas is, with gaps (no regular pattern).
+                        float bunch = saturate(0.45 + 0.55 * sin(a * 3.0 + _Seed * 1.3) * sin(a * 7.3 + 1.7) + 0.35 * sin(a * 13.1 + 4.2));
+                        colour = _RingStars.rgb * RGBright(a) * (0.1 + 1.2 * bunch) * (0.1 + 1.1 * pow(frac(s2 * 41.3), 4.0));
                     }
-                    size *= 0.7 + 0.9 * frac(s0 * 17.3);
+                    size *= 0.6 + 1.4 * pow(frac(s0 * 17.3), 3.0);
                 }
                 else if (kind < 1.5)
                 {
@@ -114,9 +115,9 @@ Shader "Custom/RingGalaxyStars_NEW"
                     int which = (int)floor(s2 * RG_KNOTS) % RG_KNOTS;
                     float2 kp; float ks, kb;
                     RGKnot(which, T, kp, ks, kb);
-                    position = float3(kp.x, 0.0, kp.y) + float3(Gauss(s0), Gauss(s1) * 0.4, Gauss(frac(s0 * 7.3 + s1))) * ks * 0.45;
+                    position = float3(kp.x, 0.0, kp.y) + float3(Gauss(frac(s0 * 17.1 + s1 * 3.7)), Gauss(frac(s1 * 23.9 + s2 * 5.3)) * 0.9, Gauss(frac(s2 * 31.3 + s0 * 7.1))) * ks * 0.45;
                     float beat = 0.85 + 0.15 * sin(T * (0.08 + 0.15 * s1) + s0 * 30.0);
-                    colour = _Glow.rgb * kb * (0.15 + 0.35 * s1) * beat;
+                    colour = _Glow.rgb * kb * (0.08 + 0.22 * s1) * beat;
                     size = ks * (0.5 + 0.6 * frac(s0 * 3.3));
                     shape = float2(1.0, 1.0);
                     big = 6.0;
@@ -125,10 +126,10 @@ Shader "Custom/RingGalaxyStars_NEW"
                 {
                     // Old: warm, thickest round the nucleus, all through the middle.
                     float2 nuc = RGNucleus();
-                    float r = min(-0.2 * log(1.0 - s2 * 0.985), 0.85);
+                    float r = min(-0.12 * log(1.0 - s2 * 0.985), 0.6);
                     float a = s0 * RG_TAU + _Turn * T * 0.8;
                     position = float3(nuc.x + cos(a) * r, Gauss(frac(s1 * 7.7)) * h * (1.0 + 2.0 * exp(-r / 0.08)), nuc.y + sin(a) * r);
-                    colour = _OldStars.rgb * (0.15 + 0.45 * frac(s1 * 41.3)) * smoothstep(0.85, 0.5, r);
+                    colour = _OldStars.rgb * (0.15 + 0.45 * frac(s1 * 41.3)) * smoothstep(0.6, 0.3, r);
                     size *= 0.55 + 0.35 * frac(s0 * 11.1);
                 }
                 else if (kind < 3.5)
@@ -143,7 +144,14 @@ Shader "Custom/RingGalaxyStars_NEW"
                         position = float3(nuc.x + cos(a) * r, Gauss(frac(s1 * 5.3)) * h, nuc.y + sin(a) * r);
                         colour = _Debris.rgb * (0.15 + 0.4 * frac(s1 * 13.3));
                     }
-                    else if (s2 < 0.8)
+                    else if (s2 < 0.62)
+                    {
+                        // Along the intruder's tidal tail.
+                        float f = frac(s0 * 3.7 + s1 * 0.13);
+                        position = RGTail(f) + float3(Gauss(frac(s1 * 23.9 + s2 * 5.3)), Gauss(frac(s2 * 31.3 + s0 * 7.1)) * 0.4, Gauss(frac(s0 * 17.1 + s1 * 3.7))) * 0.035 * (0.6 + f);
+                        colour = _CompStars.rgb * (0.3 + 0.6 * frac(s1 * 17.3)) * (1.0 - 0.6 * f);
+                    }
+                    else if (s2 < 0.85)
                     {
                         // Along the bridge back to the intruder.
                         float f = frac(s0 * 3.7 + s1 * 0.13);
@@ -167,7 +175,7 @@ Shader "Custom/RingGalaxyStars_NEW"
                     RGCompanionFrame(L, W, N);
                     float sz = _Comp.w;
                     float g0 = Gauss(frac(s0 * 17.1 + s1 * 3.7)), g1 = Gauss(frac(s1 * 23.9 + s2 * 5.3)), g2 = Gauss(frac(s2 * 31.3 + s0 * 7.1));
-                    float3 off = L * g0 * sz * 0.42 + W * g1 * sz * 0.14 + N * g2 * sz * 0.035;
+                    float3 off = L * g0 * sz * 0.4 + W * g1 * sz * 0.17 + N * g2 * sz * 0.06;
                     float core = step(frac(s0 * 53.1 + s2 * 11.3), 0.3);
                     off *= lerp(1.0, 0.3, core);
                     position = _Comp.xyz + off;
