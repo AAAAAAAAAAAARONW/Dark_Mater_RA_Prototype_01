@@ -4,8 +4,10 @@ Shader "Custom/CosmicWebNebula_NEW"
     // the light flies through read as clouds of hydrogen (LARC, 14 October, asked for gas met
     // as a translucent cloud) — in the web's own purple, as the purple threads were: blue-violet
     // and thin at a thread's edges, purple through it, lilac where it is thick and lit, broken
-    // into clumps, torn by dark lanes of dust, slowly drifting. The yellow threads (Core,
-    // Coreyellow) keep their own material: they are the galaxies' light.
+    // into clumps, torn by dark lanes of dust, slowly drifting. A second material on the
+    // smaller sheets in the middle, round the clusters (Coreyellow), draws the same gas in pink
+    // and magenta, finer and drifting the other way (CosmicWebNebulaPink_NEW). The yellow
+    // clusters (Core, Coreyellow2) keep their own material: they are the galaxies' light.
     //
     // CHEAP. No ray march. The filament mesh is the gas's shape, so each pixel of it is shaded
     // once: how squarely the eye looks through the thread there (its soft edge), one read of
@@ -34,7 +36,7 @@ Shader "Custom/CosmicWebNebula_NEW"
         _Edge ("Edge softness: higher, the threads' edges fade sooner", Range(0.3, 4)) = 2.2
         _Absorb ("How much the gas hides what is behind it", Range(0, 1)) = 0.25
         _Dust ("Dark lanes", Range(0, 2)) = 1
-        _Baked ("How much the web's own bake shapes it", Range(0, 2)) = 1
+        _Baked ("How much the web's own bake shapes it (its density is ×8 this)", Range(0, 16)) = 1
         _CameraFade ("Thins out nearer the camera than x, all there from y (world units)", Vector) = (1.5, 10, 0, 0)
         [HDR] _Lit ("Thick gas, lit: lilac", Color) = (0.78, 0.46, 0.95, 1)
         [HDR] _Mid ("Through a thread: the web's purple", Color) = (0.56, 0.4, 0.8, 1)
