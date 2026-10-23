@@ -5,22 +5,24 @@ using UnityEngine;
 /// Puts the ring galaxy (RingGalaxyVFX_NEW) in place of the old first galaxy, in the open journey
 /// scene's Micro render group: Tools > Journey NEW > Replace First Galaxy with Ring Galaxy.
 ///
-/// IN PLACE. The first galaxy the light meets was Winnie's particle spiral, the Galaxy2 prefab:
-/// a level disc about 46 units in radius, its middle 12.5 below the light's line and about 79
-/// past the Micro gate, so the light flies in over it for J4 and J4b. The ring galaxy goes
-/// exactly there — the centre of the old disc (its "Disk" child), the same size — and the old one
-/// is switched off, not deleted: switch it back on to compare. Only the Micro group is touched;
-/// the Milky Way (MilkyWayLayer) and its own legacy galaxy art are not.
+/// The first galaxy the light meets was Winnie's particle spiral, the Galaxy2 prefab: a level
+/// disc about 46 units in radius only 12.5 below the light's line, so big and so close that the
+/// light skimmed it and it was never seen whole. The ring galaxy replaces it, the old one
+/// switched off, not deleted (switch it back on to compare). Only the Micro group is touched; the
+/// Milky Way (MilkyWayLayer) and its own legacy galaxy art are not.
 ///
-/// TIPPED TO FACE THE LIGHT, Tilt degrees about the light's right, so the ring is seen as an
-/// oval ahead with the intruder's streak running into its left side, as in the Hubble picture of
-/// Arp 148, rather than as a floor under the light. At 45° the light's line passes through the
-/// ring's plane inside the ring, a little before the gate out of the galaxy (CosmicWeb). The
-/// intruder's own turn (RingGalaxyVFX_NEW.intruderTilt, -45 by default) keeps it edge on.
+/// SEEN WHOLE, THEN FLOWN OVER. Radius 15, centred 80 past the Micro gate along the light's line,
+/// 21 below it and 4 to its right, and tipped 18° about the light's right to face it. From the
+/// game camera (behind and a little above the light, looking along it) the whole galaxy sits in
+/// the lower half of the screen as the light comes through the gate, an oval with the intruder's
+/// streak running into its left side, as in the Hubble picture of Arp 148; it grows as the light
+/// comes on and slides away under it, and the light passes over it — 16 or more above its
+/// highest point, never through it — before the gate out into the cosmic web. The intruder's own
+/// turn (RingGalaxyVFX_NEW.intruderTilt, -35 by default) keeps it edge on to the light.
 ///
-/// If the old galaxy is not there, the ring galaxy goes where it would have been, from the Micro
-/// gate and the light's line. If a ring galaxy is already in the group, it is moved rather than a
-/// second one added.
+/// It is placed from the Micro gate and the light's line; with no gate, from where the old disc's
+/// middle was (its "Disk" child). If a ring galaxy is already in the group, it is moved rather
+/// than a second one added.
 ///
 /// It works on the scene as loaded in the editor, as one undoable step. Save the scene to keep it.
 /// </summary>
@@ -29,16 +31,19 @@ static class JourneyRingGalaxyMenu_NEW
     const string MenuPath = "Tools/Journey NEW/Replace First Galaxy with Ring Galaxy";
     const string ObjectName = "Ring Galaxy VFX";
 
-    /// <summary>The old first galaxy's radius, in world units: its disc's 46, and its stars' size on top.</summary>
-    const float Radius = 48f;
+    /// <summary>The galaxy's radius, in world units: about a third of the old one's, to be seen whole.</summary>
+    const float Radius = 15f;
 
-    /// <summary>How far the ring is tipped up to face the light, degrees. Keep RingGalaxyVFX_NEW.intruderTilt its opposite.</summary>
-    const float Tilt = 45f;
+    /// <summary>How far the ring is tipped up to face the light, degrees. Keep RingGalaxyVFX_NEW.intruderTilt about -(this + 17).</summary>
+    const float Tilt = 18f;
 
-    /// <summary>Where the old disc's middle was, if it is not in the scene to measure: past the Micro gate along the light's line, below it, to its right.</summary>
-    const float CentrePastGate = 79.4f;
-    const float CentreBelowLine = 12.5f;
-    const float CentreRightOfLine = 0.49f;
+    /// <summary>Where its middle is: past the Micro gate along the light's line, below it, to its right.</summary>
+    const float CentrePastGate = 80f;
+    const float CentreBelowLine = 21f;
+    const float CentreRightOfLine = 4f;
+
+    /// <summary>Where the old disc's middle was, the same way, for when there is no gate to measure from.</summary>
+    static readonly Vector3 OldDiscFromGate = new Vector3(0.49f, -12.5f, 79.4f);
 
     /// <summary>The old first galaxy's top-level objects in the Micro group (the Galaxy2 prefab and the earlier particle layout).</summary>
     static readonly string[] OldArt = { "Galaxy2", "GalaxyPrototype" };
@@ -57,16 +62,25 @@ static class JourneyRingGalaxyMenu_NEW
 
         Undo.SetCurrentGroupName("Replace first galaxy with ring galaxy");
 
-        // Where the old galaxy's disc is, measured off the old galaxy itself.
-        Vector3 centre;
-        bool measured = OldDiscCentre(group, out centre);
+        // From the Micro gate and the light's line, or else from where the old galaxy's disc was.
         Vector3 heading = Heading();
-        if (!measured && !FromGate(heading, out centre))
+        Vector3 right = Vector3.Cross(Vector3.up, heading).normalized;
+        if (right.sqrMagnitude < 1e-6f) right = Vector3.right;
+        Vector3 offset = heading * CentrePastGate - Vector3.up * CentreBelowLine + right * CentreRightOfLine;
+        Vector3 origin;
+        bool fromGate = GateOrigin(out origin);
+        if (!fromGate)
         {
-            Debug.LogWarning("Journey NEW: no old first galaxy in the Micro group and no gate into 'Micro', so there " +
-                             "is nowhere to put the ring galaxy.");
-            return;
+            Vector3 disc;
+            if (!OldDiscCentre(group, out disc))
+            {
+                Debug.LogWarning("Journey NEW: no gate into 'Micro' and no old first galaxy in the Micro group, so there " +
+                                 "is nowhere to put the ring galaxy.");
+                return;
+            }
+            origin = disc - (heading * OldDiscFromGate.z + Vector3.up * OldDiscFromGate.y + right * OldDiscFromGate.x);
         }
+        Vector3 centre = origin + offset;
 
         RingGalaxyVFX_NEW galaxy = group.GetComponentInChildren<RingGalaxyVFX_NEW>(true);
         GameObject go;
@@ -109,9 +123,10 @@ static class JourneyRingGalaxyMenu_NEW
 
         Selection.activeGameObject = go;
         Debug.Log(string.Format(
-            "Journey NEW: '{0}' is the first galaxy now, radius {1:0}, tipped {5:0}° to face the light, centred at {2} ({3}){4}. Save the scene to keep it.",
-            ObjectName, Radius, centre, measured ? "where the old disc's middle was" : "from the Micro gate",
-            hidden > 0 ? "; the old galaxy (" + hidden + ") switched off" : "", Tilt), go);
+            "Journey NEW: '{0}' is the first galaxy now, radius {1:0}, tipped {5:0}° to face the light, centred at {2}, " +
+            "{6:0} below the light's line ({3}){4}. Save the scene to keep it.",
+            ObjectName, Radius, centre, fromGate ? "from the Micro gate" : "from where the old disc's middle was",
+            hidden > 0 ? "; the old galaxy (" + hidden + ") switched off" : "", Tilt, CentreBelowLine), go);
     }
 
     [MenuItem(MenuPath, true)]
@@ -134,20 +149,17 @@ static class JourneyRingGalaxyMenu_NEW
         return false;
     }
 
-    /// <summary>Where the old disc's middle would be, from the Micro gate and the light's line.</summary>
-    static bool FromGate(Vector3 heading, out Vector3 centre)
+    /// <summary>The middle of the gate into Micro, on the light's line.</summary>
+    static bool GateOrigin(out Vector3 origin)
     {
-        centre = Vector3.zero;
+        origin = Vector3.zero;
         LayerGate_NEW gate = null;
         foreach (LayerGate_NEW g in Object.FindObjectsOfType<LayerGate_NEW>())
             if (g.LayerId == "Micro") gate = g;
         if (gate == null) return false;
 
         Collider c = gate.GetComponent<Collider>();
-        Vector3 origin = c != null ? c.bounds.center : gate.transform.position;
-        Vector3 right = Vector3.Cross(Vector3.up, heading).normalized;
-        if (right.sqrMagnitude < 1e-6f) right = Vector3.right;
-        centre = origin + heading * CentrePastGate - Vector3.up * CentreBelowLine + right * CentreRightOfLine;
+        origin = c != null ? c.bounds.center : gate.transform.position;
         return true;
     }
 

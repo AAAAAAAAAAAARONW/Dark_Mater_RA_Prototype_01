@@ -13,8 +13,11 @@ Shader "Custom/RingGalaxyDisc_NEW"
     //   outside   the faint remains of the old disc, and a plume of gas pulled out towards the
     //             intruder
     //
-    // The ring and what is in it go round slowly (_Turn). Seen at a slant the light builds up and
-    // the dust closes, as through more of the layer.
+    // The ring and what is in it go round (_Turn), its colour shifting a little from blue-teal to
+    // blue-violet along it. Every few seconds a ripple spreads from the nucleus (_Ripple), a faint
+    // broken band of light across the empty middle that lights the ring and its knots as it
+    // crosses them. Seen at a slant the light builds up and the dust closes, as through more of
+    // the layer.
     //
     // Premultiplied over what is behind, queue 2990: after its far half of glow (2989), before
     // its stars (2992). _Color fades it. In Resources so a build has it.
@@ -24,7 +27,8 @@ Shader "Custom/RingGalaxyDisc_NEW"
         _Color ("Fade (all four channels, as WorldSwitcher_NEW sets it)", Color) = (1, 1, 1, 1)
         [NoScaleOffset] _Noise ("Noise (QuasarNoise_NEW)", 2D) = "gray" {}
         _Seed ("Seed", Float) = 0
-        _Turn ("Turn, radians a second", Float) = 0.004
+        _Turn ("Turn, radians a second", Float) = 0.02
+        _Ripple ("Ripples: seconds to spread, strength; twinkle; a knot's life, seconds", Vector) = (14, 1, 0.6, 50)
         _Ring ("Ring: radius, half width, lopsidedness, egg-shape", Vector) = (0.72, 0.085, 0.85, 0.12)
         _CompTilt ("The intruder's disc turned about its long axis, radians", Float) = -0.785
         _Comp ("The intruder: where (of the radius), and its size", Vector) = (-0.98, 0.0, -0.05, 0.3)
@@ -122,6 +126,13 @@ Shader "Custom/RingGalaxyDisc_NEW"
                 float specks = smoothstep(0.6, 0.9, nf.r) * (0.5 + nf.g);
                 float ring = prof * bright * (0.1 + bunch * (0.85 * clumps + 0.9 * specks));
 
+                // The ripples (RGRipple), broken up so they are not drawn with a compass: they
+                // light the ring as they cross it, and are a faint band of their own elsewhere.
+                float rip = RGRipple(p + (nc.rg - 0.5) * 0.09, T);
+                float flare = 1.0 + 1.5 * rip;
+                ring *= flare;
+                float wave = rip * (0.2 + 0.9 * smoothstep(0.3, 0.75, nA.g)) * smoothstep(1.7, 1.1, r);
+
                 // The giant knots, and smaller ones where the ring is thickest.
                 float cores = 0.0, glow = 0.0;
                 [unroll]
@@ -135,7 +146,7 @@ Shader "Custom/RingGalaxyDisc_NEW"
                     glow += kb * exp(-q * 0.5);
                 }
                 glow *= 0.4 + 0.9 * nB.g;   // the ionised gas patchy, not a round halo
-                float knotlets = smoothstep(0.62, 0.86, nB.g) * prof * bright;
+                float knotlets = smoothstep(0.62, 0.86, nB.g) * prof * bright * flare;
 
                 // The emptied middle: the old disc's faint light, the nucleus off centre in its
                 // own small dusty ring, and faint spokes out to the ring.
@@ -172,10 +183,14 @@ Shader "Custom/RingGalaxyDisc_NEW"
                 knotlets *= near;
                 specks *= near;
 
+                // The ring's blue shifting along it, a little teal here, a little violet there.
+                float3 gas = _Gas.rgb * lerp(float3(0.8, 1.06, 1.04), float3(1.22, 0.84, 1.06), smoothstep(0.3, 0.7, nL.g));
+
                 float3 light = _Core.rgb * core
                              + _Inner.rgb * (oldDisc * _Interior + innerRing * 0.35)
                              + _Spoke.rgb * spokes * 0.1 * _Spokes
-                             + _Gas.rgb * ring * 1.6
+                             + gas * ring * 1.6
+                             + lerp(_Gas.rgb, _Clump.rgb, 0.35) * wave * 0.07
                              + _Clump.rgb * (cores * 1.1 + knotlets * 0.35 + specks * prof * bright * bunch * 0.5) * _Knots
                              + _Glow.rgb * (glow * 0.1 + knotlets * 0.2) * _Knots
                              + _PlumeColor.rgb * (outer * 0.5 + plume * 0.5 * _Plume);
