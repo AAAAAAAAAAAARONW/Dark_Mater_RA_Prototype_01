@@ -21,11 +21,14 @@ using UnityEngine;
 ///             march (Resources/CosmicWebNebula_NEW.shader).
 ///   BIG (1)   the same 1.7 M-vertex mesh again with another bake, drawn over it: switched off,
 ///             as the one nebula layer is enough. Half the purple's vertices.
+///   Coreyellow  the smaller sheets and threads in the middle, round the yellow clusters (pink
+///             in its bake, whatever its name): CosmicWebNebulaPink_NEW, the same gas in pink and
+///             magenta, finer, drifting the other way, so the middle reads apart from the threads.
 ///   Nebulae   the separate clouds the first try added: deleted.
-/// The yellow threads (Core, Coreyellow, Coreyellow2) keep their baked volumes: they are the
-/// galaxies' light.
+/// The yellow clusters (Core, Coreyellow2) keep their baked volumes: they are the galaxies'
+/// light.
 ///
-/// Restore puts BIG's baked material back and switches BIG (1) on again; the separate clouds
+/// Restore puts the baked materials back and switches BIG (1) on again; the separate clouds
 /// are not brought back.
 ///
 /// It works on the scene as loaded in the editor, as one undoable step. Save the scene to keep it.
@@ -36,11 +39,14 @@ static class JourneyNebulaMenu_NEW
     const string RestorePath = "Tools/Journey NEW/Restore Second Cosmic Web Gas";
 
     const string NebulaMaterialPath = "Assets/_Core_NEW/Assets/CosmicWebNebula/CosmicWebNebula_NEW.mat";
+    const string PinkMaterialPath = "Assets/_Core_NEW/Assets/CosmicWebNebula/CosmicWebNebulaPink_NEW.mat";
     const string BakedMaterialPath = "Assets/BakedVolumeTex/BIG_mat.mat";
+    const string BakedMiddlePath = "Assets/BakedVolumeTex/Coreyellow_mat.mat";
 
-    /// <summary>The purple threads, and the same mesh again with another bake.</summary>
+    /// <summary>The purple threads, the same mesh again with another bake, and the pink middle.</summary>
     const string Gas = "BIG";
     const string GasAgain = "BIG (1)";
+    const string Middle = "Coreyellow";
 
     /// <summary>The separate clouds the first try put in the web.</summary>
     const string OldClouds = "Nebulae";
@@ -50,15 +56,16 @@ static class JourneyNebulaMenu_NEW
     {
         Transform group = SecondWeb();
         Material nebula = AssetDatabase.LoadAssetAtPath<Material>(NebulaMaterialPath);
+        Material pink = AssetDatabase.LoadAssetAtPath<Material>(PinkMaterialPath);
         if (group == null) return;
-        if (nebula == null)
+        if (nebula == null || pink == null)
         {
-            Debug.LogWarning("Journey NEW: " + NebulaMaterialPath + " is missing, so the web was not changed.");
+            Debug.LogWarning("Journey NEW: " + NebulaMaterialPath + " or " + PinkMaterialPath + " is missing, so the web was not changed.");
             return;
         }
 
         Undo.SetCurrentGroupName("Nebula gas in second cosmic web");
-        int threads = SetGas(group, nebula, false);
+        int threads = SetGas(group, nebula, pink, false);
 
         int removed = 0;
         foreach (Transform t in group.GetComponentsInChildren<Transform>(true))
@@ -68,8 +75,8 @@ static class JourneyNebulaMenu_NEW
             removed++;
         }
 
-        Debug.Log(string.Format("Journey NEW: the second cosmic web's purple threads are nebula gas now ({0} meshes), the " +
-                                "second layer of them switched off{1}. Save the scene to keep it.",
+        Debug.Log(string.Format("Journey NEW: the second cosmic web's purple threads and pink middle are nebula gas now ({0} meshes), the " +
+                                "second layer of threads switched off{1}. Save the scene to keep it.",
                                 threads, removed > 0 ? ", the separate nebulae deleted" : ""), group);
     }
 
@@ -78,16 +85,17 @@ static class JourneyNebulaMenu_NEW
     {
         Transform group = SecondWeb();
         Material baked = AssetDatabase.LoadAssetAtPath<Material>(BakedMaterialPath);
+        Material bakedMiddle = AssetDatabase.LoadAssetAtPath<Material>(BakedMiddlePath);
         if (group == null) return;
-        if (baked == null)
+        if (baked == null || bakedMiddle == null)
         {
-            Debug.LogWarning("Journey NEW: " + BakedMaterialPath + " is missing, so the web was not changed.");
+            Debug.LogWarning("Journey NEW: " + BakedMaterialPath + " or " + BakedMiddlePath + " is missing, so the web was not changed.");
             return;
         }
 
         Undo.SetCurrentGroupName("Restore second cosmic web gas");
-        int threads = SetGas(group, baked, true);
-        Debug.Log(string.Format("Journey NEW: the second cosmic web's purple threads have their baked volumes back ({0} meshes). " +
+        int threads = SetGas(group, baked, bakedMiddle, true);
+        Debug.Log(string.Format("Journey NEW: the second cosmic web's purple threads and pink middle have their baked volumes back ({0} meshes). " +
                                 "Save the scene to keep it.", threads), group);
     }
 
@@ -106,18 +114,18 @@ static class JourneyNebulaMenu_NEW
         return group;
     }
 
-    /// <summary>The purple threads' material, and the second layer of them on or off. How many threads were set.</summary>
-    static int SetGas(Transform group, Material material, bool secondLayer)
+    /// <summary>The purple threads' and the middle's materials, and the second layer of threads on or off. How many meshes were set.</summary>
+    static int SetGas(Transform group, Material threads, Material middle, bool secondLayer)
     {
         int count = 0;
         foreach (Transform t in group.GetComponentsInChildren<Transform>(true))
         {
-            if (t.name == Gas)
+            if (t.name == Gas || t.name == Middle)
             {
                 Renderer r = t.GetComponent<Renderer>();
                 if (r == null) continue;
                 Undo.RecordObject(r, "Set cosmic web gas");
-                r.sharedMaterial = material;
+                r.sharedMaterial = t.name == Gas ? threads : middle;
                 count++;
             }
             else if (t.name == GasAgain && t.gameObject.activeSelf != secondLayer)
