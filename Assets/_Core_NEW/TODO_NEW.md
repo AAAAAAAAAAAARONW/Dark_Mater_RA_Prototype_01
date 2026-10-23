@@ -86,7 +86,7 @@ python elevenlabs_vo.py install
   - **动效**：环和里面的东西会转（`Turn` 0.02）；每隔几秒从核心扩散出一圈涟漪，经过环时环和亮结会闪亮一下（`Ripple Seconds`、`Ripples`）；亮结会亮起、跟着环转一阵、再熄灭，换到别处亮（`Knot Life`）；星星会闪（`Twinkle`）；桥上的星星往环里流，潮汐尾的星星往外流。都在 Inspector 的 Motion 里调，`Ripples` 和 `Twinkle` 设 0 就关掉。
   - **白点**：Micro 一路上那几百个白点是离开 Micro（去 CosmicWeb）转场用的星系群。它们原来整段都暗暗地显示（`Ambient Crowd` 0.3），现在只在门前最后 5 个单位才出现（0），数量 2000 → 1000。`Gameplay_Scene_Aaron` 里的同一个设置没动。
   - 以后重摆用 `Tools > Journey NEW > Replace First Galaxy with Ring Galaxy`。如果把星系的倾角改了，记得把 `Intruder Tilt` 改成大约 -(倾角 + 17)，光条才会保持侧对着光。
-- [ ] **第二段 cosmic web 里多了 7 团星云**（`Render Layers/CosmicWeb/Nebulae`，`NebulaCloudVFX_NEW`，纯视觉，不接光谱）：两团在光的路径上会直接穿过去，其余在纤维之间不同远近。重摆用 `Tools > Journey NEW > Add Nebulae To Second Cosmic Web`。按 3 跳到 CosmicWeb 看一遍：云应该是半透明的、能看见后面的纤维，从里面穿过时四周是一圈红紫色的光，不是一堵墙。
+- [ ] **星云改成做在第二段 cosmic web 的纤维里（10 月 23 日）**：原来那 7 团单独的星云（`Render Layers/CosmicWeb/Nebulae`）删掉了，改成把紫色纤维 `BIG` 的材质换成 `CosmicWebNebula_NEW.mat`（`Assets/_Core_NEW/Assets/CosmicWebNebula/`）。颜色保持原来纤维的紫色，不是粉色；有一团一团的气、暗的尘带，会慢慢飘。它很便宜：不做光线步进，每个像素三次贴图读取、没有循环；`BIG (1)` 是同一个 170 万顶点的网格又画了一遍，关掉了，紫色部分的顶点也少了一半。黄色的 Core / Coreyellow 没动。`Gameplay_Scene_Ana` 和 `Test_Journey` 都改了，第一段 web（Macro）没动。按 3 跳到 CosmicWeb 飞一遍看看颜色和亮度；觉得亮/暗调材质的 `Brightness`，觉得太碎调 `Noise Scale`（越小团越大），尘带多少调 `Dust`。要换回原来的烘焙体积：`Tools > Journey NEW > Restore Second Cosmic Web Gas`。
 - [ ] **开场：黑 0.1 秒后淡入**（出生点 z 100，开场这层全速约 14 秒）。在 Ana 场景跑一次 Wire Journey Voice Over 并保存：会加上 `JourneyOpening_NEW`，把 J2、J2b 从开场挪到星系，开场延迟从 3 秒改成 1 秒。试玩时检查：黑一下就淡入、光开始飞；J0 说完接着 J1；Console 里没有 `Dropped J1…`。
 - [ ] **Ana 场景再跑一次 Wire Journey Voice Over 并保存**：会撤掉上一轮写进场景的开场减速。
 - [ ] **Solar System 镜头**：`Tools > Journey NEW > Solar System > Camera Preset` 把视角放宽并把相机拉远；`Tilt the System` 把太阳系平面倾斜 15°，让轨道看起来是椭圆而不是一条线。两个可以分别用 Ctrl+Z 撤销，满意就保存场景。

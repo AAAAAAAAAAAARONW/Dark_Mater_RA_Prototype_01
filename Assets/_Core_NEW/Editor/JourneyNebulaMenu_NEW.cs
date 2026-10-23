@@ -2,147 +2,130 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// Scatters clouds of hydrogen gas (NebulaCloudVFX_NEW) through the second cosmic web of the
-/// open journey scene: Tools > Journey NEW > Add Nebulae To Second Cosmic Web.
+/// Turns the second cosmic web's purple threads into nebula gas, in the open journey scene:
+/// Tools > Journey NEW > Nebula Gas In Second Cosmic Web, and back with Restore Second Cosmic
+/// Web Gas.
 ///
-/// WHY. The second cosmic web is where the light's spectrum fills with the Lyman-alpha
-/// forest — "thousands of hydrogen clouds have cut lines into your light" (J6) — and until
-/// now that gas was only the web's threads. The scientists asked for hydrogen to be met as a
-/// cloud, translucent and reddish-purple, the Orion Nebula the reference (LARC, 14 October).
-/// So here are a few, among the threads: two on the light's path, which it flies through,
-/// the rest off to the sides at different distances and sizes. They are art only: the lines
-/// on the spectrum are the bake's, as before.
+/// WHY. The second cosmic web is where the light's spectrum fills with the Lyman-alpha forest —
+/// "thousands of hydrogen clouds have cut lines into your light" (J6) — and the scientists asked
+/// for hydrogen to be met as a translucent cloud (LARC, 14 October). The first try scattered
+/// separate nebulae (NebulaCloudVFX_NEW) at the far end of the web; but the gas the light flies
+/// through is the web's threads themselves, so that is where the nebula goes: the threads' own
+/// material is replaced, and the player crosses it all the way through the web. The separate
+/// clouds ray-marched every pixel they covered, which was too much for the GPU; so did the
+/// threads' baked volumes.
 ///
-/// WHERE. Along the light's line between the gate into the second web (CosmicWeb) and the
-/// gate out of it (MilkyWay), at fractions of that stretch, so lengthening the web keeps them
-/// in proportion; across the line in the line's own right and up. All under one object,
-/// "Nebulae", in the CosmicWeb render group, so they fade and scale with the web.
+/// WHAT IT DOES, in the CosmicWeb render group only (the first web, Macro, is left alone):
+///   BIG       the purple threads: their material becomes CosmicWebNebula_NEW, the web's purple
+///             as a soft, clumped, drifting gas with dark lanes, shaded once a pixel, no ray
+///             march (Resources/CosmicWebNebula_NEW.shader).
+///   BIG (1)   the same 1.7 M-vertex mesh again with another bake, drawn over it: switched off,
+///             as the one nebula layer is enough. Half the purple's vertices.
+///   Nebulae   the separate clouds the first try added: deleted.
+/// The yellow threads (Core, Coreyellow, Coreyellow2) keep their baked volumes: they are the
+/// galaxies' light.
 ///
-/// It works on the scene as loaded in the editor, as one undoable step. Save the scene to
-/// keep it. If the group already has the Nebulae object, this selects it and changes nothing.
+/// Restore puts BIG's baked material back and switches BIG (1) on again; the separate clouds
+/// are not brought back.
+///
+/// It works on the scene as loaded in the editor, as one undoable step. Save the scene to keep it.
 /// </summary>
 static class JourneyNebulaMenu_NEW
 {
-    const string MenuPath = "Tools/Journey NEW/Add Nebulae To Second Cosmic Web";
-    const string ParentName = "Nebulae";
+    const string ApplyPath = "Tools/Journey NEW/Nebula Gas In Second Cosmic Web";
+    const string RestorePath = "Tools/Journey NEW/Restore Second Cosmic Web Gas";
 
-    struct Cloud
+    const string NebulaMaterialPath = "Assets/_Core_NEW/Assets/CosmicWebNebula/CosmicWebNebula_NEW.mat";
+    const string BakedMaterialPath = "Assets/BakedVolumeTex/BIG_mat.mat";
+
+    /// <summary>The purple threads, and the same mesh again with another bake.</summary>
+    const string Gas = "BIG";
+    const string GasAgain = "BIG (1)";
+
+    /// <summary>The separate clouds the first try put in the web.</summary>
+    const string OldClouds = "Nebulae";
+
+    [MenuItem(ApplyPath)]
+    static void Apply()
     {
-        public float along;    // of the stretch between the two gates
-        public float right;    // across the line, world units
-        public float up;
-        public float radius;
-        public int seed;
-
-        public Cloud(float along, float right, float up, float radius, int seed)
+        Transform group = SecondWeb();
+        Material nebula = AssetDatabase.LoadAssetAtPath<Material>(NebulaMaterialPath);
+        if (group == null) return;
+        if (nebula == null)
         {
-            this.along = along; this.right = right; this.up = up; this.radius = radius; this.seed = seed;
+            Debug.LogWarning("Journey NEW: " + NebulaMaterialPath + " is missing, so the web was not changed.");
+            return;
         }
+
+        Undo.SetCurrentGroupName("Nebula gas in second cosmic web");
+        int threads = SetGas(group, nebula, false);
+
+        int removed = 0;
+        foreach (Transform t in group.GetComponentsInChildren<Transform>(true))
+        {
+            if (t == null || t.name != OldClouds) continue;
+            Undo.DestroyObjectImmediate(t.gameObject);
+            removed++;
+        }
+
+        Debug.Log(string.Format("Journey NEW: the second cosmic web's purple threads are nebula gas now ({0} meshes), the " +
+                                "second layer of them switched off{1}. Save the scene to keep it.",
+                                threads, removed > 0 ? ", the separate nebulae deleted" : ""), group);
     }
 
-    // The two on the path first. The rest sit between the web's threads near the path, big
-    // ones further off, so there is always one in view and none fills the frame for long.
-    static readonly Cloud[] Clouds =
+    [MenuItem(RestorePath)]
+    static void Restore()
     {
-        new Cloud(0.30f,   0f,   0f,  8f, 0),
-        new Cloud(0.63f,   3f,  -2f,  9f, 1),
-        new Cloud(0.16f,  14f,  10f,  7f, 6),
-        new Cloud(0.41f, -22f,   9f, 14f, 2),
-        new Cloud(0.57f,  26f,  -6f, 12f, 3),
-        new Cloud(0.82f, -18f, -12f, 16f, 4),
-        new Cloud(0.87f,  20f,  14f, 11f, 5),
-    };
+        Transform group = SecondWeb();
+        Material baked = AssetDatabase.LoadAssetAtPath<Material>(BakedMaterialPath);
+        if (group == null) return;
+        if (baked == null)
+        {
+            Debug.LogWarning("Journey NEW: " + BakedMaterialPath + " is missing, so the web was not changed.");
+            return;
+        }
 
-    [MenuItem(MenuPath)]
-    static void AddNebulae()
+        Undo.SetCurrentGroupName("Restore second cosmic web gas");
+        int threads = SetGas(group, baked, true);
+        Debug.Log(string.Format("Journey NEW: the second cosmic web's purple threads have their baked volumes back ({0} meshes). " +
+                                "Save the scene to keep it.", threads), group);
+    }
+
+    [MenuItem(ApplyPath, true)]
+    static bool ApplyValidate() => !Application.isPlaying;
+
+    [MenuItem(RestorePath, true)]
+    static bool RestoreValidate() => !Application.isPlaying;
+
+    static Transform SecondWeb()
     {
         WorldSwitcher_NEW worlds = Object.FindObjectOfType<WorldSwitcher_NEW>();
         Transform group = worlds != null ? worlds.GroupRoot("CosmicWeb") : null;
         if (group == null)
-        {
-            Debug.LogWarning("Journey NEW: no WorldSwitcher_NEW with a 'CosmicWeb' group in the open scene, so no " +
-                             "nebulae were added. They go in that group, to fade and scale with the web.");
-            return;
-        }
-
-        Transform existing = Find(group, ParentName);
-        if (existing != null)
-        {
-            Debug.Log("Journey NEW: '" + ParentName + "' is already in the second cosmic web; left as it is.", existing);
-            Selection.activeGameObject = existing.gameObject;
-            return;
-        }
-
-        Vector3 from, to;
-        if (!GateCentre("CosmicWeb", out from) || !GateCentre("MilkyWay", out to))
-        {
-            Debug.LogWarning("Journey NEW: no gates into 'CosmicWeb' and 'MilkyWay', so there is no stretch to put the nebulae along.");
-            return;
-        }
-
-        Vector3 heading = (to - from).normalized;
-        float length = Vector3.Distance(from, to);
-        Vector3 right = Vector3.Cross(Vector3.up, heading).normalized;
-        if (right.sqrMagnitude < 1e-6f) right = Vector3.right;
-        Vector3 up = Vector3.Cross(heading, right).normalized;
-
-        var parent = new GameObject(ParentName);
-        Undo.RegisterCreatedObjectUndo(parent, "Add nebulae");
-        parent.layer = group.gameObject.layer;
-        parent.transform.SetParent(group, false);
-        parent.transform.position = from;
-        parent.transform.rotation = Quaternion.identity;
-        float parentScale = Mathf.Max(group.lossyScale.x, 1e-6f);
-        parent.transform.localScale = Vector3.one;
-
-        for (int i = 0; i < Clouds.Length; i++)
-        {
-            Cloud c = Clouds[i];
-            var go = new GameObject("Nebula " + (i + 1));
-            go.layer = group.gameObject.layer;
-            Transform t = go.transform;
-            t.SetParent(parent.transform, false);
-            t.position = from + heading * (c.along * length) + right * c.right + up * c.up;
-            // Each streak at its own angle: the cloud's shape lies along its own x.
-            t.rotation = Lie(c.seed);
-            t.localScale = Vector3.one * (c.radius / parentScale);
-            NebulaCloudVFX_NEW cloud = go.AddComponent<NebulaCloudVFX_NEW>();
-            var so = new SerializedObject(cloud);
-            so.FindProperty("seed").intValue = c.seed;
-            so.ApplyModifiedPropertiesWithoutUndo();
-        }
-
-        Selection.activeGameObject = parent;
-        Debug.Log(string.Format("Journey NEW: added {0} nebulae to '{1}' along the {2:0} units between the CosmicWeb and MilkyWay " +
-                                "gates, two of them on the light's path. Save the scene to keep them.", Clouds.Length, group.name, length), parent);
+            Debug.LogWarning("Journey NEW: no WorldSwitcher_NEW with a 'CosmicWeb' group in the open scene, so the web was not changed.");
+        return group;
     }
 
-    [MenuItem(MenuPath, true)]
-    static bool AddNebulaeValidate() => !Application.isPlaying;
-
-    /// <summary>How a cloud lies, from its seed: the same for the menu and the scene as patched.</summary>
-    static Quaternion Lie(int seed)
+    /// <summary>The purple threads' material, and the second layer of them on or off. How many threads were set.</summary>
+    static int SetGas(Transform group, Material material, bool secondLayer)
     {
-        return Quaternion.Euler(40f * Mathf.Sin(seed * 1.7f), 53f * seed, 30f * Mathf.Cos(seed * 2.3f));
-    }
-
-    static bool GateCentre(string layerId, out Vector3 centre)
-    {
-        centre = Vector3.zero;
-        foreach (LayerGate_NEW g in Object.FindObjectsOfType<LayerGate_NEW>())
+        int count = 0;
+        foreach (Transform t in group.GetComponentsInChildren<Transform>(true))
         {
-            if (g.LayerId != layerId) continue;
-            Collider c = g.GetComponent<Collider>();
-            centre = c != null ? c.bounds.center : g.transform.position;
-            return true;
+            if (t.name == Gas)
+            {
+                Renderer r = t.GetComponent<Renderer>();
+                if (r == null) continue;
+                Undo.RecordObject(r, "Set cosmic web gas");
+                r.sharedMaterial = material;
+                count++;
+            }
+            else if (t.name == GasAgain && t.gameObject.activeSelf != secondLayer)
+            {
+                Undo.RecordObject(t.gameObject, "Set cosmic web gas");
+                t.gameObject.SetActive(secondLayer);
+            }
         }
-        return false;
-    }
-
-    static Transform Find(Transform root, string name)
-    {
-        foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
-            if (t.name == name) return t;
-        return null;
+        return count;
     }
 }
