@@ -51,9 +51,11 @@ using UnityEngine.UI;
 /// cosmic web. Light only goes forward, so nothing may converge on a point ahead: a world
 /// shrinking into the distance in front of the camera, or a lens widening so everything
 /// falls away, reads as the light backing off (the first version did both). Everything
-/// that moves here moves from ahead to behind. The point is the middle of the world being
-/// left — at the CosmicWeb gate, the Micro galaxy, just behind the camera and twelve below
-/// — taken as the centre of its cluster:
+/// that moves here moves from ahead to behind. The point is the centre of the cluster the
+/// world being left belongs to: the middle of that world, unless focusOverride says
+/// otherwise. At the CosmicWeb gate it is the Micro Cluster Centre object, just behind the
+/// camera and twelve below: the first galaxy lies right under that gate, and its own middle
+/// put the cluster's knot on top of the photon and its glow round the camera:
 ///
 ///   cluster    The cluster's galaxies are there all along: dim, soft smudges spread evenly
 ///              round the world being left, the whole time the photon crosses it. They come
@@ -175,7 +177,7 @@ public class LayerDive_NEW : MonoBehaviour
         /// <summary>
         /// Starting values for a gate that goes up a scale, tuned for the galaxy back out to
         /// the cosmic web (see COMING OUT on the class). Measured against the scene: 1000
-        /// galaxies spread evenly 20 to 160 out round the Micro galaxy, unseen while the photon
+        /// galaxies spread evenly 20 to 160 out round the cluster's centre, unseen while the photon
         /// crosses it (shown dim all along, they were a few hundred white dots over the first
         /// galaxy); over the last 5 units (four seconds at Micro's speed) they come in; about
         /// 50 are in view at the gate. The camera starts round

@@ -11,14 +11,13 @@ using UnityEngine;
 /// switched off, not deleted (switch it back on to compare). Only the Micro group is touched; the
 /// Milky Way (MilkyWayLayer) and its own legacy galaxy art are not.
 ///
-/// SEEN WHOLE, THEN FLOWN OVER. Radius 15, centred 80 past the Micro gate along the light's line,
-/// 21 below it and 4 to its right, and tipped 18° about the light's right to face it. From the
-/// game camera (behind and a little above the light, looking along it) the whole galaxy sits in
-/// the lower half of the screen as the light comes through the gate, an oval with the intruder's
-/// streak running into its left side, as in the Hubble picture of Arp 148; it grows as the light
-/// comes on and slides away under it, and the light passes over it — 16 or more above its
-/// highest point, never through it — before the gate out into the cosmic web. The intruder's own
-/// turn (RingGalaxyVFX_NEW.intruderTilt, -35 by default) keeps it edge on to the light.
+/// AHEAD ALL THE WAY, FLOWN OVER AT THE END. Where it was put by hand in the Ana scene: radius
+/// 23.8, centred 90.5 past the Micro gate along the light's line, 3.5 below it and 4 to its
+/// right, tipped 18° about the light's right to face it. It is ahead of the light the whole
+/// way across Micro, an oval with the intruder's streak running into its left side, as in the
+/// Hubble picture of Arp 148, and the light comes over its middle at the gate out into the
+/// cosmic web. That gate's dive shrinks the Micro world into the Micro Cluster Centre object,
+/// not into the galaxy's own middle (LayerDive_NEW, COMING OUT).
 ///
 /// It is placed from the Micro gate and the light's line; with no gate, from where the old disc's
 /// middle was (its "Disk" child). If a ring galaxy is already in the group, it is moved rather
@@ -31,15 +30,15 @@ static class JourneyRingGalaxyMenu_NEW
     const string MenuPath = "Tools/Journey NEW/Replace First Galaxy with Ring Galaxy";
     const string ObjectName = "Ring Galaxy VFX";
 
-    /// <summary>The galaxy's radius, in world units: about a third of the old one's, to be seen whole.</summary>
-    const float Radius = 15f;
+    /// <summary>The galaxy's radius, in world units, as set by hand in the Ana scene.</summary>
+    const float Radius = 23.8095f;
 
-    /// <summary>How far the ring is tipped up to face the light, degrees. Keep RingGalaxyVFX_NEW.intruderTilt about -(this + 17).</summary>
+    /// <summary>How far the ring is tipped up to face the light, degrees.</summary>
     const float Tilt = 18f;
 
     /// <summary>Where its middle is: past the Micro gate along the light's line, below it, to its right.</summary>
-    const float CentrePastGate = 80f;
-    const float CentreBelowLine = 21f;
+    const float CentrePastGate = 90.532f;
+    const float CentreBelowLine = 3.51f;
     const float CentreRightOfLine = 4f;
 
     /// <summary>Where the old disc's middle was, the same way, for when there is no gate to measure from.</summary>
@@ -124,7 +123,7 @@ static class JourneyRingGalaxyMenu_NEW
         Selection.activeGameObject = go;
         Debug.Log(string.Format(
             "Journey NEW: '{0}' is the first galaxy now, radius {1:0}, tipped {5:0}° to face the light, centred at {2}, " +
-            "{6:0} below the light's line ({3}){4}. Save the scene to keep it.",
+            "{6:0.#} below the light's line ({3}){4}. Save the scene to keep it.",
             ObjectName, Radius, centre, fromGate ? "from the Micro gate" : "from where the old disc's middle was",
             hidden > 0 ? "; the old galaxy (" + hidden + ") switched off" : "", Tilt, CentreBelowLine), go);
     }

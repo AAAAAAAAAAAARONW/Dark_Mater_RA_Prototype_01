@@ -29,12 +29,12 @@ using UnityEngine;
 ///
 /// Put it on an empty object in the Micro render group. Its disc lies in the object's XZ plane,
 /// the intruder off to -X, and its radius is the object's scale. Tools > Journey NEW > Replace
-/// First Galaxy with Ring Galaxy puts it ahead of the light and well below its line, tipped 18°
-/// to face it, small enough to be seen whole as the light comes in from the Micro gate (an oval
-/// with the streak running into its left side), and switches the old galaxy off. The light flies
-/// on over it, never through it. As the other galaxies do, it builds what it draws as hidden
-/// children that are never saved, in the editor too, and fades with its world through _Color,
-/// built before WorldSwitcher_NEW gathers renderers.
+/// First Galaxy with Ring Galaxy puts it where it was placed by hand in the Ana scene, ahead of
+/// the light all the way across Micro and a little below its line, tipped 18° to face it (an
+/// oval with the streak running into its left side), and switches the old galaxy off. The light
+/// comes over its middle at the gate out into the cosmic web. As the other galaxies do, it builds
+/// what it draws as hidden children that are never saved, in the editor too, and fades with its
+/// world through _Color, built before WorldSwitcher_NEW gathers renderers.
 ///
 /// CHEAP. One sheet worked out per pixel with a handful of noise reads (QuasarNoise_NEW); the
 /// glow in depth added up exactly from some forty soft blobs (no ray marching); the stars one

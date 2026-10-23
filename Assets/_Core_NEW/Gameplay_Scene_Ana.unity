@@ -41091,6 +41091,22 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
+--- !u!1 &1900000101
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1900000102}
+  m_Layer: 8
+  m_Name: Micro Cluster Centre
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
 --- !u!1 &321961725
 GameObject:
   m_ObjectHideFlags: 0
@@ -70576,6 +70592,7 @@ Transform:
   - {fileID: 816706827}
   - {fileID: 1135867708}
   - {fileID: 669121341}
+  - {fileID: 1900000102}
   m_Father: {fileID: 2068622088}
   m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -118448,6 +118465,20 @@ Transform:
   m_Father: {fileID: 388645245}
   m_RootOrder: 3
   m_LocalEulerAnglesHint: {x: -18, y: 0, z: 0}
+--- !u!4 &1900000102
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1900000101}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.65333, y: -13.39, z: 482.16797}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 388645245}
+  m_RootOrder: 4
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &688588742
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -144279,7 +144310,7 @@ MonoBehaviour:
     enabled: 1
     direction: 1
     focusPastGate: 30
-    focusOverride: {fileID: 0}
+    focusOverride: {fileID: 1900000102}
     approachDistance: 5
     diveSeconds: 3
     peakHoldSeconds: 0.2
