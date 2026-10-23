@@ -41085,7 +41085,7 @@ GameObject:
   - component: {fileID: 669121341}
   - component: {fileID: 1583379869}
   m_Layer: 8
-  m_Name: Young Galaxy VFX
+  m_Name: Ring Galaxy VFX
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -75765,7 +75765,7 @@ PrefabInstance:
     - target: {fileID: 4158264388256872024, guid: db112bfc8b45c1244b5d86f146f0c6ea,
         type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4158264388256872025, guid: db112bfc8b45c1244b5d86f146f0c6ea,
         type: 3}
@@ -118483,13 +118483,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 299825320}
-  m_LocalRotation: {x: -0.2419219, y: 0, z: 0, w: 0.9702957}
-  m_LocalPosition: {x: 11.35333, y: -0.89, z: 437.6}
-  m_LocalScale: {x: 28, y: 28, z: 28}
+  m_LocalRotation: {x: -0.3826834, y: 0, z: 0, w: 0.9238795}
+  m_LocalPosition: {x: 0.6399807, y: -13.36051, z: 482.2527}
+  m_LocalScale: {x: 48, y: 48, z: 48}
   m_Children: []
   m_Father: {fileID: 388645245}
   m_RootOrder: 3
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: -45, y: 0, z: 0}
 --- !u!114 &688588742
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -280650,42 +280650,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   seed: 0
-  clumpTurn: 0.01
-  thickness: {x: 0.06, y: 0.07}
-  streams: 2
-  scaleLength: 0.3
-  dust: 1
-  clumps: 1.2
-  knots: 1
-  haze: 0.7
-  brightness: 0.6
-  depthGlow: 1
-  dustVolume: 0.5
-  wind: 1
-  resolve: {x: 0.02, y: 0.12}
-  coreColour: {r: 1.5, g: 0.85, b: 0.5, a: 1}
-  gasColour: {r: 0.45, g: 0.5, b: 1, a: 1}
-  clumpColour: {r: 1.5, g: 1.75, b: 2.4, a: 1}
-  glowColour: {r: 1.7, g: 0.55, b: 0.85, a: 1}
-  streamColour: {r: 0.5, g: 0.85, b: 0.95, a: 1}
-  dustColour: {r: 0.05, g: 0.03, b: 0.06, a: 1}
-  windColour: {r: 0.8, g: 0.4, b: 1, a: 1}
-  haloColour: {r: 0.3, g: 0.32, b: 0.55, a: 1}
-  gasFlow: 0.01
-  twinkle: 0.4
-  clumpStars: 8000
-  knotCount: 150
-  discStars: 16000
-  streamStars: 1200
-  haloStars: 1500
-  starSize: 0.0018
-  maxStarSize: 0.01
-  orbitalSpeed: 0.01
-  clumpStarColour: {r: 1.5, g: 1.7, b: 2.3, a: 1}
-  knotColour: {r: 1.6, g: 0.8, b: 1.2, a: 1}
-  discStarColour: {r: 0.7, g: 0.7, b: 1.1, a: 1}
-  streamStarColour: {r: 0.5, g: 0.85, b: 0.9, a: 1}
-  haloStarColour: {r: 0.4, g: 0.33, b: 0.3, a: 1}
 --- !u!1 &1585973278
 GameObject:
   m_ObjectHideFlags: 0

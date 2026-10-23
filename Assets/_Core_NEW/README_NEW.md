@@ -220,10 +220,10 @@ Earth 没有组是**有意的**（结局是视频过场）。新版遇到找不�
 
 | 物体 | 组件 | 在哪 | 重摆菜单 |
 |---|---|---|---|
-| `Render Layers/GalaxyLayer/Young Galaxy VFX` | `YoungGalaxyVFX_NEW` | 半径 28，盘面倾斜 28°，盘面在 Micro 门后 35 处横过光的路线，中心偏到路线右侧 0.4 R，光从团块之间穿过 | `Tools > Journey NEW > Add Young Galaxy VFX to Open Scene`（旧的 `GalaxyPrototype`、`Galaxy2` 会被关掉，不删） |
+| `Render Layers/GalaxyLayer/Ring Galaxy VFX` | `RingGalaxyVFX_NEW` | 就在原来第一个星系（Winnie 的 `Galaxy2` 粒子旋涡星系）的位置：半径 48，中心在 Micro 门后约 79、光的路线下方 12.5 处，朝光倾斜 45° | `Tools > Journey NEW > Replace First Galaxy with Ring Galaxy`（旧的 `Galaxy2` 会被关掉，不删；只动 GalaxyLayer，不碰 Milky Way） |
 | `Render Layers/CosmicWeb/Nebulae` | 7 × `NebulaCloudVFX_NEW` | 沿 CosmicWeb 门到 MilkyWay 门那一段按比例摆，两团在光的路线上 | `Tools > Journey NEW > Add Nebulae To Second Cosmic Web` |
 
-年轻星系是宇宙正午的星系（J4 那一段台词）：没有旋臂，一打巨大的恒星形成团块、厚而湍动的盘、两条从外面流进来的冷气体流、上下的星风，故意和银河系（蓝白大旋臂）、类星体宿主（桃金双臂加星暴环）都不一样。星云是 LARC 10 月 14 日要的「半透明红紫色的氢气云」，纯视觉，不接光谱（Lyman-alpha forest 的线还是 bake 的）。Tutorial D4–D8 的氢原子也换成了同一个 `NebulaCloudVFX_NEW`，但调成冷蓝、没有星：那是冷的中性氢，不是星云，两种东西两种颜色。
+第一个星系是一个**碰撞环星系**（哈勃分类里的「特殊星系 / peculiar」，不是旋涡星系），照着 Hubble 拍的 **Arp 148（Mayall 天体）** 做：一个小星系从它的盘中间直穿过去，引力的涟漪把气体挤成一大圈正在爆发式造星的蓝色星团环，远离小星系的一侧又厚又亮，靠小星系的一侧张开、又细又暗；环里只有一层淡淡的光，老核几乎看不见。闯入的小星系贴在环的左边，是一道和环垂直的长亮条，中间有一条暗尘带，尾巴往远离环的方向拖出去——环加光条就是 Mayall 1940 年说的「问号」。星系朝光倾斜 45°，所以从光的方向看是前方的一个椭圆环、光条从左边伸进来，光最后从环中间穿过去（在出星系的门之前）。对上 J4 的台词「星系在宇宙网的交汇处成长，这一个正处在它最忙的年纪」。辉光部分是解析积分（每个像素把约 40 个高斯团的光精确加起来，不做光线步进），所以很便宜。星云是 LARC 10 月 14 日要的「半透明红紫色的氢气云」，纯视觉，不接光谱（Lyman-alpha forest 的线还是 bake 的）。Tutorial D4–D8 的氢原子也换成了同一个 `NebulaCloudVFX_NEW`，但调成冷蓝、没有星：那是冷的中性氢，不是星云，两种东西两种颜色。
 
 ### 5 · 六扇门
 
