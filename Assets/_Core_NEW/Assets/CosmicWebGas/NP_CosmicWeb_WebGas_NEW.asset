@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 152f0e8635c91b2aa7fd62dd527d23ee, type: 3}
   m_Name: NP_CosmicWeb_WebGas_NEW
   m_EditorClassIdentifier: 
-  colorDark: {r: 0.1, g: 0.065, b: 0.135, a: 1}
-  colorMid: {r: 0.16, g: 0.1, b: 0.22, a: 1}
-  colorBright: {r: 0.24, g: 0.14, b: 0.3, a: 1}
+  colorDark: {r: 0.19, g: 0.16, b: 0.21, a: 1}
+  colorMid: {r: 0.23, g: 0.19, b: 0.25, a: 1}
+  colorBright: {r: 0.27, g: 0.22, b: 0.29, a: 1}
   colorStar: {r: 0.85, g: 0.75, b: 0.95, a: 1}
   scale: 1
   octaves: 5
@@ -23,7 +23,7 @@ MonoBehaviour:
   sharpness: 1.5
   starScale: 80
   starThreshold: 0.992
-  starBrightness: 0.4
+  starBrightness: 0.3
   animate: 1
   speed: 0.05
   blendDuration: 0

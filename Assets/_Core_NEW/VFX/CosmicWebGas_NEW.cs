@@ -24,7 +24,7 @@ using UnityEngine.Rendering;
 ///              bright knots along the threads
 ///
 /// CHEAP. One quad a puff, built once on the CPU; each pixel of a puff is one exp and one
-/// noise read, additive, no sorting. A hundred thousand puffs are a fraction of the triangles
+/// noise read, painted over what is behind with a little cover each, no sorting. A hundred thousand puffs are a fraction of the triangles
 /// of the meshes they sit on.
 ///
 /// It builds what it draws as a hidden child that is never saved, in the editor too, before
