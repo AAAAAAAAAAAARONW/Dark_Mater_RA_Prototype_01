@@ -91987,7 +91987,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: bc9fb3decd488cf44a4f03d4a3571fcb, type: 2}
+  - {fileID: 2100000, guid: 35a96cbed5a048da948f8773926bd615, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -143343,7 +143343,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90fac2ce6c2b674a6f3fb7c49559d322, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  catalog: {fileID: 11400000, guid: 8a6795ac1f7eddd6471f3f523776ef65, type: 2}
+  catalog: {fileID: 11400000, guid: bcec237e048f49d1a4bfffae3bfdef8a, type: 2}
   startLayerIdOverride: 
   emitInitialLayer: 1
   debugLog: 0
@@ -265421,7 +265421,7 @@ MonoBehaviour:
   - CosmicWeb
   webName: COsmicWebGameObject
   galaxiesName: Galaxies
-  fadeSeconds: 1.5
+  fadeSeconds: 2.5
   scaffolds: []
   moment: {fileID: 0}
   layerState: {fileID: 0}
