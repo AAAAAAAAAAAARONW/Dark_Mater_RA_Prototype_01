@@ -25,5 +25,5 @@ Material:
     - _MinAngle: 0.0025
     - _Sharpness: 14
     m_Colors:
-    - _Color: {r: 0.88, g: 0.75, b: 1, a: 1}
+    - _Color: {r: 1, g: 0.706, b: 0.878, a: 1}
     - _NearFade: {r: 8, g: 2, b: 0, a: 0}
