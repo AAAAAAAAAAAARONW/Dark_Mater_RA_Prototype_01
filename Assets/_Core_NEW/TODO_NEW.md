@@ -95,8 +95,8 @@ python elevenlabs_vo.py install
     - 颜色淡、星星白：我之前的预览是纯黑背景，没画天空和 Galaxies。引擎里 CosmicWeb 这层的天空（`NP_CosmicWeb`）是亮紫色渐变加很多淡黄白的硬边星点，紫色气体叠在紫色天空上就显得很淡，星点是白的；Galaxies 星点经过相机的冷色白平衡也偏灰白；星团中心叠加过亮成了白色。预览现在把天空、Galaxies、相机 FOV 30 和后处理都画上了，和引擎一致。
     - 只改这个场景：它的层目录换成 `CosmicWebGas/LayerCatalog_WebGas_NEW`（和 `LayerCatalog_New` 一样，只是 CosmicWeb 指向 `LP_CosmicWeb_WebGas_NEW` → 天空 `NP_CosmicWeb_WebGas_NEW`：参考图那样的深石板紫，星点少、暗）；CosmicWeb 的 Galaxies 用 `GalaxyFieldWarm_NEW.mat`（桃粉色）；`CosmicWebGasClusters_NEW.mat` 改成桃粉、亮度 0.36。其它场景的天空和 Galaxies 都没动。
     - 天空太暗/太亮调 `NP_CosmicWeb_WebGas_NEW` 的三个颜色；星点多少调 `Star Threshold`（越大越少），亮度 `Star Brightness`。
-  - **再修正：引擎里还是发白、像一层奶白色的雾（10 月 25 日，照片 IMG_1311）**：根本原因是混合方式。紫色光斑相加，叠得越多越亮，蓝通道先溢出、接着红、最后绿，于是紫 → 洋红 → 白，Bloom 再把白色扩散成雾。参考图是一张"密度 → 色带"的图，最密的地方是桃橙色，不会变白。现在 `CosmicWebGas_NEW` 改成按密度取色带（暗紫 → 紫 → 洋红 → 桃橙），每个粒子以一点覆盖度叠盖上去（`Blend One OneMinusSrcAlpha`），叠多了就趋近色带的颜色，不会超过。天空改成参考图那样的中性灰紫；细丝材质排到气体之后画。
-    - 调法（三个 `CosmicWebGas*_NEW.mat`）：`Color A–D` 是色带四个颜色（稀 → 密），`Ramp` 的 x/y/z 是到达紫、洋红、桃橙的密度位置（往大调整体更紫，往小调更多桃橙）；`Cover` 是每个粒子的覆盖度（大了气体更厚更实，小了更透）；`Brightness` 整体亮度；`Size` 粒子大小（小了纤维更细更清楚）。
+  - **再修正：引擎里还是发白、像一层奶白色的雾（10 月 25 日，照片 IMG_1311）**：根本原因是混合方式。紫色光斑只做相加，叠得越多越亮，蓝通道先溢出、接着红、最后绿，于是紫 → 洋红 → 白，Bloom 再把白色扩散成雾。中间试过完全"叠盖"（不透明地一层层盖上去），颜色不会白了，但太像糖果、没有半透明和发光的感觉，已经改掉。现在是两者之间：每个粒子按密度从色带取色（暗紫 → 紫 → 淡紫粉 → 桃色），加上自己的光，同时只遮住后面一小部分。稀的地方是半透明的辉光，密的地方颜色稳定下来、稍微泛 Bloom，不会叠到白。天空是深灰紫；细丝材质排到气体之后画。
+    - 调法（三个 `CosmicWebGas*_NEW.mat`）：`Cover` 是每个粒子给多少光（大了气体更亮更厚）；`Occlude` 是遮住后面多少（0 只发光、越叠越亮直到发白，1 不透明像糖果，现在 0.45）；`Brightness` 整体亮度，密处的颜色大约是色带颜色 × `Brightness / Occlude`；`Color A–D` 是色带四个颜色（稀 → 密），`Ramp` 的 x/y/z 是到达紫、淡紫粉、桃色的密度位置；`Size` 粒子大小。
     - 手机拍屏幕会自动白平衡，紫色会被拍成灰白，下次请直接截图（Win+Shift+S）再发给我，颜色才准。
 - [ ] **开场：黑 0.1 秒后淡入**（出生点 z 100，开场这层全速约 14 秒）。在 Ana 场景跑一次 Wire Journey Voice Over 并保存：会加上 `JourneyOpening_NEW`，把 J2、J2b 从开场挪到星系，开场延迟从 3 秒改成 1 秒。试玩时检查：黑一下就淡入、光开始飞；J0 说完接着 J1；Console 里没有 `Dropped J1…`。
 - [ ] **Ana 场景再跑一次 Wire Journey Voice Over 并保存**：会撤掉上一轮写进场景的开场减速。

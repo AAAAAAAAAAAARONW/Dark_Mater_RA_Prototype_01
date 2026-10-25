@@ -7,14 +7,16 @@ Shader "Custom/CosmicWebGas_NEW"
     // surface with a rim — which is what a thin shell of mesh shaded on its own surface could
     // not be.
     //
-    // COLOURED LIKE A DENSITY MAP. The look is a map of the web's gas density (the reference):
-    // grey-violet voids, violet threads, magenta where they thicken, peach where they crowd
-    // into a node — a ramp of colour by density, never white. Each puff takes its colour
-    // from that ramp by how dense the gas round it is (baked into it), and is painted OVER
-    // what is behind it, covering a little of it (_Cover): where many puffs overlap the colour
-    // tends to theirs and stops there. Added together instead (as this first did), overlapping
-    // violet ran through magenta to white, and the camera's bloom spread that white into a
-    // milky haze over the whole web.
+    // COLOURED LIKE A DENSITY MAP, GLOWING. The look is a map of the web's gas density (the
+    // reference): violet threads, lilac where they thicken, peach where they crowd into a
+    // node. Each puff takes its colour from that ramp by how dense the gas round it is (baked
+    // into it) and glows: it adds its light, as a thin gas would, and hides only a little of
+    // what is behind it (_Occlude of its cover). Where few puffs overlap that is a translucent,
+    // emissive glow; where many do, the hiding catches up with the adding and the colour
+    // settles at the ramp's own times _Brightness / _Occlude, enough to bloom a little,
+    // instead of climbing on. Only added (as this first did), overlapping violet ran through magenta to
+    // white and the camera's bloom spread that white into a milky haze over the web; only
+    // painted over (_Occlude 1), the gas reads opaque, like candy.
     //
     // CHEAP. A puff is one quad; the threads need a few thousand to tens of thousands where the
     // meshes they replace had millions of triangles. Each pixel of a puff is one exp and one
@@ -36,9 +38,10 @@ Shader "Custom/CosmicWebGas_NEW"
         _Opacity ("Opacity (WorldSwitcher_NEW fades this)", Range(0, 1)) = 1
         _Emission ("Glow (WorldSwitcher_NEW scales this)", Range(0, 6)) = 1
         _Density ("Density (the dark matter toggle fades this)", Range(0, 6)) = 1
-        _Brightness ("Brightness", Range(0, 4)) = 1
-        _Cover ("How much one puff covers what is behind it: more, thicker gas", Range(0, 1)) = 0.13
-        _Size ("Puff radius, in the mesh's own units", Float) = 0.0007
+        _Brightness ("Brightness", Range(0, 4)) = 0.95
+        _Cover ("How much light one puff gives: more, thicker gas", Range(0, 1)) = 0.12
+        _Occlude ("How much of what is behind a puff hides: 0 only glows, 1 paints over", Range(0, 1)) = 0.45
+        _Size ("Puff radius, in the mesh's own units", Float) = 0.0009
         _MaxSize ("Largest a puff is drawn, of half the screen's height", Float) = 0.07
         _MinPixels ("Smallest a puff is drawn, in pixels across its radius: gas stays smooth far off", Float) = 3.5
         _CameraFade ("Thins out nearer the camera than x, all there from y (world units)", Vector) = (10, 50, 0, 0)
@@ -46,11 +49,11 @@ Shader "Custom/CosmicWebGas_NEW"
         _NoiseScale ("Noise tiles per world unit", Float) = 0.04
         _Drift ("Drift, world units a second", Vector) = (0.4, 0.15, 0.25, 0)
         _Breakup ("How much the noise breaks each puff up", Range(0, 1)) = 0.5
-        [HDR] _ColorA ("Thin gas: dim violet", Color) = (0.26, 0.14, 0.42, 1)
-        [HDR] _ColorB ("Threads: violet", Color) = (0.52, 0.24, 0.75, 1)
-        [HDR] _ColorC ("Thicker: magenta", Color) = (0.85, 0.32, 0.7, 1)
-        [HDR] _ColorD ("Densest: peach", Color) = (1, 0.58, 0.38, 1)
-        _Ramp ("Where violet, magenta and peach are reached along the density, 0 to 1", Vector) = (0.45, 0.8, 0.97, 0)
+        [HDR] _ColorA ("Thin gas: dim violet", Color) = (0.2, 0.13, 0.38, 1)
+        [HDR] _ColorB ("Threads: violet", Color) = (0.42, 0.24, 0.7, 1)
+        [HDR] _ColorC ("Thicker: lilac", Color) = (0.66, 0.34, 0.72, 1)
+        [HDR] _ColorD ("Densest: peach", Color) = (0.95, 0.62, 0.48, 1)
+        _Ramp ("Where violet, lilac and peach are reached along the density, 0 to 1", Vector) = (0.45, 0.82, 0.98, 0)
         _Vary ("How much each puff's own brightness counts", Range(0, 1)) = 0.5
     }
 
@@ -70,7 +73,7 @@ Shader "Custom/CosmicWebGas_NEW"
             #include "UnityCG.cginc"
 
             sampler3D _Noise;
-            float _Opacity, _Emission, _Density, _Brightness, _Cover, _Size, _MaxSize, _MinPixels, _NoiseScale, _Breakup, _Vary;
+            float _Opacity, _Emission, _Density, _Brightness, _Cover, _Size, _MaxSize, _MinPixels, _NoiseScale, _Breakup, _Vary, _Occlude;
             float4 _CameraFade, _Drift, _ColorA, _ColorB, _ColorC, _ColorD, _Ramp;
 
             struct appdata
@@ -84,7 +87,7 @@ Shader "Custom/CosmicWebGas_NEW"
             {
                 float4 pos    : SV_POSITION;
                 float2 corner : TEXCOORD0;
-                float4 colour : TEXCOORD1;   // premultiplied, with every fade in it
+                float4 colour : TEXCOORD1;   // light, and how much it hides; every fade in it
                 float3 world  : TEXCOORD2;
             };
 
@@ -102,18 +105,18 @@ Shader "Custom/CosmicWebGas_NEW"
                 float pixel = 2.0 * tanHalf * max(depth, 1e-3) / _ScreenParams.y;
                 float drawn = clamp(radius, _MinPixels * pixel, most);
 
-                // Its colour, by how dense the gas round it is: dim violet, violet, magenta, peach.
+                // Its colour, by how dense the gas round it is: dim violet, violet, lilac, peach.
                 float dense = v.data.y;
                 float3 colour = lerp(_ColorA.rgb, _ColorB.rgb, smoothstep(0.0, _Ramp.x, dense));
                 colour = lerp(colour, _ColorC.rgb, smoothstep(_Ramp.x, _Ramp.y, dense));
                 colour = lerp(colour, _ColorD.rgb, smoothstep(_Ramp.y, _Ramp.z, dense));
 
-                // How much of what is behind it it covers. A puff drawn bigger than it is (too
-                // far to be a few pixels) covers less; one too near thins out.
+                // How much light it gives, and hides a share of. A puff drawn bigger than it is
+                // (too far to be a few pixels) gives less; one too near thins out.
                 float far = min(1.0, radius / drawn);
                 float near = smoothstep(_CameraFade.x, _CameraFade.y, depth);
                 float cover = _Cover * lerp(1.0, v.data.z, _Vary) * far * near * saturate(_Density) * _Opacity;
-                o.colour = float4(colour * (_Brightness * _Emission), 1.0) * cover;
+                o.colour = float4(colour * (_Brightness * _Emission), _Occlude) * cover;
 
                 view.xy += v.corner * drawn;
                 if (depth < 1e-3) view = float3(0.0, 0.0, 1.0);
