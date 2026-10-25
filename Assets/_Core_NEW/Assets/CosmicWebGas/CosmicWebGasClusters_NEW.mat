@@ -25,8 +25,8 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Floats:
     - _Breakup: 0.35
-    - _Brightness: 0.95
-    - _Cover: 0.156
+    - _Brightness: 0.495
+    - _Cover: 0.26
     - _Density: 1
     - _Emission: 1
     - _MaxSize: 0.03
@@ -38,9 +38,9 @@ Material:
     - _Vary: 0.5
     m_Colors:
     - _CameraFade: {r: 6, g: 30, b: 0, a: 0}
-    - _ColorA: {r: 0.5, g: 0.25, b: 0.6, a: 1}
-    - _ColorB: {r: 0.7, g: 0.36, b: 0.7, a: 1}
-    - _ColorC: {r: 0.95, g: 0.52, b: 0.55, a: 1}
-    - _ColorD: {r: 1, g: 0.66, b: 0.48, a: 1}
+    - _ColorA: {r: 0.606, g: 0.337, b: 0.539, a: 1}
+    - _ColorB: {r: 0.845, g: 0.421, b: 0.535, a: 1}
+    - _ColorC: {r: 0.989, g: 0.517, b: 0.494, a: 1}
+    - _ColorD: {r: 1.044, g: 0.634, b: 0.469, a: 1}
     - _Drift: {r: 0.1, g: 0.05, b: 0.1, a: 0}
     - _Ramp: {r: 0.3, g: 0.65, b: 0.95, a: 0}

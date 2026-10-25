@@ -18,6 +18,10 @@ Shader "Custom/CosmicWebGas_NEW"
     // white and the camera's bloom spread that white into a milky haze over the web; only
     // painted over (_Occlude 1), the gas reads opaque, like candy.
     //
+    // The colours in its materials are what the camera's post-processing turns into the
+    // reference's: it cools everything (white balance -24.4), so they are set warmer than
+    // they show.
+    //
     // CHEAP. A puff is one quad; the threads need a few thousand to tens of thousands where the
     // meshes they replace had millions of triangles. Each pixel of a puff is one exp and one
     // read of a small tiling 3D noise. Not sorted: the puffs of one place are all about the
