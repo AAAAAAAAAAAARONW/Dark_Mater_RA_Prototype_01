@@ -33,7 +33,11 @@ Shader "Custom/CosmicWebNebula_NEW"
     // pixel, so far threads stay smooth instead of sparkling.
     //
     // Premultiplied over what is behind. Fades with its world: WorldSwitcher_NEW scales
-    // _Opacity (alpha) and _Emission (glow), the two floats the baked volumes have too.
+    // _Opacity (alpha) and _Emission (glow), the two floats the baked volumes have too, and the
+    // dark matter toggle (DarkMatterToggleTest_NEW) scales _Density, as it does theirs.
+    //
+    // In the second cosmic web this draws the purple threads' fine lines, dimmed, inside the
+    // glow of CosmicWebGas_NEW's puffs, which carry the gas's colour.
 
     Properties
     {
@@ -47,6 +51,7 @@ Shader "Custom/CosmicWebNebula_NEW"
         _Drift ("Drift, world units a second", Vector) = (0.4, 0.15, 0.25, 0)
         _Opacity ("Opacity (WorldSwitcher_NEW fades this)", Range(0, 1)) = 0.85
         _Emission ("Glow (WorldSwitcher_NEW scales this)", Range(0, 6)) = 1.3
+        _Density ("Density (the dark matter toggle fades this)", Range(0, 6)) = 1
         _Brightness ("Brightness", Range(0, 4)) = 1
         _Edge ("Edge softness: higher, the threads' edges fade sooner", Range(0.3, 4)) = 2.2
         _Absorb ("How much the gas hides what is behind it", Range(0, 1)) = 0.25
@@ -75,7 +80,7 @@ Shader "Custom/CosmicWebNebula_NEW"
             #include "UnityCG.cginc"
 
             sampler3D _BakedTex, _Noise, _Soft;
-            float _NoiseScale, _Opacity, _Emission, _Brightness, _Edge, _Absorb, _Dust, _Baked;
+            float _NoiseScale, _Opacity, _Emission, _Density, _Brightness, _Edge, _Absorb, _Dust, _Baked;
             float4 _Drift, _CameraFade, _SoftMin, _SoftSize, _SoftEdge;
             float4 _Lit, _Mid, _Rim;
             fixed4 _DustColor;
@@ -152,8 +157,8 @@ Shader "Custom/CosmicWebNebula_NEW"
                 float near = smoothstep(_CameraFade.x, _CameraFade.y, distance);
                 float3 light = colour * amount * (1.0 - 0.85 * saturate(dust)) * _Emission * _Brightness * 0.13;
                 float hide = saturate(amount * _Absorb + dust * 0.45);
-                float k = near * _Opacity;
-                return fixed4((light + _DustColor.rgb * dust * 0.45) * k, hide * k);
+                float k = near * _Opacity * _Density;
+                return fixed4((light + _DustColor.rgb * dust * 0.45) * k, saturate(hide * k));
             }
             ENDCG
         }
