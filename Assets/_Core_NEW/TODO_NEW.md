@@ -90,6 +90,11 @@ python elevenlabs_vo.py install
   - **中间那层也换了（粉色）**：星团周围小一点的片和丝是 `Coreyellow`（名字叫 yellow，烘焙出来其实是暗粉色；真正黄色的星团是 `Core`，`Coreyellow2` 几乎看不见），换成了 `CosmicWebNebulaPink_NEW.mat`：同一个 shader，粉/洋红色，团更细，往另一个方向飘。亮度 4，嫌太粉太亮就调这个材质的 `Brightness`。
   - **边缘软化（10 月 23 日）**：片和丝的边缘原来很硬（网格很薄，边缘在一条极窄的边上翻过去）。现在每个网格配了一张从网格烘焙的 3D 贴图（`WebSoftEdges_BIG_NEW` / `WebSoftEdges_Coreyellow_NEW`），气体朝片的边缘、丝的末端、零碎小块逐渐变淡、用噪声打散；`BIG.fbx` 和 `Coreyellow.fbx` 的法线改成导入时计算、平滑角 180°（第一次打开项目会重新导入这两个大模型，要等一会儿）。软化的强弱在材质的 `Soft Edge`：x 到 y 是从完全透明到完全显示的范围（调大 y 更软、气体更少），z 是边缘的不规则程度；设成 (-1, 0, 0) 就关掉。紫色那层调得轻（0.06, 0.42, 0.3），粉色那层重一些（0.15, 0.55, 0.35）。
   - **气团粒子版本，放在复制的场景里试（10 月 25 日）**：`Test_Journey_WebGas.unity`（`Test_Journey` 的副本，Ana 和 Test_Journey 没动）。参考宇宙网气体密度图：紫色纤维加软的光晕、密的节点偏桃色；中间那层粉色的片（`Coreyellow`）和黄色星团（`Core`）都改成了粒子，边缘是软的。暗物质 Y 在这个场景里照常切换，新的部分会跟着淡入淡出。打开这个场景按 3 飞一遍 CosmicWeb，再按 Y 看切换；满意的话我再把它搬到 Ana。亮度在三个 `CosmicWebGas*_NEW.mat` 的 `Brightness` 调，粒子大小在 `Size`，离镜头多近开始淡出在 `Camera Fade`。
+  - **修正：暗物质切换是突然的、颜色发淡、星星发白（10 月 25 日）**：
+    - 突然：进 Play 时 Unity 会对每个组件调一次 `OnValidate`，`CosmicWebGas_NEW` 因此把自己的渲染物体删掉重建，新的那个用的是材质原件，暗物质开关淡入淡出用的那份拷贝和 WorldSwitcher 的列表里都没有它，所以气体跟着 web 物体一下出现、一下消失。现在只有换了粒子文件或材质才重建。这个场景里交叉淡化也从 1.5 秒改成 2.5 秒（和原来暗物质显现的时长一样）。
+    - 颜色淡、星星白：我之前的预览是纯黑背景，没画天空和 Galaxies。引擎里 CosmicWeb 这层的天空（`NP_CosmicWeb`）是亮紫色渐变加很多淡黄白的硬边星点，紫色气体叠在紫色天空上就显得很淡，星点是白的；Galaxies 星点经过相机的冷色白平衡也偏灰白；星团中心叠加过亮成了白色。预览现在把天空、Galaxies、相机 FOV 30 和后处理都画上了，和引擎一致。
+    - 只改这个场景：它的层目录换成 `CosmicWebGas/LayerCatalog_WebGas_NEW`（和 `LayerCatalog_New` 一样，只是 CosmicWeb 指向 `LP_CosmicWeb_WebGas_NEW` → 天空 `NP_CosmicWeb_WebGas_NEW`：参考图那样的深石板紫，星点少、暗）；CosmicWeb 的 Galaxies 用 `GalaxyFieldWarm_NEW.mat`（桃粉色）；`CosmicWebGasClusters_NEW.mat` 改成桃粉、亮度 0.36。其它场景的天空和 Galaxies 都没动。
+    - 天空太暗/太亮调 `NP_CosmicWeb_WebGas_NEW` 的三个颜色；星点多少调 `Star Threshold`（越大越少），亮度 `Star Brightness`。
 - [ ] **开场：黑 0.1 秒后淡入**（出生点 z 100，开场这层全速约 14 秒）。在 Ana 场景跑一次 Wire Journey Voice Over 并保存：会加上 `JourneyOpening_NEW`，把 J2、J2b 从开场挪到星系，开场延迟从 3 秒改成 1 秒。试玩时检查：黑一下就淡入、光开始飞；J0 说完接着 J1；Console 里没有 `Dropped J1…`。
 - [ ] **Ana 场景再跑一次 Wire Journey Voice Over 并保存**：会撤掉上一轮写进场景的开场减速。
 - [ ] **Solar System 镜头**：`Tools > Journey NEW > Solar System > Camera Preset` 把视角放宽并把相机拉远；`Tilt the System` 把太阳系平面倾斜 15°，让轨道看起来是椭圆而不是一条线。两个可以分别用 Ctrl+Z 撤销，满意就保存场景。

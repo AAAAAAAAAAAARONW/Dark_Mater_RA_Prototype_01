@@ -55,6 +55,7 @@ public class CosmicWebGas_NEW : MonoBehaviour
 
     GameObject _part;
     TextAsset _built;
+    Material _drawn;
     bool _rebuild;
 
     void OnEnable() => Build();
@@ -69,6 +70,11 @@ public class CosmicWebGas_NEW : MonoBehaviour
 
     void OnDestroy() => Clear();
 
+    // Unity calls this on every load too, entering play mode included, not only when a field
+    // is changed. Only a real change (another puff file or material) rebuilds: built again,
+    // the renderer would be a new one, holding the material asset instead of the copy the dark
+    // matter toggle fades and missing from WorldSwitcher_NEW's list, so the gas would pop on
+    // and off with the web instead of fading with it.
     void OnValidate()
     {
         _rebuild = true;
@@ -81,6 +87,7 @@ public class CosmicWebGas_NEW : MonoBehaviour
     {
         if (!_rebuild) return;
         _rebuild = false;
+        if (_part != null && _built == points && _drawn == material) return;
         Clear();
         Build();
     }
@@ -97,6 +104,7 @@ public class CosmicWebGas_NEW : MonoBehaviour
             return;
         }
         _built = points;
+        _drawn = material;
 
         _part = new GameObject("Web Gas (runtime)") { hideFlags = Built };
         _part.layer = gameObject.layer;
@@ -116,6 +124,7 @@ public class CosmicWebGas_NEW : MonoBehaviour
         _part = null;
         if (_built != null) Release(_built);
         _built = null;
+        _drawn = null;
     }
 
     static Mesh Acquire(TextAsset points, float baseSize)
