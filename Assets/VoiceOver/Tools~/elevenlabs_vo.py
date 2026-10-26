@@ -74,146 +74,43 @@ class Line:
 
 
 def clean(row):
-    row = re.sub(r"\*\*\[v\d+\]\*\*|\[v\d+\]", "", row)      # the script's change markers
+    row = re.sub(r"\*\*\[v\d+\]\*\*|\[v\d+\]", "", row)      # stray change markers
     return re.sub(r"\s{2,}", " ", row).strip()
 
 
+ID_RE = re.compile(r"^(?:N_)?[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)*$")
+
+
 def parse_script(path):
-    """The same rules as VoiceOverTableTools_NEW.Parse in Unity, plus Part 2 (the journey)."""
+    """
+    The same rules as VoiceOverTableTools_NEW.Parse in Unity. Every line is a row of a
+    four-column table, | ID | When | Line | ≈ |, under "## Part 1" (the tutorial) or
+    "## Part 2" (the journey). Everything else is notes for people and is skipped.
+    """
     text = open(path, encoding="utf-8").read().replace("\r", "")
     if "## Part 2" not in text:
         sys.exit("No '## Part 2' in the script; cannot tell the tutorial from the journey.")
 
-    tutorial, journey = text.split("## Part 2", 1)
-    journey = journey.split("\n## ", 1)[0]           # stop at the next top-level section
-
-    return parse_tutorial(tutorial) + parse_journey(journey)
-
-
-def parse_tutorial(text):
     lines = []
-    counters = {}
-    current, variant, section = None, "", ""
-    quote = []
-
-    def flush():
-        nonlocal quote
-        body = " ".join(quote).strip()
-        quote = []
-        if not current or not body or body.startswith("**"):
-            return
-        if current == "Pause":             # said while paused: an instruction, a nudge
-            lines.append(Line("Tutorial", "N_Pause", variant, body, "nudge"))
-            return
-        k = (current, variant)
-        counters[k] = counters.get(k, 0) + 1
-        n = counters[k]
-        lines.append(Line("Tutorial", current if n == 1 else "%s_%d" % (current, n), variant, body, "narration"))
-
+    part = None
     for raw in text.split("\n"):
         row = clean(raw)
-
-        if row.startswith(">"):
-            quote.append(row[1:].strip())
-            continue
-        flush()
 
         if row.startswith("## "):
-            current, section = None, row
+            part = ("Tutorial" if row.startswith("## Part 1")
+                    else "Journey" if row.startswith("## Part 2") else None)
             continue
-        if row.startswith("### "):
-            section, variant = row, ""
-            current = ("Ending" if row.startswith("### Ending")
-                       else "Pause" if row.startswith("### Pause") else None)
+        if not part or not row.startswith("|"):
             continue
 
-        m = re.match(r"^\*\*([A-E]\d{1,2})\b[^*]*\*\*", row)
-        if m:
-            current, variant = m.group(1), ""
+        cells = [c.strip() for c in row.strip("|").split("|")]
+        if len(cells) < 4:
+            continue
+        line_id, body = cells[0].strip("*`"), cells[2]
+        if line_id == "ID" or not ID_RE.match(line_id) or not body:
             continue
 
-        m = re.match(r"^\*Version ([A-Z])\*", row)
-        if m and current:
-            variant = m.group(1)
-            continue
-
-        if row.startswith("|"):
-            table_row(row, section, current, lines)
-
-    flush()
-    return lines
-
-
-def table_row(row, section, current, lines):
-    cells = [c.strip() for c in row.strip().strip("|").split("|")]
-    if len(cells) < 3 or not cells[0] or cells[0].startswith("---") or cells[0] == "Beat":
-        return
-
-    if current == "E2" and cells[0].startswith("**Version "):
-        v = cells[0][len("**Version "):][0]
-        lines.append(Line("Tutorial", "E2_Before", v, cells[1].split(" · ≈")[0].strip(), "narration"))
-        lines.append(Line("Tutorial", "E2_After", v, cells[2].split(" · ≈")[0].strip(), "after"))
-        return
-
-    m = re.match(r"^\*\*([A-E]\d{1,2})\*\*", cells[0])
-    if not m or len(cells) < 4:
-        return
-
-    beat, body = m.group(1), cells[2]
-    if not body or body.startswith("No VO"):
-        return
-
-    if "Control beats" in section:
-        ab = re.match(r"^A:\s*(.+?)\s*·\s*B:\s*(.+)$", body)
-        if ab:
-            lines.append(Line("Tutorial", "N_" + beat, "A", ab.group(1), "nudge"))
-            lines.append(Line("Tutorial", "N_" + beat, "B", ab.group(2), "nudge"))
-        else:
-            lines.append(Line("Tutorial", "N_" + beat, "", body, "nudge"))
-    elif "Phase 3" in section:
-        lines.append(Line("Tutorial", beat, "", body, "narration"))
-
-
-def parse_journey(text):
-    """**J1 · ...** headers and their quotes. Several quotes under one header are J6_1, J6_2...
-    An id may carry parts (J3_DMon_Before) and a nudge prefix (N_J3_DMon)."""
-    groups = []                 # [id, [quotes]]
-    current = None
-    quote = []
-
-    def flush():
-        nonlocal quote
-        body = " ".join(quote).strip()
-        quote = []
-        if current and body and not body.startswith("**"):
-            groups[-1][1].append(body)
-
-    for raw in text.split("\n"):
-        row = clean(raw)
-
-        if row.startswith(">"):
-            quote.append(row[1:].strip())
-            continue
-        flush()
-
-        m = re.match(r"^\*\*((?:N_)?J\d+[a-z]?(?:_[A-Za-z0-9]+)*|Closing)\b[^*]*\*\*", row)
-        if m:
-            current = m.group(1)
-            groups.append([current, []])
-            continue
-
-        # "Optional readout cue · ≈5 s" under J2 is its own line, J2b.
-        if row.startswith("Optional readout cue"):
-            current = "J2b"
-            groups.append([current, []])
-
-    flush()
-
-    lines = []
-    for gid, quotes in groups:
-        for i, q in enumerate(quotes):
-            lid = gid if len(quotes) == 1 else "%s_%d" % (gid, i + 1)
-            lines.append(Line("Journey", lid, "", q, "narration"))
+        lines.append(Line(part, line_id, "", body, "nudge" if line_id.startswith("N_") else "narration"))
     return lines
 
 
@@ -377,7 +274,7 @@ def load_config(need_voice=True):
 
 def select(args):
     cfg = load_config()
-    script = os.path.join(VO_ROOT, cfg.get("script", "VO_Script_Draft_v6.md"))
+    script = os.path.join(VO_ROOT, cfg.get("script", "VO_Script_v7.md"))
     lines = parse_script(script)
     assign_files(lines)
 

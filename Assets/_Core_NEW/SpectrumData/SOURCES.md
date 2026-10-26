@@ -30,7 +30,7 @@ Every number the bake uses, where it comes from, and how far to trust it. The va
 
 | Quantity | Value | Source | Confidence |
 |---|---|---|---|
-| Light-travel time of the journey | 12.07 Gyr | Chosen so the quasar sits at Q1422+2309's redshift (decision 2026-09-27, see `VO_CHANGES.md`). `UniverseJourneyTracker` first phase must be 12,070,000,000 ly | Project decision |
+| Light-travel time of the journey | 12.07 Gyr | Chosen so the quasar sits at Q1422+2309's redshift (decision 2026-09-27, see `Assets/VoiceOver/VO_Notes.md`, feedback log). `UniverseJourneyTracker` first phase must be 12,070,000,000 ly | Project decision |
 | → quasar redshift | z = 3.62 | derived from the cosmology | Exact given the above |
 
 **If the tracker's starting distance changes, change this setting and re-bake.** Otherwise the spectrum and the journey disagree about where the light is.
