@@ -23,8 +23,8 @@ using UnityEngine;
 ///   EnsureTutorialTable  creates the whole thing from the two, for a scene that has none.
 ///
 /// File names: &lt;lineId&gt;[_anything][_A|_B].ext. Line ids are A1, A1_2 (second narration
-/// line), N_A1 (nudge), E2_Before, E2_After, Ending. The longest line id that prefixes the
-/// name wins, so E2_Before_A goes to E2_Before and not to E2.
+/// line), N_A1 (nudge), N_Pause, Ending. The longest line id that prefixes the name wins,
+/// so A1_2_Second goes to A1_2 and not to A1.
 /// </summary>
 public static class VoiceOverTableTools_NEW
 {
@@ -67,7 +67,7 @@ public static class VoiceOverTableTools_NEW
         string[] guids = AssetDatabase.FindAssets("VO_Script t:TextAsset", new[] { ScriptFolder });
         string best = null;
 
-        // Names carry the draft number (VO_Script_Draft_v3), so the last one by name is
+        // Names carry the version (VO_Script_v7), so the last one by name is
         // the newest one. Good enough for the one time this is used.
         for (int i = 0; i < guids.Length; i++)
         {
@@ -169,15 +169,14 @@ public static class VoiceOverTableTools_NEW
         public float estimate;
     }
 
-    static readonly Regex HeaderRe = new Regex(@"^\*\*([A-E]\d{1,2})\b[^*]*\*\*(.*)$");
-    static readonly Regex VariantRe = new Regex(@"^\*Version ([A-Z])\*(.*)$");
-    static readonly Regex EstimateRe = new Regex(@"≈\s*(\d+(?:\.\d+)?)\s*s\b");
-    static readonly Regex DelayRe = new Regex(@"(?:Cue:|from)\s*(\d+(?:\.\d+)?)\s*s\b");
-    static readonly Regex TableIdRe = new Regex(@"^\*\*([A-E]\d{1,2})\*\*");
-    static readonly Regex NudgeVariantsRe = new Regex(@"^A:\s*(.+?)\s*·\s*B:\s*(.+)$");
+    // | ID | When | Line | ≈ |  — one row per line, under "## Part 1 · Tutorial".
+    static readonly Regex IdRe = new Regex(@"^(?:N_)?[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)*$");
+    static readonly Regex CueRe = new Regex(@"\bCue\s*(\d+(?:\.\d+)?)\s*s\b", RegexOptions.IgnoreCase);
+    static readonly Regex SecondsRe = new Regex(@"(\d+(?:\.\d+)?)\s*s\b");
+    static readonly Regex RepeatRe = new Regex(@"^([A-E]\d{1,2})_\d+$");
 
     /// <summary>
-    /// Read the tutorial half of the script (everything before "## Part 2") into the table.
+    /// Read the tutorial half of the script (the rows under "## Part 1") into the table.
     /// Returns the report it also logs.
     /// </summary>
     public static string ImportScript(VoiceOverTable_NEW table, bool dialog)
@@ -277,215 +276,62 @@ public static class VoiceOverTableTools_NEW
         return report;
     }
 
+    /// <summary>
+    /// The tutorial's rows: every table row under "## Part 1" whose first cell is a line id.
+    /// The beat is the id without its N_ prefix (N_A1 → A1, N_Pause → Pause) or its repeat
+    /// suffix (A1_2 → A1). "Cue 0.5 s" in the When cell is the beat's narration delay.
+    /// </summary>
     static List<Parsed> Parse(string script, out Dictionary<string, float> delays)
     {
         List<Parsed> result = new List<Parsed>();
         delays = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
 
-        Dictionary<string, int> counters = new Dictionary<string, int>();
+        bool tutorial = false;
 
-        string current = null;
-        string variant = "";
-        string section = "";
-        float pendingEstimate = 0f;
-        StringBuilder quote = null;
-
-        string[] rows = script.Replace("\r", "").Split('\n');
-
-        Action flush = () =>
-        {
-            if (quote == null) return;
-
-            string text = quote.ToString().Trim();
-            quote = null;
-
-            if (current == null || text.Length == 0 || text.StartsWith("**")) return;
-
-            string counterKey = current + "|" + variant;
-            int n;
-            counters.TryGetValue(counterKey, out n);
-            n++;
-            counters[counterKey] = n;
-
-            result.Add(new Parsed
-            {
-                beatId = current,
-                // The pause's line is an instruction, said while paused: a nudge.
-                lineId = current == VoiceOverBeat_NEW.PauseId ? "N_" + current
-                       : n == 1 ? current : current + "_" + n,
-                role = current == VoiceOverBeat_NEW.PauseId ? VoiceOverRole_NEW.Nudge : VoiceOverRole_NEW.Narration,
-                variant = variant,
-                text = text,
-                estimate = pendingEstimate
-            });
-
-            pendingEstimate = 0f;
-        };
-
-        foreach (string raw in rows)
+        foreach (string raw in script.Replace("\r", "").Split('\n'))
         {
             string row = Clean(raw);
 
-            if (row.StartsWith(">"))
-            {
-                string part = row.Substring(1).Trim();
-                if (quote == null) quote = new StringBuilder();
-                else quote.Append(' ');
-                quote.Append(part);
-                continue;
-            }
-
-            flush();
-
             if (row.StartsWith("## "))
             {
-                if (row.Contains("Part 2")) break;
-                current = null;
-                section = row;
+                if (row.StartsWith("## Part 2")) break;
+                tutorial = row.StartsWith("## Part 1");
                 continue;
             }
 
-            if (row.StartsWith("### "))
+            if (!tutorial || !row.StartsWith("|")) continue;
+
+            string[] cells = row.Trim('|').Split('|');
+            if (cells.Length < 4) continue;
+            for (int i = 0; i < cells.Length; i++) cells[i] = cells[i].Trim();
+
+            string lineId = cells[0].Trim('*', '`');
+            string text = cells[2];
+            if (lineId == "ID" || !IdRe.IsMatch(lineId) || text.Length == 0) continue;
+
+            bool nudge = lineId.StartsWith("N_");
+            string beatId = nudge ? lineId.Substring(2) : lineId;
+            Match repeat = RepeatRe.Match(beatId);
+            if (repeat.Success) beatId = repeat.Groups[1].Value;
+
+            Match cue = CueRe.Match(cells[1]);
+            if (cue.Success) delays[beatId] = ParseFloat(cue.Groups[1].Value);
+
+            float estimate = 0f;
+            Match seconds = SecondsRe.Match(cells[3]);
+            if (seconds.Success) estimate = ParseFloat(seconds.Groups[1].Value);
+
+            result.Add(new Parsed
             {
-                section = row;
-                variant = "";
-
-                if (row.StartsWith("### Ending"))
-                {
-                    current = VoiceOverBeat_NEW.EndingId;
-                    pendingEstimate = 0f;
-                }
-                else if (row.StartsWith("### Pause"))
-                {
-                    current = VoiceOverBeat_NEW.PauseId;
-                    pendingEstimate = 0f;
-                }
-                else
-                {
-                    current = null;
-                }
-                continue;
-            }
-
-            Match header = HeaderRe.Match(row);
-            if (header.Success)
-            {
-                current = header.Groups[1].Value;
-                variant = "";
-                ReadMeta(row, current, ref pendingEstimate, delays);
-                continue;
-            }
-
-            Match v = VariantRe.Match(row);
-            if (v.Success && current != null)
-            {
-                variant = v.Groups[1].Value;
-                pendingEstimate = 0f;
-                ReadMeta(v.Groups[2].Value, current, ref pendingEstimate, delays);
-                continue;
-            }
-
-            if (row.StartsWith("|"))
-            {
-                ParseTableRow(row, section, current, result, delays);
-                continue;
-            }
-
-            // "Cue: 0.3 s into the ending · ≈7.5 s" under the Ending heading.
-            if (current != null && row.StartsWith("Cue:"))
-                ReadMeta(row, current, ref pendingEstimate, delays);
+                beatId = beatId,
+                lineId = lineId,
+                role = nudge ? VoiceOverRole_NEW.Nudge : VoiceOverRole_NEW.Narration,
+                text = text,
+                estimate = estimate
+            });
         }
 
-        flush();
         return result;
-    }
-
-    static void ReadMeta(string text, string beatId, ref float estimate, Dictionary<string, float> delays)
-    {
-        Match e = EstimateRe.Match(text);
-        if (e.Success) estimate = ParseFloat(e.Groups[1].Value);
-
-        Match d = DelayRe.Match(text);
-        if (d.Success) delays[beatId] = ParseFloat(d.Groups[1].Value);
-    }
-
-    static void ParseTableRow(string row, string section, string current, List<Parsed> result,
-                              Dictionary<string, float> delays)
-    {
-        string[] cells = row.Trim().Trim('|').Split('|');
-        for (int i = 0; i < cells.Length; i++) cells[i] = cells[i].Trim();
-
-        if (cells.Length < 3 || cells[0].StartsWith("---") || cells[0] == "Beat" || cells[0].Length == 0) return;
-
-        // E2's before/after table: | **Version A** (on → off) | before · ≈8 s | after · ≈7 s |
-        if (current == "E2" && cells[0].StartsWith("**Version "))
-        {
-            string v = cells[0].Substring("**Version ".Length, 1);
-            AddWithEstimate(result, "E2", "E2_Before", VoiceOverRole_NEW.Narration, v, cells[1]);
-            AddWithEstimate(result, "E2", "E2_After", VoiceOverRole_NEW.AfterAction, v, cells[2]);
-            return;
-        }
-
-        Match id = TableIdRe.Match(cells[0]);
-        if (!id.Success || cells.Length < 4) return;
-
-        string beatId = id.Groups[1].Value;
-        string text = cells[2];
-        string est = cells[3];
-
-        if (text.Length == 0 || text.StartsWith("No VO")) return;
-
-        if (section.Contains("Control beats"))
-        {
-            Match ab = NudgeVariantsRe.Match(text);
-            if (ab.Success)
-            {
-                Add(result, beatId, "N_" + beatId, VoiceOverRole_NEW.Nudge, "A", ab.Groups[1].Value, est);
-                Add(result, beatId, "N_" + beatId, VoiceOverRole_NEW.Nudge, "B", ab.Groups[2].Value, est);
-            }
-            else
-            {
-                Add(result, beatId, "N_" + beatId, VoiceOverRole_NEW.Nudge, "", text, est);
-            }
-            return;
-        }
-
-        if (section.Contains("Phase 3"))
-        {
-            Add(result, beatId, beatId, VoiceOverRole_NEW.Narration, "", text, est);
-
-            Match d = DelayRe.Match(est);
-            if (d.Success) delays[beatId] = ParseFloat(d.Groups[1].Value);
-        }
-    }
-
-    /// <summary>"Line text. · ≈8 s" → text and estimate.</summary>
-    static void AddWithEstimate(List<Parsed> result, string beatId, string lineId, VoiceOverRole_NEW role,
-                                string variant, string cell)
-    {
-        int dot = cell.LastIndexOf(" · ≈", StringComparison.Ordinal);
-        string text = dot >= 0 ? cell.Substring(0, dot) : cell;
-        string est = dot >= 0 ? cell.Substring(dot) : "";
-
-        Add(result, beatId, lineId, role, variant, text, est);
-    }
-
-    static void Add(List<Parsed> result, string beatId, string lineId, VoiceOverRole_NEW role,
-                    string variant, string text, string estimateText)
-    {
-        float estimate = 0f;
-        Match m = Regex.Match(estimateText ?? "", @"(\d+(?:\.\d+)?)\s*s\b");
-        if (m.Success) estimate = ParseFloat(m.Groups[1].Value);
-
-        result.Add(new Parsed
-        {
-            beatId = beatId,
-            lineId = lineId,
-            role = role,
-            variant = variant,
-            text = text.Trim(),
-            estimate = estimate
-        });
     }
 
     /// <summary>Markdown noise off a row: the [v3] change markers and stray whitespace.</summary>

@@ -108,7 +108,7 @@ Tutorial/
 
 | 东西 | 位置 | 谁改 |
 |---|---|---|
-| 台词文字 | `Assets/VoiceOver/VO_Script_Draft_v6.md`（剧本） | 只改剧本，然后在窗口里点 **Import Script**。窗口里不能改字，避免两份文本 |
+| 台词文字 | `Assets/VoiceOver/VO_Script_v7.md`（剧本） | 只改剧本，然后在窗口里点 **Import Script**。窗口里不能改字，避免两份文本 |
 | 录音 | `Assets/VoiceOver/Tutorial/`（英文）；以后别的语言放 `Tutorial/zh/` 这种子文件夹 | 换录音见下 |
 | 每拍的时序、cue、录音对应 | 配音表 `Assets/VoiceOver/Tables/VO_Tutorial.asset` + 按阶段分的几张 sheet | Timeline 窗口 |
 | cue 触发什么 | 场景里拍子上的 `cueEvents`（表是资产，指不到场景物体，用 key 连起来） | Timeline 窗口 / Inspector |

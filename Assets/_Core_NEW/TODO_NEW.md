@@ -49,7 +49,7 @@
 
 ### 录音
 
-剧本 `VO_Script_Draft_v6.md` 已更新（J3 缩短 + 暗物质 6 句）。在 `Assets/VoiceOver/Tools~`：
+剧本 `VO_Script_v7.md` 已更新（J3 缩短 + 暗物质 6 句）。在 `Assets/VoiceOver/Tools~`：
 ```
 python elevenlabs_vo.py generate --go --only J3,J3_DMon_Before,J3_DMon_After,N_J3_DMon,J3_DMoff_Before,J3_DMoff_After,N_J3_DMoff
 python elevenlabs_vo.py install
