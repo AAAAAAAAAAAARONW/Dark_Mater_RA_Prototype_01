@@ -97,6 +97,12 @@ public class CelestialBody_NEW : MonoBehaviour
 
     public Kind BodyKind => kind;
 
+    /// <summary>The ground's radius in world units, as drawn now.</summary>
+    public float GroundRadius => _meshRadius * transform.lossyScale.x;
+
+    /// <summary>How deep the air is, as a fraction of the radius; 0 without one.</summary>
+    public float AirDepth => atmosphere ? airDepth : 0f;
+
     /// <summary>Sets every look to the kind's own, for Tools > Journey NEW > Polish Solar System.</summary>
     public void ApplyPreset(Kind k)
     {
