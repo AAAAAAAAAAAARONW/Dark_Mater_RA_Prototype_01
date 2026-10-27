@@ -9,7 +9,7 @@ using UnityEngine;
 /// WHY TWO. The line is drawn in two places at once: on the bar, as a notch in the
 /// curve, and on the trail, as a dark stripe along the ribbon at the same wavelength.
 /// D5 has to say these are the same absorption. An arrow at each, moving together
-/// through D7, says it without text — and keeps saying it while the line slides red,
+/// through D6, says it without text — and keeps saying it while the line slides red,
 /// which is the moment a player is most likely to lose track of which mark is theirs.
 ///
 /// WHERE THE LINE IS comes from TutorialSpectrum_NEW.TrackedLinePosition, which follows

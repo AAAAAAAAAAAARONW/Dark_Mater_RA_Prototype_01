@@ -16,7 +16,7 @@ public interface ITutorialSpectrumSource_NEW
     /// <summary>The bar was emptied (D3). Back to the moment of emission.</summary>
     void OnClear();
 
-    /// <summary>D7 switched to the drifting profile.</summary>
+    /// <summary>D6 names redshift: the drift speeds up.</summary>
     void OnStartDrift();
 
     /// <summary>Attract reset: everything back to before D1.</summary>
@@ -224,9 +224,9 @@ public class TutorialSpectrum_NEW : MonoBehaviour
     ///
     /// Every atom absorbs here, whenever it is hit — ground-state hydrogen always takes
     /// the same wavelength, Lyman-alpha. That is the whole mechanism of the forest: with
-    /// no redshift, more atoms only deepen this one line (D6); once the spectrum drifts
-    /// (D7), the earlier lines have moved on and a new atom cuts a fresh line back here
-    /// (D8). A list of different positions would teach the wrong thing.
+    /// no redshift, more atoms would only deepen this one line; once the spectrum drifts
+    /// (named at D6), the earlier lines have moved on and each new atom cuts a fresh line here
+    /// (D7, D8). A list of different positions would teach the wrong thing.
     ///
     /// Where on the axis it sits — the visible band, or inside the UV as the fact check
     /// recommends — is a design decision, and is only this number.

@@ -51,22 +51,65 @@ public class HydrogenAbsorberVFX_NEW : MonoBehaviour
     [SerializeField] Color gasColour = new Color(0.36f, 0.12f, 0.28f, 1f);
     [SerializeField] Color dustColour = new Color(0.05f, 0.015f, 0.03f, 1f);
 
+    [Header("Seen from far away")]
+    [Tooltip("Smallest size it is drawn at, as an angle (degrees, radius) from the camera. A cloud " +
+             "of its true size is a speck until the last second of the approach, then fills the " +
+             "screen at once; held at this size it is seen arriving and grows only once it is " +
+             "close enough to be bigger than this. 0 = always its true size.")]
+    [Range(0f, 15f)] [SerializeField] float minAngularRadius = 4f;
+
+    [Tooltip("Seconds to fade in when it appears (the atom is switched on at spawn).")]
+    [Min(0f)] [SerializeField] float appearSeconds = 0.5f;
+
+    [Tooltip("Leave empty to use the main camera.")]
+    [SerializeField] Transform viewCamera;
+
     [Tooltip("After the cosmic web's volumes (2950 to 2954) and the galaxies (2989 to 2993), before the light's own glow (3005).")]
     [SerializeField] int renderQueue = 2995;
 
     const HideFlags Built = HideFlags.HideAndDontSave;
+    static readonly int AppearId = Shader.PropertyToID("_Appear");
 
     GameObject _part;
     Material _material;
     Mesh _mesh;
     bool _dirty;
+    float _appear;
 
     /// <summary>The cloud's bound, in world units: the radius the gas never reaches past.</summary>
     public float Radius => transform.lossyScale.x;
 
-    void OnEnable() => Build();
+    void OnEnable()
+    {
+        _appear = Application.isPlaying && appearSeconds > 0f ? 0f : 1f;
+        Build();
+    }
 
     void OnDisable() => Clear();
+
+    void LateUpdate()
+    {
+        if (_part == null || _material == null) return;
+
+        if (_appear < 1f)
+        {
+            _appear = Mathf.Min(1f, _appear + Time.deltaTime / appearSeconds);
+            _material.SetFloat(AppearId, _appear * _appear * (3f - 2f * _appear));
+        }
+
+        // Held at a minimum size on screen: the drawn sphere is enlarged until it covers
+        // minAngularRadius, the gas inside it with it. Opacity is in the cloud's own units,
+        // so an enlarged cloud is no denser, only bigger.
+        Transform cam = viewCamera != null ? viewCamera : (Camera.main != null ? Camera.main.transform : null);
+        float k = 1f;
+        if (cam != null && minAngularRadius > 0f && Radius > 1e-4f)
+        {
+            float distance = Vector3.Distance(cam.position, transform.position);
+            float need = distance * Mathf.Tan(minAngularRadius * Mathf.Deg2Rad);
+            k = Mathf.Max(1f, need / Radius);
+        }
+        _part.transform.localScale = Vector3.one * k;
+    }
 
     void OnValidate()
     {
@@ -141,6 +184,7 @@ public class HydrogenAbsorberVFX_NEW : MonoBehaviour
         _material.SetVector("_Resolve", resolve);
         _material.SetColor("_GasColor", gasColour);
         _material.SetColor("_DustColor", dustColour);
+        _material.SetFloat(AppearId, _appear * _appear * (3f - 2f * _appear));
     }
 
     /// <summary>A sphere of radius 1, outward-facing; the shader draws its back faces.</summary>

@@ -22,6 +22,7 @@ Shader "Custom/HydrogenAbsorber_NEW"
     Properties
     {
         _Color ("Fade (all four channels, as WorldSwitcher_NEW sets it)", Color) = (1, 1, 1, 1)
+        _Appear ("Appear (HydrogenAbsorberVFX_NEW fades it in when it arrives)", Range(0, 1)) = 1
         [NoScaleOffset] _Noise ("Noise (QuasarNoise_NEW)", 2D) = "gray" {}
         _Seed ("Seed", Float) = 0
         _Opacity ("How much it hides what is behind it", Range(0, 8)) = 2.5
@@ -50,7 +51,7 @@ Shader "Custom/HydrogenAbsorber_NEW"
 
             sampler2D _Noise;
             fixed4 _Color;
-            float _Seed, _Opacity, _Softness, _DustAmount, _Flow;
+            float _Seed, _Opacity, _Softness, _DustAmount, _Flow, _Appear;
             float4 _Resolve;
             fixed4 _GasColor, _DustColor;
 
@@ -158,7 +159,7 @@ Shader "Custom/HydrogenAbsorber_NEW"
                 float alpha = 1.0 - exp(-(tau + dustTau * 2.0) * _Opacity);
                 float dustShare = saturate(dustTau / max(tau, 1e-4));
                 float3 colour = lerp(_GasColor.rgb, _DustColor.rgb, dustShare);
-                alpha *= _Color.a;
+                alpha *= _Color.a * _Appear;
                 return fixed4(colour * _Color.rgb * alpha, alpha);
             }
             ENDCG

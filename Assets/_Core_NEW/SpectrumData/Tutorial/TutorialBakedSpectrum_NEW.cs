@@ -12,12 +12,17 @@ using Debug = UnityEngine.Debug;
 /// on from exactly that point (SpectrumHandoff_NEW) — the bar before and after the black is
 /// the same frame.
 ///
-/// WHY IT ZOOMS. Real redshift over that stretch is small: lines move ~0.035 of the full
-/// 1216–9000 Å bar in a minute, so atoms 2.5 s apart would land ~1 px apart. From D4 the
-/// bar magnifies the region next to the birth tick (~17×, 1202–1350 Å) on the same data,
-/// where each atom's line is its own mark; at D9 it zooms back out to the full bar, which is
-/// what the journey opens on. All of it is UV, which is the truth: hydrogen's colour at
-/// departure is one the eye cannot see.
+/// WHY IT SPEEDS UP. Real redshift over that stretch is small: lines move ~0.035 of the full
+/// 1216–9000 Å bar in a minute, so atoms 2.4 s apart would land ~1 px apart. From the frame
+/// that names redshift (D6) the clock runs redshiftSpeedUp times faster (~10×): the D5 line
+/// is seen to pick up speed, the clouds after it cut stripes ~10 px apart on the full bar,
+/// and by D9 the first line has reached ~1850 Å — still UV, which is the truth: hydrogen's
+/// colour at departure is one the eye cannot see. NOT REAL, and the journey pays for it:
+/// it opens ~1 Gyr further on and holds its bar there until the tracker catches up.
+///
+/// THE ZOOM (off). Before the speed-up the bar magnified 1202–1350 Å (~17×) from D4 to D9
+/// so the lines could be told apart. Sped up, the full bar does that, and the bands keep
+/// their places (LARC, 26 Oct). Tick magnify to bring it back.
 ///
 /// WHAT AN ATOM DOES. On each absorption the line is cut at the birth tick, as before — but
 /// it is a REAL line: the strongest absorber in the cells the light has just crossed, at its
@@ -85,6 +90,15 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
     [Range(0.1f, 1f)]
     [SerializeField] float hudBinWidth = 0.5f;
 
+    [Tooltip("Not magnified: each atom's line on the BAR is drawn this many HUD points either side " +
+             "of where it is, at its REAL depth. On the full bar a real line is a fraction of a point, " +
+             "and averaged into a point it kept a third of its depth — only the first, on the tall " +
+             "Ly-alpha peak and boxed, could be seen. The atoms' lines are measured on their own at 8× " +
+             "the points, so the depth is the line's own. Fades out as the forest is revealed (D9), so " +
+             "the journey's bar at the handoff is the data as it is. 0 = off.")]
+    [Range(0, 4)]
+    [SerializeField] int barLineHalfWidth = 1;
+
     [Header("Time compression")]
     [Tooltip("Gyr of the journey per second of tutorial (scaled time: D5's slow motion slows " +
              "it, the pause stops it). 0.003 ≈ 0.18 Gyr over Phase 3's ~60 s ≈ 1.5% of the " +
@@ -98,7 +112,25 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
     [Range(0.01f, 2f)]
     [SerializeField] float maxSpanGyr = 0.24f;
 
+    [Tooltip("From the frame that names redshift (StartDrift, D6) the clock runs this many times " +
+             "faster. NOT REAL: at the real rate two clouds a few seconds apart cut lines a pixel " +
+             "apart and the barcode never shows. At 10 every cloud after the first leaves its own " +
+             "stripe ~10 px from the last on the full bar. 1 = off. The cap above grows by the same " +
+             "factor, and the journey carries on from wherever the clock stopped.\n\n" +
+             "With magnify on, ~2.5 is enough (and more runs the lines off the window).")]
+    [Range(1f, 30f)]
+    [SerializeField] float redshiftSpeedUp = 10f;
+
+    [Tooltip("Seconds over which the boost comes in, so the line is seen to pick up speed as " +
+             "redshift is named rather than jump.")]
+    [Range(0f, 5f)]
+    [SerializeField] float boostRampSeconds = 1.5f;
+
     [Header("Magnified view")]
+    [Tooltip("Off (default): the bar stays the full 1216–9000 Å throughout and the speed-up " +
+             "spreads the lines. On: the old magnified window from zoomInBeat to zoomOutBeat.")]
+    [SerializeField] bool magnify = false;
+
     [Tooltip("Width of the magnified window, in ln(wavelength). 0.117 ≈ 1202–1350 Å, ~17× the " +
              "full bar. Lines a beat apart land a finger-width apart.")]
     [Range(0.02f, 0.5f)]
@@ -144,6 +176,11 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
              "the atoms' lines — so the journey inherits the complete data.")]
     [SerializeField] string revealBeat = "D9";
 
+    [Tooltip("Off (default): the tutorial keeps its own look to the end — the atoms' lines only — " +
+             "and the full real forest is the journey's (LARC, 26 Oct). The journey's bar opens on it " +
+             "after the black. On: the forest fades in at revealBeat, as before.")]
+    [SerializeField] bool revealForest = false;
+
     [Min(0.1f)]
     [SerializeField] float revealSeconds = 3f;
 
@@ -170,6 +207,11 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
     [Tooltip("Right end of the line region on the ribbon, Å. The tutorial's lines reach ~1310 Å.")]
     [Range(1250f, 3000f)]
     [SerializeField] float lineRegionEndA = 1400f;
+
+    [Tooltip("The same, while the bar is not magnified: sped up, the lines reach ~1850 Å, and " +
+             "past the line region they would bunch into the squeezed rest of the UV.")]
+    [Range(1250f, 3990f)]
+    [SerializeField] float lineRegionEndFullBarA = 2200f;
 
     [Range(0.05f, 0.6f)]
     [SerializeField] float lineRegionFraction = 0.25f;
@@ -218,6 +260,12 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
     [Range(1, 64)]
     [SerializeField] int trailSharpenWindow = 12;
 
+    [Tooltip("Not magnified: each line on the ribbon is drawn this many columns either side of " +
+             "where it is, at its real depth. A real line is narrower than a column there, and " +
+             "averaged into columns it blinked as it slid from one to the next. 0 = off.")]
+    [Range(0, 6)]
+    [SerializeField] int trailLineHalfColumns = 1;
+
     [Header("Debug")]
     [SerializeField] bool logLoad = true;
 
@@ -233,10 +281,13 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
     float[] _absorption;
     float[] _weight;            // per record cell: how much of it is shown (atoms' lines)
     Func<int, float> _weightFn;
+    Func<int, float> _atomFn;   // the atoms' lines only, whatever the forest reveal
 
     float _lookback;
     bool _running;
     float _zNow;
+    float _boost = 1f;          // current clock multiplier
+    float _boostTime = -1f;     // seconds since StartDrift, -1 before it
 
     float _zoom;                // 0 full bar, 1 magnified
     float _zoomFrom;
@@ -309,8 +360,9 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
 
     public void OnStartDrift()
     {
-        // One rate throughout: redshift does not switch on, it was always happening. D7 only
-        // names it.
+        // Redshift does not switch on, it was always happening; the frame that names it only
+        // speeds the clock up (redshiftSpeedUp) so the lines that follow spread into a barcode.
+        if (_boostTime < 0f) _boostTime = 0f;
     }
 
     public void OnReset()
@@ -360,6 +412,7 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
         if (spectrum == null) spectrum = FindInScene<TutorialSpectrum_NEW>();
         if (director == null) director = FindInScene<TutorialDirector_NEW>();
         _weightFn = CellWeight;
+        _atomFn = AtomWeight;
     }
 
     /// <summary>
@@ -417,8 +470,16 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
         // nothing while the tutorial is paused.
         float dt = TutorialClock_NEW.DeltaTime > 0f ? Time.deltaTime : 0f;
 
+        if (_boostTime >= 0f)
+        {
+            _boostTime += dt;
+            float k = boostRampSeconds > 0f ? Smooth(_boostTime / boostRampSeconds) : 1f;
+            _boost = 1f + (Mathf.Max(1f, redshiftSpeedUp) - 1f) * k;
+        }
+
         if (_running)
-            _lookback = Mathf.Max(_data.LookbackStartGyr - maxSpanGyr, _lookback - gyrPerSecond * dt);
+            _lookback = Mathf.Max(_data.LookbackStartGyr - maxSpanGyr * Mathf.Max(1f, redshiftSpeedUp),
+                                  _lookback - gyrPerSecond * _boost * dt);
         _zNow = _data.ZFromLookback(_lookback);
 
         if (_zoomTime >= 0f)
@@ -488,9 +549,10 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
 
         if (logLoad)
             Debug.Log("[TutorialBakedSpectrum_NEW] Tutorial bar drawn from '" + bakedFile.name + "': light leaves z " +
-                      _data.ZQuasar.ToString("0.00") + " at " + gyrPerSecond.ToString("0.000") + " Gyr/s, magnified " +
-                      ((Math.Log(_data.LambdaMax) - LnBirth) / zoomWidthLn).ToString("0") + "× from " + zoomInBeat +
-                      " to " + zoomOutBeat + ", forest revealed at " + revealBeat + ". Drawing on HUD '" + hud.name +
+                      _data.ZQuasar.ToString("0.00") + " at " + gyrPerSecond.ToString("0.000") + " Gyr/s, " +
+                      (magnify ? "magnified " + ((Math.Log(_data.LambdaMax) - LnBirth) / zoomWidthLn).ToString("0") + "× from " +
+                                 zoomInBeat + " to " + zoomOutBeat : "full bar, ×" + redshiftSpeedUp.ToString("0.#") + " from redshift") +
+                      (revealForest ? ", forest revealed at " + revealBeat : ", atoms' lines only (no forest reveal)") + ". Drawing on HUD '" + hud.name +
                       "', field '" + (field != null ? field.name : "NONE") + "', trail '" + (spectrumTrail != null ? spectrumTrail.name : "NONE") +
                       "', beats from " + (director != null ? director.name : "NONE (no zoom or reveal!)") + ".", this);
     }
@@ -540,6 +602,8 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
 
         _lookback = _data.LookbackStartGyr;
         _zNow = _data.ZQuasar;
+        _boost = 1f;
+        _boostTime = -1f;
         _zoom = _zoomFrom = _zoomTo = 0f;
         _zoomTime = -1f;
         _revealAll = 0f;
@@ -556,9 +620,9 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
     {
         if (!_active || beat == null) return;
         string id = beat.BeatId;
-        if (Is(id, zoomInBeat)) ZoomIn();
+        if (magnify && Is(id, zoomInBeat)) ZoomIn();
         if (Is(id, zoomOutBeat)) ZoomOut();
-        if (Is(id, revealBeat)) RevealForest();
+        if (revealForest && Is(id, revealBeat)) RevealForest();
     }
 
     static bool Is(string id, string want)
@@ -569,6 +633,9 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
     void StartZoom(float to)
     {
         if (!_active) return;
+        // Already there (D9's zoom-out with the bar never magnified): no run. A run holds the
+        // HUD points still for zoomSeconds (phase 0), and the lines shook across them at D9.
+        if (_zoomTime < 0f && Mathf.Approximately(_zoom, to)) return;
         _zoomFrom = _zoom;
         _zoomTo = to;
         _zoomTime = 0f;
@@ -598,6 +665,7 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
             _data.SampleView(_zNow, Math.Exp(_lnMin + phase * step), Math.Exp(_lnMax + phase * step),
                              flux ? _curve : null, flux ? null : _curve,
                              _revealAll >= 1f ? null : _weightFn, 1f, hudBinWidth);
+            if (!magnify && barLineHalfWidth > 0 && _revealAll < 1f) WidenBarLines(_lnMin + phase * step, step, flux);
             if (hud != null) hud.SetExternalCurveShift(phase);
         }
 
@@ -641,7 +709,7 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
 
         _segLn[0] = Math.Log(1000.0);
         _segLn[1] = LnBirth - zoomLeftShare * zoomWidthLn;
-        _segLn[2] = Math.Log(Mathf.Clamp(lineRegionEndA, 1250f, 3990f));
+        _segLn[2] = Math.Log(Mathf.Clamp(magnify ? lineRegionEndA : Mathf.Max(lineRegionEndA, lineRegionEndFullBarA), 1250f, 3990f));
         _segLn[3] = Math.Log(4000.0);
         _segLn[4] = Math.Log(7000.0);
         _segLn[5] = Math.Log(_data.LambdaMax);
@@ -674,7 +742,10 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
     void DrawTrailSegments()
     {
         BuildTrailAxis();
-        Func<int, float> w = _revealAll >= 1f ? null : _weightFn;
+        // Not magnified, the ribbon keeps to the atoms' lines: the line region is four times
+        // wider there, and the whole forest revealed into it at D9 ran together into wide bands.
+        // The bar still reveals it, so the journey's bar at the handoff is the data as it is.
+        Func<int, float> w = !magnify ? _atomFn : _revealAll >= 1f ? null : _weightFn;
         int start = 0;
         for (int i = 0; i < Segments; i++)
         {
@@ -685,10 +756,47 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
             // Column centres at the segment's own edges, matching SampleView's layout.
             double a = _segLn[i] + (_segLn[i + 1] - _segLn[i]) * 0.5 / n;
             double b = _segLn[i + 1] - (_segLn[i + 1] - _segLn[i]) * 0.5 / n;
+            if (!magnify && trailLineHalfColumns > 0)
+            {
+                SampleTrailSegmentFine(i, n, start, w);
+                start = end;
+                continue;
+            }
+
             if (_segBuffer == null || _segBuffer.Length != n) _segBuffer = new float[n];
             _data.SampleView(_zNow, Math.Exp(a), Math.Exp(b), null, _segBuffer, w);
             for (int c = 0; c < n; c++) _absorption[start + c] = 1f - _segBuffer[c];
             start = end;
+        }
+    }
+
+    float[] _segFine;
+
+    /// <summary>
+    /// One ribbon segment with its lines at their real depth, trailLineHalfColumns columns either
+    /// side. Not magnified a line is narrower than a column, so box-averaged it was whole in one
+    /// column on one frame and halved across two the next — and the trail shader cuts a hard black
+    /// edge by depth, so it blinked. Sampled at FinePerPoint× and each column taking the deepest
+    /// within its window, a line keeps one depth and one width as it slides.
+    /// </summary>
+    void SampleTrailSegmentFine(int seg, int n, int start, Func<int, float> w)
+    {
+        int f = FinePerPoint;
+        int fineN = n * f;
+        if (_segFine == null || _segFine.Length != fineN) _segFine = new float[fineN];
+
+        double lo = _segLn[seg], hi = _segLn[seg + 1];
+        double a = lo + (hi - lo) * 0.5 / fineN;
+        double b = hi - (hi - lo) * 0.5 / fineN;
+        _data.SampleView(_zNow, Math.Exp(a), Math.Exp(b), null, _segFine, w);
+
+        int half = trailLineHalfColumns * f;
+        for (int c = 0; c < n; c++)
+        {
+            float tMin = 1f;
+            int j0 = Mathf.Max(0, c * f - half), j1 = Mathf.Min(fineN - 1, c * f + f - 1 + half);
+            for (int j = j0; j <= j1; j++) if (_segFine[j] < tMin) tMin = _segFine[j];
+            _absorption[start + c] = 1f - tMin;
         }
     }
 
@@ -704,7 +812,10 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
     /// </summary>
     void SharpenTrailLines()
     {
-        if (trailLineSharpness <= 1.001f || _absorption == null) return;
+        // Only for the magnified line region, which stretched the wings. On the full bar a line is
+        // narrower than a column, and this (non-linear) step flipped it between one column and
+        // two as it slid across them — the lines jumped. The journey's trail has no such step.
+        if (!magnify || trailLineSharpness <= 1.001f || _absorption == null) return;
 
         int n = _absorption.Length;
         if (_sharpenPeak == null || _sharpenPeak.Length != n) _sharpenPeak = new float[n];
@@ -726,6 +837,49 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
             if (a <= 0f || peak <= 0f) continue;
             _absorption[c] = a * Mathf.Pow(a / peak, k);
         }
+    }
+
+    float[] _widenBuf;
+    float[] _fineT;
+    const int FinePerPoint = 8;
+    static readonly Func<int, float> NoLines = q => 0f;
+
+    /// <summary>
+    /// The atoms' lines on the bar at their real depth, barLineHalfWidth points either side.
+    /// Their transmission alone is sampled at FinePerPoint× the HUD points (each fine column
+    /// box-averaged, so a line keeps its depth), and each point takes the lowest within its
+    /// window, laid on the line-free continuum. The fine grid rides with the points, so the
+    /// shape is the same every frame. The data's own curve is kept wherever it is deeper, and
+    /// everything is blended back to it as the forest is revealed.
+    /// </summary>
+    void WidenBarLines(double lnStart, double step, bool flux)
+    {
+        int n = _curve.Length;
+        int fineN = (n - 1) * FinePerPoint + 1;
+        if (_fineT == null || _fineT.Length != fineN) _fineT = new float[fineN];
+        if (_widenBuf == null || _widenBuf.Length != n) _widenBuf = new float[n];
+
+        double lnEnd = lnStart + step * (n - 1);
+        _data.SampleView(_zNow, Math.Exp(lnStart), Math.Exp(lnEnd), null, _fineT, _atomFn);
+        if (flux) _data.SampleView(_zNow, Math.Exp(lnStart), Math.Exp(lnEnd), _widenBuf, null, NoLines, 1f, hudBinWidth);
+
+        int half = barLineHalfWidth * FinePerPoint + FinePerPoint / 2;
+        for (int i = 0; i < n; i++)
+        {
+            int c = i * FinePerPoint;
+            float tMin = 1f;
+            for (int j = Mathf.Max(0, c - half); j <= Mathf.Min(fineN - 1, c + half); j++)
+                if (_fineT[j] < tMin) tMin = _fineT[j];
+
+            float drawn = flux ? _widenBuf[i] * tMin : tMin;
+            float shown = Mathf.Min(drawn, _curve[i]);
+            _curve[i] = Mathf.Lerp(shown, _curve[i], _revealAll);
+        }
+    }
+
+    float AtomWeight(int q)
+    {
+        return q >= 0 && q < _weight.Length ? _weight[q] : 0f;
     }
 
     float CellWeight(int q)
@@ -823,8 +977,8 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
 
         GUI.Label(DebugOverlayRows_NEW.Row(DebugOverlayRows_NEW.Pad + 1),
                   string.Format("TUT DATA  lookback {0:0.000} Gyr ({1:0.0}% of journey)   z {2:0.0000}   zoom {3:0.00}   " +
-                                "atoms {4}   forest {5:0.00}   bar {6:0}–{7:0} Å",
+                                "atoms {4}   forest {5:0.00}   bar {6:0}–{7:0} Å   boost ×{8:0.0}",
                                 _lookback, 100f * (_data.LookbackStartGyr - _lookback) / _data.LookbackStartGyr,
-                                _zNow, _zoom, _lines, _revealAll, Math.Exp(_lnMin), Math.Exp(_lnMax)));
+                                _zNow, _zoom, _lines, _revealAll, Math.Exp(_lnMin), Math.Exp(_lnMax), _boost));
     }
 }

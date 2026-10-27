@@ -343,7 +343,7 @@ public class SolarSystemPath_NEW : MonoBehaviour
 
 #if UNITY_EDITOR
     [ContextMenu("Lay Out Along the Photon's Path")]
-    void LayOutMenu()
+    public void LayOutMenu()
     {
         if (Application.isPlaying)
         {

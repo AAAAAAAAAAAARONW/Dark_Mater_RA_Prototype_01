@@ -1541,11 +1541,12 @@ public static class TutorialSceneBuilder_NEW
     ///   D3   The spectrum bar appears, with UV, visible and IR marked on it.
     ///   D4   The bar moves up; a cloud of hydrogen gas closes on the light.
     ///   D5   Contact, 0.2x: a line appears on the light and on the bar, and blinks.
-    ///   D6   More clouds. No redshift yet, so they all absorb at the same wavelength and
-    ///        the same line deepens.
-    ///   D7   Redshift begins. The bands stay put; the spectrum and its line slide red.
-    ///   D8   One more cloud during the redshift. It absorbs at the same wavelength as
-    ///        before, but the old line has moved — a second line. This is how the
+    ///   D6   Redshift, named right after the first cloud. The bands stay put; D5's line
+    ///        slides red, and from here the clock runs faster (TutorialBakedSpectrum_NEW
+    ///        .redshiftBoost) so the lines to come spread apart.
+    ///   D7   More clouds. Each absorbs at the same wavelength, but the light has
+    ///        stretched since the last, so each cuts its own line: the barcode builds.
+    ///   D8   One more cloud, with the row already on screen. This is how the
     ///        Lyman-alpha forest forms.
     ///   D9   UV and IR fold away.
     ///   D10  Pause is introduced.
@@ -1578,17 +1579,17 @@ public static class TutorialSceneBuilder_NEW
         // the player experiences. See §12.
         Wire(d5).Flag("useScaledTime", false).Apply();
 
+        // Redshift comes straight after the first cloud (LARC, 26 Oct), as VO v7 already
+        // has it: D6 names it while D5's line is still the only one, D7 brings the clouds.
         Beat_Cinematic_NEW d6 = Cinematic(parent, "D6", 10f,
-            "More clouds, one after another. Every one absorbs the same wavelength — that " +
-            "is what hydrogen does — but the spectrum has carried the last mark redward " +
-            "by the time the next arrives, so each cloud cuts its own line and a row of " +
-            "them builds up. This is a forest forming.");
+            "Redshift, named, while D5's line is the only one. The bands hold still — they " +
+            "are the wavelength scale, and 500 nm is green whatever the light has been " +
+            "through. The line slides toward red, picking up speed as it is named.");
 
-        Beat_Cinematic_NEW d7 = Cinematic(parent, "D7", 9.6f,
-            "Redshift, named. The curve and the bands hold still — they are the wavelength " +
-            "scale, and 500 nm is green whatever the light has been through. What the " +
-            "player has been watching slide is the marks: every line the light is carrying, " +
-            "moving toward red together.");
+        Beat_Cinematic_NEW d7 = Cinematic(parent, "D7", 10.5f,
+            "More clouds, one after another. Every one absorbs the same wavelength — that " +
+            "is what hydrogen does — but the light has stretched since the last, so each " +
+            "cloud cuts its own line and a barcode builds up. This is a forest forming.");
 
         Beat_Cinematic_NEW d8 = Cinematic(parent, "D8", 10f,
             "One more cloud, with the row already on screen. It absorbs at the same " +
@@ -1632,6 +1633,17 @@ public static class TutorialSceneBuilder_NEW
             "and the piece lets the last frame land before the ending takes the camera.");
 
         RepairPhase3Durations(d1, d2, d3);
+        RepairSerialized(d7, "duration", p => Mathf.Approximately(p.floatValue, 9.6f),
+                         p => p.floatValue = 10.5f, "D7 is the clouds now, not the redshift: four " +
+                         "impacts up to 9.8s in, and VO v7's D7 runs 10.5s.");
+        RepairSerialized(d6, "description", p => p.stringValue.StartsWith("More clouds"),
+                         p => p.stringValue = "Redshift, named, while D5's line is the only one. The bands " +
+                                              "hold still; the line slides toward red, picking up speed.",
+                         "D6 is the redshift now.");
+        RepairSerialized(d7, "description", p => p.stringValue.StartsWith("Redshift"),
+                         p => p.stringValue = "More clouds, one after another. Each cuts its own line and a " +
+                                              "barcode builds up.",
+                         "D7 is the clouds now.");
 
         // ── Wiring ───────────────────────────────────────────────────────────
         // Cleared and rewired every run, because the frames were renumbered: D1 used to
@@ -1657,6 +1669,7 @@ public static class TutorialSceneBuilder_NEW
         AddCall(d3, "onEnter", rig.spectrum, "Clear");
         AddCall(d3, "onEnter", rig.slide, "ResetToStart");
         AddCall(d3, "onEnter", rig.spectrumBands, "UnfoldUVIR");
+        AddCall(d3, "onEnter", rig.spectrumBands, "HighlightBands");
 
         AddCall(d4, "onEnter", rig.atom, "Arm");
 
@@ -1684,15 +1697,15 @@ public static class TutorialSceneBuilder_NEW
         // frame ends — long enough to watch the line move and still be pointed at.
         AddCall(d5, "onEnter", rig.lineIndicator, "Show");
 
-        // Each atom in the group absorbs at the rest frame on impact — see
-        // BuildAtomCluster. With no drift yet, that deepens D5's line.
-        AddCall(d6, "onEnter", rig.cluster, "Arm");
+        // Redshift first. StartDrift does not start the drift (it has run since D3); it
+        // speeds it up so the lines that follow land well apart — see redshiftBoost.
+        AddCall(d6, "onEnter", rig.spectrum, "StartDrift");
+        AddCall(d6, "onEnter", rig.trailBands, "Redden");
+        AddCall(d6, "onSatisfied", rig.lineIndicator, "Hide");
 
-        // Nothing new for the drift itself: AbsorptionField_NEW slides the lines and
-        // SpectrumHUD_NEW slides the curve, both from one driftPerSecond on the profile.
-        AddCall(d7, "onEnter", rig.spectrum, "StartDrift");
-        AddCall(d7, "onEnter", rig.trailBands, "Redden");
-        AddCall(d7, "onSatisfied", rig.lineIndicator, "Hide");
+        // Then the group. Each atom absorbs at the rest frame on impact — see
+        // BuildAtomCluster — and the sped-up drift has carried the last line away.
+        AddCall(d7, "onEnter", rig.cluster, "Arm");
 
         AddCall(d8, "onEnter", rig.forestAtom, "Arm");
 
@@ -1937,9 +1950,19 @@ public static class TutorialSceneBuilder_NEW
         Image visibleTint = BandTint(visible, new Color(1f, 1f, 1f, 0.06f));
         BandTint(ir, new Color(0.90f, 0.15f, 0.05f, 0.10f));
 
-        BandLabel(uv, "UV");
+        // The text is set every frame by the component (full name or short, by width);
+        // these are only what an un-played scene shows.
+        BandLabel(uv, "ULTRAVIOLET");
         BandLabel(visible, "VISIBLE");
-        BandLabel(ir, "IR");
+        BandLabel(ir, "INFRARED");
+
+        // While the bar is zoomed into the UV, visible and IR are off its right end.
+        GameObject hint = UIObject("OffBarHint", root.transform, new Vector2(1f, 1f),
+                                   new Vector2(-6f, 10f), new Vector2(260f, 18f));
+        RectTransform hintRect = (RectTransform)hint.transform;
+        if (IsFresh(hint)) hintRect.pivot = new Vector2(1f, 0.5f);
+        TMP_Text hintText = AddText(hint, "VISIBLE / INFRARED  >", BandLabelSize, TextAlignmentOptions.Right);
+        if (IsFresh(hintText)) { hintText.color = new Color(1f, 1f, 1f, 0f); hintText.enabled = false; }
 
         GameObject marker = UIObject("LineMarker", root.transform, new Vector2(0.5f, 0.5f),
                                      Vector2.zero, new Vector2(4f, 0f));
@@ -1965,6 +1988,7 @@ public static class TutorialSceneBuilder_NEW
             .Ref("visibleTint", visibleTint)
             .Ref("lineMarker", marker.GetComponent<RectTransform>())
             .Ref("lineMarkerImage", markerImage)
+            .Ref("offBarHint", hintText)
             .Apply();
 
         return bands;
@@ -2315,13 +2339,33 @@ public static class TutorialSceneBuilder_NEW
         return image;
     }
 
+    /// <summary>Band labels: 12 and 55% white read as decoration (LARC, 26 Oct), now 14 and 75%.</summary>
+    const float BandLabelSize = 14f;
+    const float BandLabelAlpha = 0.75f;
+
     static void BandLabel(GameObject band, string text)
     {
         GameObject label = UIObject("Label", band.transform, new Vector2(0.5f, 1f),
-                                    new Vector2(0f, 10f), new Vector2(160f, 18f));
+                                    new Vector2(0f, 10f), new Vector2(200f, 22f));
 
-        TMP_Text t = AddText(label, text, 12, TextAlignmentOptions.Center);
-        if (IsFresh(t)) t.color = new Color(1f, 1f, 1f, 0.55f);
+        TMP_Text t = AddText(label, text, BandLabelSize, TextAlignmentOptions.Center);
+        if (IsFresh(t))
+        {
+            t.color = new Color(1f, 1f, 1f, BandLabelAlpha);
+            return;
+        }
+
+        // The old look exactly: somebody's tuning would be anything else.
+        if (Mathf.Approximately(t.fontSize, 12f) && Mathf.Abs(t.color.a - 0.55f) < 0.01f)
+        {
+            Undo.RecordObject(t, "Band label");
+            t.fontSize = BandLabelSize;
+            t.color = new Color(t.color.r, t.color.g, t.color.b, BandLabelAlpha);
+            Undo.RecordObject(t.rectTransform, "Band label");
+            t.rectTransform.sizeDelta = new Vector2(200f, 22f);
+            Debug.Log("[TutorialSceneBuilder_NEW] Band label '" + band.name + "': 12 -> 14, 55% -> 75% white, " +
+                      "so the bands read as labelled (LARC, 26 Oct).", t);
+        }
     }
 
     /// <summary>
@@ -3204,7 +3248,7 @@ public static class TutorialSceneBuilder_NEW
         new Vector2( 17f,   8f)
     };
 
-    // ── D6's timing ──────────────────────────────────────────────────────────
+    // ── D7's timing ──────────────────────────────────────────────────────────
     //
     // The gap between two marks on the bar is the drift rate times the seconds between
     // the atoms that made them. Slowing the drift to keep a fresh line on the peak
@@ -3216,7 +3260,7 @@ public static class TutorialSceneBuilder_NEW
     //
     // The approach comes down with it so the last atom still lands inside the beat:
     // armed at 0, 2.4, 4.8 and 7.2, arriving 2.6 later, so the impacts fall at 2.6, 5.0,
-    // 7.4 and 9.8 of D6's ten seconds. Push either number up without checking the other
+    // 7.4 and 9.8 of D7's 10.5 seconds. Push either number up without checking the other
     // and the fourth atom hits after its own frame has ended.
 
     const float ClusterSecondsApart = 2.4f;
@@ -3251,7 +3295,7 @@ public static class TutorialSceneBuilder_NEW
                 .Apply();
 
             // The four have to be spaced far enough apart to leave four marks and still
-            // all land inside D6's ten seconds — see ClusterApproachSeconds.
+            // all land inside D7's 10.5 seconds — see ClusterApproachSeconds.
             RepairSerialized(atom, "approachSeconds",
                              p => Mathf.Approximately(p.floatValue, 4.5f),
                              p => p.floatValue = ClusterApproachSeconds,
@@ -3259,8 +3303,8 @@ public static class TutorialSceneBuilder_NEW
                              "them inside the same beat.");
 
             // The atom does not know what a spectrum is. Every one absorbs at the rest
-            // frame: with no redshift yet, D6's group deepens the one line D5 cut rather
-            // than scattering new ones — the old CutLine wiring put each at a different
+            // frame: the drift (sped up since D6) carries each line off before the next
+            // cuts its own; none is placed anywhere else — the old CutLine wiring put each at a different
             // wavelength, which no hydrogen at one redshift can do.
             ClearRigCalls(atom, "onImpact", new Object[] { spectrum });
             AddCall(atom, "onImpact", spectrum, "AbsorbAtRestFrame");

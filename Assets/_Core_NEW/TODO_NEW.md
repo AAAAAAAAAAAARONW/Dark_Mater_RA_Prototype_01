@@ -4,6 +4,27 @@
 
 ---
 
+## 🟡 LARC 10 月 26 日反馈：红移提前加速、光谱带标注、Earth 相机翻转
+
+**代码已改好，Unity 外编译通过。** 下面在 Unity 里做：
+
+### Tutorial（`Test_Tutorial` / `Tutorial.unity`）
+
+1. `Tools > Journey NEW > Tutorial > Build or Update`，保存场景。Console 里会出现几条 repair log（D7 时长 9.6 → 10.5、D6/D7 描述、波段标签 12 → 14 号字），都是正常的。
+2. **新顺序**：D5 第一团云 → **D6 讲红移**（线开始滑，并在约 1.5 秒内加速）→ **D7 四团云**（每团切出一条分开的线，形成条形码）→ D8 再来一团。这和 VO v7 的剧本顺序一致。
+3. **红移加速、不再放大 UV**：`TutorialBakedSpectrum_NEW` 上的 **Redshift Speed Up**（默认 10×）和 **Boost Ramp Seconds**（1.5）。光谱条从头到尾都是完整的 1216–9000 Å，D4 不再放大（**Magnify** 默认关，勾上就恢复原来的放大）。10× 时云之间的线在条上相隔约 10 px，到 D9 第一条线大约走到 1850 Å（仍在 UV）。条形码太挤就调大，线太细、看不清就告诉我。左上角调试行会显示 `boost ×10`。
+   - **代价**：tutorial 多走了约 1 Gyr，journey 开头的光谱条会停在交接点上，等光追上（大约十几秒）。
+   - trail 上放线的那一段延长到了 2200 Å（**Line Region End Full Bar A**），不然线会挤成一团。
+4. **光谱带标注**：D3 光谱条出现时，ULTRAVIOLET → VISIBLE → INFRARED 依次亮起、标签放大，**trail 上同一条带同时变亮**（时钟由光谱条的 `Bands` 统一控制，trail 的亮度在 `TutorialTrailBands_NEW` 的 **Highlight Peak** 里调）。带太窄时标签自动换成 UV / VIS / IR。可调参数在 `Bands`（`TutorialSpectrumBands_NEW`）的 **Band highlight** 和 **Band names** 里。
+5. **Trail 回头看不再左右颠倒**：不管从哪个方向看，UV 都在屏幕左边、IR 在右边。转身时，trail 在相机转到正侧面（带子在屏幕上竖着）的那一刻镜像过来，所以不会明显地跳一下。参数在 `TutorialTrailBands_NEW` 的 **Orient Every Seconds**（0.05）和 **Orient Switch Pixels**（8）。转身时如果在正侧面附近来回闪，就把 Switch Pixels 调大。
+6. **VO**：`VO_Tutorial_Phase3` 里 D6 和 D7 的录音已对调（D6 = 红移那句，D7 = 「每个氢原子…」那句），所以现有录音和新顺序对得上。之后按 v7 重新录音、导入时，会按 ID 写回去。
+6. 试玩：按 `2` 跳到 D4，看完 D5–D8。
+
+### Journey（`Test_Journey_WebGas`）
+
+7. **Earth 相机翻转**：之前到 Earth 门时，CameraDirector 仍然走普通换层流程，3.5 秒内从贴在光后面的低机位甩到俯视的 `VCam_TopDown`（俯角 76°），停 3 秒后再甩回来。Earth 层没有自己的世界，而且用的是同一个相机，所以这一甩什么都没遮住，只是翻了一下。现在 `CameraDirector_NEW` 的 **Stay On Camera Layers** 默认填了 `Earth`：进 Earth 层时不换相机、不甩，其余流程照旧（锁视角、事件时间都不变）。
+8. 试玩：进 Play，飞到 Earth（或用调试键跳到 Solar System），看到达时相机不再翻。如果还是翻，说明不是这个原因，把录屏发我，我再查 `EarthZoom_NEW` 的相机部分。
+
 ## 🟡 第一个 cosmic web：暗物质时刻 + 拉长 + 摆纤维（10 月 16 日）
 
 **改了什么：** 光**不再停下**。J3 说完后，旁白讲暗物质，提示 `Y · SHOW DARK MATTER` 和这句一起出现，玩家边飞边按 Y。没按的话，那句说完 1.5 秒提示一次，6 秒后自动切换。为了放得下这一分钟的台词，第一个 cosmic web 要**拉长**（速度不变）。新加了 **Flight Path** 窗口：在 Scene 里画出光的路径、秒数刻度、每句台词的位置，以及自动找到的黄色纤维。

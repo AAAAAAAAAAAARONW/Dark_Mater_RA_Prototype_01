@@ -12,8 +12,10 @@ using UnityEngine;
 ///                    the UV and IR edges — the light carries more than the eye sees.
 ///   D2  FlashVisible The visible band alone brightens a few times: this is the part
 ///                    human eyes can see.
+///   D3  (bar's)      UV, visible and IR light one after another, in step with the bar's
+///                    bands — TutorialSpectrumBands_NEW.HighlightBands keeps the clock.
 ///   D5  FlashLines   The absorption line blinks as it appears.
-///   D7  Redden       UV glow falls and IR glow rises as the spectrum redshifts.
+///   D6  Redden       UV glow falls and IR glow rises as the spectrum redshifts.
 ///   D9  FoldUVIR     Back to the visible band only.
 ///
 /// CROPPING RATHER THAN HIDING. The shader maps width to wavelength through
@@ -69,16 +71,34 @@ public class TutorialTrailBands_NEW : MonoBehaviour
 
     [Tooltip("Set mirrorAcross by itself, from the ribbon Unity actually draws (the journey's " +
              "AbsorberHighlight_NEW does the same): UV on screen-left like the bar, so a line " +
-             "drifts left to right on both. Re-read every orientSeconds, because the player can " +
-             "swing the view round and turn the ribbon over on screen. Off: mirrorAcross is " +
-             "left exactly as ticked.")]
+             "drifts left to right on both. Which way that is, is read as seen from a CHASE view — a " +
+             "hidden camera behind and above the light, along its travel — never from the player's " +
+             "view: just after emission the player watches the light cross the screen side-on, where " +
+             "the ribbon's colours run top to bottom and left or right flipped with every small move " +
+             "of the mouse (Editor.log, 26 Oct). The ribbon is mirrored only when the view has " +
+             "clearly turned round to face back along the light (orientBackEnter), and back once it " +
+             "is clearly not (orientBackExit). Off: mirrorAcross is left exactly as ticked.")]
     [SerializeField] bool autoOrient = true;
 
     [Tooltip("The camera the ribbon is judged against. Leave empty for the main camera.")]
     [SerializeField] Camera viewCamera;
 
+    [Tooltip("Seconds between reads of the ribbon from the chase view.")]
     [Min(0.1f)]
-    [SerializeField] float orientSeconds = 0.5f;
+    [SerializeField] float orientReadSeconds = 0.5f;
+
+    [Tooltip("Facing back: the view's dot with the light's travel below minus this (0.5 = more " +
+             "than 120° from it). Side-on views (about 0) never count.")]
+    [Range(0.1f, 1f)]
+    [SerializeField] float orientBackEnter = 0.5f;
+
+    [Tooltip("No longer facing back once the dot rises above minus this (0.25 = less than ~105°).")]
+    [Range(0f, 0.9f)]
+    [SerializeField] float orientBackExit = 0.25f;
+
+    [Tooltip("Where the chase view sits: this far behind the light and this high above it.")]
+    [SerializeField] Vector2 chaseOffset = new Vector2(6f, 2f);
+
 
     [Tooltip("Metres behind the light where the ribbon is read: a little way back, where it " +
              "is already full width.")]
@@ -106,6 +126,15 @@ public class TutorialTrailBands_NEW : MonoBehaviour
 
     [Tooltip("Extra brightness at the top of each flash. 1 doubles the band's colour.")]
     [SerializeField] float flashPeak = 1.4f;
+
+    [Header("Band highlight (with the bar, D3)")]
+    [Tooltip("The bar's bands, whose HighlightBands run the ribbon follows. Found if empty.")]
+    [SerializeField] TutorialSpectrumBands_NEW spectrumBands;
+
+    [Tooltip("Extra glow at the top of a band's highlight. 1 doubles UV's or IR's glow; the " +
+             "visible band uses the same value as its D2 flash.")]
+    [Range(0f, 4f)]
+    [SerializeField] float highlightPeak = 1.5f;
 
     [Header("Absorption line")]
     [Tooltip("How wide the dark line is painted across the RIBBON, as a fraction of the " +
@@ -273,6 +302,8 @@ public class TutorialTrailBands_NEW : MonoBehaviour
         _redden = _reddenTarget = 0f;
         _flashElapsed = -1f;
         _blinkElapsed = -1f;
+        _facingBack = false;
+        _hasLastHead = _hasTravel = false;
 
         Apply();
     }
@@ -286,6 +317,12 @@ public class TutorialTrailBands_NEW : MonoBehaviour
 
         if (spectrumTrail == null) spectrumTrail = GetComponent<PhotonSpectrumTrail>();
         if (spectrum == null) spectrum = FindObjectOfType<TutorialSpectrum_NEW>();
+        if (spectrumBands == null)
+        {
+            // The bar starts hidden, which FindObjectOfType would skip.
+            foreach (TutorialSpectrumBands_NEW b in Resources.FindObjectsOfTypeAll<TutorialSpectrumBands_NEW>())
+                if (b.gameObject.scene == gameObject.scene) { spectrumBands = b; break; }
+        }
 
         // The material's own values are what "full" means. Read from the shared asset,
         // before anything has instanced it.
@@ -319,25 +356,26 @@ public class TutorialTrailBands_NEW : MonoBehaviour
             if (_blinkElapsed > lineBlinkSeconds) _blinkElapsed = -1f;
         }
 
-        if (autoOrient && Time.unscaledTime >= _nextOrient)
-        {
-            _nextOrient = Time.unscaledTime + orientSeconds;
-            Orient();
-        }
+        if (autoOrient) Orient();
 
         Apply();
     }
 
     float _nextOrient;
     Mesh _ribbonMesh;
+    bool _forwardMirror;     // as read facing forward
+    Vector3 _lastHead, _travel;
+    bool _hasLastHead, _hasTravel;
+    bool _facingBack;
+    bool _hasForwardRead;
 
     /// <summary>Whether the ribbon is currently drawn mirrored (UV on the uv.y = 0 edge).</summary>
     public bool MirrorAcross { get { return mirrorAcross; } }
 
     /// <summary>
-    /// Mirror the ribbon if its UV edge is on screen-right. Unmirrored, specT = 1 − uv.y, so
-    /// UV is the uv.y = 1 edge (e1) and IR the uv.y = 0 edge (e0); e0 left of e1 means UV is
-    /// on the right, and the ribbon has to be mirrored.
+    /// Keep UV on screen-left. Facing forward, the ribbon is read from the mesh (ReadForward);
+    /// facing back it is that read, mirrored — which way it faces is the only thing looked at
+    /// every frame, with a dead band round side-on.
     /// </summary>
     void Orient()
     {
@@ -346,10 +384,63 @@ public class TutorialTrailBands_NEW : MonoBehaviour
         Camera cam = viewCamera != null ? viewCamera : Camera.main;
         if (cam == null) return;
 
-        // Behind the light: back along the trail's own most recent points.
+        // Which way the light is going: from how it actually moved, not from the trail's points.
+        // GetPosition(positionCount - 4) was the trail's OLD end — still off to the side, by the
+        // black hole it left — so "travel" came out sideways, and turning the view a little left
+        // or right counted as turning round: the ribbon mirrored back and forth (Editor.log,
+        // 26 Oct: travel (0.98, 0.21, 0) with the view on +z).
         Vector3 head = _trail.transform.position;
-        Vector3 back = _trail.GetPosition(Mathf.Max(0, _trail.positionCount - 4)) - head;
-        if (back.sqrMagnitude < 1e-6f) return;
+        if (_hasLastHead)
+        {
+            Vector3 step = head - _lastHead;
+            if (step.sqrMagnitude > 1e-8f)
+                _travel = _hasTravel ? Vector3.Slerp(_travel, step.normalized, 0.2f).normalized : step.normalized;
+            _hasTravel |= step.sqrMagnitude > 1e-8f;
+        }
+        _lastHead = head;
+        _hasLastHead = true;
+        if (!_hasTravel) return;
+
+        Vector3 back = -_travel;
+        float facing = Vector3.Dot(cam.transform.forward, -back.normalized);
+
+        if (!_facingBack && facing < -orientBackEnter) _facingBack = true;
+        else if (_facingBack && facing > -orientBackExit) _facingBack = false;
+
+        if (Time.unscaledTime >= _nextOrient)
+        {
+            _nextOrient = Time.unscaledTime + orientReadSeconds;
+            ReadForward(head, back);
+        }
+
+        if (!_hasForwardRead) return;   // nothing read yet: leave it as it is
+        mirrorAcross = _facingBack ? !_forwardMirror : _forwardMirror;
+    }
+
+    Camera _chase;
+
+    /// <summary>
+    /// Read from the mesh which way the ribbon lies, as the chase view sees it. Unmirrored,
+    /// specT = 1 − uv.y, so UV is the uv.y = 1 edge (e1) and IR the uv.y = 0 edge (e0); e0 left of
+    /// e1 means UV is on the right, and the ribbon has to be mirrored. The ribbon faces whichever
+    /// camera it is baked for; behind-and-above and in-front-and-above put the same edge on the
+    /// same side of the line, which is why facing back is that read, mirrored.
+    /// </summary>
+    void ReadForward(Vector3 head, Vector3 back)
+    {
+        if (_chase == null)
+        {
+            GameObject go = new GameObject("TutorialTrailBands_ChaseView") { hideFlags = HideFlags.HideAndDontSave };
+            _chase = go.AddComponent<Camera>();
+            _chase.enabled = false;   // never renders; only its pose and projection are used
+        }
+        Camera main = viewCamera != null ? viewCamera : Camera.main;
+        if (main != null) _chase.fieldOfView = main.fieldOfView;
+
+        Vector3 up = Mathf.Abs(Vector3.Dot(back.normalized, Vector3.up)) > 0.95f ? Vector3.forward : Vector3.up;
+        _chase.transform.position = head + back.normalized * chaseOffset.x + up * chaseOffset.y;
+        _chase.transform.rotation = Quaternion.LookRotation(head - _chase.transform.position, up);
+        Camera cam = _chase;
 
         Vector3 target = head + back.normalized * orientBehindLight;
 
@@ -364,11 +455,13 @@ public class TutorialTrailBands_NEW : MonoBehaviour
         float dx = s0.x - s1.x;
         if (Mathf.Abs(dx) < 3f) return;   // edge-on to the screen: no clear left or right
 
-        mirrorAcross = dx < 0f;
+        _forwardMirror = dx < 0f;
+        _hasForwardRead = true;
     }
 
     void OnDestroy()
     {
+        if (_chase != null) Destroy(_chase.gameObject);
         if (_ribbonMesh != null) Destroy(_ribbonMesh);
     }
 
@@ -390,8 +483,12 @@ public class TutorialTrailBands_NEW : MonoBehaviour
         _shownLow = lo;
         _shownSpan = scale;
 
-        float uvGlow = _baseUVGlow * open * Mathf.Lerp(1f, uvGlowWhenRed, _redden);
-        float irGlow = _baseIRGlow * open * Mathf.Lerp(1f, irGlowWhenRed, _redden);
+        float hUV = spectrumBands != null ? spectrumBands.HighlightOf(0) : 0f;
+        float hVis = spectrumBands != null ? spectrumBands.HighlightOf(1) : 0f;
+        float hIR = spectrumBands != null ? spectrumBands.HighlightOf(2) : 0f;
+
+        float uvGlow = _baseUVGlow * open * Mathf.Lerp(1f, uvGlowWhenRed, _redden) * (1f + highlightPeak * hUV);
+        float irGlow = _baseIRGlow * open * Mathf.Lerp(1f, irGlowWhenRed, _redden) * (1f + highlightPeak * hIR);
 
         _trail.GetPropertyBlock(_block);
 
@@ -411,7 +508,7 @@ public class TutorialTrailBands_NEW : MonoBehaviour
         _block.SetFloat(IRGlowId, irGlow);
         _block.SetFloat(VisibleStartId, visStart);
         _block.SetFloat(VisibleEndId, visEnd);
-        _block.SetFloat(VisibleHighlightId, Pulse(_flashElapsed, flashSeconds, flashCount) * flashPeak);
+        _block.SetFloat(VisibleHighlightId, Mathf.Max(Pulse(_flashElapsed, flashSeconds, flashCount), hVis) * flashPeak);
         _block.SetFloat(LineStrengthId,
                         _baseLineStrength * Mathf.Lerp(1f, lineBlinkLow,
                                                        Pulse(_blinkElapsed, lineBlinkSeconds, lineBlinkCount)));

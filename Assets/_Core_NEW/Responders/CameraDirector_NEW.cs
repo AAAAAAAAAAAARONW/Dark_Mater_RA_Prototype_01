@@ -70,6 +70,14 @@ public class CameraDirector_NEW : MonoBehaviour
              "Found in the scene if empty; with none, every gate uses the cover as before.")]
     [SerializeField] LayerDive_NEW dive;
 
+    [Header("Stay on camera")]
+    [Tooltip("Layers entered WITHOUT the cover: no blend to the top-down camera and back, the " +
+             "anchors fire on the spot and the zone camera simply stays live. For a layer with no " +
+             "world of its own to swap in, on the camera it arrives on. Earth: EarthZoom_NEW brings " +
+             "the camera down behind the light with Earth filling the screen, and the cover swung " +
+             "it up 76° over Earth and back 3 s later — the camera flip seen on arrival (LARC, 26 Oct).")]
+    [SerializeField] string[] stayOnCameraLayers = { "Earth" };
+
     [Header("Cover detection")]
     [Tooltip("Blend weight at which the cover counts as complete. 1 = wait for the very end.")]
     [Range(0.5f, 1f)]
@@ -237,6 +245,8 @@ public class CameraDirector_NEW : MonoBehaviour
             yield return FirstGateSequence(current);
         else if (dive != null && dive.TryGetDive(current.layerId, out LayerDive_NEW.Dive spec))
             yield return DiveSequence(previous, current, spec);
+        else if (StaysOnCamera(current.layerId))
+            yield return StayOnCameraSequence(current);
         else
             yield return ZoneEnterSequence(current);
 
@@ -364,6 +374,40 @@ public class CameraDirector_NEW : MonoBehaviour
         SetPriority(coverVcam, priorityOff);
 
         yield return WaitUntilLive(zone);
+    }
+
+    bool StaysOnCamera(string layerId)
+    {
+        if (stayOnCameraLayers == null) return false;
+        foreach (string id in stayOnCameraLayers)
+            if (!string.IsNullOrEmpty(id) && id == layerId) return true;
+        return false;
+    }
+
+    /// <summary>
+    /// A gate stayOnCameraLayers lists: no cover. The zone camera goes (or stays) live at
+    /// once and the anchors fire on the same clock as ZoneEnterSequence, the hold included,
+    /// so responders and the look lock behave as before — only the camera does not move.
+    /// </summary>
+    IEnumerator StayOnCameraSequence(LayerProfile_NEW profile)
+    {
+        CinemachineFreeLook zone = ResolveZoneCamera(profile.layerId);
+
+        SetPriority(coverVcam, priorityOff);
+        SetPriority(lookBackVcam, priorityOff);
+        foreach (CinemachineFreeLook v in _allZoneVcams)
+            if (v != zone) SetPriority(v, priorityOff);
+        SetPriority(zone, priorityHigh);
+
+        float untilLookUp = Mathf.Max(0f, profile.lookDownHoldDuration)
+                          + Mathf.Max(0f, profile.lookUpStartDelay);
+        Fire(TransitionAnchor_NEW.CoverReached, profile, untilLookUp);
+
+        if (untilLookUp > 0f) yield return new WaitForSeconds(untilLookUp);
+
+        Fire(TransitionAnchor_NEW.LookUpStart, profile, -1f);
+
+        if (debugLog) Debug.Log($"[CameraDirector_NEW] '{profile.layerId}' entered on '{(zone != null ? zone.Name : "none")}', no cover.", this);
     }
 
     /// <summary>

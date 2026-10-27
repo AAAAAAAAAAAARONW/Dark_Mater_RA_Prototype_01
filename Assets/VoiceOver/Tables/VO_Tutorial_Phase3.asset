@@ -151,10 +151,10 @@ MonoBehaviour:
       takes:
       - language: en
         variant: 
-        text: Every hydrogen atom absorbs that same wavelength. The more you pass
-          through, the darker and deeper that line becomes.
-        clip: {fileID: 8300000, guid: 13a47cdd8abf9954a994717be073ed60, type: 3}
-        estimatedSeconds: 8.5
+        text: Space itself is expanding. It stretches your light as you travel, and
+          the line slides toward the red. This is redshift.
+        clip: {fileID: 8300000, guid: fe417890487e2be4d9c9fb9d52424352, type: 3}
+        estimatedSeconds: 9
         status: 1
         recordedText: 
       cues: []
@@ -175,10 +175,10 @@ MonoBehaviour:
       takes:
       - language: en
         variant: 
-        text: Space itself is expanding. It stretches your light as you travel, and
-          the line slides toward the red. This is redshift.
-        clip: {fileID: 8300000, guid: fe417890487e2be4d9c9fb9d52424352, type: 3}
-        estimatedSeconds: 9
+        text: Every hydrogen atom absorbs that same wavelength. The more you pass
+          through, the darker and deeper that line becomes.
+        clip: {fileID: 8300000, guid: 13a47cdd8abf9954a994717be073ed60, type: 3}
+        estimatedSeconds: 8.5
         status: 1
         recordedText: 
       cues: []
