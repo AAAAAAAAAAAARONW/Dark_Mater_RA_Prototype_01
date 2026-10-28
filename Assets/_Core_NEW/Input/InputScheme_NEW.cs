@@ -76,6 +76,97 @@ public static class InputScheme_NEW
     /// </summary>
     const string ConfirmSubmitAxis = "Submit";
 
+    // -- Where input is read from ---------------------------------------------
+    //
+    // On the Vizlab wall the piece runs as several copies at once, one per display node,
+    // and getReal3D keeps them in step. UnityEngine.Input only sees the pad on the master
+    // node, so a look rig reading it would turn on the master and stand still on the
+    // others, and the wall would tear at the seams. getReal3D.Input reads the master's pad
+    // and hands every node the same value on the same frame, which is the only way the
+    // copies can stay one picture.
+    //
+    // It is read by LOGICAL NAME, and the names are getReal3D's own defaults rather than
+    // ours: the Vizlab's cluster configuration binds its controller to those names for
+    // every getReal3D game, so using them is what makes the site pad work without a
+    // mapping of our own. Assets/Resources/mappings.xml fills in the two the defaults
+    // leave empty (Pitch's stick, and keyboard keys that match the desk stand-ins).
+    //
+    // Which pad profile is in force still decides the printed letters, not the axes.
+
+    /// <summary>Where every control below is read from.</summary>
+    public enum Source
+    {
+        /// <summary>UnityEngine.Input, through the pad profile. Desk, Tutorial.unity, the journey.</summary>
+        Unity,
+
+        /// <summary>getReal3D.Input, by logical name, synchronised across the cluster. The wall.</summary>
+        GetReal3D
+    }
+
+    /// <summary>
+    /// Set by GetReal3DView_NEW while a getReal3D view is live in the scene, and put back
+    /// when it goes. Nothing else should be writing this.
+    /// </summary>
+    public static Source InputSource { get; set; }
+
+    const string Gr3dLookXAxis = "Yaw";         // right stick X
+    const string Gr3dLookYAxis = "Pitch";       // right stick Y; bound in mappings.xml
+    const string Gr3dLeftXAxis = "Strafe";      // left stick X
+    const string Gr3dLeftYAxis = "Forward";     // left stick Y: zoom
+    const string Gr3dConfirmButton = "WandButton";  // A
+    const string Gr3dPauseButton = "Jump";          // B
+    const string Gr3dToggleButton = "Reset";        // Y
+
+    static bool FromGetReal3D { get { return InputSource == Source.GetReal3D; } }
+
+    /// <summary>
+    /// True when devices only the master node can see - the mouse, the keyboard through
+    /// UnityEngine.Input - must be left alone, because reading them would make the nodes
+    /// disagree. A single getReal3D instance (the editor) has nobody to disagree with.
+    ///
+    /// NOT getReal3D.Cluster.isOn. Its getter is a bare `return true` (read off the IL in
+    /// getReal3D.dll 4.1.0.4003), so testing it switched the mouse off in the editor too -
+    /// mouse look dead, and the idle return blind to a visitor using the mouse.
+    /// </summary>
+    static bool MasterOnlyDevicesUnsafe
+    {
+        get { return FromGetReal3D && RunningAsSeveralCopies; }
+    }
+
+    /// <summary>
+    /// Started by the getReal3D launcher (which sets GETREAL_CONFIG - the same test
+    /// getReal3D's own VRToolkitChoice uses), a client node, or a config with more than one
+    /// machine. The launcher test comes first because the Vizlab's copies may share one
+    /// machine, where the node count alone would say one.
+    ///
+    /// Public because it is also the answer to "is this the wall": GetReal3DHud_NEW moves
+    /// the HUD onto the rows on exactly the same test, so input and HUD never disagree.
+    /// </summary>
+    public static bool RunningAsSeveralCopies
+    {
+        get
+        {
+            // Asked several times a frame by the look and idle checks; the native call
+            // behind getNodeCount is answered once per frame.
+            int frame = Time.frameCount;
+            if (frame == _severalCopiesFrame) return _severalCopies;
+            _severalCopiesFrame = frame;
+
+            if (LaunchedByGetReal3D || getReal3D.Cluster.isClientAndClusterOn)
+                return _severalCopies = true;
+
+            try { _severalCopies = getReal3D.Plugin.getNodeCount() > 1; }
+            catch (System.Exception) { _severalCopies = false; }
+            return _severalCopies;
+        }
+    }
+
+    static int _severalCopiesFrame = -1;
+    static bool _severalCopies;
+
+    static readonly bool LaunchedByGetReal3D =
+        System.Environment.GetEnvironmentVariable("GETREAL_CONFIG") != null;
+
     // -- Which pad ------------------------------------------------------------
 
     static PadProfile_NEW _pad;
@@ -292,7 +383,7 @@ public static class InputScheme_NEW
         float stick = StickX(which, deadband) * sensitivity * dt;
 
         // GetAxisRaw sidesteps Unity's own smoothing, which fights a per-frame apply.
-        float mouse = Input.GetAxisRaw(MouseXAxis) * sensitivity * dt;
+        float mouse = Mouse(MouseXAxis) * sensitivity * dt;
 
         return Mathf.Abs(stick) > Mathf.Abs(mouse) ? stick : mouse;
     }
@@ -301,9 +392,15 @@ public static class InputScheme_NEW
     public static float LookY(Stick which, float sensitivity, float deadband, float dt)
     {
         float stick = StickY(which, deadband) * sensitivity * dt;
-        float mouse = Input.GetAxisRaw(MouseYAxis) * sensitivity * dt;
+        float mouse = Mouse(MouseYAxis) * sensitivity * dt;
 
         return Mathf.Abs(stick) > Mathf.Abs(mouse) ? stick : mouse;
+    }
+
+    /// <summary>A mouse axis, or 0 on a cluster, where only the master has a mouse.</summary>
+    static float Mouse(string axis)
+    {
+        return MasterOnlyDevicesUnsafe ? 0f : Input.GetAxisRaw(axis);
     }
 
     /// <summary>
@@ -328,13 +425,23 @@ public static class InputScheme_NEW
     /// </summary>
     public static float MouseDeflection()
     {
-        return Mathf.Max(Mathf.Abs(Input.GetAxisRaw(MouseXAxis)),
-                         Mathf.Abs(Input.GetAxisRaw(MouseYAxis)));
+        return Mathf.Max(Mathf.Abs(Mouse(MouseXAxis)),
+                         Mathf.Abs(Mouse(MouseYAxis)));
     }
 
     /// <summary>Horizontal deflection of one stick, deadbanded. Raw, not scaled.</summary>
     public static float StickX(Stick which, float deadband)
     {
+        if (FromGetReal3D)
+        {
+            float left = Deadband(Gr3dAxis(Gr3dLeftXAxis), deadband);
+            float right = Deadband(Gr3dAxis(Gr3dLookXAxis), deadband);
+
+            if (which == Stick.Left) return left;
+            if (which == Stick.Right) return right;
+            return Larger(left, right);
+        }
+
         PadProfile_NEW pad = Pad;
 
         if (which == Stick.Left) return Deadband(Axis(pad.leftStickXAxis), deadband);
@@ -347,6 +454,18 @@ public static class InputScheme_NEW
     /// <summary>Vertical deflection of one stick, deadbanded. Positive is away from the player.</summary>
     public static float StickY(Stick which, float deadband)
     {
+        // getReal3D reports a stick pushed away from the player as positive already, the
+        // same convention as every profile here, so nothing is inverted on this path.
+        if (FromGetReal3D)
+        {
+            float left = Deadband(Gr3dAxis(Gr3dLeftYAxis), deadband);
+            float right = Deadband(Gr3dAxis(Gr3dLookYAxis), deadband);
+
+            if (which == Stick.Left) return left;
+            if (which == Stick.Right) return right;
+            return Larger(left, right);
+        }
+
         PadProfile_NEW pad = Pad;
 
         if (which == Stick.Left) return Deadband(Signed(pad.leftStickYAxis, pad.leftStickYInvert), deadband);
@@ -364,10 +483,14 @@ public static class InputScheme_NEW
     /// pad it is on cannot get this right. Returns 0 on a pad that reports its D-pad as
     /// buttons.
     /// </summary>
-    public static float DPadX() { return Axis(Pad.dpadXAxis); }
+    public static float DPadX() { return MasterOnlyDevicesUnsafe ? 0f : Axis(Pad.dpadXAxis); }
 
-    /// <summary>The D-pad's vertical axis. See <see cref="DPadX"/>.</summary>
-    public static float DPadY() { return Axis(Pad.dpadYAxis); }
+    /// <summary>
+    /// The D-pad's vertical axis. See <see cref="DPadX"/>. Both read 0 on a cluster:
+    /// getReal3D has no logical name for the D-pad, and a master-only read would move one
+    /// node and not the rest.
+    /// </summary>
+    public static float DPadY() { return MasterOnlyDevicesUnsafe ? 0f : Axis(Pad.dpadYAxis); }
 
     /// <summary>The deadband this pad wants, for callers that have no reason to override it.</summary>
     public static float Deadband() { return Pad.stickDeadband; }
@@ -404,11 +527,31 @@ public static class InputScheme_NEW
         catch (System.ArgumentException) { return 0f; }
     }
 
+    /// <summary>
+    /// A getReal3D logical axis, 0 rather than an exception if the name is not mapped -
+    /// the same bargain as <see cref="Axis"/>: a mapping missing on site costs one control.
+    /// </summary>
+    static float Gr3dAxis(string name)
+    {
+        try { return getReal3D.Input.GetAxis(name); }
+        catch (System.Exception) { return 0f; }
+    }
+
+    static bool Gr3dButtonDown(string name)
+    {
+        try { return getReal3D.Input.GetButtonDown(name); }
+        catch (System.Exception) { return false; }
+    }
+
     // -- Buttons -------------------------------------------------------------
 
     /// <summary>A, pressed this frame. Confirm, recentre and emit are all this.</summary>
     public static bool ConfirmDown()
     {
+        // The keyboard stand-ins are bound inside the logical buttons (mappings.xml), so
+        // on this path Space still confirms, and does it on every node at once.
+        if (FromGetReal3D) return Gr3dButtonDown(Gr3dConfirmButton);
+
         if (Input.GetKeyDown(ConfirmKey)) return true;
 
         PadProfile_NEW pad = Pad;
@@ -423,6 +566,8 @@ public static class InputScheme_NEW
     /// <summary>B, pressed this frame. Pause.</summary>
     public static bool PauseDown()
     {
+        if (FromGetReal3D) return Gr3dButtonDown(Gr3dPauseButton);
+
         if (Input.GetKeyDown(PauseKey)) return true;
 
         PadProfile_NEW pad = Pad;
@@ -433,6 +578,8 @@ public static class InputScheme_NEW
     /// <summary>Y, pressed this frame. Shows or hides dark matter.</summary>
     public static bool ToggleDown()
     {
+        if (FromGetReal3D) return Gr3dButtonDown(Gr3dToggleButton);
+
         if (Input.GetKeyDown(ToggleKey)) return true;
 
         PadProfile_NEW pad = Pad;
@@ -458,7 +605,16 @@ public static class InputScheme_NEW
     /// </summary>
     public static bool AnyInput(float deadband)
     {
-        if (Input.anyKeyDown) return true;
+        if (FromGetReal3D)
+        {
+            // Every node has to reach the same answer, or one copy of the piece returns to
+            // attract while the others carry on: only the synchronised controls count.
+            if (Gr3dButtonDown(Gr3dConfirmButton) || Gr3dButtonDown(Gr3dPauseButton) ||
+                Gr3dButtonDown(Gr3dToggleButton)) return true;
+            if (StickDeflection(Stick.Either, deadband) > 0f) return true;
+            if (MasterOnlyDevicesUnsafe) return false;
+        }
+        else if (Input.anyKeyDown) return true;
 
         // Either, deliberately: a visitor pushing the stick that does not look is still
         // a visitor who is present, and the piece should not reset under them.

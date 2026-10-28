@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title></title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <!--[if lt IE 9]>
+    <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+  <style type="text/css">
+table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
+  margin: 0; padding: 0; vertical-align: baseline; border: none; }
+table.sourceCode { width: 100%; line-height: 100%; }
+td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
+td.sourceCode { padding-left: 5px; }
+code > span.kw { color: #007020; font-weight: bold; }
+code > span.dt { color: #902000; }
+code > span.dv { color: #40a070; }
+code > span.bn { color: #40a070; }
+code > span.fl { color: #40a070; }
+code > span.ch { color: #4070a0; }
+code > span.st { color: #4070a0; }
+code > span.co { color: #60a0b0; font-style: italic; }
+code > span.ot { color: #007020; }
+code > span.al { color: #ff0000; font-weight: bold; }
+code > span.fu { color: #06287e; }
+code > span.er { color: #ff0000; font-weight: bold; }
+  </style>
+</head>
+<body>
+<h1 id="developing-unity-games-with-getreal3d">Developing Unity Games with getReal3D</h1>
+<p>This section will focus on using the getReal3D plugin to develop Unity games as well as cover important topics for Unity developers.</p>
+<h2 id="key-components">Key Components</h2>
+<p>From a developers' perspective, the important components of getReal3D are:</p>
+<ol type="1">
+<li><p>The getReal3D <em>configuration file</em> defines how and where your games will run, such as the display system and all its hardware, the input devices, and various other settings.</p></li>
+<li><p>The getReal3D <em>daemon</em> must always be running on workstations where your game will run.</p></li>
+<li><p>The getReal3D <em>launcher</em> is a separate application that lets you deploy and run your Unity games.</p></li>
+<li><p>The getReal3D <em>plugin</em> embedded inside the Unity game is bundled inside the games created with Unity and provides run-time VR behaviors.</p></li>
+</ol>
+<h2 id="system-requirements">System Requirements</h2>
+<p>Developing Unity games with getReal3D for Unity requires the following:</p>
+<ol type="1">
+<li><p>A supported Unity version (see Compatibility Matrix in User Guide)</p></li>
+<li><p>Windows 10 64-bit</p></li>
+<li><p>A D3D9-capable (or better) graphics card with the developer only getReal3D license. A quad- buffered stereo capable graphics card (such as an Nvidia Quadro card) may be required for active-stereo modes under the non-developer getReal3D licenses.</p></li>
+</ol>
+<h2 id="installation">Installation</h2>
+<p>By default, getReal3D for Unity will be installed into: <code>C:\Program Files \Mechdyne\getReal3D for Unity 4</code> folder. Additionally, the getReal3D Daemon will manage (and on a cluster, distribute) Unity games in: <code>C:\ProgramData\Mechdyne\getReal3D for Unity 3\CACHE</code>.</p>
+<p>Follow the Unity installer instructions for a developer install. The installer provides the following components:</p>
+<ul>
+<li>getReal3D for Unity plugin</li>
+<li>getReal3D for Unity Launcher</li>
+<li>getReal3D for Unity daemon</li>
+<li>getReal3D for Unity demo game</li>
+<li>Flexera FLEXlm (license manager). This is skipped during installation if it already exist on the system.</li>
+</ul>
+<h2 id="develop-games-in-the-unity-editor">Develop games in the Unity Editor</h2>
+<h3 id="import-the-getreal3d-plugin">Import the getReal3D Plugin</h3>
+<p>Developing games with getReal3D for Unity requires the getReal3D plugin. The plugin adds a custom getReal3D menu to the Unity Editor. It is located at <code>C:\Program Files\Mechdyne\getReal3D for Unity 3\For Unity games\getReal3D_Plugin_X.X.X.X.unitypackage</code>.</p>
+<ol type="1">
+<li><strong>Select</strong> Assets &gt; Import Package &gt; Custom Package from the main menu</li>
+<li><strong>Navigate</strong> to the getReal3d plugin location</li>
+<li><strong>Click Import</strong> to import everything</li>
+</ol>
+<p>Note: If you have previously played the current games inside the current Unity Editor session, you must quit the Unity Editor before importing or the import will fail to update the core plugin (<code>gr_plugin.dll</code>).</p>
+<p>There are several required Quality and Player settings, so getReal3D presents a <em>getReal3D Required Settings</em> dialog warning if those settings are not set. In this dialog, you can fix or ignore all or individual required settings.</p>
+<figure>
+<img src="images/required_settings.png" alt="getReal3D Required Settings" /><figcaption>getReal3D Required Settings</figcaption>
+</figure>
+<h3 id="running-games-in-the-editor">Running Games in the Editor</h3>
+<p>Games using getReal3D for Unity can be run inside the editor for testing and debugging just like any other Unity game. The games still require a getReal3D configuration. The getReal3D configuration file is in the game at <code>getReal3D/Resources/editor_config.gr3d</code>.</p>
+<p>Running in the editor allows you to test VR features like tracking and navigation, and also provides the ability to test how the getReal3D plugin generates cameras corresponding to your configuration. When running games in the editor, the screens of the first computer referenced in your <code>editor_config.gr3d</code> become the main game views. All other screens are ignored. The Unity camera preview will be different than the actual camera view once the game is running with getReal3D. It is possible to change the configuration used by the editor in the getReal3D / Advanced / Settings dialog. It is also possible to add new configuration file into the game resources folder.</p>
+<h4 id="trackdsimulator">trackdsimulator</h4>
+<p>Most games built with getReal3D for Unity will use trackd inputs from head/hand trackers and controllers. As an alternative to using the tracking equipment, the trackdsimulator can be used for testing purposes. This is a convenient option that alleviates steps during the testing process. The trackdsimulator GUI allows the user to simulate head/hand sensors, joystick valuators, and control buttons of the tracking equipment. A separate console window will show the values that are being tracked/shown while the simulator is running. The simulator can be found on the start menu at Mechdyne &gt; getReal3D for Unity 3.</p>
+<figure>
+<img src="images/trackdsimulator.png" alt="trackdsimulator GUI" /><figcaption>trackdsimulator GUI</figcaption>
+</figure>
+<h4 id="room-of-shadows-demo">Room of Shadows demo</h4>
+<p>getReal3D for Unity includes the Room of Shadows demo game, located at: <code>C:\Users\Public\Documents\Unity Projects\getReal3D Shadow Demo</code>. The demo illustrates the following standard VR features: - User-centered perspective. This means the game view will always be from the perspective of a tracked user inside the VR environment. - Walkthrough navigation. This is a simple navigation style where joysticks are used to control a character walking on solid surfaces. - A pointing device (wand). The virtual wand is drawn with the users' tracked hand position and orientation. The wand can interact with objects in the scene (as described below).</p>
+<p>The example below is using the trackdsimulator. 1. Start the trackdsimulator 2. Select the Apartment Scene (from Unity) 3. Click Play in the editor</p>
+<figure>
+<img src="images/shadowdemo.png" alt="Room of Shadows Demo" /><figcaption>Room of Shadows Demo</figcaption>
+</figure>
+<p>The game can be controlled using the simulator GUI. To see the apartment correctly within the game window, raise your head and hand sensors above their default position on the floor (<code>Y=O</code>)</p>
+<figure>
+<img src="images/raiseY.png" alt="Head/Hand Sensors" /><figcaption>Head/Hand Sensors</figcaption>
+</figure>
+<p>The trackdsimulator controls the game as described below. The default mapping of sensors and controller inputs to their logical function inside the game, can also be customized in your getReal3D configuration:</p>
+<ul>
+<li>Use the head and wand sensors, XY and Z, to control and position your head and hand</li>
+<li>Use the wand orientation ball to rotate your wand</li>
+<li>Use the left joystick control to move forward/back &amp; turn left/right</li>
+<li>Use the right joystick to look up/down &amp; strafe left/right</li>
+<li>Use button 2 to jump</li>
+<li>Use button 3 to reset the up/down look angle</li>
+<li>Use button 4 to change the wand type:
+<ul>
+<li>Green wand: points and casts shadow</li>
+<li>Blue wand: grab objects by toggling button 1</li>
+<li>Red wand: solid wand to knock objects around</li>
+</ul></li>
+</ul>
+<h3 id="enable-vr-capabilities">Enable VR capabilities</h3>
+<p>When the getReal3D_Plugin_X.X.X.X.unitypackage is imported into a project, several sample scripts and prefabs are made available. These resources will provide working examples of what can be done with the getReal3D for Unity API.</p>
+<p>The easiest way to get started with a new game in getReal3D is to enable standard VR features using the GenericPlayer prefab (within the <code>getReal3d/Prefabs</code> folder) as was done with the Unity Shadow demo example.</p>
+<figure>
+<img src="images/generic-player-prefab.png" alt="GenericPlayer Prefab" /><figcaption>GenericPlayer Prefab</figcaption>
+</figure>
+<p>Use this approach if any of the following are true: - You want the 3D scene to use a head-centered perspective – i.e. the scene is rendered according to the trackers' head position. - You want to use first-person navigation with a standard VR navigation script. For example, virtually walking on solid surfaces but not through solid objects. - You don't have existing cameras or character controllers that you need to retain.</p>
+<h3 id="convert-your-game">Convert Your Game</h3>
+<ol type="1">
+<li>Delete or disable any camera objects in the hierarchy root. The old cameras are no longer needed since getReal3D for Unity manages all of the VR cameras.</li>
+<li>Add the GenericPlayer prefab to the hierarchy root from the project folder <code>getReal3d/Prefabs</code>. This includes head and hand objects and a getReal3D managed camera</li>
+</ol>
+<h3 id="game-navigation-without-first-person-perspective">Game navigation without first-person perspective</h3>
+<p>In some cases, you might want to modify existing GameObject character navigation or animation to work with getReal3D without using a VR first-person perspective. You will be able to control and observe the GameObject in a VR scene, but you won't witness the scene from its perspective.</p>
+<p>This is accomplished by replacing calls to <code>UnityEngine.Input</code> with <code>getReal3D.Input</code> where inputs are provided to the character controller or animation. For example, a script that provides inputs to a Mecanim animator was modified as shown below:</p>
+<pre class="sourceCode cs"><code class="sourceCode cs"><span class="co">// setup h variable as our horizontal input axis</span>
+<span class="co">//float h = Input.GetAxis(&quot;Horizontal&quot;);</span>
+<span class="dt">float</span> h = getReal3D.<span class="fu">Input</span>.<span class="fu">GetAxis</span>(<span class="st">&quot;Yaw&quot;</span>);
+
+<span class="co">// setup v variables as our vertical input axis</span>
+<span class="co">//float v = Input.GetAxis(&quot;Vertical&quot;);</span>
+<span class="dt">float</span> v = getReal3D.<span class="fu">Input</span>.<span class="fu">GetAxis</span>(<span class="st">&quot;Forward&quot;</span>);
+
+<span class="co">// set our animator&#39;s float parameters</span>
+anim.<span class="fu">SetFloat</span>(<span class="st">&quot;Speed&quot;</span>, v);
+anim.<span class="fu">SetFloat</span>(<span class="st">&quot;Direction&quot;</span>, h);</code></pre>
+<p>Yaw and Forward are default logical input names corresponding to horizontal and vertical (as defined in the getReal3D Input Editor. They will also map Unity's horizontal and vertical input values if you are running without getReal3D.</p>
+<h3 id="add-vr-interaction">Add VR Interaction</h3>
+<p>You can add standard VR interaction to your game from the GenericPlayer prefab. This prefab has a game object representing the hand of the user. The attached GenericWandUpdater script updates the hand position, while the GenericWandManager prefab provides interaction modes where a visible wand can point at, collide, or grab objects in the scene.</p>
+<h3 id="add-a-vr-menu-system">Add a VR Menu System</h3>
+<p>getReal3D versions 3.1 and higher support 3D menus that are displayed in the user head space and controlled by a 3D tracked device. This feature uses Unity New UI system, available in versions 4.6 and higher. Knowledge of this New UI system is required in order to create VR menus.</p>
+<figure>
+<img src="images/gr3d_menu.png" alt="getReal3D VR menu" /><figcaption>getReal3D VR menu</figcaption>
+</figure>
+<h4 id="using-prefabs">Using prefabs</h4>
+<ol type="1">
+<li>Drag and drop the EventSystem prefab from the prefabs folder</li>
+<li>Drag and drop the GenericPlayer from the prefabs folder</li>
+<li>Add/Modify UI pages from the Head/Menu/Panel/Pages game object from the player</li>
+</ol>
+<h4 id="manual-setup">Manual setup</h4>
+<ol type="1">
+<li>Set 3D menus to retrieve the tracked devices events
+<ol type="a">
+<li>Replace the mouse module in the EventSystem of the scene with the GenericWandEventModule.</li>
+<li>Disable the default StandaloneInputModule .</li>
+</ol></li>
+<li>Add a camera to the wand object. In the Unity Editor, verify that the camera follows the wand orientation and position.
+<ol type="a">
+<li>Set the culling mask to Nothing</li>
+<li>Set the depth to -100</li>
+</ol></li>
+<li>Create a new UI/Canvas. If the menu is intended to be a HUD, select the head as a parent.
+<ol type="a">
+<li>Set the render mode to World Space</li>
+<li>Set the event camera to the previously created wand camera</li>
+</ol></li>
+</ol>
+<h3 id="synchronize-unity-components">Synchronize Unity Components</h3>
+<p>getReal3D for Unity adds the ability to synchronize games running in multiview mode. In multiview mode, multiple copies of your game run on the network, as required by your getReal3D configuration. There will be a single master game and one or more remote games. The master game will always be the first computer in your getReal3D configuration file.</p>
+<p>The synchronization of most Unity components is accomplished automatically. However, some events only occur on the master: - 2D UI displayed on the master game window - Keyboard and mouse inputs on the master game window using Unity API.</p>
+<p>These events may be the best choice when the user has access to the master game window or when an operator is using the master game window and/or keyboard in order to trigger game related actions (loading a new scene, starting a scenario, changing parameters, etc.,). Since the script logic that responds to those events is not running on the remote games, an RPC call is used for ynchronization.</p>
+<h4 id="simple-rpc-call">Simple RPC Call</h4>
+<p>The following example toggles the state of a game object when a key is pressed on the master game window. The Update callback determines if the game is the master and that the key was pressed. If true, it generates an RPC call on the master game as well as all remote games. This ensures that the cluster is synchronized.</p>
+<pre class="sourceCode cs"><code class="sourceCode cs"><span class="kw">using</span> UnityEngine;
+<span class="kw">public</span> <span class="kw">class</span> ToggleUsingKeyboard : getReal3D.<span class="fu">MonoBehaviourWithRpc</span>
+{
+    <span class="kw">public</span> GameObject target;
+    <span class="kw">public</span> KeyCode keyCode;
+    <span class="dt">void</span> <span class="fu">Update</span>()
+    {
+        <span class="kw">if</span>(target != <span class="kw">null</span> &amp;&amp; getReal3D.<span class="fu">Cluster</span>.<span class="fu">isMaster</span> &amp;&amp;
+            UnityEngine.<span class="fu">Input</span>.<span class="fu">GetKeyDown</span>(keyCode)) {
+            <span class="fu">CallRpc</span>(<span class="st">&quot;toggleActive&quot;</span>);
+        }
+    }
+    [getReal3D.<span class="fu">RPC</span>]
+    <span class="dt">void</span> <span class="fu">toggleActive</span>()
+    {
+        target.<span class="fu">SetActive</span>(!target.<span class="fu">activeSelf</span>);
+    }
+}</code></pre>
+<h4 id="using-rpc-arguments">Using RPC Arguments</h4>
+<p>An arbitrary number of arguments can be added to the method, provided getReal3D knows how to serialize those arguments. For instance, it is possible to call:</p>
+<pre class="sourceCode cs"><code class="sourceCode cs"><span class="fu">CallRpc</span>(<span class="st">&quot;foo&quot;</span>, <span class="kw">true</span>, Vector3.<span class="fu">up</span>);</code></pre>
+<p>The corresponding method is defined:</p>
+<pre class="sourceCode cs"><code class="sourceCode cs">[getReal3D.<span class="fu">RPC</span>]
+<span class="dt">void</span> <span class="fu">foo</span>(<span class="dt">bool</span> on, Vector3 v) { }</code></pre>
+<p>getReal3D currently supports the following data types: enum, bool, byte, char, short, int, uint, string, float, Vector2, Vector3, Quaternion, Color and Color32. Any other data type must be serialized into a string.</p>
+<p>RPC Limitations - A class using RPC must inherit <code>getReal3D.MonoBehaviourWithRpc</code>. - An RPC method must use the <code>[getReal3D.RPC]</code> attribute. - If a class using RPC is using OnEnable or OnDisable callbacks, then it must call the base function on the MonoBehaviourWithRpc. - RPCs are identified by the method name. Therefore, RPCs can't have the same RPC method name within a single class.</p>
+<h4 id="correct-synchronization-issues">Correct Synchronization Issues</h4>
+<p>There is a multiview synchronization issue when object(s) appear differently in the left and right eyes or appear differently on different screens. To test, position objects so that they overlap multiple screens. A multiview synchronization error will result in a visual discrepancy in the object at the seam between the screens.</p>
+<h3 id="wrap-calls-to-2d-imguis">Wrap Calls to 2D IMGUIs</h3>
+<p>The &quot;Immediate Mode&quot; GUI system (also known as IMGUI) is deprectated and should be replaced by Unity's main GameObject-based UI system.</p>
+<p>It is recommended that Unity 2D immediate mode GUIs are modified to allow getReal3D for Unity to control where the IMGUI will be displayed. The getReal3D configuration file includes a setting called <em>Show User Interface</em> which allows users to determine what screens display the GUI. For this setting to work, the IMGUI code must be surrounded by a Begin/EndGUI guard as in the following example:</p>
+<pre class="sourceCode cs"><code class="sourceCode cs"><span class="dt">void</span> <span class="fu">OnGUI</span>()
+{
+    <span class="kw">if</span> (!getReal3D.<span class="fu">GUI</span>.<span class="fu">BeginGUI</span>()) <span class="kw">return</span>;
+    GUILayout.<span class="fu">BeginArea</span>(<span class="kw">new</span> <span class="fu">Rect</span>(<span class="dv">0</span>,<span class="dv">0</span>,<span class="dv">150</span>,getReal3D.<span class="fu">GUI</span>.<span class="fu">height</span>));
+    GUILayout.<span class="fu">FlexibleSpace</span>();
+    GUILayout.<span class="fu">BeginVertical</span>(<span class="st">&quot;Lights&quot;</span>, GUI.<span class="fu">skin</span>.<span class="fu">window</span> );
+    <span class="kw">foreach</span>( Light l <span class="kw">in</span> lights )
+    {
+        l.<span class="fu">enabled</span> = GUILayout.<span class="fu">Toggle</span>(l.<span class="fu">enabled</span>, l.<span class="fu">name</span> );
+    }
+    GUILayout.<span class="fu">EndVertical</span>();
+    GUILayout.<span class="fu">EndArea</span>();
+    getReal3D.<span class="fu">GUI</span>.<span class="fu">EndGUI</span>();
+}</code></pre>
+<p>When used this way, the BeginGUI() and EndGUI() calls ensure that Unity's rendering invocation only happens on nodes designated to show the UI. The height and width fields in getReal3D.GUI ensures that the GUI will be the same size on all screens.</p>
+<p>When running in multiview mode, extra steps must be taken to synchronize any state changes made from the GUI. Refer to the Synchronize Unity Components section and the <code>getReal3D/Scripts/GUIs/getRealVRSettingsUI</code> script provided.</p>
+<h3 id="add-a-stereo-correct-skybox">Add a Stereo-Correct Skybox</h3>
+<p>The default Unity skybox will not display correctly in multiview or in a stereo window. The project folder <code>getReal3d/Examples/Skybox</code> contains the skeleton of a skybox that will work correctly with getReal3D for Unity. Please follow these instructions to create a skybox for your game:</p>
+<ol type="1">
+<li><p><strong>Import</strong> a resource for Skybox textures, if necessary. For example, you can use the standard Unity skyboxes: Assets &gt; Import Package &gt; Skyboxes.</p></li>
+<li><p><strong>Instantiate</strong> the prefab in getReal3d/getRealSkybox either as a child of your navigation GameObject in the hierarchy view or as a root-level GameObject .</p></li>
+<li><p>Set the getRealSkybox script's Follow Position Transform to that of the navigation GameObject.</p></li>
+<li>Create a new material for each face of the skybox: back, front, left, right, up, down.
+<ol type="a">
+<li>Set the shader for each material to getReal3d/Materials/getReal3D Skybox or use the supplied material of the same name.</li>
+<li>Set the texture for each material to the desired texture, for example, from Standard Assets/Skyboxes/Textues/DawnDusk.</li>
+</ol></li>
+</ol>
+<p>Note: The face names in the getReal3D Skybox prefab maintain the Unity skybox texture naming convention. As an example, with the camera facing along the +Z axis with +Y up, the Left texture appears to the right.</p>
+<ol start="5" type="1">
+<li><p>Attach the material to the skybox faces in the game hierarchy under MainCamera/skybox/skybox_mesh.</p></li>
+<li><p>Optional: The position of the MainCamera/skybox/skybox_mesh may need to be adjusted to achieve the desired effect.</p></li>
+</ol>
+<h3 id="synchronize-game-level-loading">Synchronize Game Level Loading</h3>
+<p>To change levels in a multiview game, call <code>SceneManager.LoadScene</code>. Do not use the <code>SceneManager.LoadSceneAsync</code> as it will behave differently on each node of the cluster.</p>
+<h3 id="synchronize-audio">Synchronize Audio</h3>
+<p>In the multiview mode, getReal3D for Unity provides a mechanism for determining which Unity instances produce sound. By default, it is the first computer host in the configuration, but this may be changed in the configuration editor.</p>
+<h3 id="random-number-generation">Random Number Generation</h3>
+<p>getReal3D automatically initializes Unity random number generator with a value that is common to all instances of the cluster. Therefore, a random number may be used in a getReal3D enabled game.</p>
+<h3 id="verify-build-and-optimize-games">Verify, build, and optimize games</h3>
+<h4 id="check-the-scene">Check the Scene</h4>
+<p>Scene Checker opens a dockable window that shows the status of the current scene and gives suggestions on steps to prepare a scene for running on the getReal3D cluster.</p>
+<figure>
+<img src="images/getRealSceneChecker.png" alt="Scene Checker" /><figcaption>Scene Checker</figcaption>
+</figure>
+<p>The Scene Checker will provide the following notifications: - If a getRealCameraUpdater script is found. - If any getReal3D navigation script is found. - If there are common script changes – to ensure a game can run in the getReal3D cluster.</p>
+<p>Note: If the scene is edited or a new scene opened, click the Update button to refresh the Scene Checker information.</p>
+<h4 id="build-the-game-executable">Build the Game Executable</h4>
+<p>Building a game using getReal3D for Unity is very similar to any other Unity game. Once the game is built, it must be added to the Launcher.</p>
+<h3 id="developing-and-running-with-an-openxr-compatible-hmd">Developing and running with an OpenXR compatible HMD</h3>
+<ul>
+<li><p>Add the OpenXR package to the project via Unity Package Manager. Restart when asked to switch to new Unity inputs.</p></li>
+<li><p>In the Unity Project Settings &gt; Player &gt; Other Settings &gt; Configuration, set Active Input Handling to <em>Both</em>, then restart again.</p></li>
+<li><p>In Project Sesttings &gt; XR Plug-in Management, check the OpenXR box</p></li>
+<li><p>In Project Sesttings &gt; XR Plug-in Management &gt; OpenXR, add an interaction profile corresponding to the HMD.</p></li>
+<li><p>Back in the Unity Package Manager, select the OpenXR plugin, expand the Samples item, then import the Controller sample.</p></li>
+<li><p>Load the ControllerSample scene, then make a prefab out of the PlayerRig gameobject.</p></li>
+<li><p>Load the getReal3D scene, then drop the PlayerRig prefab as a child of the GenericPlayer, then rename it <em>[OpenXR Display]</em>.</p></li>
+<li><p>Disable that <em>[OpenXR Display]</em> game object.</p></li>
+<li><p>Add a <em>OpenXRPlayerInputs</em> script on the <em>[OpenXR Display]</em> game object.</p></li>
+<li><p>Drag and drop the <em>[OpenXR Display]/Head</em> game object into the <em>Head Transform</em> field of the <em>OpenXRPlayerInputs</em>.</p></li>
+<li><p>Drag and drop the <em>[OpenXR Display]/RightHand/Grip</em> into the <em>Head Transform</em> field of the <em>OpenXRPlayerInputs</em>.</p></li>
+<li><p>Setup the bindings in the <em>OpenXRPlayerInputs</em> to the left and right hand controllers as needed.</p></li>
+</ul>
+<figure>
+<img src="images/openxr-player-inputs.png" alt="Open XR Player Inputs" /><figcaption>Open XR Player Inputs</figcaption>
+</figure>
+<ul>
+<li><p>In the <em>VRToolkitChoice</em> of the GenericPlayer, click on the <em>Add toolkit</em> button.</p></li>
+<li><p>Drag and drop the <em>[OpenXR Display]</em> object on the Target of the new VR tooklit choice entry.</p></li>
+<li><p>Rename the toolkit entry <em>OpenXR Display</em>.</p></li>
+</ul>
+<figure>
+<img src="images/vr-toolkit-choice.png" alt="VR Toolkit Choice" /><figcaption>VR Toolkit Choice</figcaption>
+</figure>
+<ul>
+<li>Test in the editor, then remove the unneeded canvases from the Left and Right hands of the <em>[OpenXR]</em> hierarchy.</li>
+</ul>
+<h2 id="reference">Reference</h2>
+<h3 id="scripts">Scripts</h3>
+<p>The scripts in getReal3D for Unity come in four major sections: GUI, Navigation, Updaters, and Utils.</p>
+<h4 id="updaters">Updaters</h4>
+<p>When a configuration requires multiple cameras (due to the presence of multiple channels in the configuration), getRealCameraUpdater will create any necessary additional cameras, either as a clone of an attached Camera Prefab object, or as a clone of its own GameObject if the Camera Prefab is empty.</p>
+<ul>
+<li><p><em>getRealCameraUpdater</em> This script positions and orients the camera according to head tracking and applies the camera projection necessary for the assigned screen geometry. This script is usually attached to main camera in the game.</p></li>
+<li><p><em>GenericHeadUpdater</em> This script updates the attached GameObject to represent the position and orientation of the tracked head. This script uses the GenericPlayerInputs interface. Refer to Generic inputs and rendering section.</p></li>
+<li><p><em>GenericWandUpdater</em> This script updates the attached GameObject to represent the position and orientation of the tracked hand/wand. This is useful for providing a reference point for grabbing, pointing, and other user interactions. This script uses the GenericPlayerInputs interface. Refer to Generic inputs and rendering section.</p></li>
+<li><p><em>getRealSensorUpdater</em> This script will update the attached GameObject to represent the position and orientation of a trackd sensor.</p></li>
+<li><p><em>getRealWandUpdater</em> This script is deprecated in favor of GenericWandUpdater script.</p></li>
+<li><p><em>getRealHeadUpdater</em> This script is deprecated in favor of GenericHeadUpdater script.</p></li>
+</ul>
+<h4 id="navigation">Navigation</h4>
+<ul>
+<li><p><em>NavigationHelper</em> This script is the core navigation logic used by the Navigation script.</p></li>
+<li><p><em>Navigation</em> This script contains the navigation settings. By default, the navigation follows the tracked Wand. This can be changed to follow the tracked Head, or an arbitrary reference Transform. If the Nav Follows variable is set to Reference but no Transform is specified, navigation will follow the Transform of the GameObject that is attached.</p></li>
+<li><p><em>CharacterMotorC</em> This script is a dependancy for the navigation scripts.</p></li>
+</ul>
+<figure>
+<img src="images/navigation.png" alt="Navigation Script" /><figcaption>Navigation Script</figcaption>
+</figure>
+<h5 id="navigation-types">Navigation types:</h5>
+<ul>
+<li><p><em>Walk Through</em>: provides constrained movement appropriate for most buildings and terrain. It enables the user to use joystick axes to translate forward-and-back and side-to-side along the direction of the hand tracker while maintaining contact with the floor or ground, and return to the last position where the user was touching the floor/ground. This assumes the building/terrain GameObject has a collider attached.</p></li>
+<li><p><em>Aim And Go</em>: movement follows the direction of the hand tracker and does not constrain itself to a floor or ground plane. The script still checks for collisions and halt motion as appropriate. This navigation may be useful for very large models where more constrained navigation is cumbersome, or for navigation and inspection of non-building, non-terrain models (e.g. manufacturing models, data exploration).</p></li>
+<li><p><em>Wand Drive</em>: movement follows the relative motion the hand tracker. This navigation may be useful for systems where the tracked wand has buttons but no joysticks. When the Activation button is held, the relative position of the wand drives the motion of navigation.</p></li>
+<li><p><em>Treadmill</em>: movement uses TreadmillRightAxis and TreadmillForwardAxis both in m/s. The Treadmill orientation is taken from the Treadmill sensor.</p></li>
+</ul>
+<h5 id="rotation-types">Rotation types:</h5>
+<ul>
+<li><p><em>Joy Look</em>: provides rotational navigation driven by input devices with joystick or thumb-stick controls. It enables the user to rotate around the X, Y, or Z axes (configurable, up to 2 axes), to control rotation speed, and whether rotation is applied in world-space or local-space.</p></li>
+<li><p><em>Wand Look</em>: provides rotational navigation driven by the tracked hand. Once the WandlookButton is pressed, the user orientation changes as the hand orientation changes (e.g. as the hand rotates left, the navigation orientation rotates left).</p></li>
+</ul>
+<h5 id="other-settings">Other settings:</h5>
+<ul>
+<li><p><em>Type</em>: The navigation type used. This field can be changed at runtime.</p></li>
+<li><p><em>Translation Speed</em>: Speed Maximum speed of motion in m/s.</p></li>
+<li><p><em>Nav Follows</em>: The navigation reference frame. If set to Reference, then the reference transform can be set.</p></li>
+<li><p><em>Rotation Speed</em>: The maximum rotation speed in degree/s.</p></li>
+<li><p><em>Wand Look Dead Zone</em>: If the wand's orientation is within DeadZone degrees of its initial, do not apply the difference.</p></li>
+<li><p><em>Rotation Around</em>: Enumeration selecting the Transform defining frame of the rotation: Head, Wand, Reference. If set to Reference, then the reference transform can be set.</p></li>
+<li><p><em>Rotation Follows</em>: Enumeration selecting the Transform at the center of the applied rotation: Head, Wand, Reference. If set to Reference , then the reference transform can be set.</p></li>
+<li><p><em>Joylook Rotation Axes</em>: The axes updated by JoyLook rotation.</p></li>
+<li><p><em>Wandlook Rotation</em>: The axes updated by WandLook rotation.</p></li>
+<li><p><em>Wand Look Continuous Drive</em>: If enabled, apply the relative orientation difference (current – initial) of the wand continuously. If not enabled, the orientation changes only if the wand orientation changes.</p></li>
+</ul>
+<h4 id="guis">GUIs</h4>
+<ul>
+<li><em>getRealVRSettingsUI</em>: The script provides an example of controlling game behavior from traditional 2D UI. It uses Unity's GUI to control VR and navigation settings, and to display runtime information. This UI is deprecated in favor of the 3D UI.</li>
+</ul>
+<h4 id="utils">Utils</h4>
+<ul>
+<li><p><em>getRealDisplayScreens</em>: This script provides an example of querying the full getReal3D display configuration. For example, it can be used to determine which physicaldisplay a user is facing in the CAVE.</p></li>
+<li><p><em>getRealScaleReference</em>: Deprecated script.</p></li>
+<li><p><em>getRealSkybox</em>: This script adjusts the position and orientation of the replacement Skybox Prefab so that it looks correct for stereo and multi-wall (CAVE) presentation. It enables the Skybox Prefab to attach to the navigation Transform directly or to follow the navigation Transform indirectly. It can also automatically scale the skybox to fit within the far clipping plane of all getReal3D cameras in the scene.</p></li>
+</ul>
+<h4 id="other-scripts">Other scripts</h4>
+<ul>
+<li><p><em>GenericGrabbingWand</em>: This script handles grabbing 3D objects with the wand.</p></li>
+<li><p><em>GenericMenuDrag</em>: This script handles dragging the 3D menu with the wand.</p></li>
+<li><p><em>GenericShowMenu</em>: This script handles showing and hiding the 3D menu.</p></li>
+<li><p><em>GenericWandManager</em>: This script handles cycling through the wands.</p></li>
+<li><p><em>getReal3DPlayerInputs</em>: This script is a getReal3D specialized implementation of PlayerInputs.</p></li>
+<li><p><em>getRealUser</em>: This script is attached to the game object representing a user. It allows use of multiple users within the same getReal3D cluster.</p></li>
+<li><p><em>getRealUserScript</em>: This script can be inherited when user information is needed.</p></li>
+<li><p><em>GrabbedObject</em>: This script is added to objects by the GenericGrabbingWand when grabbed.</p></li>
+<li><p><em>PlayerInputs</em>:This interface defines generic inputs.</p></li>
+<li><p><em>PlayerInputsProxy</em>: This script is a proxy over a PlayerInputs interface. It may be used when the target PlayerInputs is not on the same game object, or when it is unknown when the object is created. It may be set manually, or it can locate PlayerInputs in its parents or in a given object.</p></li>
+<li><p><em>VRToolkitChoice</em>: This script allows GenericPlayer prefab to choose and initialize a VR toolkit. Once initialized, the corresponding child of the GenericPlayer is enabled.</p></li>
+</ul>
+<h4 id="example-scripts">Example scripts</h4>
+<ul>
+<li><em>MultiUserCloning</em>: The MultiUserCloning script is used to automatically duplicate users in a Unity game when using a multi user setup. To run a getReal3D for Unity game with this script, the system must be configured for multiple users and have a GETREAL3D_UNITY_MULTIUSER license.
+<ul>
+<li>The number of additional users that may be added to the game depends on the number of users defined in the configuration file.</li>
+<li>When the game starts, this script duplicates the User To Clone. The copy is associated to a new user ID and then positioned according to the corresponding transform in the Cloning Position array.</li>
+<li>The Avatar Layer Prefix indicates the layers being used.</li>
+</ul>
+<p>To ensure the first player does not see its own avatar, verify that the camera’s Culling Mask property does not have the user's layer enabled.</p></li>
+<li><p><em>ToggleStereo</em>: The ToggleStereo script provides the ability to toggle stereo on/off through the on-screen menu while the game is running. This script should be linked to your 2D menu.</p></li>
+</ul>
+<h3 id="prefabs">Prefabs</h3>
+<ul>
+<li><em>getRealPlayerController</em>: This prefab is deprecated in favor of GenericPlayer prefab.</li>
+<li><em>GenericPlayer</em>: This prefab provides complete VR-style navigation in a Unity game. It includes scripts for:
+<ul>
+<li>Tracking</li>
+<li>Navigation</li>
+<li>GUI</li>
+<li>VR interaction wand scripts</li>
+<li>3D Menu</li>
+<li>HMD</li>
+<li>getReal3D handling</li>
+</ul>
+<p>The GenericPlayer prefab integrates VR scripts with Unity's standard controls and uses generic inputs that are compatible with both getReal3D and HMDs. Head and hand objects are attached to this prefab to make them appear relative to the tracked users’ head or hand.</p></li>
+<li><p><em>getRealSkybox</em>: This Skybox prefab work with the getRealSkybox script to provide examples of correcting for stereo and multi-wall (CAVE) presentation of skyboxes in Unity.</p></li>
+</ul>
+<h3 id="inputs">Inputs</h3>
+<p>The getReal3D for Unity plugin provides an input class, getReal3D.Input , that provides access to the getReal3D tracking, controller, and camera data as well as to the keyboard, mouse, and usb controllers on the master node. Additionally, this input distributes and synchronizes the master node to all othe nodes in the cluster.</p>
+<p>Note: When running a game in the editor, the trackdsimulator supplies two sensors, eleven buttons, and four valuators for testing.</p>
+<p>The API in getReal3D.Input includes the following properties to access raw tracker and controller data:</p>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Property</th>
+<th style="text-align: left;">Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><code>sensors</code></td>
+<td style="text-align: left;">List of 6DOF tracking data</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>valuators</code></td>
+<td style="text-align: left;">List of valuators (axes) from all available controllers</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>buttons</code></td>
+<td style="text-align: left;">List of buttons from all available controllers</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>headIndex</code></td>
+<td style="text-align: left;">The index of the head sensor in the sensors list.</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>wandIndex</code></td>
+<td style="text-align: left;">The index of the wand sensor in the sensors list.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>head</code></td>
+<td style="text-align: left;">The head sensor.</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>wand</code></td>
+<td style="text-align: left;">The wand sensor.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>cameras</code></td>
+<td style="text-align: left;">List of camera sensors provided in the current Unity instance.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="logical-inputs">Logical Inputs</h4>
+<p>The getReal3D.Input class also provides an interface to access tracking system data and shared master inputs by logical name. Buttons, valuators, and sensors have default names which may be overridden in the getReal3D for Unity configuration file or in the getReal3D Input Editor.</p>
+<p>The defaults also provide mappings to Unity's axis and button inputs available from UnityEngine.Input. This enables your game to work with normal Unity desktop inputs when trackd is not available (i.e. when running outside of getReal3D).</p>
+<p>The following methods in getReal3D.Input are available to obtain logical input values:</p>
+<ul>
+<li><p><code>GetButton</code>, <code>GetButtonUp</code>, <code>GetButtonDown</code>: Get the state of a button by name or by its ButtonCode</p></li>
+<li><p><code>GetKey</code>, <code>GetKeyDown</code>, <code>GetKeyUp</code>: Get the state of a key by its VirtualKeyCode</p></li>
+<li><p><code>GetAxis</code>, <code>GetAxisRaw</code>: Get the state of a valuator (axis) by name or by its AxisCode</p></li>
+<li><p><code>GetSensor</code>, <code>GetCameraSensor</code>, <code>GetCameraProjection</code>: Get the state of a sensor by name. Get the state of a camera provided in the current Unity instance.</p></li>
+</ul>
+<h4 id="logical-inputs-configuration">Logical Inputs configuration</h4>
+<p>getReal3D for Unity defines logical input values at three different levels, each one overriding the previous configuration in case of conflict:</p>
+<ol type="1">
+<li><p><em>Plugin default</em>: The default values are defined in the getReal3D plugin itself. They are stored in the <code>Assets/getReal3D/Resources/default_mappings.xml</code>. This file should not be modified as it may be replaced with a plugin update.</p></li>
+<li><p><em>Game default</em>: The default values are stored in the <code>Assets/Resources/mappings.xml</code> file. They can be edited manually or by using the getReal3D Input Editor.</p></li>
+<li><p><em>Cluster configuration</em>: The getReal3D configuration file that contains mapping definitions. Those ultimately override the game and plugin mappings.</p></li>
+</ol>
+<h3 id="getreal3d-input-editor">getReal3D Input Editor</h3>
+<p>getReal3D for Unity plugin provides an input editor similar to the standalone Unity one. It can be started via the the menu at getReal3D &gt; Input Editor.</p>
+<figure>
+<img src="images/input-editor.png" alt="getReal3D Input Editor" /><figcaption>getReal3D Input Editor</figcaption>
+</figure>
+<p>The editor tree options are: <em>Trackers</em>, <em>Buttons</em>, and <em>Axis</em>. When editing the mapping through this tool, the corresponding configuration is stored in the game default mapping file. To reset the mapping to the default values, use <em>Reset to Default</em>. To copy the corresponding configuration, use <em>Copy to Clipboard</em>.</p>
+<p>getReal3D Input Editor also display realtime values when the game is running within the editor.</p>
+<p>To add/delete mappings, use the add or delete buttons. The logical name for the mapping and how it is bound to the tracking system or master inputs can be edited.</p>
+<h4 id="trackers">Trackers</h4>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Field</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Name</td>
+<td style="text-align: left;">Logical name to use with the API</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">trackd Sensor</td>
+<td style="text-align: left;">trackd sensor ID</td>
+</tr>
+</tbody>
+</table>
+<h4 id="buttons">Buttons</h4>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Field</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Name</td>
+<td style="text-align: left;">Logical name to use with the API</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">trackd Button</td>
+<td style="text-align: left;">trackd button ID</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Key</td>
+<td style="text-align: left;">Key on the master node</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Button</td>
+<td style="text-align: left;">Joystick button on the master node</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Invert</td>
+<td style="text-align: left;">Inverse the button boolean state</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Standalone Unity binding</td>
+<td style="text-align: left;">Unity button when running without getReal3D</td>
+</tr>
+</tbody>
+</table>
+<h4 id="axis">Axis</h4>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Field</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Name</td>
+<td style="text-align: left;">Logical name to use with the API</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">trackd Valuator</td>
+<td style="text-align: left;">trackd axis ID</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Key</td>
+<td style="text-align: left;">Key on the master node, sets axis to +1</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Negative Key</td>
+<td style="text-align: left;">Key on the master node, sets axis to -1</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Button</td>
+<td style="text-align: left;">Button on the master node, sets axis to +1</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Negative Button</td>
+<td style="text-align: left;">Button on the master node, sets axis to -1</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Axis</td>
+<td style="text-align: left;">Axis on the master node</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Negative Axis</td>
+<td style="text-align: left;">Axis on the master node (inverted)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Invert</td>
+<td style="text-align: left;">Inverse the axis value</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Standalone Unity binding</td>
+<td style="text-align: left;">Unity axis when running without getReal3D</td>
+</tr>
+</tbody>
+</table>
+<h3 id="generic-input">Generic Input</h3>
+<p>The getReal3D plugin provides scripts and prefabs that are using an abstraction for their inputs. The <code>PlayerInputs</code> interface is used by the navigation and interaction scripts so that they do not rely directly on getReal3D inputs. It provides those scripts access to the head and wand locations as well as the controller buttons and axes. This interface currently has three implementations:</p>
+<ul>
+<li><code>getReal3DPlayerInputs</code></li>
+<li><code>OpenXRPlayerInputs</code></li>
+<li><code>PlayerInputsProxy</code></li>
+</ul>
+<p>Thanks to that abstraction layer, the GenericPlayer prefab can be used for both getReal3D and OpenXR.</p>
+<h4 id="playerinputs-interface">PlayerInputs interface:</h4>
+<pre class="sourceCode cs"><code class="sourceCode cs"><span class="kw">using</span> getReal3D;
+<span class="kw">using</span> UnityEngine;
+
+<span class="co">/// </span><span class="kw">&lt;summary&gt;</span>
+<span class="co">/// Generic interface for retrieving player inputs.</span>
+<span class="co">/// </span><span class="kw">&lt;/summary&gt;</span>
+<span class="kw">public</span> <span class="kw">interface</span> PlayerInputs {
+    MonoBehaviour behaviour { <span class="kw">get</span>; }
+    <span class="dt">float</span> YawAxis { <span class="kw">get</span>; }
+    <span class="dt">float</span> PitchAxis { <span class="kw">get</span>; }
+    <span class="dt">bool</span> WandLookButtonDown { <span class="kw">get</span>; }
+    <span class="dt">bool</span> WandLookButtonUp { <span class="kw">get</span>; }
+    <span class="dt">bool</span> WandLookButton { <span class="kw">get</span>; }
+    <span class="dt">bool</span> WandDriveButtonDown { <span class="kw">get</span>; }
+    <span class="dt">bool</span> WandDriveButtonUp { <span class="kw">get</span>; }
+    <span class="dt">bool</span> WandDriveButton { <span class="kw">get</span>; }
+    <span class="dt">float</span> StrafeAxis { <span class="kw">get</span>; }
+    <span class="dt">float</span> ForwardAxis { <span class="kw">get</span>; }
+    <span class="dt">float</span> TreadmillRightAxis { <span class="kw">get</span>; }
+    <span class="dt">float</span> TreadmillForwardAxis { <span class="kw">get</span>; }
+    <span class="dt">bool</span> NavSpeedButtonDown { <span class="kw">get</span>; }
+    <span class="dt">bool</span> NavSpeedButtonUp { <span class="kw">get</span>; }
+    <span class="dt">bool</span> NavSpeedButton { <span class="kw">get</span>; }
+    <span class="dt">bool</span> JumpButtonDown { <span class="kw">get</span>; }
+    <span class="dt">bool</span> JumpButtonUp { <span class="kw">get</span>; }
+    <span class="dt">bool</span> JumpButton { <span class="kw">get</span>; }
+    <span class="dt">bool</span> WandButtonDown { <span class="kw">get</span>; }
+    <span class="dt">bool</span> WandButtonUp { <span class="kw">get</span>; }
+    <span class="dt">bool</span> WandButton { <span class="kw">get</span>; }
+    <span class="dt">bool</span> ChangeWandButtonDown { <span class="kw">get</span>; }
+    <span class="dt">bool</span> ChangeWandButtonUp { <span class="kw">get</span>; }
+    <span class="dt">bool</span> ChangeWandButton { <span class="kw">get</span>; }
+    <span class="dt">bool</span> ResetButtonDown { <span class="kw">get</span>; }
+    <span class="dt">bool</span> ResetButtonUp { <span class="kw">get</span>; }
+    <span class="dt">bool</span> ResetButton { <span class="kw">get</span>; }
+    Sensor Wand { <span class="kw">get</span>; }
+    Sensor Head { <span class="kw">get</span>; }
+    Sensor Treadmill { <span class="kw">get</span>; }
+}</code></pre>
+<h4 id="usage-example">Usage example:</h4>
+<p>The following script uses the PlayerInputs interface that is present in the game object in order to retrieve its inputs. When importing scripts on a game object, it is necessary to have a script providing PlayerInputs in the game object, as Unity is unable to create one. If the script is to be placed on a child object of the player, it is possible to use the PlayerInputsProxy , and set it to search for a PlayerInputs into its parents.</p>
+<pre class="sourceCode cs"><code class="sourceCode cs"><span class="kw">using</span> UnityEngine;
+<span class="kw">using</span> getReal3D;
+[<span class="fu">RequireComponent</span>(<span class="kw">typeof</span>(PlayerInputs))]
+<span class="kw">public</span> <span class="kw">class</span> PlayerInputsExample : MonoBehaviour
+{
+    <span class="kw">private</span> PlayerInputs m_playerInputs;
+    <span class="dt">void</span> <span class="fu">Start</span>()
+    {
+        m_playerInputs = GetComponent&lt;PlayerInputs&gt;();
+    }
+    <span class="dt">void</span> <span class="fu">Update</span>()
+    {
+        <span class="kw">if</span>(m_playerInputs.<span class="fu">WandButtonDown</span>) {
+            <span class="co">// Wand button has been pushed, do something...</span>
+        }
+    }
+}</code></pre>
+<h2 id="collaborating-with-multicluster">Collaborating with MultiCluster</h2>
+<h3 id="multicluster">MultiCluster</h3>
+<figure>
+<img src="images/multicluster.png" alt="MultiCluster" /><figcaption>MultiCluster</figcaption>
+</figure>
+<p>MultiCluster provides an implementation for networked collaboration among multiple getReal3D sessions. It also allows connecting a getReal3D session with one or more standalone applications (using HMDs, for instance). The GETREAL3D_UNITY_MULTICLUSTER license feature is required in order to host MultiCluster on a getReal3D system. This license is not required to run MultiCluster on a standalone application. Similar to making a networked game in Unity, some modifications are required to ensure application compatibility with MultiCluster.</p>
+<p>MultiCluster is designed to mimic the behavior of the high-level API of Unity’s Multiplayer Technology (UNET), so many of the MultiCluster concepts are common to that API. The MultiCluster API resides in the getReal3D.MultiCluster namespace. To some extent, migrating a NetworkBehaviour from UNET to MultiCluster should be as simple as changing the using UnityEngine.Networking into using getReal3D.MultiCluster.</p>
+<p>MultiCluster requires the Player to be build with: - <em>Scripting Backend</em>: <em>Mono</em> - <em>API Compatibility Level</em>: <em>.NET 4.x</em></p>
+<h3 id="differences-from-unet">Differences from UNET</h3>
+<ul>
+<li>No NetworkMessage except for passing a parameter while manually adding a new player.</li>
+<li>MessageBase must inherit be System.Serializable .</li>
+<li>No custom serialization for NetworkBehaviour .</li>
+<li>No access to the Transport Layer API .</li>
+<li>No server only support. The server must be a host.</li>
+<li>No scene management.</li>
+<li>No Host migration.</li>
+<li>No communication channels customization.</li>
+<li>Missing classes compared to UNET:
+<ul>
+<li>NetworkAnimator</li>
+<li>NetworkDiscovery</li>
+<li>NetworkLobbyManager</li>
+<li>NetworkLobbyPlayer</li>
+<li>NetworkProximityChecker</li>
+<li>NetworkStartPosition</li>
+<li>NetworkTransformVisualizer</li>
+<li>NetworkTransport</li>
+<li>NetworkWriter</li>
+</ul></li>
+</ul>
+<h3 id="multicluster-scripts">MultiCluster Scripts</h3>
+<ul>
+<li><p><code>MultiClusterCameraDuplicator</code>, <code>MultiClusterCameraUpdater</code>: Used to prepare and update getReal3D cameras.</p></li>
+<li><p><code>MultiClusterGrabbableObject</code>, <code>MultiClusterGrabbingWand</code>: Used to handle grabbing and releasing an object.</p></li>
+<li><p><code>MultiClusterHeadUpdater</code>: Updates the head position and rotation according to the PlayerInputs behavior present on the object.</p></li>
+<li><p><code>MultiClusterNavigation</code>: Script used for navigation of the player.</p></li>
+<li><p><code>MultiClusterObjectDisabler</code>, <code>MultiClusterObjectEnabler</code>: Used to enable or disable objects depending if the attached player is local or not.</p></li>
+<li><p><code>MultiClusterShowMenu</code>: Used to show the 3D menu.</p></li>
+<li><p><code>MultiClusterWandManager</code>: Allows user to switch from one wand type to the other using a controller button. When PlayerInputs.ChangeWandButtonDown is true on the local player, it sends a command to the server. The server then uses a SyncVar to set the current wand. The SyncVar has a hook that enables the corresponding wand.</p></li>
+<li><p><code>MultiClusterWandUpdater</code>: Updates the wand position and rotation according to the PlayerInputs behavior present on the object.</p></li>
+<li><p><code>NetworkManagerHUD</code>: HUD for hosting or connecting a MultiCluster session.</p></li>
+<li><p><code>NetworkManagerCameraHandler</code>: Network manager that can enable and disable a camera when not connected (avoids having a scene without a camera).</p></li>
+<li><p><code>LightHandler</code>, <code>MultiClusterLightsMenu</code>: Used to handle the lights menu. It uses commands and ClientRPCs to synchronize the lights state.</p></li>
+</ul>
+<h3 id="multicluster-prefabs">MultiCluster Prefabs</h3>
+<ul>
+<li><code>MultiClusterEventSystem</code>: An event system that uses the PlayerInputs interface to retrieve the controller information. This must be included in the scene if 3D UI is used.</li>
+<li><code>MultiClusterPlayer</code>: A fully set player with navigation and wand control. A NetworkManager must spawn this. When created, depending on the enabled VR toolkit, it will use either getReal3D or OpenXR.</li>
+</ul>
+<h3 id="multicluster-and-openxr">MultiCluster and OpenXR</h3>
+<ul>
+<li><p><code>HMDConnectionHUD</code>: Allows to select a VR toolkit prior to connection or hosting a game.</p></li>
+<li><p><code>OpenXRPlayerInputs</code>: OpenXR implementation of the PlayerInputs interface. Input bindings must be mapped to its field in order for OpenXR buttons to be used.</p></li>
+<li><p><code>NetworkManager</code>: Ready to use NetworkManager for MultiCluster.</p></li>
+</ul>
+<h3 id="quick-start-for-a-multicluster-and-openxr-enabled-game">Quick Start for a MultiCluster and OpenXR Enabled Game</h3>
+<ol type="1">
+<li><p>Remove all players and cameras from your game.</p></li>
+<li><p>Drop the following prefabs: <code>getReal3D\MultiCluster\Prefabs\MultiClusterEventSystem</code> <code>getReal3D\HMDs\NetworkManager</code></p></li>
+<li><p>Create a camera and assign it to the Camera When Disconnected property of the NetworkManager prefab. Change the camera settings so it culls out everything.</p></li>
+<li><p>Change the NetworkManager startup locations if needed.</p></li>
+<li><p>Make a copy of the <code>getReal3D/MultiCluster/Prefabs/MultiClusterPlayer</code> prefab.</p></li>
+<li><p>On the copy, setup the <em>OpenXR Display</em> child as described in the <em>OpenXR</em> section above.</p></li>
+<li><p>Assign that new prefab as the <em>Player Prefab</em> on the <em>Network Manager</em>.</p></li>
+<li><p>Build the game.</p></li>
+<li><p>Run the game on the getReal3D cluster then Click Host.</p></li>
+<li><p>Run the game on the computer with an OpenXR compatible HMD, enter the hostname or IP address then Click Connect.</p></li>
+</ol>
+</body>
+</html>

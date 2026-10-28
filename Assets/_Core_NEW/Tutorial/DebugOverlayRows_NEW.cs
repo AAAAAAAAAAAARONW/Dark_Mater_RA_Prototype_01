@@ -80,6 +80,9 @@ public static class DebugOverlayRows_NEW
     /// <summary>TutorialVoiceOver_NEW — the line being said, what is queued, the prompt repeat.</summary>
     public const int VoiceOver = 11;
 
+    /// <summary>GetReal3DView_NEW — cluster, master, and where the eye was zeroed.</summary>
+    public const int GetReal3D = 12;
+
     /// <summary>The rectangle for one row. Use this rather than writing a Rect inline.</summary>
     public static Rect Row(int index)
     {

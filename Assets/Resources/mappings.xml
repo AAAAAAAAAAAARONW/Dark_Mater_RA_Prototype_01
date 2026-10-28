@@ -1,0 +1,35 @@
+<unity>
+  <!--
+    Game-default getReal3D mappings for The Journey of Light. Read by InputScheme_NEW whenever
+    GetReal3DView_NEW is live; the Vizlab's cluster configuration overrides anything here.
+
+    THIS FILE REPLACES THE PLUGIN'S DEFAULTS, IT DOES NOT ADD TO THEM. The first version
+    listed only the four entries that changed, and getReal3D then knew no Yaw, Forward, Strafe,
+    WandLook or NavSpeed at all ("InputManager has no axis named: Yaw", 21,390 times in one
+    session): the sticks read 0. So every entry of getReal3D/Resources/default_mappings.xml is
+    restated here, and the changes are made in place:
+
+      WandButton  A      confirm / recentre / emit. Space on the keyboard, as at the desk.
+      Jump        B      pause. P on the keyboard; the default Space would also confirm.
+      Reset       Y      dark matter toggle. Y on the keyboard; no Unity fallback, so it
+                         does not share Fire2 with pause.
+      Pitch              right stick Y: look up and down. Unbound in the plugin defaults.
+
+    Yaw (right stick X), Forward (left stick Y, zoom) and Strafe (left stick X) are as the
+    plugin has them.
+  -->
+  <map_button index="1" name="WandButton" key="SPACE" button="A" unity_button="Submit" />
+  <map_button index="2" name="ChangeWand" key="LSHIFT" button="X" unity_button="Fire3" />
+  <map_button index="3" name="Reset" key="Y" button="Y" />
+  <map_button index="4" name="Jump" key="P" button="B" unity_button="Fire2" />
+  <map_button index="5" name="WandLook" />
+  <map_button index="6" name="NavSpeed" />
+  <map_button index="7" name="WandDrive" />
+  <map_valuator index="1" dead_zone=".1" name="Yaw" axis="THUMB_RX" positive_key="E" negative_key="Q" />
+  <map_valuator index="2" dead_zone=".1" name="Forward" axis="THUMB_LY" positive_key="W" negative_key="S" unity_axis="Vertical" />
+  <map_valuator index="3" dead_zone=".1" name="Strafe" axis="THUMB_LX" positive_key="D" negative_key="A" unity_axis="Horizontal" />
+  <map_valuator dead_zone=".1" name="Pitch" axis="THUMB_RY" positive_key="R" negative_key="F" />
+  <map_valuator name="UpDown" index="6" positive_button="JOYSTICK_DPAD_UP" negative_button="JOYSTICK_B2" />
+  <map_tracker index="1" name="Head" />
+  <map_tracker index="2" name="Wand" />
+</unity>

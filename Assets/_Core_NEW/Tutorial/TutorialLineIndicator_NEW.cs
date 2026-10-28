@@ -227,12 +227,24 @@ public class TutorialLineIndicator_NEW : MonoBehaviour
         // flipAcross is now only a manual override on top of what the mesh says.
         point += across * ((flipAcross ? -1f : 1f) * _ribbonSign * (u - 0.5f) * width);
 
-        Vector3 screen = viewCamera.WorldToScreenPoint(point);
-        if (screen.z <= 0f) return false;
-
         Vector2 local;
-        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen, null, out local))
-            return false;
+        if (GetReal3DHud_NEW.OnWall)
+        {
+            // On the Vizlab the HUD is on the rows, and where the line appears is where the
+            // eye's line of sight to it meets the glass - not where viewCamera, a 40-degree
+            // monitor lens, would put it.
+            Vector2 n;
+            if (!GetReal3DHud_NEW.Active.TryWorldToCanvas(point, out n)) return false;
+            local = Vector2.Scale(n - canvasRect.pivot, canvasRect.rect.size);
+        }
+        else
+        {
+            Vector3 screen = viewCamera.WorldToScreenPoint(point);
+            if (screen.z <= 0f) return false;
+
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen, null, out local))
+                return false;
+        }
 
         trailArrow.anchorMin = new Vector2(0.5f, 0.5f);
         trailArrow.anchorMax = new Vector2(0.5f, 0.5f);
