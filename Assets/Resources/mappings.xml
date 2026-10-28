@@ -15,6 +15,9 @@
                          does not share Fire2 with pause.
       Pitch              right stick Y: look up and down. Unbound in the plugin defaults.
 
+    ChangeWand (X, Left Shift) is as the plugin has it; the journey reads it to show its
+    tracker HUD (InputScheme_NEW.ShowHudDown), where the desk reads Fire3.
+
     Yaw (right stick X), Forward (left stick Y, zoom) and Strafe (left stick X) are as the
     plugin has them.
   -->

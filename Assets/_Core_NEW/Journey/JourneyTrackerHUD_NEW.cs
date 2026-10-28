@@ -106,7 +106,8 @@ public class JourneyTrackerHUD_NEW : MonoBehaviour
     [SerializeField] float hudVisibleDuration = 8f;
     [SerializeField] float hudSlideDuration = 0.35f;
 
-    [Tooltip("Input Manager button that shows the HUD. Fire3 = X on an Xbox pad. Empty = none.")]
+    [Tooltip("Input Manager button that shows the HUD. Fire3 = X on an Xbox pad. Empty = none. " +
+             "On the wall it is getReal3D's ChangeWand (X) whatever this says.")]
     [SerializeField] string hudShowButton = "Fire3";
 
     Image[] _nodes;
@@ -354,11 +355,8 @@ public class JourneyTrackerHUD_NEW : MonoBehaviour
     {
         if (!autoHide || _rootRT == null) return;
 
-        if (!string.IsNullOrEmpty(hudShowButton))
-        {
-            try { if (Input.GetButtonDown(hudShowButton)) ShowHUD(); }
-            catch { /* button not in the Input Manager */ }
-        }
+        // Through the scheme, so on the wall every node sees the press on the same frame.
+        if (InputScheme_NEW.ShowHudDown(hudShowButton)) ShowHUD();
 
         if (_hudVisible)
         {

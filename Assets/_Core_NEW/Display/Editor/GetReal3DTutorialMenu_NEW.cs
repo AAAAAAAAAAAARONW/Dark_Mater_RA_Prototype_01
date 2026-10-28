@@ -38,7 +38,7 @@ static class GetReal3DTutorialMenu_NEW
     /// anything above it, each one fights the rig for its transform or its camera, so they
     /// are switched off there rather than the object they sit on.
     /// </summary>
-    static readonly System.Type[] PlayerComponents =
+    internal static readonly System.Type[] PlayerComponents =
     {
         typeof(getRealCameraUpdater), typeof(getRealHeadUpdater), typeof(getRealWandUpdater),
         typeof(getRealWalkthruController), typeof(getRealAimAndGoController),
@@ -263,7 +263,7 @@ static class GetReal3DTutorialMenu_NEW
     }
 
     /// <summary>Every component of a type in the open scenes, inactive objects included; not prefab assets.</summary>
-    static System.Collections.Generic.List<T> InScene<T>() where T : Component
+    internal static System.Collections.Generic.List<T> InScene<T>() where T : Component
     {
         var found = new System.Collections.Generic.List<T>();
         foreach (T c in Resources.FindObjectsOfTypeAll<T>())
@@ -317,7 +317,7 @@ static class GetReal3DTutorialMenu_NEW
     /// The Inspector's Copy Component / Paste Component Values, which records its own undo
     /// and leaves the target's GameObject link alone.
     /// </summary>
-    static void CopyValues(Component from, Component to)
+    internal static void CopyValues(Component from, Component to)
     {
         if (UnityEditorInternal.ComponentUtility.CopyComponent(from))
             UnityEditorInternal.ComponentUtility.PasteComponentValues(to);

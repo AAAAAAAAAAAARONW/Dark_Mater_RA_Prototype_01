@@ -3,7 +3,9 @@ using UnityEngine;
 /// <summary>
 /// Puts a getReal3D view on an existing camera rig, so the Vizlab wall sees what the rig
 /// sees. Lives on the "[getReal3D]" object under the rig; the getReal3D eye camera is its
-/// child. GameObject > Vizlab > Adapt Tutorial Camera to getReal3D builds the whole thing.
+/// child. GameObject > Vizlab > Adapt Tutorial Camera to getReal3D builds the whole thing,
+/// and Adapt Journey Camera to getReal3D does the same on the journey's Cinemachine camera
+/// (GetReal3DJourneyMenu_NEW).
 ///
 /// WHY NOT THE GenericPlayer PREFAB. The VizLab guide says to replace the scene's cameras
 /// with getReal3D's GenericPlayer, and for a walk-around VR scene that is right. The
@@ -70,8 +72,24 @@ public class GetReal3DView_NEW : MonoBehaviour
     /// <summary>The eye's offset from the rig that was cancelled out, metres, in this frame.</summary>
     public Vector3 ZeroedOffset { get; private set; }
 
+    static GetReal3DView_NEW _live;
+
+    /// <summary>
+    /// The camera to ask "is this on screen" through: the rig's own camera while a wall
+    /// view is live, Camera.main otherwise. Not Camera.main on the wall: that is the eye,
+    /// and every node's eye has the projection of its own screens, so each node would give
+    /// a different answer and the copies of the piece would stop agreeing. The rig's camera
+    /// is the same on every node and looks where the centre of the wall does.
+    /// </summary>
+    public static Camera ScreenCamera
+    {
+        get { return _live != null && _live.rigCamera != null ? _live.rigCamera : Camera.main; }
+    }
+
     void OnEnable()
     {
+        _live = this;
+
         _previousSource = InputScheme_NEW.InputSource;
         InputScheme_NEW.InputSource = InputScheme_NEW.Source.GetReal3D;
 
@@ -88,6 +106,8 @@ public class GetReal3DView_NEW : MonoBehaviour
 
     void OnDisable()
     {
+        if (_live == this) _live = null;
+
         InputScheme_NEW.InputSource = _previousSource;
 
         if (rigCamera != null) rigCamera.enabled = _rigCameraWasEnabled;

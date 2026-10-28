@@ -490,7 +490,8 @@ public class QuasarVFX_NEW : MonoBehaviour
     bool InView()
     {
         if (_coreRenderer == null || !_coreRenderer.enabled) return false;
-        Camera camera = Camera.main;
+        // On the wall, the rig's camera rather than a node's eye, so every node agrees.
+        Camera camera = GetReal3DView_NEW.ScreenCamera;
         if (camera == null) return _coreRenderer.isVisible;
 
         Vector3 v = camera.WorldToViewportPoint(transform.position);

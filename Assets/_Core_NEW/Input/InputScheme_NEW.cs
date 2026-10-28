@@ -116,6 +116,7 @@ public static class InputScheme_NEW
     const string Gr3dConfirmButton = "WandButton";  // A
     const string Gr3dPauseButton = "Jump";          // B
     const string Gr3dToggleButton = "Reset";        // Y
+    const string Gr3dShowHudButton = "ChangeWand";  // X; the journey's tracker HUD
 
     static bool FromGetReal3D { get { return InputSource == Source.GetReal3D; } }
 
@@ -127,8 +128,12 @@ public static class InputScheme_NEW
     /// NOT getReal3D.Cluster.isOn. Its getter is a bare `return true` (read off the IL in
     /// getReal3D.dll 4.1.0.4003), so testing it switched the mouse off in the editor too -
     /// mouse look dead, and the idle return blind to a visitor using the mouse.
+    ///
+    /// Public for the few readers outside this class that still ask UnityEngine.Input for
+    /// something with no logical name - VizlabRowShifter_NEW's bumpers - so they can stand
+    /// down on the wall rather than move one node's picture.
     /// </summary>
-    static bool MasterOnlyDevicesUnsafe
+    public static bool MasterOnlyDevicesUnsafe
     {
         get { return FromGetReal3D && RunningAsSeveralCopies; }
     }
@@ -585,6 +590,20 @@ public static class InputScheme_NEW
         PadProfile_NEW pad = Pad;
 
         return pad.toggleButton != KeyCode.None && Input.GetKeyDown(pad.toggleButton);
+    }
+
+    /// <summary>
+    /// X, pressed this frame. Shows the journey's tracker HUD (JourneyTrackerHUD_NEW). On the
+    /// wall it is getReal3D's ChangeWand, which mappings.xml binds to X and Left Shift; at the
+    /// desk it is the Input Manager button the caller names, as that HUD has always read it.
+    /// </summary>
+    public static bool ShowHudDown(string unityButton)
+    {
+        if (FromGetReal3D) return Gr3dButtonDown(Gr3dShowHudButton);
+
+        if (string.IsNullOrEmpty(unityButton)) return false;
+        try { return Input.GetButtonDown(unityButton); }
+        catch (System.ArgumentException) { return false; }   // not in the Input Manager
     }
 
     /// <summary>The letter printed on this pad for the dark matter toggle.</summary>
