@@ -29,7 +29,10 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/_Core_NEW/Test_Journey_WebGas.unity
     guid: 453bb5e6755a41839d129346915f459b
-  - enabled: 1
+  - enabled: 0
     path: Assets/_Core_NEW/Vizlab_tut.unity
     guid: 835aa047e8e57de488ea3bf4085fd50b
+  - enabled: 1
+    path: Assets/_Core_NEW/Vizlab_Journey.unity
+    guid: 87ba9f76e735d174b8b833c1df4c40c3
   m_configObjects: {}
