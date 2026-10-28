@@ -528,11 +528,23 @@ public class AbsorberHighlight_NEW : MonoBehaviour
         if (flipAcross) v = 1f - v;
         Vector3 point = target + across * (_ribbonSign * (v - 0.5f) * width);
 
-        Vector3 screen = viewCamera.WorldToScreenPoint(point);
-        if (screen.z <= 0f) return false;
+        if (GetReal3DHud_NEW.OnWall)
+        {
+            // On the Vizlab the HUD is on the rows, and the line appears where the eye's line
+            // of sight to it meets the glass - not where viewCamera, a monitor lens, puts it.
+            // As TutorialLineIndicator_NEW does it.
+            Vector2 n;
+            if (!GetReal3DHud_NEW.Active.TryWorldToCanvas(point, out n)) return false;
+            local = Vector2.Scale(n - _canvasRect.pivot, _canvasRect.rect.size);
+        }
+        else
+        {
+            Vector3 screen = viewCamera.WorldToScreenPoint(point);
+            if (screen.z <= 0f) return false;
 
-        Camera uiCam = _canvas != null && _canvas.renderMode != RenderMode.ScreenSpaceOverlay ? _canvas.worldCamera : null;
-        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(_canvasRect, screen, uiCam, out local)) return false;
+            Camera uiCam = _canvas != null && _canvas.renderMode != RenderMode.ScreenSpaceOverlay ? _canvas.worldCamera : null;
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(_canvasRect, screen, uiCam, out local)) return false;
+        }
 
         // The graphic fills the canvas rect, so its local space is the canvas's.
         local += new Vector2(0f, trailArrowGap);

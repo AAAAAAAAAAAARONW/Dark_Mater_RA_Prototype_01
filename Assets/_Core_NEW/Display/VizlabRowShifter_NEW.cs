@@ -118,6 +118,11 @@ public class VizlabRowShifter_NEW : MonoBehaviour
 
     void Update()
     {
+        // On the wall only the master node sees the keys, bumpers and D-pad read here, so a
+        // press would move the HUD on one node's part of the rows and not the others'. The
+        // row set in the scene stands there.
+        if (InputScheme_NEW.MasterOnlyDevicesUnsafe) return;
+
         if (Input.GetKeyDown(resetKey) || Input.GetKeyDown(resetPadButton))
         {
             ResetToStartRow();

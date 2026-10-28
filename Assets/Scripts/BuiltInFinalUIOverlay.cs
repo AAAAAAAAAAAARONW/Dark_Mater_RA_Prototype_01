@@ -13,6 +13,12 @@ public class BuiltInFinalUIOverlay : MonoBehaviour
     [SerializeField] string overlayCameraName = "FinalUIOverlayCamera";
     [SerializeField] bool copyFromMainCameraEachFrame = true;
 
+    [Tooltip("Also copy the camera's projection matrix, not just its field of view. On for a " +
+             "getReal3D eye (GameObject > Vizlab > Adapt Journey Camera to getReal3D), whose " +
+             "projection is built from where the wall's screens are and has no field of view " +
+             "that describes it. Off at the desk, where the two are the same.")]
+    [SerializeField] bool copyProjectionMatrix = false;
+
     Camera _mainCamera;
     Camera _overlayCamera;
     RenderTexture _overlayRT;
@@ -105,6 +111,9 @@ public class BuiltInFinalUIOverlay : MonoBehaviour
         _overlayCamera.nearClipPlane = _mainCamera.nearClipPlane;
         _overlayCamera.farClipPlane = _mainCamera.farClipPlane;
         _overlayCamera.rect = _mainCamera.rect;
+
+        if (copyProjectionMatrix)
+            _overlayCamera.projectionMatrix = _mainCamera.projectionMatrix;
     }
 
     void OnRenderImage(RenderTexture source, RenderTexture destination)
