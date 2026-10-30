@@ -125,6 +125,7 @@ python elevenlabs_vo.py install
     - 细丝材质同时把 `Absorb` 和 `Dust` 调成 0，避免先画的网格把背景压出暗色块。
     - 想恢复成软边：把 `CosmicWebGasThreads_NEW` 的 `Stencil Comp` 改回 Always。
   - **不要那么"粒子化"、网络边界再清楚些（10 月 30 日）**：纤维和中层的粒子放大一倍（`Size` 0.0018）、噪声打散减弱（`Breakup` 0.3）：粒子在裁好的轮廓里互相融成连续的气体，边界不会因此变糊。中层气体（星团周围的片）也只画在纤维的轮廓里（`Stencil Comp` = Equal），不再在星团周围散成一颗颗光斑。星团气体不裁边（它的网格是薄片，裁出来是刀片形），但零散碎块上的小亮点去掉了（新参数 `Thinnest` 0.4：比这个更稀的粒子不画），星团读起来是一团光而不是一把点。
+  - **星团中心不够亮、不够发光（10 月 30 日）**：星团气体亮度 0.495 → 0.8；新加 `Web Gas (core glow)`（每个宇宙网物体下一个，`CosmicWebGasCoreGlow_NEW.mat`）：在 6 个最密的核心各放一层光晕 + 中等光 + 亮芯，相加混合、HDR，经 Bloom 泛光。太亮/发白调这个材质的 `Brightness`（现在 1.5，试过 3 就过曝了）；光晕大小调 `Size`；离镜头多近开始淡出调 `Camera Fade`。核心位置是从星团粒子算出来的：`python Tools~/bake_core_glow.py WebGas_Core_NEW.bytes WebGas_CoreGlow_NEW.bytes`。
     - 要检查：Vizlab 大屏的渲染目标要有模板缓冲（24 位深度缓冲一般都带）。如果纤维气体在大屏上整个不见了，就是没有模板缓冲，先把 `Stencil Comp` 改回 Always，再告诉我。
 - [ ] **开场：黑 0.1 秒后淡入**（出生点 z 100，开场这层全速约 14 秒）。在 Ana 场景跑一次 Wire Journey Voice Over 并保存：会加上 `JourneyOpening_NEW`，把 J2、J2b 从开场挪到星系，开场延迟从 3 秒改成 1 秒。试玩时检查：黑一下就淡入、光开始飞；J0 说完接着 J1；Console 里没有 `Dropped J1…`。
 - [ ] **Ana 场景再跑一次 Wire Journey Voice Over 并保存**：会撤掉上一轮写进场景的开场减速。

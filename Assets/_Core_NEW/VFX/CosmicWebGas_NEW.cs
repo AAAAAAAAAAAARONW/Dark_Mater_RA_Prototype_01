@@ -14,7 +14,8 @@ using UnityEngine.Rendering;
 /// the puffs are in the thread mesh's own space (baked from it by
 /// CosmicWebGas/Tools~/bake_web_gas.py into a .bytes file), so they sit on the threads of
 /// whichever web object holds them, at its size. In Test_Journey_WebGas (a copy of
-/// Test_Journey, to try this in) three of these sit under each object of the second cosmic web:
+/// Test_Journey, to try this in) and Vizlab_Journey, built from it, four of these sit under each
+/// object of the second cosmic web:
 ///   threads    over the purple threads (BIG), whose own soft surface still draws their fine
 ///              lines inside the glow (CosmicWebNebulaFine_NEW, dimmed)
 ///   middle     in place of the smaller sheets round the yellow clusters (Coreyellow), switched
@@ -22,6 +23,9 @@ using UnityEngine.Rendering;
 ///   clusters   in place of the yellow clusters' baked volumes (Core), switched off: their
 ///              hard-edged blocks become a soft warm glow, and their stray fragments small
 ///              bright knots along the threads
+///   core glow  a few big puffs at the clusters' densest knots (CosmicWebGas/Tools~/
+///              bake_core_glow.py), added together and bright enough to bloom: the nodes'
+///              glowing hearts (CosmicWebGasCoreGlow_NEW)
 ///
 /// CHEAP. One quad a puff, built once on the CPU; each pixel of a puff is one exp and one
 /// noise read, painted over what is behind with a little cover each, no sorting. A hundred thousand puffs are a fraction of the triangles
