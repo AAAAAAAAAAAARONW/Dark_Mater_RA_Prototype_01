@@ -26,7 +26,11 @@ Shader "Custom/CosmicWebGas_NEW"
     // camera they are big, and a thread read as a soft tube fading into the voids. The threads'
     // own surface (CosmicWebNebulaFine_NEW, drawn first) marks the stencil over every pixel a
     // thread covers, and the threads' gas draws only there (_StencilComp Equal): soft and
-    // uneven inside, cut off cleanly at the thread's outline, as in the reference.
+    // uneven inside, cut off cleanly at the thread's outline, as in the reference. The middle's
+    // gas keeps inside the threads' outline too; the clusters' does not (their meshes are thin
+    // sheets, and cut by them the clusters' glow went to blades), but their stray fragments'
+    // specks are left out (_Thinnest), so a node reads as one glow, not a scatter of dots.
+    // Bigger puffs inside a cut-off outline make the gas smooth without blurring the edge.
     //
     // CHEAP. A puff is one quad; the threads need a few thousand to tens of thousands where the
     // meshes they replace had millions of triangles. Each pixel of a puff is one exp and one
@@ -65,6 +69,7 @@ Shader "Custom/CosmicWebGas_NEW"
         [HDR] _ColorD ("Densest: peach", Color) = (0.95, 0.62, 0.48, 1)
         _Ramp ("Where violet, lilac and peach are reached along the density, 0 to 1", Vector) = (0.45, 0.82, 0.98, 0)
         _Vary ("How much each puff's own brightness counts", Range(0, 1)) = 0.5
+        _Thinnest ("Puffs from gas thinner than this are left out: the stray fragments' specks", Range(0, 1)) = 0
         [IntRange] _StencilRef ("Stencil bit to stay inside (the threads' surface marks it)", Range(0, 255)) = 0
         [Enum(UnityEngine.Rendering.CompareFunction)] _StencilComp ("Stencil: Equal to stay inside the threads, Always to ignore", Float) = 8
     }
@@ -86,7 +91,7 @@ Shader "Custom/CosmicWebGas_NEW"
             #include "UnityCG.cginc"
 
             sampler3D _Noise;
-            float _Opacity, _Emission, _Density, _Brightness, _Cover, _Size, _MaxSize, _MinPixels, _NoiseScale, _Breakup, _Vary, _Occlude;
+            float _Opacity, _Emission, _Density, _Brightness, _Cover, _Size, _MaxSize, _MinPixels, _NoiseScale, _Breakup, _Vary, _Occlude, _Thinnest;
             float4 _CameraFade, _Drift, _ColorA, _ColorB, _ColorC, _ColorD, _Ramp;
 
             struct appdata
@@ -129,6 +134,7 @@ Shader "Custom/CosmicWebGas_NEW"
                 float far = min(1.0, radius / drawn);
                 float near = smoothstep(_CameraFade.x, _CameraFade.y, depth);
                 float cover = _Cover * lerp(1.0, v.data.z, _Vary) * far * near * saturate(_Density) * _Opacity;
+                cover *= smoothstep(_Thinnest, _Thinnest + 0.1, dense);
                 o.colour = float4(colour * (_Brightness * _Emission), _Occlude) * cover;
 
                 view.xy += v.corner * drawn;

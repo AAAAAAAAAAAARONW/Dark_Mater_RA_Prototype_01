@@ -123,7 +123,8 @@ python elevenlabs_vo.py install
     - 以后要改颜色：想要显示成某个颜色 X，材质里要填比 X 更暖的值（红多一点、蓝少一点）。改了后处理的色温，这些颜色要重新算。
   - **纤维内部像气体、和空白区域的边界清楚（10 月 30 日）**：以前气体粒子会溢出纤维的轮廓，靠近镜头时粒子很大，纤维像一根根模糊的软管子。现在纤维网格（`BIG`，材质 `CosmicWebNebulaFine_NEW`）先于气体画（queue 2949），在模板缓冲（stencil）的第 64 位标出它覆盖的像素；纤维气体（`CosmicWebGasThreads_NEW`）只在这些像素里画（`Stencil Comp` = Equal）。结果：纤维内部还是柔和、不均匀的气体，边界就是网格轮廓那样清楚，空白区域干净。`Test_Journey_WebGas` 和 `Vizlab_Journey` 一起生效。
     - 细丝材质同时把 `Absorb` 和 `Dust` 调成 0，避免先画的网格把背景压出暗色块。
-    - 想恢复成软边：把 `CosmicWebGasThreads_NEW` 的 `Stencil Comp` 改回 Always。中层和星团的气体没有裁边。
+    - 想恢复成软边：把 `CosmicWebGasThreads_NEW` 的 `Stencil Comp` 改回 Always。
+  - **不要那么"粒子化"、网络边界再清楚些（10 月 30 日）**：纤维和中层的粒子放大一倍（`Size` 0.0018）、噪声打散减弱（`Breakup` 0.3）：粒子在裁好的轮廓里互相融成连续的气体，边界不会因此变糊。中层气体（星团周围的片）也只画在纤维的轮廓里（`Stencil Comp` = Equal），不再在星团周围散成一颗颗光斑。星团气体不裁边（它的网格是薄片，裁出来是刀片形），但零散碎块上的小亮点去掉了（新参数 `Thinnest` 0.4：比这个更稀的粒子不画），星团读起来是一团光而不是一把点。
     - 要检查：Vizlab 大屏的渲染目标要有模板缓冲（24 位深度缓冲一般都带）。如果纤维气体在大屏上整个不见了，就是没有模板缓冲，先把 `Stencil Comp` 改回 Always，再告诉我。
 - [ ] **开场：黑 0.1 秒后淡入**（出生点 z 100，开场这层全速约 14 秒）。在 Ana 场景跑一次 Wire Journey Voice Over 并保存：会加上 `JourneyOpening_NEW`，把 J2、J2b 从开场挪到星系，开场延迟从 3 秒改成 1 秒。试玩时检查：黑一下就淡入、光开始飞；J0 说完接着 J1；Console 里没有 `Dropped J1…`。
 - [ ] **Ana 场景再跑一次 Wire Journey Voice Over 并保存**：会撤掉上一轮写进场景的开场减速。

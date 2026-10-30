@@ -24,7 +24,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Floats:
-    - _Breakup: 0.5
+    - _Breakup: 0.3
     - _Brightness: 0.495
     - _Cover: 0.2
     - _Density: 1
@@ -34,7 +34,7 @@ Material:
     - _NoiseScale: 0.04
     - _Occlude: 0.45
     - _Opacity: 1
-    - _Size: 0.0009
+    - _Size: 0.0018
     - _StencilComp: 3
     - _StencilRef: 64
     - _Vary: 0.5
