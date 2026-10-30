@@ -121,6 +121,13 @@ python elevenlabs_vo.py install
     - 手机拍屏幕会自动白平衡，紫色会被拍成灰白，下次请直接截图（Win+Shift+S）再发给我，颜色才准。
   - **按后处理反算颜色（10 月 25 日）**：相机的后处理（`Main Camera Profile` 的 ColorGrading，色温 -24.4）会把所有颜色往蓝推：比如材质里的紫色 (0.42, 0.24, 0.7) 实际显示成 (99, 63, 208)，桃色显示成米灰。现在这个场景里 web 的颜色都是从参考图量出来的目标色，再按这个白平衡反算回材质里填的值（所以材质里看起来偏暖、偏粉，经过后处理才是对的）：气体色带（目标：暗紫 (88,64,150)、紫 (125,72,185)、粉紫 (205,105,170)、桃 (250,150,145)）、星团色带、天空（目标灰紫 (52~66)）、BIG 细丝的 `Rim/Mid/Lit`、Galaxies 星点（目标桃粉 (245,150,140)）。后处理本身没改，其它场景不受影响。
     - 以后要改颜色：想要显示成某个颜色 X，材质里要填比 X 更暖的值（红多一点、蓝少一点）。改了后处理的色温，这些颜色要重新算。
+  - **纤维内部像气体、和空白区域的边界清楚（10 月 30 日）**：以前气体粒子会溢出纤维的轮廓，靠近镜头时粒子很大，纤维像一根根模糊的软管子。现在纤维网格（`BIG`，材质 `CosmicWebNebulaFine_NEW`）先于气体画（queue 2949），在模板缓冲（stencil）的第 64 位标出它覆盖的像素；纤维气体（`CosmicWebGasThreads_NEW`）只在这些像素里画（`Stencil Comp` = Equal）。结果：纤维内部还是柔和、不均匀的气体，边界就是网格轮廓那样清楚，空白区域干净。`Test_Journey_WebGas` 和 `Vizlab_Journey` 一起生效。
+    - 细丝材质同时把 `Absorb` 和 `Dust` 调成 0，避免先画的网格把背景压出暗色块。
+    - 想恢复成软边：把 `CosmicWebGasThreads_NEW` 的 `Stencil Comp` 改回 Always。
+  - **不要那么"粒子化"、网络边界再清楚些（10 月 30 日）**：纤维和中层的粒子放大一倍（`Size` 0.0018）、噪声打散减弱（`Breakup` 0.3）：粒子在裁好的轮廓里互相融成连续的气体，边界不会因此变糊。中层气体（星团周围的片）也只画在纤维的轮廓里（`Stencil Comp` = Equal），不再在星团周围散成一颗颗光斑。星团气体不裁边（它的网格是薄片，裁出来是刀片形），但零散碎块上的小亮点去掉了（新参数 `Thinnest` 0.4：比这个更稀的粒子不画），星团读起来是一团光而不是一把点。
+  - **星团中心不够亮、不够发光（10 月 30 日）**：星团气体亮度 0.495 → 0.8；新加 `Web Gas (core glow)`（每个宇宙网物体下一个，`CosmicWebGasCoreGlow_NEW.mat`）：在 6 个最密的核心各放一层光晕 + 中等光 + 亮芯，相加混合、HDR，经 Bloom 泛光。太亮/发白调这个材质的 `Brightness`（现在 1.5，试过 3 就过曝了）；光晕大小调 `Size`；离镜头多近开始淡出调 `Camera Fade`。核心位置是从星团粒子算出来的：`python Tools~/bake_core_glow.py WebGas_Core_NEW.bytes WebGas_CoreGlow_NEW.bytes`。
+  - **纤维靠近核心更亮更粉（10 月 30 日，参考图）**：纤维和中层的气体离星团核心越近，颜色在色带上越往粉/桃色走、也越亮，往外逐渐回到紫色。核心位置就是发光核那 6 个（材质里的 `Knot0–5`：xyz 是位置，w 是影响范围，由 `bake_core_glow.py` 一起算出并打印）。调法（`CosmicWebGasThreads_NEW`、`CosmicWebGasMiddle_NEW`）：`Near Pink` 是靠近核心时往粉色走多少（现在 0.8），`Near Bright` 是亮多少（现在 1，即最近处亮一倍）；粉色铺得太开/太窄，改 `Knot` 的 w（重新烘焙时用 `--knot-reach`，现在是核心大小的 4 倍）。
+    - 要检查：Vizlab 大屏的渲染目标要有模板缓冲（24 位深度缓冲一般都带）。如果纤维气体在大屏上整个不见了，就是没有模板缓冲，先把 `Stencil Comp` 改回 Always，再告诉我。
 - [ ] **开场：黑 0.1 秒后淡入**（出生点 z 100，开场这层全速约 14 秒）。在 Ana 场景跑一次 Wire Journey Voice Over 并保存：会加上 `JourneyOpening_NEW`，把 J2、J2b 从开场挪到星系，开场延迟从 3 秒改成 1 秒。试玩时检查：黑一下就淡入、光开始飞；J0 说完接着 J1；Console 里没有 `Dropped J1…`。
 - [ ] **Ana 场景再跑一次 Wire Journey Voice Over 并保存**：会撤掉上一轮写进场景的开场减速。
 - [ ] **Solar System 镜头**：`Tools > Journey NEW > Solar System > Camera Preset` 把视角放宽并把相机拉远；`Tilt the System` 把太阳系平面倾斜 15°，让轨道看起来是椭圆而不是一条线。两个可以分别用 Ctrl+Z 撤销，满意就保存场景。

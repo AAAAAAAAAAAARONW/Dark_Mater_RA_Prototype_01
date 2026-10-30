@@ -30863,6 +30863,7 @@ Transform:
   - {fileID: 1900000212}
   - {fileID: 1900000215}
   - {fileID: 1900000218}
+  - {fileID: 1900002218}
   m_Father: {fileID: 618527040}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 12.668, y: -457.745, z: -13.4140005}
@@ -40934,6 +40935,7 @@ Transform:
   - {fileID: 1900000203}
   - {fileID: 1900000206}
   - {fileID: 1900000209}
+  - {fileID: 1900002209}
   m_Father: {fileID: 618527040}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: -75.934006, z: 0}
@@ -373454,3 +373456,93 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: fc3287f6830a7d1408eb00b6110d455f, type: 3}
+--- !u!1 &1900002208
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1900002209}
+  - component: {fileID: 1900002210}
+  m_Layer: 9
+  m_Name: Web Gas (core glow)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1900002209
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1900002208}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 293475643}
+  m_RootOrder: 9
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1900002210
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1900002208}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b3b32a5d26d5434aa99642b4c998f56a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  points: {fileID: 4900000, guid: f4205364982342549f8a58c839c7e2fd, type: 3}
+  material: {fileID: 2100000, guid: 54e24ea6764c413f8599e27ae858142f, type: 2}
+--- !u!1 &1900002217
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1900002218}
+  - component: {fileID: 1900002219}
+  m_Layer: 15
+  m_Name: Web Gas (core glow)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1900002218
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1900002217}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 218623840}
+  m_RootOrder: 8
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1900002219
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1900002217}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b3b32a5d26d5434aa99642b4c998f56a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  points: {fileID: 4900000, guid: f4205364982342549f8a58c839c7e2fd, type: 3}
+  material: {fileID: 2100000, guid: 54e24ea6764c413f8599e27ae858142f, type: 2}

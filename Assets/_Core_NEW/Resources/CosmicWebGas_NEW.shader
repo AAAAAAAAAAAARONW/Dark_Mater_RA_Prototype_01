@@ -22,6 +22,21 @@ Shader "Custom/CosmicWebGas_NEW"
     // reference's: it cools everything (white balance -24.4), so they are set warmer than
     // they show.
     //
+    // GAS INSIDE, A CLEAR EDGE OUTSIDE. Puffs blur a thread's edge by their own size: near the
+    // camera they are big, and a thread read as a soft tube fading into the voids. The threads'
+    // own surface (CosmicWebNebulaFine_NEW, drawn first) marks the stencil over every pixel a
+    // thread covers, and the threads' gas draws only there (_StencilComp Equal): soft and
+    // uneven inside, cut off cleanly at the thread's outline, as in the reference. The middle's
+    // gas keeps inside the threads' outline too; the clusters' does not (their meshes are thin
+    // sheets, and cut by them the clusters' glow went to blades), but their stray fragments'
+    // specks are left out (_Thinnest), so a node reads as one glow, not a scatter of dots.
+    // Bigger puffs inside a cut-off outline make the gas smooth without blurring the edge.
+    //
+    // TOWARDS THE NODES. A thread runs pinker and brighter as it nears a cluster's heart, as in
+    // the reference: up to six hearts (_Knot0-5, in the mesh's own space, w their reach; written
+    // by CosmicWebGas/Tools~/bake_core_glow.py with the core glow), and how far along the ramp
+    // (_NearPink) and how much brighter (_NearBright) the gas there goes.
+    //
     // CHEAP. A puff is one quad; the threads need a few thousand to tens of thousands where the
     // meshes they replace had millions of triangles. Each pixel of a puff is one exp and one
     // read of a small tiling 3D noise. Not sorted: the puffs of one place are all about the
@@ -59,6 +74,17 @@ Shader "Custom/CosmicWebGas_NEW"
         [HDR] _ColorD ("Densest: peach", Color) = (0.95, 0.62, 0.48, 1)
         _Ramp ("Where violet, lilac and peach are reached along the density, 0 to 1", Vector) = (0.45, 0.82, 0.98, 0)
         _Vary ("How much each puff's own brightness counts", Range(0, 1)) = 0.5
+        _NearPink ("Nearer a cluster's heart, how much pinker (further along the ramp)", Range(0, 1)) = 0
+        _NearBright ("Nearer a cluster's heart, how much brighter", Range(0, 4)) = 0
+        _Knot0 ("Cluster heart 1: xyz in the mesh's space, w its reach", Vector) = (0, 0, 0, 0)
+        _Knot1 ("Cluster heart 2", Vector) = (0, 0, 0, 0)
+        _Knot2 ("Cluster heart 3", Vector) = (0, 0, 0, 0)
+        _Knot3 ("Cluster heart 4", Vector) = (0, 0, 0, 0)
+        _Knot4 ("Cluster heart 5", Vector) = (0, 0, 0, 0)
+        _Knot5 ("Cluster heart 6", Vector) = (0, 0, 0, 0)
+        _Thinnest ("Puffs from gas thinner than this are left out: the stray fragments' specks", Range(0, 1)) = 0
+        [IntRange] _StencilRef ("Stencil bit to stay inside (the threads' surface marks it)", Range(0, 255)) = 0
+        [Enum(UnityEngine.Rendering.CompareFunction)] _StencilComp ("Stencil: Equal to stay inside the threads, Always to ignore", Float) = 8
     }
 
     SubShader
@@ -67,6 +93,7 @@ Shader "Custom/CosmicWebGas_NEW"
         Blend One OneMinusSrcAlpha
         ZWrite Off
         Cull Off
+        Stencil { Ref [_StencilRef] ReadMask [_StencilRef] WriteMask 0 Comp [_StencilComp] }
 
         Pass
         {
@@ -77,7 +104,8 @@ Shader "Custom/CosmicWebGas_NEW"
             #include "UnityCG.cginc"
 
             sampler3D _Noise;
-            float _Opacity, _Emission, _Density, _Brightness, _Cover, _Size, _MaxSize, _MinPixels, _NoiseScale, _Breakup, _Vary, _Occlude;
+            float _Opacity, _Emission, _Density, _Brightness, _Cover, _Size, _MaxSize, _MinPixels, _NoiseScale, _Breakup, _Vary, _Occlude, _Thinnest, _NearPink, _NearBright;
+            float4 _Knot0, _Knot1, _Knot2, _Knot3, _Knot4, _Knot5;
             float4 _CameraFade, _Drift, _ColorA, _ColorB, _ColorC, _ColorD, _Ramp;
 
             struct appdata
@@ -95,6 +123,13 @@ Shader "Custom/CosmicWebGas_NEW"
                 float3 world  : TEXCOORD2;
             };
 
+            // How near a cluster's heart: 1 at it, falling off over its reach (w 0: no heart).
+            float Near(float3 p, float4 k)
+            {
+                float3 d = p - k.xyz;
+                return k.w > 0.0 ? exp(-dot(d, d) / (k.w * k.w)) : 0.0;
+            }
+
             v2f vert(appdata v)
             {
                 v2f o;
@@ -110,7 +145,11 @@ Shader "Custom/CosmicWebGas_NEW"
                 float drawn = clamp(radius, _MinPixels * pixel, most);
 
                 // Its colour, by how dense the gas round it is: dim violet, violet, lilac, peach.
-                float dense = v.data.y;
+                // Nearer a cluster's heart, pinker and brighter, as a thread is in the reference
+                // where it runs into a node.
+                float3 at = v.vertex.xyz;
+                float heart = saturate(Near(at, _Knot0) + Near(at, _Knot1) + Near(at, _Knot2) + Near(at, _Knot3) + Near(at, _Knot4) + Near(at, _Knot5));
+                float dense = lerp(v.data.y, 1.0, heart * _NearPink);
                 float3 colour = lerp(_ColorA.rgb, _ColorB.rgb, smoothstep(0.0, _Ramp.x, dense));
                 colour = lerp(colour, _ColorC.rgb, smoothstep(_Ramp.x, _Ramp.y, dense));
                 colour = lerp(colour, _ColorD.rgb, smoothstep(_Ramp.y, _Ramp.z, dense));
@@ -120,7 +159,8 @@ Shader "Custom/CosmicWebGas_NEW"
                 float far = min(1.0, radius / drawn);
                 float near = smoothstep(_CameraFade.x, _CameraFade.y, depth);
                 float cover = _Cover * lerp(1.0, v.data.z, _Vary) * far * near * saturate(_Density) * _Opacity;
-                o.colour = float4(colour * (_Brightness * _Emission), _Occlude) * cover;
+                cover *= smoothstep(_Thinnest, _Thinnest + 0.1, dense);
+                o.colour = float4(colour * (_Brightness * _Emission * (1.0 + heart * _NearBright)), _Occlude) * cover;
 
                 view.xy += v.corner * drawn;
                 if (depth < 1e-3) view = float3(0.0, 0.0, 1.0);

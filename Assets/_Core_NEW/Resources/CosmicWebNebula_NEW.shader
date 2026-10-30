@@ -38,6 +38,11 @@ Shader "Custom/CosmicWebNebula_NEW"
     //
     // In the second cosmic web this draws the purple threads' fine lines, dimmed, inside the
     // glow of CosmicWebGas_NEW's puffs, which carry the gas's colour.
+    //
+    // There it also gives the threads their edge: drawn before the gas, it marks a stencil bit
+    // (_StencilRef, _StencilPass Replace) over every pixel a thread covers, and the threads'
+    // gas draws only there, so its soft puffs fill a thread to its outline and stop at it.
+    // Left at 0 / Keep (every other material), it touches no stencil.
 
     Properties
     {
@@ -62,6 +67,8 @@ Shader "Custom/CosmicWebNebula_NEW"
         [HDR] _Mid ("Through a thread: the web's purple", Color) = (0.56, 0.4, 0.8, 1)
         [HDR] _Rim ("Thin, at the edges: blue-violet", Color) = (0.36, 0.3, 0.74, 1)
         _DustColor ("Dust", Color) = (0.05, 0.02, 0.03, 1)
+        [IntRange] _StencilRef ("Stencil bit it marks where it is drawn (0: none)", Range(0, 255)) = 0
+        [Enum(UnityEngine.Rendering.StencilOp)] _StencilPass ("Stencil: Replace to mark, Keep to leave it", Float) = 0
     }
 
     SubShader
@@ -70,6 +77,7 @@ Shader "Custom/CosmicWebNebula_NEW"
         Blend One OneMinusSrcAlpha
         ZWrite Off
         Cull Off
+        Stencil { Ref [_StencilRef] ReadMask [_StencilRef] WriteMask [_StencilRef] Comp Always Pass [_StencilPass] }
 
         Pass
         {
