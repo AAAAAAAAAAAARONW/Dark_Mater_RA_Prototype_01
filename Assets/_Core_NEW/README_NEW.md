@@ -229,7 +229,7 @@ Earth 没有组是**有意的**（结局是视频过场）。新版遇到找不�
 **试验场景 `Test_Journey_WebGas.unity`**（`Test_Journey` 的副本，主场景不动）（`Vizlab_Journey.unity` 是从它做出来的，用同一套气体材质和物体）：第二段 cosmic web 的气体改成「气团粒子」`CosmicWebGas_NEW`，照着宇宙网气体密度图的样子：稀的地方暗紫、普通的纤维紫/洋红、纤维挤到一起的节点是暖桃色，边缘都是软的。每个 web 物体下面三个：
 | 物体 | 画什么 | 原来的 |
 |---|---|---|
-| `Web Gas (threads)` | 紫色纤维的光晕（`WebGas_BIG_NEW.bytes`，10 万个粒子，`CosmicWebGasThreads_NEW.mat`） | `BIG` 还在，换成调暗的 `CosmicWebNebulaFine_NEW.mat`：画细丝，并且先于气体画（queue 2949），在模板缓冲里标出纤维覆盖的像素；纤维气体和中层气体只画在这些像素里，所以内部是柔和、连续的气体，边界清楚；星团气体不裁边，但去掉了零散碎块上的小亮点（`Thinnest`） |
+| `Web Gas (threads)` | 紫色纤维的光晕（`WebGas_BIG_NEW.bytes`，10 万个粒子，`CosmicWebGasThreads_NEW.mat`） | `BIG` 还在，换成调暗的 `CosmicWebNebulaFine_NEW.mat`：画细丝，并且先于气体画（queue 2949），在模板缓冲里标出纤维覆盖的像素；纤维气体和中层气体只画在这些像素里，所以内部是柔和、连续的气体，边界清楚；纤维越靠近星团核心越亮越粉（`Near Pink` / `Near Bright`，核心位置在 `Knot0–5`）；星团气体不裁边，但去掉了零散碎块上的小亮点（`Thinnest`） |
 | `Web Gas (middle)` | 星团周围小一点的片和丝（1.4 万，`CosmicWebGasMiddle_NEW.mat`，偏洋红到桃色） | `Coreyellow` 关掉（当表面画像一层膜） |
 | `Web Gas (clusters)` | 黄色星团（2 万，`CosmicWebGasClusters_NEW.mat`，色带偏暖：淡紫粉到桃色，像参考图里密的节点），零碎的小块变成纤维上的小亮点 | `Core` 关掉（烘焙体积，近看是硬边的黄色块） |
 | `Web Gas (core glow)` | 星团的发光核：从星团粒子里找出几个最密的核心（`Tools~/bake_core_glow.py` → `WebGas_CoreGlow_NEW.bytes`，6 个核心、18 个大光斑），每个核心一层宽的淡光晕、一层中等光、一个亮的芯，相加混合、亮度超过 1（HDR），让后处理的 Bloom 泛出光来（`CosmicWebGasCoreGlow_NEW.mat`）。镜头离得很近时淡出（`Camera Fade` 40–160），穿过星团时不会刺眼 | 新加的 |
