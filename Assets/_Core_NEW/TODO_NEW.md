@@ -128,6 +128,10 @@ python elevenlabs_vo.py install
   - **星团中心不够亮、不够发光（10 月 30 日）**：星团气体亮度 0.495 → 0.8；新加 `Web Gas (core glow)`（每个宇宙网物体下一个，`CosmicWebGasCoreGlow_NEW.mat`）：在 6 个最密的核心各放一层光晕 + 中等光 + 亮芯，相加混合、HDR，经 Bloom 泛光。太亮/发白调这个材质的 `Brightness`（现在 1.5，试过 3 就过曝了）；光晕大小调 `Size`；离镜头多近开始淡出调 `Camera Fade`。核心位置是从星团粒子算出来的：`python Tools~/bake_core_glow.py WebGas_Core_NEW.bytes WebGas_CoreGlow_NEW.bytes`。
   - **纤维靠近核心更亮更粉（10 月 30 日，参考图）**：纤维和中层的气体离星团核心越近，颜色在色带上越往粉/桃色走、也越亮，往外逐渐回到紫色。核心位置就是发光核那 6 个（材质里的 `Knot0–5`：xyz 是位置，w 是影响范围，由 `bake_core_glow.py` 一起算出并打印）。调法（`CosmicWebGasThreads_NEW`、`CosmicWebGasMiddle_NEW`）：`Near Pink` 是靠近核心时往粉色走多少（现在 0.8），`Near Bright` 是亮多少（现在 1，即最近处亮一倍）；粉色铺得太开/太窄，改 `Knot` 的 w（重新烘焙时用 `--knot-reach`，现在是核心大小的 4 倍）。
     - 要检查：Vizlab 大屏的渲染目标要有模板缓冲（24 位深度缓冲一般都带）。如果纤维气体在大屏上整个不见了，就是没有模板缓冲，先把 `Stencil Comp` 改回 Always，再告诉我。
+  - **改成体积气体（Pyro 那样）+ 发光粒子，两个东西（10 月 31 日，新参考图）**：粒子版看起来扁平、奇怪，不像气云。现在纤维和中层是真正的体积气体（`CosmicWebPyro_NEW`，每个 web 物体下的 `Web Gas (pyro threads)` / `(pyro middle)`）：一团团翻滚、内部有明暗、边缘自然变稀、空白区域是暗的；颜色只走紫 → 洋红 → 粉，不再往黄走。橙黄的亮点是另外一层发光粒子（`Web Gas (stars)`）：沿纤维稀稀落落、节点处挤成一团，亮的会泛 Bloom。旧的粒子气体（threads / middle / clusters）和 `BIG` 的细丝表面关掉了但还在场景里；core glow 保留。详细的做法和调法写在 README 的「试验场景」那节。`Test_Journey_WebGas` 和 `Vizlab_Journey` 一起改了，Ana 和 Test_Journey 没动。
+    - 便宜：每个像素 8 步、每步两次 3D 贴图读取；外壳 15 万 + 7 万个三角形，比原来画 `BIG` 细丝表面的 330 万还少。没有额外的 Pass 和 RenderTexture。镜头在气体里面时多几步。
+    - 要检查：飞一遍 CosmicWeb（按 3），特别是穿过中间星团那段（镜头在气体里面）：有没有一块块的碎片、一圈圈的环纹或者突然出现的黑洞；按 Y 看暗物质切换时气体和亮点一起淡入淡出。帧率掉了告诉我（可以把 `Steps` 从 8 降到 6）。截图用 Win+Shift+S。
+    - 太亮/太暗调 `CosmicWebPyro*_NEW.mat` 的 `Glow`；太碎调小 `Erode`；亮点太多/太亮调 `CosmicWebGasStars_NEW.mat` 的 `Brightness`，或者重新生成（`bake_web_stars.py --counts`）。
 - [ ] **开场：黑 0.1 秒后淡入**（出生点 z 100，开场这层全速约 14 秒）。在 Ana 场景跑一次 Wire Journey Voice Over 并保存：会加上 `JourneyOpening_NEW`，把 J2、J2b 从开场挪到星系，开场延迟从 3 秒改成 1 秒。试玩时检查：黑一下就淡入、光开始飞；J0 说完接着 J1；Console 里没有 `Dropped J1…`。
 - [ ] **Ana 场景再跑一次 Wire Journey Voice Over 并保存**：会撤掉上一轮写进场景的开场减速。
 - [ ] **Solar System 镜头**：`Tools > Journey NEW > Solar System > Camera Preset` 把视角放宽并把相机拉远；`Tilt the System` 把太阳系平面倾斜 15°，让轨道看起来是椭圆而不是一条线。两个可以分别用 Ctrl+Z 撤销，满意就保存场景。
