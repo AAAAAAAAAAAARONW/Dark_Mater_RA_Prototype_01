@@ -22,6 +22,12 @@ Shader "Custom/CosmicWebGas_NEW"
     // reference's: it cools everything (white balance -24.4), so they are set warmer than
     // they show.
     //
+    // GAS INSIDE, A CLEAR EDGE OUTSIDE. Puffs blur a thread's edge by their own size: near the
+    // camera they are big, and a thread read as a soft tube fading into the voids. The threads'
+    // own surface (CosmicWebNebulaFine_NEW, drawn first) marks the stencil over every pixel a
+    // thread covers, and the threads' gas draws only there (_StencilComp Equal): soft and
+    // uneven inside, cut off cleanly at the thread's outline, as in the reference.
+    //
     // CHEAP. A puff is one quad; the threads need a few thousand to tens of thousands where the
     // meshes they replace had millions of triangles. Each pixel of a puff is one exp and one
     // read of a small tiling 3D noise. Not sorted: the puffs of one place are all about the
@@ -59,6 +65,8 @@ Shader "Custom/CosmicWebGas_NEW"
         [HDR] _ColorD ("Densest: peach", Color) = (0.95, 0.62, 0.48, 1)
         _Ramp ("Where violet, lilac and peach are reached along the density, 0 to 1", Vector) = (0.45, 0.82, 0.98, 0)
         _Vary ("How much each puff's own brightness counts", Range(0, 1)) = 0.5
+        [IntRange] _StencilRef ("Stencil bit to stay inside (the threads' surface marks it)", Range(0, 255)) = 0
+        [Enum(UnityEngine.Rendering.CompareFunction)] _StencilComp ("Stencil: Equal to stay inside the threads, Always to ignore", Float) = 8
     }
 
     SubShader
@@ -67,6 +75,7 @@ Shader "Custom/CosmicWebGas_NEW"
         Blend One OneMinusSrcAlpha
         ZWrite Off
         Cull Off
+        Stencil { Ref [_StencilRef] ReadMask [_StencilRef] WriteMask 0 Comp [_StencilComp] }
 
         Pass
         {

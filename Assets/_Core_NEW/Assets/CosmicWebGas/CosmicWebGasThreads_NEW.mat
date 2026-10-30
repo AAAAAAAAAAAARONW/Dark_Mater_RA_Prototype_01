@@ -35,6 +35,8 @@ Material:
     - _Occlude: 0.45
     - _Opacity: 1
     - _Size: 0.0009
+    - _StencilComp: 3
+    - _StencilRef: 64
     - _Vary: 0.5
     m_Colors:
     - _CameraFade: {r: 10, g: 50, b: 0, a: 0}
