@@ -34,14 +34,14 @@ Material:
     m_Floats:
     - _Absorb: 0
     - _Baked: 1
-    - _Brightness: 0.6
+    - _Brightness: 2.2
     - _Dust: 0
-    - _Edge: 2.2
+    - _Edge: 1.4
     - _Emission: 1.3
     - _NoiseScale: 0.025
     - _Opacity: 0.85
-    - _StencilPass: 2
-    - _StencilRef: 64
+    - _StencilPass: 0
+    - _StencilRef: 0
     m_Colors:
     - _SoftEdge: {r: 0.06, g: 0.42, b: 0.3, a: 0}
     - _SoftMin: {r: -0.059563, g: -0.049881, b: -0.043521, a: 0}
@@ -49,6 +49,6 @@ Material:
     - _CameraFade: {r: 1.5, g: 10, b: 0, a: 0}
     - _Drift: {r: 0.4, g: 0.15, b: 0.25, a: 0}
     - _DustColor: {r: 0.05, g: 0.02, b: 0.03, a: 1}
-    - _Lit: {r: 0.784, g: 0.398, b: 0.581, a: 1}
-    - _Mid: {r: 0.542, g: 0.299, b: 0.603, a: 1}
-    - _Rim: {r: 0.381, g: 0.254, b: 0.501, a: 1}
+    - _Lit: {r: 0.921, g: 0.34, b: 0.563, a: 1}
+    - _Mid: {r: 0.677, g: 0.245, b: 0.602, a: 1}
+    - _Rim: {r: 0.375, g: 0.171, b: 0.502, a: 1}

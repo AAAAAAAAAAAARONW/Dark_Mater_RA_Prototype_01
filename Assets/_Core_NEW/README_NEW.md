@@ -228,19 +228,23 @@ Earth 没有组是**有意的**（结局是视频过场）。新版遇到找不�
 
 **试验场景 `Test_Journey_WebGas.unity`**（`Test_Journey` 的副本，主场景不动）（`Vizlab_Journey.unity` 是从它做出来的，用同一套气体材质和物体）：
 
-**现在（10 月 31 日）：体积气体 + 发光粒子，两个东西。** 参考图（宇宙网模拟）里，纤维是一团团发光的气体（紫 → 洋红 → 粉），橙黄的亮点是另一种东西：沿纤维分布、在节点挤成一团的星系。所以分开做，每个 web 物体下面：
+**现在（10 月 31 日）：纤维网络 + 体积光晕 + 发光点。** 参考图（宇宙网模拟）里，纤维是很细的发光丝，裹在一层柔和的气体里，网状结构清楚；橙黄的亮点是另一种东西：沿纤维分布、在节点挤成一团的星系。每个 web 物体下面：
 | 物体 | 画什么 |
 |---|---|
-| `Web Gas (pyro threads)` | 紫色纤维的气体，体积的、像 Pyro 烟雾那样一团团翻滚（`Resources/CosmicWebPyro_NEW.shader`，`CosmicWebPyroThreads_NEW.mat`）。画在 `WebGasHull_BIG_NEW`（包住所有气体的一层光滑外壳）上，气体在哪由 `WebGasField_BIG_NEW`（从 `BIG` 网格烘焙的细 3D 场）决定，噪声把它打散、明暗起伏 |
-| `Web Gas (pyro middle)` | 星团周围的片和丝，同一个 shader（`CosmicWebPyroMiddle_NEW.mat`，外壳 `WebGasHull_Coreyellow_NEW`，场 `WebGasField_Coreyellow_NEW`） |
-| `Web Gas (stars)` | 发光粒子：沿纤维的星系，稀稀落落，节点处密（`CosmicWebGas_NEW` + `WebGas_Stars_NEW.bytes`，1 万个点，`CosmicWebGasStars_NEW.mat`，桃色 → 橙 → 黄，亮的会泛 Bloom）。点从气体粒子里挑：气体越密越容易被挑中，星团里挑得最多；亮度是幂律分布（大多暗、少数很亮）。`Tools~/bake_web_stars.py` 重新生成 |
+| `BIG`（打开） | 纤维本身：原来的网格，材质 `CosmicWebNebulaFine_NEW`（调亮、换成紫 → 紫红 → 洋红，`Brightness` 2.2）。网状结构就是网格的形状，一点不变 |
+| `Coreyellow`（打开） | 星团周围的片和丝，材质换成新的 `CosmicWebNebulaFineMiddle_NEW`（同一个 shader，`Brightness` 1.3；原来的 Pink 材质 Ana 还在用，没动） |
+| `Web Gas (pyro threads)` | 纤维外面一圈柔和的体积气体，让网络有体积感和纵深（`Resources/CosmicWebPyro_NEW.shader`，`CosmicWebPyroThreads_NEW.mat`） |
+| `Web Gas (pyro middle)` | 中层外面的气体，同一个 shader（`CosmicWebPyroMiddle_NEW.mat`） |
+| `Web Gas (stars)` | 发光点：沿纤维的星系，节点处密（`CosmicWebGas_NEW` + `WebGas_Stars_NEW.bytes`，1 万个点，`CosmicWebGasStars_NEW.mat`，桃 → 橙 → 黄，亮的泛 Bloom；`Tools~/bake_web_stars.py` 重新生成） |
 | `Web Gas (core glow)` | 不变（星团的发光核） |
 
-原来的 `Web Gas (threads)`、`(middle)`、`(clusters)` 和 `BIG` 的细丝表面都还在场景里，只是关掉了（方便对比；要回到旧的就把它们打开、把两个 pyro 关掉）。
+原来的 `Web Gas (threads)`、`(middle)`、`(clusters)` 粒子还在场景里，只是关掉了。
 
-体积气体怎么做的、为什么便宜：每个像素从外壳的背面（`Cull Front`）往镜头方向走 8 步，每步读两张 3D 贴图（场 + 噪声）；外壳重叠的地方取最亮的（`BlendOp Max`），不排序、也不会叠成白色。镜头在气体里面时，靠近镜头的那段再用几步「挂在镜头上」的采样补上（每条光线采样位置一样，所以不会碎）。外壳只有 15 万 + 7 万个三角形（原来 `BIG` + `Coreyellow` 网格是 330 万 + 63 万），所以比原来画 `BIG` 的细丝表面还便宜。没有额外的 Pass、没有 RenderTexture。为什么不直接画在原来的网格上：那些网格是 marching cubes 的皮，表面有台阶、气体里面全是隧道和气泡，每个褶皱都开始一段自己的步进，气体就碎成玻璃碴一样的片，外推表面又会折出一圈圈的环纹。外壳和细场在网格换了以后要重新烘焙：`CosmicWebNebula/Tools~/bake_soft_edges.py`（细场，`--voxel 0.0007 --sigma 0.0011`）和 `CosmicWebGas/Tools~/bake_gas_hull.py`（外壳，从原来的 `WebSoftEdges_*_NEW` 粗场切出来，BIG `--iso 0.1`、Coreyellow `--iso 0.08`）。
+体积气体为什么只做光晕、不做纤维本身：纤维平均只有约 1 个世界单位粗（网格体积 × 2 / 面积），任何放得下的 3D 贴图都分辨不了；之前用模糊的密度场做气体，纤维被吹胖十倍，成了一朵朵云，网状结构没了。现在气体由「离网格表面多近」决定（`WebGasField_*_NEW`，`Tools~/bake_gas_distance.py`：距离不会被模糊掉，气体贴着每根纤维走，几个单位宽），纤维本身由网格画，所以网络完整。
 
-调法（两个 `CosmicWebPyro*_NEW.mat`）：`Glow` 亮度；`Color A–D` 稀 → 密的色带（紫 → 紫红 → 洋红 → 粉，`Ramp` 是位置），`Heat` 厚的地方往粉走多少、`Near Heat` 靠近星团核心（`Knot0–5`）往粉走多少；`Erode` 噪声吃掉多少气体（大了更碎、更像一团团，小了更连续），`Billow` 明暗起伏；`Shape` 场多少开始有气体；`Camera Fade` 离镜头多近开始变淡（镜头周围留一小片清楚的空间）；`Steps` / `Steps Inside` 是成本（步数）。颜色同样是按后处理白平衡反算过的。
+体积气体怎么做、为什么便宜：每个像素从一层包住气体的外壳（`WebGasHull_*_NEW`，`Tools~/bake_gas_hull.py` 从距离场切出来，39 万 + 35 万个三角形）的背面往镜头方向走 8 步，每步读两张 3D 贴图（距离场 + 噪声），每条光线再读一次粗的密度场决定颜色（`WebSoftEdges_*_NEW`：稀处紫、密处洋红、靠近星团核心 `Knot0–5` 偏粉）；重叠处取最亮的（`BlendOp Max`），不排序、不会叠成白色。镜头在气体里面时再加 4 步「挂在镜头上」的采样。没有额外的 Pass 和 RenderTexture。为什么不直接画在原网格上：原网格表面有台阶、气体里全是隧道，每个褶皱各自开始一段步进，气体会碎成玻璃碴、外推还会折出环纹。网格换了以后重新烘焙：`bake_gas_distance.py`（`--voxel 0.0007 --reach 0.0025`，BIG 约 8 分钟）→ `bake_gas_hull.py`（`--iso 0.4`）。
+
+调法：纤维的亮度和颜色在 `CosmicWebNebulaFine_NEW` / `CosmicWebNebulaFineMiddle_NEW`（`Brightness`；`Rim` 边缘、`Mid` 中间、`Lit` 亮处；`Edge` 越大纤维边缘越早变淡）。光晕在两个 `CosmicWebPyro*_NEW.mat`：`Glow` 亮度、`Thickness`（再厚的气体最亮也只到 色带颜色 × `Glow / Thickness`）；`Shape` 是光晕的宽窄（x 调小更宽、更像雾，调大更贴纤维）；`Color A–D` 稀 → 密的色带、`Heat` / `Near Heat` 往粉走多少；`Erode` 噪声吃掉多少（大了更碎）、`Billow` 明暗；`Camera Fade` 离镜头多近开始变淡；`Steps` 是成本。颜色都按后处理白平衡反算过。
 
 **之前的版本（10 月 25–30 日）**：第二段 cosmic web 的气体改成「气团粒子」`CosmicWebGas_NEW`，照着宇宙网气体密度图的样子：稀的地方暗紫、普通的纤维紫/洋红、纤维挤到一起的节点是暖桃色，边缘都是软的。每个 web 物体下面三个：
 | 物体 | 画什么 | 原来的 |

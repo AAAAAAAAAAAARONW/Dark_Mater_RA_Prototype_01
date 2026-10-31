@@ -1,15 +1,15 @@
 """
-The hull CosmicWebPyro_NEW draws its gas from: one smooth closed skin round all of a web mesh's
-gas, made from the mesh's soft field (a WebSoftEdges_*_NEW texture, from
-CosmicWebNebula/Tools~/bake_soft_edges.py), where the field crosses --iso.
+The skin CosmicWebPyro_NEW draws its gas on: one closed surface round all of a web mesh's gas,
+cut from the gas's own field (WebGasField_*_NEW, bake_gas_distance.py: how near each point is
+to the mesh) where it crosses --iso, a little further out than the gas reaches.
 
-The gas is marched along each pixel's ray from the far side of whatever hull it is drawn on.
+The gas is marched along each pixel's ray from the far side of whatever skin it is drawn on.
 On the web's own meshes that went wrong in two ways: they are marching-cubes skins, terraced
 and full of tunnels and bubbles inside the thick of the gas, so every fold of them started a
 ray of its own in the middle of the gas and the gas broke up into shards; and pushed out to
-make room for the billows, the terraces folded into rings. This skin has none of that: it is
-smooth, it sits round the gas with room to spare (the field it is cut from is blurred wider
-than the gas), and it is a few hundred thousand triangles instead of millions.
+make room for the gas round them, the terraces folded into rings. This skin has none of that:
+it is smooth, it sits round the gas with room to spare, and it is a few hundred thousand
+triangles instead of millions.
 
 Surface nets: one vertex in each cell of the field's grid the skin passes through (the middle
 of where it crosses the cell's edges), one quad across each edge it crosses, turned outwards;
@@ -18,15 +18,15 @@ normals from the field's slope.
 Written as a Unity Mesh (.asset), in the web mesh's own space, so it sits on the threads of
 whichever web object holds it. --preview also writes raw .pos/.nrm/.idx files.
 
-From Assets/_Core_NEW/Assets (the box is the field's, as bake_soft_edges.py printed it):
+From Assets/_Core_NEW/Assets (the box is the field's, as bake_gas_distance.py printed it):
 
-    python CosmicWebGas/Tools~/bake_gas_hull.py CosmicWebNebula/WebSoftEdges_BIG_NEW.asset CosmicWebGas/WebGasHull_BIG_NEW.asset \\
-        --min -0.059563 -0.049881 -0.043521 --size 0.133 0.093 0.086 --iso 0.1
-    python CosmicWebGas/Tools~/bake_gas_hull.py CosmicWebNebula/WebSoftEdges_Coreyellow_NEW.asset CosmicWebGas/WebGasHull_Coreyellow_NEW.asset \\
-        --min -0.058793 -0.048011 -0.041868 --size 0.132 0.091 0.084 --iso 0.08
+    python CosmicWebGas/Tools~/bake_gas_hull.py CosmicWebGas/WebGasField_BIG_NEW.asset CosmicWebGas/WebGasHull_BIG_NEW.asset \\
+        --min -0.059563 -0.049881 -0.043521 --size 0.133 0.0931 0.0861 --iso 0.4
+    python CosmicWebGas/Tools~/bake_gas_hull.py CosmicWebGas/WebGasField_Coreyellow_NEW.asset CosmicWebGas/WebGasHull_Coreyellow_NEW.asset \\
+        --min -0.058793 -0.048011 -0.041868 --size 0.1323 0.091 0.084 --iso 0.4
 
-The gas itself is read from a finer field of the same mesh (bake_soft_edges.py --voxel 0.0007
---sigma 0.0011, WebGasField_*_NEW): this wider one is only for the hull.
+--iso must stay below where the material's _Shape.x lets the gas begin (the field squared),
+so the gas fades out inside the skin.
 """
 import argparse
 import re
@@ -34,11 +34,11 @@ import re
 import numpy as np
 
 ap = argparse.ArgumentParser()
-ap.add_argument('field', help='the soft field, a Unity Texture3D asset (R8)')
+ap.add_argument('field', help='the gas field, a Unity Texture3D asset (R8)')
 ap.add_argument('out', help='the Mesh asset to write')
 ap.add_argument('--min', type=float, nargs=3, required=True, help='the field box\'s lowest corner (the material\'s _SoftMin)')
 ap.add_argument('--size', type=float, nargs=3, required=True, help='the field box\'s size (_SoftSize)')
-ap.add_argument('--iso', type=float, default=0.1, help='the field value the skin follows: lower, roomier')
+ap.add_argument('--iso', type=float, default=0.4, help='the field value the skin follows: lower, roomier')
 ap.add_argument('--preview', help='also write <this>.pos/.nrm/.idx (float32, float32, uint32)')
 args = ap.parse_args()
 
