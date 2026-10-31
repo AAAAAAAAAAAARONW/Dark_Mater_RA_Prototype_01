@@ -139,7 +139,9 @@ public class SessionInputMetricsLogger : MonoBehaviour
         Directory.CreateDirectory(dir);
 
         string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff", CultureInfo.InvariantCulture);
-        _csvPath = Path.Combine(dir, "session_input_metrics_" + timestamp + ".csv");
+        // InstanceTag is empty at a desk; on the Vizlab the four copies start in the same
+        // millisecond often enough to need it.
+        _csvPath = Path.Combine(dir, "session_input_metrics_" + timestamp + GetReal3DRuntime_NEW.InstanceTag + ".csv");
 
         const string header =
             "session_id,session_start_utc,event_time_utc,elapsed_sec,frame,event_type,device,input_name,value,details\n";

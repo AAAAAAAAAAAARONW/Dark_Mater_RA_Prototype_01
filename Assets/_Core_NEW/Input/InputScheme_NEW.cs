@@ -169,8 +169,7 @@ public static class InputScheme_NEW
     static int _severalCopiesFrame = -1;
     static bool _severalCopies;
 
-    static readonly bool LaunchedByGetReal3D =
-        System.Environment.GetEnvironmentVariable("GETREAL_CONFIG") != null;
+    static bool LaunchedByGetReal3D { get { return GetReal3DRuntime_NEW.LaunchedByGetReal3D; } }
 
     // -- Which pad ------------------------------------------------------------
 

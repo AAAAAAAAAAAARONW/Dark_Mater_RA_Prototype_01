@@ -108,6 +108,10 @@ public class LayerDebugJump_NEW : MonoBehaviour
 
         if (player == null) return;
 
+        // On the wall only the master sees the keyboard, so a jump would move the master's
+        // light alone and the copies would never meet again. Jumps are a desk tool.
+        if (InputScheme_NEW.MasterOnlyDevicesUnsafe) return;
+
         int max = Mathf.Min(9, gates.Length);
         for (int i = 0; i < max; i++)
         {
