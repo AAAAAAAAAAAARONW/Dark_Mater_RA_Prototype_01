@@ -135,6 +135,9 @@ python elevenlabs_vo.py install
   - **再改：要体积感，但网状结构不能破坏（10 月 31 日）**：上一版是一朵朵翻滚的云，纤维被吹得很粗，网络没了。原因：纤维平均只有约 1 个世界单位粗，模糊的 3D 场分辨不了。现在纤维本身用原来的网格画（`BIG` + `CosmicWebNebulaFine_NEW`、`Coreyellow` + 新的 `CosmicWebNebulaFineMiddle_NEW`，重新打开、调亮、换成气体的紫/洋红/粉），体积气体只做每根纤维外面一圈柔和的光晕（场换成「离网格表面多近」的距离场，外壳也跟着换，贴着纤维）。结果：远看是一张完整的细纤维网，裹在柔和的气体里，有纵深；近看一根根纤维，外面有光晕。
     - 成本：纤维网格和原来画 `BIG` 细丝时一样；光晕外壳 39 万 + 35 万个三角形，每像素 8 步、每步两次 3D 贴图读取。
     - 要检查：同上（按 3 飞一遍，特别是穿过中间星团；按 Y；帧率）。纤维太暗/太亮调 `CosmicWebNebulaFine_NEW` 的 `Brightness`；光晕太宽/太窄调 `CosmicWebPyro*_NEW` 的 `Shape`（x 越小越宽）。
+  - **星团那里不要翻滚的云，体积感只在穿过纤维时（10 月 31 日）**：`Web Gas (pyro middle)` 关掉了（星团周围那团粉色的云，也是它在进入 Milky Way 的转场里铺满画面）。纤维的光晕平时离镜头远一点就淡掉，只有镜头穿过一根纤维时，周围才出现一层能看透的薄纱（星团核心附近不出），噪声漂移也放慢了。纤维本身（`CosmicWebNebulaFine_NEW` / `FineMiddle`）一点没动。
+    - 要检查：飞过 z 636、661、848 附近时（镜头在纤维里）有一层淡紫的体积；过星团和进 Milky Way 的转场时没有云。纱太浓/太淡调 `CosmicWebPyroThreads_NEW` 的 `Inside Density`（现在 0.5）；在星团附近也想要就把 `Cluster Clear` 调大（比如 0.9, 1）。
+- [ ] **所有场景天空盒里固定的星星关掉了（10 月 31 日）**：天空的 shader（`Assets/Shaders/Nebula.shader`，`Custom/Nebula`）加了一个开关 `Fixed Stars`，默认关，所以用它的 4 个天空材质（`Custom_Nebula`、`II`、`II 1`、`III`，约 30 个场景）全部没有星星了；其它场景用的是 Unity 自带的天空，本来就没有星星。层的天空配置（`NP_*.asset`）里的星星参数还在，只是不画。想让某个天空的星星回来：在那个材质上勾上 `Fixed Stars`。
 - [ ] **开场：黑 0.1 秒后淡入**（出生点 z 100，开场这层全速约 14 秒）。在 Ana 场景跑一次 Wire Journey Voice Over 并保存：会加上 `JourneyOpening_NEW`，把 J2、J2b 从开场挪到星系，开场延迟从 3 秒改成 1 秒。试玩时检查：黑一下就淡入、光开始飞；J0 说完接着 J1；Console 里没有 `Dropped J1…`。
 - [ ] **Ana 场景再跑一次 Wire Journey Voice Over 并保存**：会撤掉上一轮写进场景的开场减速。
 - [ ] **Solar System 镜头**：`Tools > Journey NEW > Solar System > Camera Preset` 把视角放宽并把相机拉远；`Tilt the System` 把太阳系平面倾斜 15°，让轨道看起来是椭圆而不是一条线。两个可以分别用 Ctrl+Z 撤销，满意就保存场景。

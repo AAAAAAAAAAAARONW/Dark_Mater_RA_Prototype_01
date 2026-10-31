@@ -234,7 +234,7 @@ Earth 没有组是**有意的**（结局是视频过场）。新版遇到找不�
 | `BIG`（打开） | 纤维本身：原来的网格，材质 `CosmicWebNebulaFine_NEW`（调亮、换成紫 → 紫红 → 洋红，`Brightness` 2.2）。网状结构就是网格的形状，一点不变 |
 | `Coreyellow`（打开） | 星团周围的片和丝，材质换成新的 `CosmicWebNebulaFineMiddle_NEW`（同一个 shader，`Brightness` 1.3；原来的 Pink 材质 Ana 还在用，没动） |
 | `Web Gas (pyro threads)` | 纤维外面一圈柔和的体积气体，让网络有体积感和纵深（`Resources/CosmicWebPyro_NEW.shader`，`CosmicWebPyroThreads_NEW.mat`） |
-| `Web Gas (pyro middle)` | 中层外面的气体，同一个 shader（`CosmicWebPyroMiddle_NEW.mat`） |
+| `Web Gas (pyro middle)`（关掉） | 中层外面的气体（`CosmicWebPyroMiddle_NEW.mat`）。10 月 31 日关掉：它在星团周围是一大团翻滚的粉色云，靠近时很突兀、不增加体积感，还在进入 Milky Way 的转场里铺满整个画面 |
 | `Web Gas (stars)` | 发光点：沿纤维的星系，节点处密（`CosmicWebGas_NEW` + `WebGas_Stars_NEW.bytes`，1 万个点，`CosmicWebGasStars_NEW.mat`，桃 → 橙 → 黄，亮的泛 Bloom；`Tools~/bake_web_stars.py` 重新生成） |
 | `Web Gas (core glow)` | 不变（星团的发光核） |
 
@@ -243,6 +243,8 @@ Earth 没有组是**有意的**（结局是视频过场）。新版遇到找不�
 体积气体为什么只做光晕、不做纤维本身：纤维平均只有约 1 个世界单位粗（网格体积 × 2 / 面积），任何放得下的 3D 贴图都分辨不了；之前用模糊的密度场做气体，纤维被吹胖十倍，成了一朵朵云，网状结构没了。现在气体由「离网格表面多近」决定（`WebGasField_*_NEW`，`Tools~/bake_gas_distance.py`：距离不会被模糊掉，气体贴着每根纤维走，几个单位宽），纤维本身由网格画，所以网络完整。
 
 体积气体怎么做、为什么便宜：每个像素从一层包住气体的外壳（`WebGasHull_*_NEW`，`Tools~/bake_gas_hull.py` 从距离场切出来，39 万 + 35 万个三角形）的背面往镜头方向走 8 步，每步读两张 3D 贴图（距离场 + 噪声），每条光线再读一次粗的密度场决定颜色（`WebSoftEdges_*_NEW`：稀处紫、密处洋红、靠近星团核心 `Knot0–5` 偏粉）；重叠处取最亮的（`BlendOp Max`），不排序、不会叠成白色。镜头在气体里面时再加 4 步「挂在镜头上」的采样。没有额外的 Pass 和 RenderTexture。为什么不直接画在原网格上：原网格表面有台阶、气体里全是隧道，每个褶皱各自开始一段步进，气体会碎成玻璃碴、外推还会折出环纹。网格换了以后重新烘焙：`bake_gas_distance.py`（`--voxel 0.0007 --reach 0.0025`，BIG 约 8 分钟）→ `bake_gas_hull.py`（`--iso 0.4`）。
+
+**镜头穿过纤维时才有体积感（10 月 31 日）**：纤维外面的光晕平时离镜头 20 个单位以内就淡掉（`Camera Fade` 20–90），所以镜头前面不会有翻滚的云。只有镜头真的在一根纤维里面时（距离场在镜头处超过 `Inside`），近处的气体才出现（`Camera Fade Inside` 3–15），而且是一层薄薄的、能看透的纱（`Inside Density` 0.5），纤维照样看得见。星团核心附近不出这层纱（`Cluster Clear`：离 `Knot0–5` 的核心越近越淡，0.5 到 0.9 之间消失）：那里纤维挤在一起，纱会变成一团云，而且进入 Milky Way 的转场就从那里开始（门就在一根纤维里、星团中间）。噪声的漂移也放慢了（`Drift` 0.12, 0.05, 0.08），不再"翻滚"。
 
 调法：纤维的亮度和颜色在 `CosmicWebNebulaFine_NEW` / `CosmicWebNebulaFineMiddle_NEW`（`Brightness`；`Rim` 边缘、`Mid` 中间、`Lit` 亮处；`Edge` 越大纤维边缘越早变淡）。光晕在两个 `CosmicWebPyro*_NEW.mat`：`Glow` 亮度、`Thickness`（再厚的气体最亮也只到 色带颜色 × `Glow / Thickness`）；`Shape` 是光晕的宽窄（x 调小更宽、更像雾，调大更贴纤维）；`Color A–D` 稀 → 密的色带、`Heat` / `Near Heat` 往粉走多少；`Erode` 噪声吃掉多少（大了更碎）、`Billow` 明暗；`Camera Fade` 离镜头多近开始变淡；`Steps` 是成本。颜色都按后处理白平衡反算过。
 

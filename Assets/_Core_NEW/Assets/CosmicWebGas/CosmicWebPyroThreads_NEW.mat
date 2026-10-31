@@ -35,7 +35,7 @@ Material:
     - _Billow: 0.6
     - _Density: 1
     - _Depth: 16
-    - _DepthInside: 40
+    - _DepthInside: 30
     - _Detail: 3.1
     - _Emission: 1
     - _Erode: 0.15
@@ -48,13 +48,14 @@ Material:
     - _Steps: 8
     - _StepsInside: 4
     - _Thickness: 0.3
+    - _InsideDensity: 0.5
     m_Colors:
-    - _CameraFade: {r: 10, g: 50, b: 0, a: 0}
+    - _CameraFade: {r: 20, g: 90, b: 0, a: 0}
     - _ColorA: {r: 0.375, g: 0.171, b: 0.502, a: 1}
     - _ColorB: {r: 0.677, g: 0.245, b: 0.602, a: 1}
     - _ColorC: {r: 0.921, g: 0.34, b: 0.563, a: 1}
     - _ColorD: {r: 1.028, g: 0.517, b: 0.521, a: 1}
-    - _Drift: {r: 0.4, g: 0.15, b: 0.25, a: 0}
+    - _Drift: {r: 0.12, g: 0.05, b: 0.08, a: 0}
     - _Inside: {r: 0.5, g: 0.8, b: 0, a: 0}
     - _Knot0: {r: -0.00672172, g: -0.00736536, b: -0.00678422, a: 0.0130208}
     - _Knot1: {r: 0.00867896, g: 0.00432482, b: 0.00357332, a: 0.004}
@@ -68,3 +69,5 @@ Material:
     - _SoftSize: {r: 0.133, g: 0.0931, b: 0.0861, a: 0}
     - _ThickMin: {r: -0.059563, g: -0.049881, b: -0.043521, a: 0}
     - _ThickSize: {r: 0.133, g: 0.093, b: 0.086, a: 0}
+    - _CameraFadeInside: {r: 3, g: 15, b: 0, a: 0}
+    - _ClusterClear: {r: 0.5, g: 0.9, b: 0, a: 0}
