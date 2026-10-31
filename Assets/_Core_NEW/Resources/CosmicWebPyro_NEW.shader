@@ -28,10 +28,18 @@ Shader "Custom/CosmicWebPyro_NEW"
     // marching-cubes skins are terraced and full of tunnels, and every fold started a march of
     // its own, so the gas broke up into shards and rings.
     //
-    // FROM INSIDE. With the camera in the gas, the gas near it is marched first by
-    // _StepsInside steps hung off the camera, the same for every ray (close near it, wider off,
-    // out to _DepthInside), up to where the ray's own march takes over, so it does not break
-    // up along the skin's folds.
+    // FROM INSIDE. Only while the camera passes through a thread (the field where it is, past
+    // _Inside) does the gas close round it: the gas thins out only nearer than
+    // _CameraFadeInside instead of _CameraFade, so the camera is in it, with depth; the gas it
+    // brings in (nearer than _CameraFade) is a thin veil (_InsideDensity), so the threads still
+    // show through it. Not in a cluster (near one of its hearts, _ClusterClear): there the
+    // threads crowd in, and a veil round the camera read as clouds billowing in front of it,
+    // over the dive into the Milky Way too, which starts there. Anywhere
+    // else the gas keeps clear of the camera (_CameraFade), so nothing billows in front of it,
+    // round the clusters or on the dives. The gas near the camera is marched first by
+    // _StepsInside steps hung off the camera, the same for every ray (close near it, wider
+    // off, out to _DepthInside), up to where the ray's own march takes over, so it does not
+    // break up along the skin's folds.
     //
     // CHEAP. Skins of a few hundred thousand triangles; per pixel they cover, two 3D texture
     // reads a step, eight steps, one more read a ray for the colour, a few more steps only while
@@ -51,16 +59,19 @@ Shader "Custom/CosmicWebPyro_NEW"
         [NoScaleOffset] _Noise ("Tiling 3D noise (WebNebulaNoise_NEW)", 3D) = "" {}
         _NoiseScale ("Billows: noise tiles per world unit", Float) = 0.1
         _Detail ("Fine detail: times the billows' frequency", Float) = 3.1
-        _Drift ("Drift, world units a second", Vector) = (0.4, 0.15, 0.25, 0)
+        _Drift ("Drift, world units a second", Vector) = (0.12, 0.05, 0.08, 0)
         _Shape ("Gas from field x, fully there from y", Vector) = (0.45, 0.85, 0, 0)
         _Erode ("How much the billows eat into the gas", Range(0, 1)) = 0.15
         _Billow ("How much the billows shade the gas: bright crowns, dim folds", Range(0, 1)) = 0.6
         _Glow ("Light, per world unit", Float) = 0.14
         _Thickness ("How much the gas hides behind it, per world unit (with Glow, caps how bright thick gas gets: Glow / Thickness)", Float) = 0.3
-        _CameraFade ("Thins out nearer the camera than x, all there from y (world units)", Vector) = (10, 50, 0, 0)
+        _CameraFade ("Thins out nearer the camera than x, all there from y (world units)", Vector) = (20, 90, 0, 0)
         [IntRange] _Steps ("Steps back from the hull's far side: the cost", Range(2, 16)) = 8
         _Depth ("How far they reach, world units", Float) = 16
         _Inside ("The camera is in the gas from field x, fully from y", Vector) = (0.5, 0.8, 0, 0)
+        _CameraFadeInside ("From in the gas: thins out nearer than x, all there from y", Vector) = (3, 15, 0, 0)
+        _ClusterClear ("No veil this near a cluster's heart: gone from x to y of its closeness (Knot0-5)", Vector) = (0.5, 0.9, 0, 0)
+        _InsideDensity ("From in the gas: how thick the gas round the camera is", Range(0, 1)) = 0.3
         [IntRange] _StepsInside ("From in the gas, steps off the camera: the extra cost there", Range(0, 12)) = 4
         _DepthInside ("How far they reach, world units", Float) = 40
         _Inflate ("The hull pushed out along its normals, in the mesh's units", Float) = 0
@@ -99,10 +110,10 @@ Shader "Custom/CosmicWebPyro_NEW"
             #include "UnityCG.cginc"
 
             sampler3D _Soft, _Thick, _Noise;
-            float4 _SoftMin, _SoftSize, _ThickMin, _ThickSize, _Drift, _Shape, _CameraFade, _Inside, _Ramp;
+            float4 _SoftMin, _SoftSize, _ThickMin, _ThickSize, _Drift, _Shape, _CameraFade, _CameraFadeInside, _Inside, _ClusterClear, _Ramp;
             float4 _ColorA, _ColorB, _ColorC, _ColorD;
             float4 _Knot0, _Knot1, _Knot2, _Knot3, _Knot4, _Knot5;
-            float _NoiseScale, _Detail, _Erode, _Billow, _Glow, _Thickness, _Steps, _Depth, _StepsInside, _DepthInside, _Inflate;
+            float _InsideDensity, _NoiseScale, _Detail, _Erode, _Billow, _Glow, _Thickness, _Steps, _Depth, _StepsInside, _DepthInside, _Inflate;
             float _Opacity, _Emission, _Density, _Heat, _NearHeat;
 
             struct appdata { float4 vertex : POSITION; float3 normal : NORMAL; };
@@ -152,7 +163,7 @@ Shader "Custom/CosmicWebPyro_NEW"
             // One step of the march, t along the ray and dt long: how much gas, how hot, how lit;
             // its light added front to back.
             void March(float3 cam, float3 dir, float3 oCam, float3 oDir, float t, float dt, float4 fine, float warm,
-                       float3 drift, inout float T, inout float3 light)
+                       float2 fade, float3 drift, inout float T, inout float3 light)
             {
                 float env = Field(oCam + oDir * t);
                 env *= env;
@@ -160,7 +171,9 @@ Shader "Custom/CosmicWebPyro_NEW"
                 float billow = n.r * 0.65 + fine.r * 0.35;
                 float gas = smoothstep(_Shape.x, _Shape.y, env - (1.0 - billow) * _Erode);
                 float hot = saturate(warm * (0.7 + 0.6 * n.g));
-                float d = gas * smoothstep(_CameraFade.x, _CameraFade.y, t) * dt;
+                // Seen as from outside the gas, or nearer, as only from in it (fade), thinner.
+                float seen = max(smoothstep(_CameraFade.x, _CameraFade.y, t), smoothstep(fade.x, fade.y, t) * _InsideDensity);
+                float d = gas * seen * dt;
                 float shade = lerp(1.0, saturate(0.2 + 1.6 * billow * billow), _Billow);
                 light += T * Ramp(hot) * (d * _Glow * shade);
                 T *= exp(-d * _Thickness);
@@ -185,20 +198,21 @@ Shader "Custom/CosmicWebPyro_NEW"
 
                 // From in the gas: the gas near the camera first, by steps hung off the camera.
                 float inside = Field(oCam);
-                inside = smoothstep(_Inside.x, _Inside.y, inside * inside);
+                inside = smoothstep(_Inside.x, _Inside.y, inside * inside) * (1.0 - smoothstep(_ClusterClear.x, _ClusterClear.y, Heart(oCam)));
+                float2 fade = lerp(_CameraFade.xy, _CameraFadeInside.xy, inside);
                 if (inside > 0.001)
                 {
-                    float tMid = _CameraFade.x + _DepthInside * 0.25;
+                    float tMid = fade.x + _DepthInside * 0.25;
                     float4 fine = tex3Dlod(_Noise, float4((cam + dir * tMid + drift) * _NoiseScale * _Detail, 0.0));
                     float warm = Warm(oCam + oDir * tMid);
                     int count = (int)_StepsInside;
                     [loop] for (int s = 0; s < count; s++)
                     {
                         float u = (s + jitter) / count;
-                        float t = _CameraFade.x + _DepthInside * u * u;
+                        float t = fade.x + _DepthInside * u * u;
                         float dt = _DepthInside * (2.0 * u + 1.0 / count) / count;
                         float w = inside * saturate((start - t) / dt + 0.5);   // handed over where the ray's own march begins
-                        March(cam, dir, oCam, oDir, t, dt * w, fine, warm, drift, T, light);
+                        March(cam, dir, oCam, oDir, t, dt * w, fine, warm, fade, drift, T, light);
                     }
                 }
 
@@ -210,7 +224,7 @@ Shader "Custom/CosmicWebPyro_NEW"
                     int count = (int)_Steps;
                     float dt = span / count;
                     [loop] for (int s = 0; s < count; s++)
-                        March(cam, dir, oCam, oDir, start + (s + jitter) * dt, dt, fine, warm, drift, T, light);
+                        March(cam, dir, oCam, oDir, start + (s + jitter) * dt, dt, fine, warm, fade, drift, T, light);
                 }
 
                 float k = _Opacity * saturate(_Density);

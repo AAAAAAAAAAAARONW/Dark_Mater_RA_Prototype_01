@@ -16,6 +16,12 @@ Shader "Custom/Nebula"
         _Sharpness ("Sharpness", Range(0.5, 4)) = 1.5
 
         [Header(Stars)]
+        // The sky's fixed stars, off in every scene (31 October): the stars and galaxies people
+        // fly past are their own objects, and dots painted on the sky behind them, never moving,
+        // read as specks on the screen. Off by default, so every material using this shader
+        // loses them without being touched; tick it on one material to bring its stars back.
+        // The layer profiles (NebulaProfile_NEW) still carry their star settings, unused while off.
+        [Toggle] _ShowStars ("Fixed Stars", Float) = 0
         _StarScale ("Star Scale", Range(20, 200)) = 80
         _StarThreshold ("Star Threshold", Range(0.95, 0.999)) = 0.992
         _StarBrightness ("Star Brightness", Range(0.5, 3)) = 1.2
@@ -68,6 +74,7 @@ Shader "Custom/Nebula"
             float _StarTwinkle, _StarTwinkleSpeed, _StarTwinkleAmount;
             float _StarScale2, _StarThreshold2, _StarBrightness2;
             float _StarFade, _StarFade2;
+            float _ShowStars;
             float _Animate, _Speed;
             float _Octaves;
 
@@ -202,10 +209,13 @@ Shader "Custom/Nebula"
                 col = lerp(col, _ColorStar, saturate((nebula - 0.75) * 2.0));
 
                 // stars
-                float star = stars(dir, _StarScale, _StarThreshold, _StarBrightness, _StarFade);
-                if (_StarBrightness2 > 0.0)
-                    star += stars(dir, _StarScale2, _StarThreshold2, _StarBrightness2, _StarFade2);
-                col.rgb += _ColorStar.rgb * star;
+                if (_ShowStars > 0.5)
+                {
+                    float star = stars(dir, _StarScale, _StarThreshold, _StarBrightness, _StarFade);
+                    if (_StarBrightness2 > 0.0)
+                        star += stars(dir, _StarScale2, _StarThreshold2, _StarBrightness2, _StarFade2);
+                    col.rgb += _ColorStar.rgb * star;
+                }
 
                 return col;
             }
