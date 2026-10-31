@@ -57,6 +57,10 @@ using UnityEditor;
 /// VizlabDisplayMenu_NEW's menu item if missing), Native puts back the previous size.
 /// That goes through reflection, and a failure logs how to do it by hand.
 ///
+/// UNDER getReal3D (GetReal3DRuntime_NEW.LaunchedByGetReal3D) it never resizes: getReal3D
+/// places each copy's window, and fitting the wall's shape into one copy's window squeezed
+/// the picture into the middle. It still logs what it finds.
+///
 /// Unity remembers the last resolution per product name, so another build of this project
 /// launched afterwards on the same machine may start in the same shape until it sets its
 /// own.
@@ -214,6 +218,20 @@ public class VizlabWallTest_NEW : MonoBehaviour
         {
             Current = IsWallShaped(Screen.width, Screen.height) ? Mode.Fit : Mode.Native;
             CheckGameView();
+            return;
+        }
+
+        if (GetReal3DRuntime_NEW.LaunchedByGetReal3D)
+        {
+            // getReal3D sizes and places every copy's window from its configuration. A
+            // SetResolution here fits the WHOLE wall's 1.27:1 into each copy's window - a
+            // window that is only part of the wall - and leaves the picture squeezed into
+            // the middle with black either side, on every copy. So on the wall this panel
+            // only reports.
+            Current = Mode.Native;
+            Debug.Log(LogPrefix + "launched by getReal3D, so the window is left as getReal3D placed it: " +
+                      Screen.width + " x " + Screen.height + " " + Screen.fullScreenMode +
+                      " (" + Aspect(Screen.width, Screen.height) + ").", this);
             return;
         }
 
@@ -384,6 +402,14 @@ public class VizlabWallTest_NEW : MonoBehaviour
 
     void ApplyNow(Mode requested, string source)
     {
+        if (GetReal3DRuntime_NEW.LaunchedByGetReal3D)
+        {
+            // See Start: getReal3D owns the window. A key or button press is only on the
+            // master anyway, and resizing one copy tears the wall.
+            Debug.Log(LogPrefix + "aspect " + requested + " (" + source + ") ignored: getReal3D places the window.", this);
+            return;
+        }
+
 #if UNITY_EDITOR
         if (Application.isEditor)
         {

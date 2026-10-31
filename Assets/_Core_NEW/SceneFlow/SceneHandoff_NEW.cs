@@ -121,12 +121,29 @@ public class SceneHandoff_NEW : MonoBehaviour
     {
         if (!handoffEnabled || _started) return;
 
-        AsyncOperation load = StartLoad();
-        if (load == null) return;   // StartLoad logged why; the outro returns to attract as before.
+        // On the wall, no background load: the journey is loaded in one go at step 4, under
+        // black. getReal3D's guide is explicit that LoadSceneAsync finishes on a different
+        // frame on each copy, and a copy that activates the journey a frame early or late
+        // starts it out of step with the rest for good. The hitch it costs is hidden by the
+        // black. At a desk nothing changes.
+        AsyncOperation load = null;
+        if (GetReal3DRuntime_NEW.LaunchedByGetReal3D)
+        {
+            if (string.IsNullOrEmpty(journeyScenePath) || SceneUtility.GetBuildIndexByScenePath(journeyScenePath) < 0)
+            {
+                Debug.LogError("[SceneHandoff_NEW] '" + journeyScenePath + "' is not in this build; staying in the tutorial.", this);
+                return;
+            }
+        }
+        else
+        {
+            load = StartLoad();
+            if (load == null) return;   // StartLoad logged why; the outro returns to attract as before.
+            load.allowSceneActivation = false;
+        }
 
         _started = true;
         IsHandingOff = true;
-        load.allowSceneActivation = false;
 
         // Only now that the load is really running: stop the outro going back to attract.
         if (outro != null) outro.CancelReturnToAttract();
@@ -177,13 +194,13 @@ public class SceneHandoff_NEW : MonoBehaviour
 
     IEnumerator Run(AsyncOperation load)
     {
-        Log("Loading the journey under the title.");
+        Log(load != null ? "Loading the journey under the title." : "Holding the title; the journey loads under black (getReal3D).");
 
-        // 2 · title holds, load runs
+        // 2 · title holds, load runs (on the wall there is no load yet, only the hold)
         float held = 0f;
-        while (held < titleHoldSeconds || load.progress < 0.9f)
+        while (held < titleHoldSeconds || (load != null && load.progress < 0.9f))
         {
-            held += Time.unscaledDeltaTime;
+            held += Step();
             yield return null;
         }
 
@@ -199,8 +216,17 @@ public class SceneHandoff_NEW : MonoBehaviour
         }
 
         // 4 · activate under black
-        load.allowSceneActivation = true;
-        while (!load.isDone) yield return null;
+        if (load != null)
+        {
+            load.allowSceneActivation = true;
+            while (!load.isDone) yield return null;
+        }
+        else
+        {
+            // Synchronous: the journey is the active scene on the next frame, on every copy.
+            SceneManager.LoadScene(journeyScenePath, LoadSceneMode.Single);
+            yield return null;
+        }
 
         Log("Journey scene active.");
 
@@ -208,7 +234,7 @@ public class SceneHandoff_NEW : MonoBehaviour
         float settled = 0f;
         while (settled < settleSeconds)
         {
-            settled += Time.unscaledDeltaTime;
+            settled += Step();
             yield return null;
         }
 
@@ -244,6 +270,21 @@ public class SceneHandoff_NEW : MonoBehaviour
         if (_started) IsHandingOff = false;
     }
 
+    /// <summary>
+    /// Seconds this frame, for the holds and fades. At a desk, real time, as always. On the
+    /// wall, getReal3D's master frame time, the same number on every copy: the fade to black
+    /// decides the frame the journey loads on, and every copy has to reach it on the same one.
+    /// </summary>
+    static float Step()
+    {
+        if (GetReal3DRuntime_NEW.LaunchedByGetReal3D)
+        {
+            try { return (float)getReal3D.Cluster.deltaTime; }
+            catch (System.Exception) { }
+        }
+        return Time.unscaledDeltaTime;
+    }
+
     IEnumerator Fade(float from, float to, float seconds)
     {
         if (seconds <= 0f)
@@ -255,7 +296,7 @@ public class SceneHandoff_NEW : MonoBehaviour
         float t = 0f;
         while (t < seconds)
         {
-            t += Time.unscaledDeltaTime;
+            t += Step();
             float k = Mathf.Clamp01(t / seconds);
             SetAlpha(Mathf.Lerp(from, to, k * k * (3f - 2f * k)));
             yield return null;

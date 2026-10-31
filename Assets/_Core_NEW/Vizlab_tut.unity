@@ -10778,7 +10778,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   handoffEnabled: 1
   outro: {fileID: 0}
-  journeyScenePath: Assets/_Core_NEW/Gameplay_Scene_Ana.unity
+  journeyScenePath: Assets/_Core_NEW/Vizlab_Journey.unity
   titleHoldSeconds: 4
   fadeToBlackSeconds: 1
   settleSeconds: 0.75
