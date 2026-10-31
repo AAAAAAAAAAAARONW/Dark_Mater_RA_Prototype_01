@@ -8,7 +8,7 @@ using UnityEngine.SceneManagement;
 ///
 /// WHY. "Auto Random Seed" (on for 75 systems in the Vizlab scenes) draws a new seed each
 /// time a system starts, from Unity's own generator rather than the UnityEngine.Random that
-/// getReal3D seeds the same everywhere. Three copies, three layouts. GalaxyMotion_NEW also
+/// getReal3D seeds the same everywhere. Four copies, four layouts. GalaxyMotion_NEW also
 /// measures its spin direction from its particles, so a galaxy could even turn opposite
 /// ways on neighbouring rows.
 ///

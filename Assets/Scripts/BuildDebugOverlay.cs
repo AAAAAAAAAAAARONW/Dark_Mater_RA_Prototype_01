@@ -366,7 +366,7 @@ public class BuildDebugOverlay : MonoBehaviour
         {
             string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
             string day = DateTime.Now.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
-            // InstanceTag is empty at a desk; on the Vizlab it keeps the three copies, which
+            // InstanceTag is empty at a desk; on the Vizlab it keeps the four copies, which
             // share one Desktop, out of one another's file.
             _csvPath = Path.Combine(desktop, "BuildDebugOverlay_" + day + GetReal3DRuntime_NEW.InstanceTag + ".csv");
 

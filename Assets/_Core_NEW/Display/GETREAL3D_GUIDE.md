@@ -1,10 +1,12 @@
 # getReal3D —— 上墙的规矩、现状和测试方法
 
+完整的中文说明（机制、改了什么、要做什么、怎么测）：[Vizlab Toolkit 文档](https://claude.ai/artifact/PZJLW5RDrMyGNdx26tR1NX)。这份是放在代码旁边的速查。
+
 **先看这一段。** 墙上出问题（画面挤在中间、几块屏接不上、操作没反应）：
 
 1. **画面全在墙的最底下** → getReal3D 以为观众的眼睛在地板上（第 4.5 节）。用 **Tools > Vizlab > Pin the Viewer's Head in a getReal3D Config** 改 Vizlab 的 `.gr3d`
 2. 先确认用的是 **Tools > Vizlab > Build for the Wall (getReal3D)** 出的包，不是 Build Settings 出的 PC 包
-3. 启动时**不能有任何弹窗**卡住其中一个 copy（见第 4 节）
+3. launcher 的 Unity 版本警告（2019.4.41f2）：先点"仍要打开"，再 Launch；原因和长期办法见第 4 节
 4. 跑一遍，把每个 copy 的 `ClusterProbe` 日志拷出来，用 **Tools > Vizlab > Compare Cluster Probe Logs** 看哪一项先对不上（见第 5 节）
 5. 报告里写着 "Unity's Time differs between copies while getReal3D's agrees" → 在 launcher 里给游戏加启动参数 `-cluster-clock`，不用重新出包
 
@@ -12,7 +14,16 @@
 
 ## 1. 墙上到底在跑什么
 
-Vizlab 的墙不是"一个游戏开一个大窗口"。getReal3D launcher 按配置文件（`.gr3d`）给**每个窗口启动一个游戏 copy**：我们现场看到的是 3 个 instance。每个 copy 只画墙的一部分，getReal3D 负责：
+Vizlab 的墙不是"一个游戏开一个大窗口"。一台机器、4 块 Quadro 显卡，getReal3D launcher 按配置文件（`.gr3d`）启动 **4 个游戏 copy**，每个画墙的一部分：
+
+| copy | 画哪几行 | 窗口大小（按每行 5 × 1920 算） |
+|---|---|---|
+| 1 | 第 1 行 | 9600 × 1080 |
+| 2 | 第 2–3 行 | 9600 × 2160 |
+| 3 | 第 4–5 行 | 9600 × 2160 |
+| 4 | 第 6–7 行 | 9600 × 2160 |
+
+getReal3D 负责：
 
 | getReal3D 自动同步的 | 不会自动同步的（要我们自己保证） |
 |---|---|
@@ -21,7 +32,8 @@ Vizlab 的墙不是"一个游戏开一个大窗口"。getReal3D launcher 按配�
 | 每帧一起换帧（swap lock） | 异步的东西：`LoadSceneAsync`、视频、线程，完成的帧数每个 copy 不一样 |
 | `Cluster.time / deltaTime`（master 的时钟） | `Time.time / deltaTime`：**是否共享未确认**，看 probe |
 | | 每个 copy 自己的相机投影：`Camera.main`、`WorldToScreenPoint` 的结果每个 copy 都不同 |
-| | 写文件：3 个 copy 在同一台机器、同一个桌面、同一个 persistentDataPath |
+| | 写文件：4 个 copy 在同一台机器、同一个桌面、同一个 persistentDataPath |
+| | 按窗口算的东西：窗口高度、窗口中心（暗角、镜头畸变）每个 copy 不同 |
 
 **一句话：只要有一个 copy 和别的 copy 算出了不一样的东西，墙就会在接缝处裂开。** 而这种错误从单机上永远看不出来。
 
@@ -88,9 +100,11 @@ PC 场景（`Tutorial.unity`、`Gameplay_Scene_Ana.unity` 等）里没有 `GetRe
 | `VizlabWallTest_NEW` | **不再改分辨率**，只记日志。之前它在每个 copy 里把整面墙的 1.27:1 塞进那个 copy 的窗口 → 画面挤在中间、两边黑边 |
 | 教程 → 旅程 | 不用 `LoadSceneAsync`，在黑屏下同步 `LoadScene`；等待和淡入淡出按 master 的帧时间计，所有 copy 在同一帧切场景 |
 | `Vizlab_tut` 的 hand-off 目标 | `Vizlab_Journey`（之前错指到 PC 的 `Gameplay_Scene_Ana`） |
-| 调试 CSV（`BuildDebugOverlay`、`SessionInputMetricsLogger`） | 文件名带 `_master_<pid>` / `_node_<pid>`，3 个 copy 不再写同一个文件 |
+| 调试 CSV（`BuildDebugOverlay`、`SessionInputMetricsLogger`） | 文件名带 `_master_<pid>` / `_node_<pid>`，4 个 copy 不再写同一个文件 |
 | 粒子的 Auto Random Seed（Vizlab 两个场景里共 75 个） | `ClusterParticleSeeds_NEW`：场景加载时按层级路径给固定种子，每个 copy 一样（星系、尘埃在各屏排布一致） |
 | 调试跳转（数字键跳层、教程跳 phase、跳 beat） | 墙上关掉：只有 master 收得到键盘，跳了就永远对不上 |
+| 暗角、色差、镜头畸变（主 profile 的 Vignette，dive 时的三种） | `ClusterScreenEffects_NEW` 墙上关掉：每个 copy 都按自己窗口的中心画，会在第 1/2、3/4、5/6 行交界处出现暗带，dive 的"漏斗"重复 4 次。Bloom、运动模糊、调色不受影响 |
+| 世界按屏幕上的像素大小淡入（`WorldSwitcher_NEW`） | 墙上按固定 1080 px 算：第 1 行的 copy 高 1080、其他 2160，否则各 copy 在不同帧淡入 |
 
 ### 还没处理、取决于 probe 结果的风险
 
@@ -108,31 +122,29 @@ PC 场景（`Tutorial.unity`、`Gameplay_Scene_Ana.unity` 等）里没有 `GetRe
 
 | 风险 | 在哪 | 影响 | 状态 |
 |---|---|---|---|
-| dive 时镜头畸变/暗角的中心按视口算 | `LayerDive_NEW` 设 LensDistortion / Vignette 的 center | 每个窗口各自以自己的中心畸变，"漏斗"在每块屏重复一次，而不是整面墙一个 | 未改；墙上可考虑关掉这两个效果 |
-| 世界缩放淡出按像素高度 | `WorldSwitcher_NEW`（`pixelHeight`） | 只有各 copy 窗口高度一样时才一致 | 未改；看 Vizlab 配置 |
 | 配音结束才推进流程 | `TutorialVoiceOver_NEW`、`JourneyVoiceOver_NEW` → `DarkMatterMoment_NEW` | 推进取决于每个 copy 自己的音频时钟；不出声的 copy 上 `AudioSource` 是否照常走未确认 | 第二层测试里看 probe 的 layer 列 |
 | 地球视频 | `EarthCutscene_NEW`；`EarthVideoCanvas` 横跨好几行 | 每个 copy 各自解码，帧可能错开，接缝处看得出 | 未改 |
 | 开发 build 里的调试键 | `JourneySequence_NEW`、`DarkMatterMoment_NEW`、`BakedSpectrumSource_NEW` 等 | 只在 DEVELOPMENT_BUILD 里有；墙的 build 是 release，不含 | 墙上不出开发 build |
 
 ## 4. 启动弹窗和"挤到中间、接不上"
 
-getReal3D 启动一个 copy 后，会等配置里的 `injectionDelay`（样例配置是 1000 ms）再接管那个窗口：摆位置、定大小、接入 cluster。**如果某个 copy 那时被弹窗卡住**，它的窗口要么还不存在、要么还不是最终的那个，接管就会落空或落错；同时它比别的 copy 晚很多才进入第一帧。结果正是：
+**"挤到中间"的主因不是弹窗，是我们自己的 `VizlabWallTest_NEW`**（已修）：它在每个 copy 里把整面墙 1.27:1 的比例塞进那个 copy 的窗口。copy 的窗口是 9600 × 1080 或 9600 × 2160，于是每个 copy 只在中间画一块约 2743 px 宽的画面，两边黑。
 
-- 窗口大小/位置不对 → 画面挤在中间、比例不对
-- 这个 copy 晚于其他 copy 开始 → 各屏的内容对不上
+**弹窗**是 getReal3D launcher 的 Unity 版本检查：项目用的是 2019.4.41**f2**，不在它的支持列表里。Chris（8/25 会议）和 LARC 会议都确认过：f2 会报这个警告，点掉照样能跑。按 8/25 会议记录，f2 是带安全更新的版本，f1 是 getReal3D 认的那一版。
 
-我们自己的游戏在启动时**没有**任何会等待用户点击的弹窗（Unity 2019.4 已经没有分辨率对话框了）。所以弹窗多半来自游戏外面，按出现的概率：
+它有没有造成"接不上"取决于弹窗在什么时候出现：
 
-| 弹窗 | 特征 | 处理 |
-|---|---|---|
-| **Windows 防火墙**（"Windows Defender Firewall has blocked some features of this app"） | 游戏第一次开网络端口时出现；getReal3D 每次部署到新路径（launcher 的 CACHE 目录）都可能再出现 | 在 Vizlab 机器上给游戏 exe（或整个 CACHE 目录）加一条入站规则；或点一次"允许"后不要换部署路径 |
-| **Windows SmartScreen**（"Windows protected your PC"） | 从网上/U 盘拷来的 exe 带"来自网络"标记 | 右键 exe → 属性 → 解除锁定（Unblock），或打包前在本机解压 |
-| getReal3D / license 相关 | 标题里有 getReal3D / FlexLM | 交给实验室管理员 |
-| Unity splash | 不是弹窗，但每个 copy 多花几秒；Personal 版关不掉 | 墙的 build 在许可允许时会关掉它 |
+| 如果 | 那么 |
+|---|---|
+| launcher 只在启动前弹一次，点掉后 4 个 copy 一起起 | 弹窗本身不造成 copy 之间的延迟 |
+| 每个 copy 各弹一次，要一个个点 | copy 依次启动，相差好几秒。getReal3D 在启动后 `injectionDelay`（样例 1000 ms）接管窗口、接入 cluster，晚的那个可能错过 |
 
-**要确认是哪一个：截图那个弹窗。** 另外 probe 的报告第一段（STARTUP）会直接给出每个 copy 进程启动差了几秒、各自用了多久才到第一帧：被弹窗卡住的那个一眼就能看出来。
+probe 报告的 STARTUP 一段直接给出 4 个 copy 进程启动相差几秒：一看就知道是哪种。
 
-如果确实没法消掉弹窗，可以在 Vizlab 的 `.gr3d` 里把 `<injectionDelay>` 调大（单位毫秒），给窗口出现留时间 —— 但这是绕开，不是解决。
+办法，从稳到快：
+1. **用 Unity 2019.4.41f1 出墙的包**（只换出包用的编辑器版本，项目不用改）→ launcher 不再弹。代价是没有 f2 的安全修补；Vizlab 那台机器不对外，风险可接受，但要和实验室说一声
+2. 问实验室 launcher 能不能对这个游戏关掉版本检查
+3. 继续点"仍要打开"：确认只弹一次、且点完才一起启动；如果是一个个弹，在 `.gr3d` 里把 `<injectionDelay>` 调大（毫秒）
 
 ## 4.5 画面全在墙的最底下
 
@@ -176,7 +188,7 @@ getReal3D 按"观众眼睛在哪"给每块屏算投影，眼睛的位置来自�
 1. 从 Vizlab 那台机器上拷出 launcher 用的 `.gr3d` 配置（建议也放一份进仓库，大家用同一份）
 2. **Tools > Vizlab > Make Local Test Copy of a getReal3D Config**，选这个文件 → 生成 `xxx_local.gr3d`：所有电脑改成 localhost，窗口按同一个比例缩小摆在一个显示器上，去掉全屏；屏幕、投影、输入都和墙上一模一样
 3. **Tools > Vizlab > Build for the Wall (getReal3D)** 出包
-4. 在 launcher 里用 `xxx_local.gr3d` 启动这个包 → 本机会起 3 个 copy，就是墙上的那 3 个，只是窗口小
+4. 在 launcher 里用 `xxx_local.gr3d` 启动这个包 → 本机会起 4 个 copy，就是墙上的那 4 个，只是窗口小
 
 这一层能复现墙上的启动过程（包括弹窗造成的延迟）、窗口摆放、接缝和同步。getReal3D 自带的 `cave_config.gr3d`（"CAVE simulator"：一台 localhost、4 个窗口）就是同一个思路。
 
@@ -192,10 +204,10 @@ getReal3D 按"观众眼睛在哪"给每块屏算投影，眼睛的位置来自�
 ## 6. 现场检查表
 
 - [ ] 用 Build for the Wall 出包，检查没有报错（它会拦住没跑过 Adapt 菜单的场景）
-- [ ] 启动时 3 个 copy 都没有弹窗
+- [ ] launcher 的版本警告只出现一次，点完后 4 个 copy 一起启动（probe STARTUP 相差 < 1 s）
 - [ ] 每个 copy 的 Player.log / probe 里有 `launched by getReal3D` 和 `the window is left as getReal3D placed it`
 - [ ] 光点在墙的中部（第 5 行附近），不在最底下；Player.log 里没有 "eyes … above the floor" 的警告
-- [ ] 画面横跨所有屏，接缝处连续，没有黑边
+- [ ] 画面横跨所有屏，接缝处连续，没有黑边，第 1/2、3/4、5/6 行交界没有暗带
 - [ ] Compare Cluster Probe Logs：STARTUP 各 copy 相差 < 1 s，FRAME BY FRAME 全部 agrees
 - [ ] 如果 Time 那一项对不上 → 加 `-cluster-clock` 再测
 - [ ] 画面不动（卡住）→ CinemachineBrain 在 Main Camera 被关掉后没有继续更新它，告诉开发
@@ -207,7 +219,8 @@ getReal3D 按"观众眼睛在哪"给每块屏算投影，眼睛的位置来自�
 |---|---|
 | getReal3D 是否同步 Unity 的 `Time` | probe 报告 |
 | Vizlab 配置里 Head 是不是在地板上 | Pin the Viewer's Head 菜单的 Console 输出（不保存也会列出） |
-| Vizlab 的 3 个 copy 各画哪几行 | Vizlab 的 `.gr3d` |
+| 4 个 copy 的窗口实际像素大小 | Vizlab 的 `.gr3d`，或 probe 的 WINDOWS 一段 |
+| launcher 的版本警告是弹一次还是每个 copy 一次 | 现场看；probe STARTUP |
 | `getReal3D_Settings` 的 `autoInitVR` 在 PC build 里做了什么 | 在**没装 getReal3D 的电脑**上跑一次 PC build，看有没有报错或弹窗 |
-| 同一台机器上 3 个 copy 抢同一个 Player.log | launcher 是否给每个 copy 传了 `-logFile`；probe 文件本身是分开的 |
+| 同一台机器上 4 个 copy 抢同一个 Player.log | launcher 是否给每个 copy 传了 `-logFile`；probe 文件本身是分开的 |
 | 视频（`EarthVideoCanvas`）在各 copy 上是否同帧 | 第二层测试里看接缝 |

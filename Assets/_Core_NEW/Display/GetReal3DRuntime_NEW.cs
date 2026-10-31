@@ -21,7 +21,7 @@ using UnityEngine;
 /// LaunchedByGetReal3D is the launcher's GETREAL_CONFIG environment variable, the same
 /// test getReal3D's own VRToolkitChoice uses. Not getReal3D.Cluster.isOn, which is a bare
 /// `return true` in getReal3D.dll 4.1.0.4003, and not Plugin.getNodeCount(), which counts
-/// machines: the Vizlab's three copies share one machine and it says 1.
+/// machines: the Vizlab's four copies share one machine (one per GPU) and it says 1.
 /// </summary>
 public static class GetReal3DRuntime_NEW
 {
@@ -45,7 +45,7 @@ public static class GetReal3DRuntime_NEW
 
     /// <summary>
     /// Empty at a desk. On the wall, "_master_1234" or "_node_5678" (the process id), to put
-    /// in the name of any file this copy writes: the three copies share one machine, one
+    /// in the name of any file this copy writes: the four copies share one machine, one
     /// Desktop and one persistentDataPath, and a shared file name means they write over one
     /// another, or wait on one another's locks.
     /// </summary>

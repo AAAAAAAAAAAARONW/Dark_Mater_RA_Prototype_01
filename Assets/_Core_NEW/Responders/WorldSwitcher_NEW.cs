@@ -566,6 +566,9 @@ public class WorldSwitcher_NEW : LayerResponder_NEW
         s.on = on;
     }
 
+    /// <summary>Screen height, px, that SizeFade measures against on the wall. See SizeFade.</summary>
+    const float WallReferenceHeight = 1080f;
+
     /// <summary>
     /// 0 to 1 by how big <paramref name="r"/> is on <paramref name="camera"/>'s screen, in
     /// pixels across: 0 below pixels.x, 1 from pixels.y.
@@ -577,7 +580,11 @@ public class WorldSwitcher_NEW : LayerResponder_NEW
         float distance = Vector3.Distance(camera.transform.position, b.center);
         if (distance <= radius) return 1f;
 
-        float across = radius / (distance * Mathf.Tan(camera.fieldOfView * 0.5f * Mathf.Deg2Rad)) * camera.pixelHeight;
+        // On the wall each copy's window is a different height (row 1 is 1080 px, the
+        // two-row windows 2160), so the copies would fade a world in on different frames.
+        // There, measure against the 1080 the thresholds were set on at a desk.
+        float height = GetReal3DRuntime_NEW.LaunchedByGetReal3D ? WallReferenceHeight : camera.pixelHeight;
+        float across = radius / (distance * Mathf.Tan(camera.fieldOfView * 0.5f * Mathf.Deg2Rad)) * height;
         float t = Mathf.Clamp01((across - pixels.x) / Mathf.Max(1e-3f, pixels.y - pixels.x));
         return t * t * (3f - 2f * t);
     }

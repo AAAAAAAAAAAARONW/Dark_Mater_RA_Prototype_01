@@ -10,7 +10,7 @@ using UnityEngine.SceneManagement;
 /// happening - so the copies can be laid side by side afterwards and checked for agreeing.
 /// Tools > Journey NEW > Vizlab > Compare Cluster Probe Logs does the laying side by side.
 ///
-/// WHY. On the wall the piece is three copies kept in step by getReal3D, and when they fall
+/// WHY. On the wall the piece is four copies (row 1, rows 2-3, 4-5, 6-7) kept in step by getReal3D, and when they fall
 /// out of step the symptom is only a picture that does not meet at the seams. Whether that
 /// is a late start, clocks that differ, a load that landed on different frames or a stick
 /// read on one copy only cannot be told from looking. Each of those leaves a different
