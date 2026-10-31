@@ -26,8 +26,12 @@ using UnityEngine;
 /// the scene is back on the desktop camera, unchanged.
 ///
 /// THE EYE IS ZEROED ON THE RIG. getReal3D places its camera at the viewer's position in
-/// the room, measured from the floor - on the Vizlab about 1.24 m up and level with the
-/// centre of the wall's curve. Left alone, the eye would sit that far above the rig and
+/// the room, measured from the floor - its Head sensor. That is only where a viewer is if
+/// the config says so: untracked and not pinned, the head reads its default, the floor, and
+/// straight ahead lands below the wall's lowest row (everything shows at the bottom). The
+/// config should pin it at the curve's centre, about 1.24 m up; Tools > Vizlab > Pin the
+/// Viewer's Head in a getReal3D Config does that, and this object warns at startup when the
+/// eyes are on the floor. Left alone, the eye would sit that far above the rig and
 /// the follow view would be framed from the wrong place. So on the first frames the
 /// updater has placed the eye, this object moves the other way by the same amount, and the
 /// viewer's nominal position lands exactly where the rig puts the eye. Done once, not every
@@ -73,6 +77,9 @@ public class GetReal3DView_NEW : MonoBehaviour
     public Vector3 ZeroedOffset { get; private set; }
 
     static GetReal3DView_NEW _live;
+
+    /// <summary>Eyes lower than this, metres, are getReal3D's floor default, not a viewer.</summary>
+    const float MinEyeHeight = 0.5f;
 
     /// <summary>
     /// The camera to ask "is this on screen" through: the rig's own camera while a wall
@@ -132,6 +139,18 @@ public class GetReal3DView_NEW : MonoBehaviour
         ZeroedOffset = _eye.localPosition;
         transform.localPosition = -(transform.localRotation * ZeroedOffset);
         _zeroed = true;
+
+        // getReal3D draws every screen from this point. If it is on the floor, straight ahead
+        // - where the rig keeps the light - meets the wall below its lowest row, and the whole
+        // piece sits at the very bottom. It is set in the getReal3D config, not here.
+        if (GetReal3DRuntime_NEW.LaunchedByGetReal3D && ZeroedOffset.y < MinEyeHeight)
+            Debug.LogWarning("[GetReal3DView_NEW] getReal3D puts the viewer's eyes " + ZeroedOffset.y.ToString("0.00") +
+                             " m above the floor: its Head sensor is at its default, on the floor (no head tracking, no static " +
+                             "head in the config). Everything straight ahead will show at the bottom of the wall. Fix the config " +
+                             "with Tools > Vizlab > Pin the Viewer's Head in a getReal3D Config.", this);
+        else
+            Debug.Log("[GetReal3DView_NEW] viewer's eyes at (" + ZeroedOffset.x.ToString("0.00") + ", " +
+                      ZeroedOffset.y.ToString("0.00") + ", " + ZeroedOffset.z.ToString("0.00") + ") in the room.", this);
     }
 
     /// <summary>

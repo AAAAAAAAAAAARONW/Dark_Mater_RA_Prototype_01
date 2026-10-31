@@ -2,10 +2,11 @@
 
 **先看这一段。** 墙上出问题（画面挤在中间、几块屏接不上、操作没反应）：
 
-1. 先确认用的是 **Tools > Vizlab > Build for the Wall (getReal3D)** 出的包，不是 Build Settings 出的 PC 包
-2. 启动时**不能有任何弹窗**卡住其中一个 copy（见第 4 节）
-3. 跑一遍，把每个 copy 的 `ClusterProbe` 日志拷出来，用 **Tools > Vizlab > Compare Cluster Probe Logs** 看哪一项先对不上（见第 5 节）
-4. 报告里写着 "Unity's Time differs between copies while getReal3D's agrees" → 在 launcher 里给游戏加启动参数 `-cluster-clock`，不用重新出包
+1. **画面全在墙的最底下** → getReal3D 以为观众的眼睛在地板上（第 4.5 节）。用 **Tools > Vizlab > Pin the Viewer's Head in a getReal3D Config** 改 Vizlab 的 `.gr3d`
+2. 先确认用的是 **Tools > Vizlab > Build for the Wall (getReal3D)** 出的包，不是 Build Settings 出的 PC 包
+3. 启动时**不能有任何弹窗**卡住其中一个 copy（见第 4 节）
+4. 跑一遍，把每个 copy 的 `ClusterProbe` 日志拷出来，用 **Tools > Vizlab > Compare Cluster Probe Logs** 看哪一项先对不上（见第 5 节）
+5. 报告里写着 "Unity's Time differs between copies while getReal3D's agrees" → 在 launcher 里给游戏加启动参数 `-cluster-clock`，不用重新出包
 
 ---
 
@@ -133,6 +134,31 @@ getReal3D 启动一个 copy 后，会等配置里的 `injectionDelay`（样例�
 
 如果确实没法消掉弹窗，可以在 Vizlab 的 `.gr3d` 里把 `<injectionDelay>` 调大（单位毫秒），给窗口出现留时间 —— 但这是绕开，不是解决。
 
+## 4.5 画面全在墙的最底下
+
+getReal3D 按"观众眼睛在哪"给每块屏算投影，眼睛的位置来自配置里的 **Head sensor**。没有头部追踪在跑、配置里也没把头固定住时，它读默认值：**地板，(0, 0, 0)**。getReal3D 自带的三个样例配置全都是这样，它的文档也写着 sensor 默认在地板上。
+
+我们的相机永远把光点和跟随的东西放在画面正中，也就是"眼睛的正前方"。按 Vizlab 的几何（`VizlabDisplay_NEW`）：
+
+| 眼睛的高度 | 正前方落在 |
+|---|---|
+| 地板 0 m | 第 7 行**下沿以下** → 所有东西挤在最底下 |
+| 曲面圆心 1.24 m（设计点） | 第 5 行下部 |
+| 站立 1.6 m | 第 5 行中间 |
+
+单机上看不出来：编辑器的样例屏幕中心就在高度 0，正好和"地板上的眼睛"平齐。
+
+**改法在配置里，不在游戏里**（getReal3D 没有从脚本移动头部的接口）：**Tools > Vizlab > Pin the Viewer's Head in a getReal3D Config**，选 Vizlab 的 `.gr3d`：
+
+1. 它先在 Console 里列出配置里的每块屏、现在的头在哪、正前方落在哪块屏的百分之几高度 —— **不写任何东西就能确认是不是这个原因**
+2. 选"曲面圆心 1.24 m"或"站立 1.6 m"，另存一份把 Head 固定（static）在那里的配置
+3. launcher 改用这份配置
+
+注意：
+- 前提是配置的坐标和 `VizlabDisplay_NEW` 一样（毫米、原点在地面、墙在 -Z 方向）。Console 里列出的屏幕中心应该接近 `VizlabDisplay_NEW.Rows`，对不上就先别用
+- 如果 Vizlab 真的有观众戴的头部追踪，就不是改配置，而是让追踪跑起来 —— 问实验室
+- 游戏启动时如果眼睛低于 0.5 m，Player.log 里会有 `[GetReal3DView_NEW] getReal3D puts the viewer's eyes … above the floor` 的警告
+
 ## 5. 测试环境：不上墙怎么测
 
 三层，从便宜到真实：
@@ -168,6 +194,7 @@ getReal3D 启动一个 copy 后，会等配置里的 `injectionDelay`（样例�
 - [ ] 用 Build for the Wall 出包，检查没有报错（它会拦住没跑过 Adapt 菜单的场景）
 - [ ] 启动时 3 个 copy 都没有弹窗
 - [ ] 每个 copy 的 Player.log / probe 里有 `launched by getReal3D` 和 `the window is left as getReal3D placed it`
+- [ ] 光点在墙的中部（第 5 行附近），不在最底下；Player.log 里没有 "eyes … above the floor" 的警告
 - [ ] 画面横跨所有屏，接缝处连续，没有黑边
 - [ ] Compare Cluster Probe Logs：STARTUP 各 copy 相差 < 1 s，FRAME BY FRAME 全部 agrees
 - [ ] 如果 Time 那一项对不上 → 加 `-cluster-clock` 再测
@@ -179,6 +206,7 @@ getReal3D 启动一个 copy 后，会等配置里的 `injectionDelay`（样例�
 | 问题 | 怎么确认 |
 |---|---|
 | getReal3D 是否同步 Unity 的 `Time` | probe 报告 |
+| Vizlab 配置里 Head 是不是在地板上 | Pin the Viewer's Head 菜单的 Console 输出（不保存也会列出） |
 | Vizlab 的 3 个 copy 各画哪几行 | Vizlab 的 `.gr3d` |
 | `getReal3D_Settings` 的 `autoInitVR` 在 PC build 里做了什么 | 在**没装 getReal3D 的电脑**上跑一次 PC build，看有没有报错或弹窗 |
 | 同一台机器上 3 个 copy 抢同一个 Player.log | launcher 是否给每个 copy 传了 `-logFile`；probe 文件本身是分开的 |
