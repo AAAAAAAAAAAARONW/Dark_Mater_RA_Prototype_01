@@ -31284,7 +31284,7 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Materials.Array.data[0]
       value: 
-      objectReference: {fileID: 2100000, guid: d41279de5abe4dbab319a5ca02f0bbb0, type: 2}
+      objectReference: {fileID: 2100000, guid: e397ef3ef2c24dce87d447484e46435b, type: 2}
     - target: {fileID: 919132149155446097, guid: eaea0de9cdba8d540ba6a320a70e0539,
         type: 3}
       propertyPath: m_Name
@@ -31298,7 +31298,7 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: eaea0de9cdba8d540ba6a320a70e0539,
         type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: eaea0de9cdba8d540ba6a320a70e0539, type: 3}
@@ -87285,7 +87285,7 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Materials.Array.data[0]
       value: 
-      objectReference: {fileID: 2100000, guid: d41279de5abe4dbab319a5ca02f0bbb0, type: 2}
+      objectReference: {fileID: 2100000, guid: e397ef3ef2c24dce87d447484e46435b, type: 2}
     - target: {fileID: 919132149155446097, guid: eaea0de9cdba8d540ba6a320a70e0539,
         type: 3}
       propertyPath: m_Name
@@ -87299,7 +87299,7 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: eaea0de9cdba8d540ba6a320a70e0539,
         type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: eaea0de9cdba8d540ba6a320a70e0539, type: 3}
@@ -101943,11 +101943,6 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: BIG
-      objectReference: {fileID: 0}
-    - target: {fileID: 919132149155446097, guid: 07b6c22df67c2df4b9f293f40ec0b5dc,
-        type: 3}
-      propertyPath: m_IsActive
-      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 07b6c22df67c2df4b9f293f40ec0b5dc,
         type: 3}
@@ -123717,11 +123712,6 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: BIG
-      objectReference: {fileID: 0}
-    - target: {fileID: 919132149155446097, guid: 07b6c22df67c2df4b9f293f40ec0b5dc,
-        type: 3}
-      propertyPath: m_IsActive
-      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 07b6c22df67c2df4b9f293f40ec0b5dc,
         type: 3}
