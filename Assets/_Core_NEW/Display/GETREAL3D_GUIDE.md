@@ -88,8 +88,30 @@ PC 场景（`Tutorial.unity`、`Gameplay_Scene_Ana.unity` 等）里没有 `GetRe
 | 教程 → 旅程 | 不用 `LoadSceneAsync`，在黑屏下同步 `LoadScene`；等待和淡入淡出按 master 的帧时间计，所有 copy 在同一帧切场景 |
 | `Vizlab_tut` 的 hand-off 目标 | `Vizlab_Journey`（之前错指到 PC 的 `Gameplay_Scene_Ana`） |
 | 调试 CSV（`BuildDebugOverlay`、`SessionInputMetricsLogger`） | 文件名带 `_master_<pid>` / `_node_<pid>`，3 个 copy 不再写同一个文件 |
+| 粒子的 Auto Random Seed（Vizlab 两个场景里共 75 个） | `ClusterParticleSeeds_NEW`：场景加载时按层级路径给固定种子，每个 copy 一样（星系、尘埃在各屏排布一致） |
+| 调试跳转（数字键跳层、教程跳 phase、跳 beat） | 墙上关掉：只有 master 收得到键盘，跳了就永远对不上 |
 
-<!-- HAZARDS -->
+### 还没处理、取决于 probe 结果的风险
+
+2026-10 对两个 Vizlab 场景用到的全部脚本扫了一遍"各 copy 会算出不同结果"的地方。最大的一类是**时钟**：几乎所有东西都按 Unity 的 `Time` 走 —— 光点飞行（`PlayerRig_NEW`、`LayerPace_NEW`）、相机（`FirstPersonLookRig_NEW`、`CameraDirector_NEW`、两个 Zoom）、教程整个世界时钟（`TutorialClock_NEW`，用的是 unscaled time 的绝对值）、相机抖动和漂浮的相位（`TutorialCameraShake_NEW`、`GuideMote_NEW`）、约 20 个 shader 的 `_Time`。
+
+**getReal3D 是否让每个 copy 的 `Time` 一致，现在没法从代码上确定**（插件 DLL 只读 `Time`，但它的配置里有"interceptors"，可能在底层接管了计时）。所以分两种情况：
+
+| probe 报告 | 意味着 | 做法 |
+|---|---|---|
+| `Time.time` agrees | getReal3D 共享了时钟，上面这一大类都没问题 | 不用动 |
+| `Time.time` 对不上，`Cluster.time` agrees | 每个 copy 自己计时 | ① 加 `-cluster-clock`（每帧按 master 的帧时间走，解决"越走越偏"）；② 若还剩一个固定的差（启动差了几秒造成的），说明需要"cluster 组好后所有 copy 同一帧重载第一个场景"，告诉开发 |
+| 连 `Cluster.time` 都对不上 | 根本没组成一个 cluster | 先解决启动（第 4 节） |
+
+其他扫出来、和时钟无关的：
+
+| 风险 | 在哪 | 影响 | 状态 |
+|---|---|---|---|
+| dive 时镜头畸变/暗角的中心按视口算 | `LayerDive_NEW` 设 LensDistortion / Vignette 的 center | 每个窗口各自以自己的中心畸变，"漏斗"在每块屏重复一次，而不是整面墙一个 | 未改；墙上可考虑关掉这两个效果 |
+| 世界缩放淡出按像素高度 | `WorldSwitcher_NEW`（`pixelHeight`） | 只有各 copy 窗口高度一样时才一致 | 未改；看 Vizlab 配置 |
+| 配音结束才推进流程 | `TutorialVoiceOver_NEW`、`JourneyVoiceOver_NEW` → `DarkMatterMoment_NEW` | 推进取决于每个 copy 自己的音频时钟；不出声的 copy 上 `AudioSource` 是否照常走未确认 | 第二层测试里看 probe 的 layer 列 |
+| 地球视频 | `EarthCutscene_NEW`；`EarthVideoCanvas` 横跨好几行 | 每个 copy 各自解码，帧可能错开，接缝处看得出 | 未改 |
+| 开发 build 里的调试键 | `JourneySequence_NEW`、`DarkMatterMoment_NEW`、`BakedSpectrumSource_NEW` 等 | 只在 DEVELOPMENT_BUILD 里有；墙的 build 是 release，不含 | 墙上不出开发 build |
 
 ## 4. 启动弹窗和"挤到中间、接不上"
 

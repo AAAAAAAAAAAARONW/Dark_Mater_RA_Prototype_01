@@ -292,7 +292,8 @@ public class TutorialDirector_NEW : MonoBehaviour
 
         // Also outside the Running check, so a phase can be reached from the title card
         // without pressing A first — which is the whole point when iterating on Phase 3.
-        if (DebugView_NEW.Overlay) TickPhaseJumps();
+        // Not on the wall: only the master sees the keys, and a jump there alone splits the copies.
+        if (DebugView_NEW.Overlay && !InputScheme_NEW.MasterOnlyDevicesUnsafe) TickPhaseJumps();
 
         if (_state != State.Running) return;
 
@@ -305,7 +306,7 @@ public class TutorialDirector_NEW : MonoBehaviour
         // read input: pressing A while paused would fire C2's emission behind the pause.
         if (TutorialClock_NEW.Paused) return;
 
-        if (DebugView_NEW.Overlay && Input.GetKeyDown(skipBeatKey))
+        if (DebugView_NEW.Overlay && !InputScheme_NEW.MasterOnlyDevicesUnsafe && Input.GetKeyDown(skipBeatKey))
         {
             TutorialBeat_NEW skipped = CurrentBeat;
             if (skipped != null)
