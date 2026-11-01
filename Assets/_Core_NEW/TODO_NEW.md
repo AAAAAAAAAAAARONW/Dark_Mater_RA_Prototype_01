@@ -4,6 +4,56 @@
 
 ---
 
+## 🔵 Journey 精修计划（11 月 1 日定）
+
+**范围：只改 `Vizlab_Journey.unity`，`Gameplay_Scene_Ana` 不再同步。** 所有改动都要能在墙上（getReal3D）跑，也能在一台电脑上测。一步做完、在 Unity 里确认了，再做下一步。
+
+| # | 步骤 | 做完的样子 | 状态 |
+|---|---|---|---|
+| 0 | **桌面测试环境** | 在编辑器里 Play `Vizlab_Journey`：Game 窗口自动切到墙的比例（`Vizlab Surface 1:5`，1920 × 1512，1.27:1）；键盘鼠标能操作。7 行弧面投影的预览（Wall 7）试过两次没成，11 月 1 日决定先不做，已删掉 | 🟡 等你在 Unity 里确认比例 |
+| 1 | **Quasar 往后挪** | 光的出生点和第一道门不动（第一层的长度、J0/J1 的时间不变），只把 quasar 往后挪（现在离出生点约 31，气体伸到约 52，光是从气体里出发的）。跟着调出 quasar 的 dive 焦点、J1 回头看到的构图。在 1.27:1 的 Game 窗口里定距离（墙的视野更宽，上墙前要再看一次） | 🟡 挪好了，等你看（见下） |
+| 2 | **从地球的夜面进** | `SolarSystemPath_NEW` 改成太阳在地球前方更远处：光先到地球，看到的是背光的地球（黑色圆盘、一圈亮的大气、夜面城市灯光）。地球转到终点（Pasadena）正好在夜面中央 | ⬜ |
+| 3 | **大气层换掉** | 去掉 `EarthClouds_NEW`（全屏 raymarch，墙上 4 个 copy 太贵，夜里的白雾也不真实）。换成球面上的解析大气（一个 pass）+ 球面上的云贴图（夜里是挡住城市灯光的暗影）；往下降时天空保持黑色，星星和银河逐渐清楚 | ⬜ |
+| 4 | **终点改成实时场景，去掉 Google Earth 录屏** | 夜光贴图从整个地球交叉淡化到洛杉矶盆地的高分辨率贴图 → 落到 Pasadena 上方山上的天文台：山脊剪影、银河、开着缝的圆顶 → 光进入望远镜，屏幕上出现一路收集的光谱条形码；J9、Closing 在这里说完。`EarthCutscene_NEW` 和视频关掉 | ⬜ |
+| 5 | **VO 对时间** | 拿到 Notion 上最新的 v7，按 ID 重新生成、导入。用 Flight Path 录一遍完整旅程，每句台词标出能不能在下一道门前说完；装不下的，优先让那一层停留更久，而不是改台词 | ⬜ |
+| 6 | **墙上的声音和同步** | 4 个 copy 只让 master 出声；台词推进按 clip 长度和 master 的时钟计算，不读各 copy 自己的 `AudioSource`。用 local cluster + probe 测一遍完整旅程 | ⬜ |
+
+**实时终点场景的成本预算**（第 4 步）：不比现在的 cosmic web 贵。不开实时阴影，不用体积效果，不加后处理以外的全屏 pass。夜景大部分是黑的：山脊是低模剪影，圆顶几千个三角形，天空用现有的星空，城市灯光是贴图。在编辑器里看帧时间，超出预算就砍。
+
+**终点待确认：** "Pasadena 的 Carnegie 望远镜"指的是哪一个？
+- Pasadena 市区的 Carnegie Observatories 是总部，没有在用的大望远镜
+- 城北山上的 **Mount Wilson** 是 Carnegie 建的：Hubble 在那里的 100 英寸 Hooker 望远镜上测出了星系红移和宇宙膨胀，可以和红移那条线连起来，夜里俯瞰的就是洛杉矶的灯光
+- Carnegie 现在做研究用的望远镜（Magellan）在智利的 Las Campanas
+
+第 4 步开始前定下来。
+
+**第 5 步备忘：** Notion 上的 v7（https://app.notion.com/p/anastasiaye/VO_Script_v7-40be78236c6c8005afcfc16906312de8）和仓库里的 `VO_Script_v7.md` 只差两句：J3_DMoff_After 和 J3_DMon_Before 改成了 "invisible scaffolding of the cosmic web"。这两句要按 Notion 版重新生成。
+
+### 第 1 步：quasar 往后挪了，在 Unity 里看
+
+**改了什么**（只改了 `Vizlab_Journey.unity`，两个 Transform 的 Z）：`Quasar VFX` 和它外面那圈 `Host Galaxy`（quasar 所在的星系，同一个中心）一起从 z 68.8 挪到 **z 20**，往后约 49。X、Y、角度、大小都没动，所以回头看时它仍在画面右上方、光在左下方。
+
+| | 之前 | 现在 |
+|---|---|---|
+| 开场时光离 quasar 中心 | 约 31（还在 quasar 的气体里，气体伸到约 52） | 约 80（在气体外面） |
+| 过第一道门回头看时的距离 | 约 73 | 约 121，quasar 看起来约是原来的 6 成大 |
+
+不用改的：出 quasar 的 dive 往"这一层所有东西的中心"缩，会自动跟着 quasar 走；出生点、第一道门、J0/J1 的时间都没变。
+
+**看：**
+1. Unity 如果提示场景在外面被改了，点 **Reload**（如果你在 `Vizlab_Journey` 里有没保存的改动，先告诉我，别点）。
+2. Play `Vizlab_Journey`，看开场推镜头和 J1 时回头看到的 quasar：大小、位置合不合适。
+3. 还太近或太远：选中 `Quasar Layer` 下的 `Quasar VFX` **和** `Host Galaxy`（两个一起选，保持同一个中心），改 Position 的 Z。数字越小越远：z 0 回头看时约 141，z 40 约 101。定了告诉我数字，或者直接保存场景。
+4. 回头看时 quasar 跑出画面，或者出 quasar 的收缩看起来不对，截图发我。
+
+### 第 0 步：在 Unity 里确认
+
+1. 回到 Unity，等编译完，Console 里没有红色 error。（之前加的 **Tools > Vizlab > Desk Preview** 菜单和 `vizlab_desk.gr3d` 已经删了，getReal3D 用回原来的 `editor_config`。）
+2. 打开 `Vizlab_Journey`，Play。Game 窗口应该在 Play 开始前自动切到 `Vizlab Surface 1:5`；Wall Test 面板上 game view 那一行显示 1.270:1。
+3. 鼠标能看，W/S 缩放，Space、P、Y、Left Shift 有反应。
+
+---
+
 ## 🟡 LARC 10 月 26 日反馈：红移提前加速、光谱带标注、Earth 相机翻转
 
 **代码已改好，Unity 外编译通过。** 下面在 Unity 里做：

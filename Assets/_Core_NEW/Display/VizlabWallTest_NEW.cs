@@ -852,6 +852,38 @@ public class VizlabWallTest_NEW : MonoBehaviour
         else if (logChanges) Debug.Log(LogPrefix + line, this);
     }
 
+    /// <summary>
+    /// Puts the open Game View on 'Vizlab Surface 1:5', registering the size first if it is
+    /// missing. For VizlabWallGameView_NEW, which does it before Play in a wall scene.
+    /// Returns false with the reason rather than throwing.
+    /// </summary>
+    public static bool SelectWallGameView(out string error)
+    {
+        error = null;
+        try
+        {
+            EditorWindow gameView = FindGameView();
+            if (gameView == null) throw new InvalidOperationException("no Game View is open");
+
+            int target = FindSizeIndex(VizlabGameViewSize);
+            if (target < 0)
+            {
+                EditorApplication.ExecuteMenuItem(AddSizesMenu);
+                target = FindSizeIndex(VizlabGameViewSize);
+            }
+            if (target < 0) throw new InvalidOperationException("the '" + VizlabGameViewSize + "' size is not registered");
+
+            if (GetSelectedSize(gameView) != target) SelectSize(gameView, target);
+            return true;
+        }
+        catch (Exception e)
+        {
+            Exception inner = e is TargetInvocationException && e.InnerException != null ? e.InnerException : e;
+            error = inner.Message;
+            return false;
+        }
+    }
+
     static Type GameViewType
     {
         get { return typeof(Editor).Assembly.GetType("UnityEditor.GameView"); }
