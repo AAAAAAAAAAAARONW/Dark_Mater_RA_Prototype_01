@@ -14,20 +14,47 @@
 | 1 | **Quasar 往后挪** | 光的出生点和第一道门不动（第一层的长度、J0/J1 的时间不变），只把 quasar 往后挪（现在离出生点约 31，气体伸到约 52，光是从气体里出发的）。跟着调出 quasar 的 dive 焦点、J1 回头看到的构图。在 1.27:1 的 Game 窗口里定距离（墙的视野更宽，上墙前要再看一次） | ✅ 11 月 1 日你调好并提交了 |
 | 2 | **从地球的夜面进** | `SolarSystemPath_NEW` 改成太阳在地球前方更远处：光先到地球，看到的是背光的地球（黑色圆盘、一圈亮的大气、夜面城市灯光）。地球转到终点（Pasadena）正好在夜面中央 | 🟡 代码好了，等你跑菜单、看效果（见下） |
 | 3 | **大气层换掉** | 去掉 `EarthClouds_NEW`（全屏 raymarch，墙上 4 个 copy 太贵，夜里的白雾也不真实）。换成球面上的解析大气（一个 pass）+ 球面上的云贴图（夜里是挡住城市灯光的暗影）；往下降时天空保持黑色，星星和银河逐渐清楚 | 🟡 代码好了（11 月 3 日，云端写的，Unity 外只做了语法检查），等你和第 2 步一起看（见下）。星星和银河留到第 4 步 |
-| 4 | **终点改成实时场景，去掉 Google Earth 录屏** | 夜光贴图从整个地球交叉淡化到洛杉矶盆地的高分辨率贴图 → 落到 Pasadena 上方山上的天文台：山脊剪影、银河、开着缝的圆顶 → 光进入望远镜，屏幕上出现一路收集的光谱条形码；J9、Closing 在这里说完。`EarthCutscene_NEW` 和视频关掉 | ⬜ |
+| 4 | **终点改成实时场景，去掉 Google Earth 录屏** | 夜光贴图从整个地球交叉淡化到洛杉矶盆地的高分辨率贴图 → 落到 Pasadena 上方山上的天文台：山脊剪影、银河、开着缝的圆顶 → 光进入望远镜，屏幕上出现一路收集的光谱条形码；J9、Closing 在这里说完。`EarthCutscene_NEW` 和视频关掉 | 🟡 分四段做：4a 夜面、4b 落到洛杉矶代码好了（11 月 3 日），等你看（见下）；4c 山顶天文台、4d 进望远镜收尾 ⬜ |
 | 5 | **VO 对时间** | 拿到 Notion 上最新的 v7，按 ID 重新生成、导入。用 Flight Path 录一遍完整旅程，每句台词标出能不能在下一道门前说完；装不下的，优先让那一层停留更久，而不是改台词 | ⬜ |
 | 6 | **墙上的声音和同步** | 4 个 copy 只让 master 出声；台词推进按 clip 长度和 master 的时钟计算，不读各 copy 自己的 `AudioSource`。用 local cluster + probe 测一遍完整旅程 | ⬜ |
 
 **实时终点场景的成本预算**（第 4 步）：不比现在的 cosmic web 贵。不开实时阴影，不用体积效果，不加后处理以外的全屏 pass。夜景大部分是黑的：山脊是低模剪影，圆顶几千个三角形，天空用现有的星空，城市灯光是贴图。在编辑器里看帧时间，超出预算就砍。
 
-**终点待确认：** "Pasadena 的 Carnegie 望远镜"指的是哪一个？
+**终点（11 月 3 日定）：Mount Wilson 的 100 英寸 Hooker 望远镜。** 你说是"Carnegie 自己的望远镜"，具体哪台不确定，先按它做；LARC / Carnegie 那边说是别的再改（山和圆顶本来就是低模剪影）。当时的几个候选：
 - Pasadena 市区的 Carnegie Observatories 是总部，没有在用的大望远镜
 - 城北山上的 **Mount Wilson** 是 Carnegie 建的：Hubble 在那里的 100 英寸 Hooker 望远镜上测出了星系红移和宇宙膨胀，可以和红移那条线连起来，夜里俯瞰的就是洛杉矶的灯光
 - Carnegie 现在做研究用的望远镜（Magellan）在智利的 Las Campanas
 
-第 4 步开始前定下来。
 
 **第 5 步备忘：** Notion 上的 v7（https://app.notion.com/p/anastasiaye/VO_Script_v7-40be78236c6c8005afcfc16906312de8）和仓库里的 `VO_Script_v7.md` 只差两句：J3_DMoff_After 和 J3_DMon_Before 改成了 "invisible scaffolding of the cosmic web"。这两句要按 Notion 版重新生成。
+
+### 第 4 步 · 4a 夜面、4b 落到洛杉矶：在 Unity 里看
+
+**参考：** 你发的 NASA Black Marble 图（美洲的夜面：月光下暗蓝的陆地、暖黄的城市灯光、灰色的云、右边一条蓝色的大气亮边）。
+
+**改了什么（只动了 `Vizlab_Journey`）：**
+- **夜光贴图**：你上传的两张 NASA Black Marble 2016（公有领域）。原图挪到了 `Assets/_Core_NEW/Assets/Image~/`（文件夹名以 `~` 结尾，Unity 不导入，免得去导入 21600 × 21600 的 A1），从它们生成了两张：
+  - `Celestial/Earth_Night_BlackMarble_NEW.jpg`：全球，4096 × 2048。
+  - `Celestial/Earth_Night_SoCal_NEW.jpg`：从 A1 裁出的南加州，1024 × 768，以 Mount Wilson 为中心，约 4.3° × 3.2°（西经 120.19–115.93°，北纬 32.62–35.82°），分辨率是全球那张的 24 倍。
+- **4a 夜面**：`CelestialBody_NEW` 新加 **Night (Earth)** 一组。填了 `Night Map` 以后，夜面直接显示 Black Marble：月光下暗蓝的陆地、真实位置的城市灯光；原来噪声生成的城市灯光和夜面补光不再用。夜里的云是月光下的灰色（`Night Clouds`），城市灯光从云缝里透出来。
+- **4b 落到洛杉矶**：下降时，镜头离地面越近，南加州那张高清图越清楚地盖在全球图上（`Region Fade`：从光到大气时的约 2.8 开始算，4 → 10 之间渐入；边缘羽化，看不出接缝）。落点周围 3° 内没有云、6° 外云照常（`Clear Sky Degrees`），所以最后是晴朗的洛杉矶夜空。
+- **下降加深**：`EarthZoom_NEW` 的默认值改成 14 秒内放大 12 倍（原来 10 秒、6 倍）；有了高清图，12 倍还看得清。视频的 `Start Delay` 改成 16 秒，下降完再淡入。
+- 在云端用 numpy 按 shader 的公式模拟了一遍（不是 Unity 截图）：远看是美洲的夜面、灰色的云、城市灯光；降到 12 倍时画面是洛杉矶盆地的灯光，比你的参考图亮一些的地方是 Black Marble 原图本身就饱和了。
+
+**做：**
+1. 拉下最新的分支，回到 Unity 等编译完、导入新贴图（`Earth_Night_*` 两张），Console 里没有红色 error。如果 Unity 已经给原来的 `Assets/_Core_NEW/Assets/Image/` 生成过 `.meta`，拉取时可能提示冲突：把本地那两个 `BlackMarble_2016_*.jpg.meta` 删掉再拉。
+2. 场景被改过就点 **Reload**。
+
+**看**（按 `5` 跳到 Solar System，飞到地球）：
+- 地球夜面是暗蓝的陆地加真实的城市灯光（美国东部、墨西哥城那些亮团），不再是随机的光点。
+- 云在夜里是暗灰色的，能看出来。
+- 过了门以后往下降，美国西海岸 → 南加州 → 洛杉矶盆地越来越清楚，换到高清图时看不出跳变或方框的边。
+- 洛杉矶上空没有云。
+- 第 2 步问过的镜像问题：现在看大陆形状最清楚，北美如果是左右反的告诉我。
+
+**不合适就调**（`Earth` 上的 `Celestial Body_NEW`）：夜面太暗/太亮调 `Night Exposure`；云太亮/太暗调 `Night Clouds`；高清图来得太早/太晚调 `Region Fade`；降得太深/太浅调 `SolarSystem` 上 `Earth Zoom_NEW` 的 `Descent Growth`。
+
+**下一段（4c）：** 光停在空中以后，镜头从朝下看慢慢抬到地平线，看到山脊剪影、Mount Wilson 的圆顶、黑色星空和银河；Earth 层的天空从紫色星云换成星空。
 
 ### 第 3 步：大气层换掉，在 Unity 里看
 

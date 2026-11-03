@@ -76,6 +76,27 @@ public class CelestialBody_NEW : MonoBehaviour
              "0.55 is the map as it is.")]
     [SerializeField] Texture cloudMap;
 
+    [Header("Night (Earth)")]
+    [Tooltip("Optional. The whole night side by moonlight, city lights and all (NASA's Black Marble, " +
+             "aligned with the day map). Shown as it is on the night side, in place of the fill and " +
+             "the noise's city lights.")]
+    [SerializeField] Texture nightMap;
+    [Range(0f, 4f)] [SerializeField] float nightExposure = 1f;
+    [Tooltip("The clouds over the night map, by moonlight.")]
+    [SerializeField] Color nightClouds = new Color(0.13f, 0.135f, 0.16f, 1f);
+    [Tooltip("Optional. A close-up of the night over one region, laid over the night map as the camera " +
+             "comes down to it.")]
+    [SerializeField] Texture regionMap;
+    [Tooltip("Where the region map lies, in degrees: west, south, east, north.")]
+    [SerializeField] Vector4 regionRect = new Vector4(-120.19167f, 32.62083f, -115.925f, 35.82083f);
+    [Tooltip("The region map comes in as the planet's radius over the camera's height above the " +
+             "ground goes from x to y. About 2.8 as the light reaches the air, growing as it comes down.")]
+    [SerializeField] Vector2 regionFade = new Vector2(4f, 10f);
+    [Tooltip("A clear sky round this point, latitude and longitude in degrees: where the light comes down.")]
+    [SerializeField] Vector2 clearSkyAt = new Vector2(34.22f, -118.06f);
+    [Tooltip("Clear inside x degrees of it, the weather back by y. 0, 0: no clearing.")]
+    [SerializeField] Vector2 clearSkyDegrees = Vector2.zero;
+
     [Header("Air")]
     [SerializeField] bool atmosphere = false;
     [Tooltip("How deep the air is, as a fraction of the radius. Earth's visible air is very thin.")]
@@ -351,6 +372,22 @@ public class CelestialBody_NEW : MonoBehaviour
         _surface.SetFloat("_CloudCover", cloudCover);
         if (cloudMap != null) _surface.SetTexture("_CloudMap", cloudMap);
         _surface.SetFloat("_CloudMapOn", cloudMap != null ? 1f : 0f);
+
+        if (nightMap != null) _surface.SetTexture("_NightMap", nightMap);
+        _surface.SetFloat("_NightMapOn", nightMap != null ? 1f : 0f);
+        _surface.SetFloat("_NightExposure", nightExposure);
+        _surface.SetColor("_NightCloud", nightClouds);
+        if (regionMap != null) _surface.SetTexture("_RegionMap", regionMap);
+        _surface.SetFloat("_RegionOn", nightMap != null && regionMap != null ? 1f : 0f);
+        _surface.SetVector("_RegionRect", regionRect);
+        _surface.SetVector("_RegionFade", regionFade);
+
+        // The point as the maps lie on PlanetSphere_NEW: longitude -180 at u = 0.
+        float phi = (clearSkyAt.y + 180f) * Mathf.Deg2Rad, lat = clearSkyAt.x * Mathf.Deg2Rad;
+        _surface.SetVector("_ClearSky", new Vector4(-Mathf.Sin(phi) * Mathf.Cos(lat), Mathf.Sin(lat), -Mathf.Cos(phi) * Mathf.Cos(lat), 0f));
+        _surface.SetVector("_ClearSkyCos", clearSkyDegrees.y > 0f
+            ? new Vector4(Mathf.Cos(clearSkyDegrees.x * Mathf.Deg2Rad), Mathf.Cos(Mathf.Max(clearSkyDegrees.y, clearSkyDegrees.x + 0.01f) * Mathf.Deg2Rad), 0f, 0f)
+            : new Vector4(2f, 1.5f, 0f, 0f));
         _surface.SetFloat("_CloudSpin", cloudDrift);
         _surface.SetFloat("_LimbDarkening", limbDarkening);
         _surface.SetFloat("_BandFlow", bandFlow);

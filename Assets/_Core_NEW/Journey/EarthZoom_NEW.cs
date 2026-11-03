@@ -44,9 +44,9 @@ using UnityEngine;
 /// goes on growing — now about the point of ground straight below it, the one point that
 /// stays put. The ground comes up, the curve flattens, the night-side clouds and city lights
 /// spread out under the camera: a fall, with the light hanging in front of it. It grows by
-/// descentGrowth over descentSeconds, fast first and settling, and stops. Earth's maps are
-/// 2k, so much past six times they go soft; the close-up of the Los Angeles basin is the
-/// next step's.
+/// descentGrowth over descentSeconds, fast first and settling, and stops. On the way the
+/// night side's global map gives way to the close-up of the Los Angeles basin
+/// (CelestialBody_NEW's region map), so twelve times still has detail.
 ///
 /// THE GATE. On Awake the Earth gate is put at the top of Earth's air as it will be, so
 /// the ending starts as the light goes in. This runs after EarthApproach_NEW and overrides
@@ -102,10 +102,11 @@ public class EarthZoom_NEW : MonoBehaviour
     [SerializeField] bool descend = true;
 
     [Tooltip("Seconds the descent takes, from the gate until Earth stops growing.")]
-    [Min(0.5f)] [SerializeField] float descentSeconds = 10f;
+    [Min(0.5f)] [SerializeField] float descentSeconds = 14f;
 
-    [Tooltip("How many times Earth grows over the descent. Earth's maps are 2k: much past 6 they go soft.")]
-    [Range(1f, 50f)] [SerializeField] float descentGrowth = 6f;
+    [Tooltip("How many times Earth grows over the descent. With the Los Angeles close-up (Earth's region " +
+             "map) about 12 still has detail; much past 20 it goes soft.")]
+    [Range(1f, 50f)] [SerializeField] float descentGrowth = 12f;
 
     [Header("Camera")]
     [SerializeField] bool driveCamera = true;

@@ -8,6 +8,7 @@
 sampler2D _Noise;
 sampler2D _CloudMap;
 float _CloudCover, _CloudSpin, _CloudMapOn;
+float4 _ClearSky, _ClearSkyCos;
 
 // QuasarNoise_NEW's texture read on the three planes facing the axes, blended by the normal.
 float4 Triplanar(float3 p)
@@ -47,7 +48,11 @@ float CloudCover(float3 n)
     float s = sin(spin), c = cos(spin);
     float3 p = float3(n.x * c - n.z * s, n.y, n.x * s + n.z * c);
 
-    if (_CloudMapOn > 0.5) return CloudMapCover(p);
+    // Round the landing point (_ClearSky, fixed to the ground, not the weather) a clear sky.
+    float clear = saturate((dot(n, _ClearSky.xyz) - _ClearSkyCos.y) / max(_ClearSkyCos.x - _ClearSkyCos.y, 1e-5));
+    clear = clear * clear * (3.0 - 2.0 * clear);
+
+    if (_CloudMapOn > 0.5) return CloudMapCover(p) * (1.0 - clear);
 
     // Large weather systems, swirled hard enough to curl; then two finer octaves. The noise
     // sits about 0.5 +- 0.1, and the triplanar blend narrows it further, so it is centred and
@@ -64,7 +69,7 @@ float CloudCover(float3 n)
     body += -0.12 * exp(-pow((lat - 0.42) / 0.12, 2.0)) + 0.06 * exp(-pow((lat - 0.85) / 0.15, 2.0));
 
     float cut = 1.0 - _CloudCover;
-    return smoothstep(cut - 0.12, cut + 0.18, body);
+    return smoothstep(cut - 0.12, cut + 0.18, body) * (1.0 - clear);
 }
 
 #endif

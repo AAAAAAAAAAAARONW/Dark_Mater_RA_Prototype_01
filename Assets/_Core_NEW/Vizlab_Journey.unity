@@ -143968,7 +143968,7 @@ MonoBehaviour:
   videoPlayer: {fileID: 226437941}
   videoCanvasGroup: {fileID: 226437942}
   videoCanvas: {fileID: 226437936}
-  startDelay: 10
+  startDelay: 16
   fadeDuration: 1.5
   targetAlpha: 0.85
   debugLog: 0
@@ -286045,6 +286045,9 @@ MonoBehaviour:
   cloudShadows: 0.5
   cloudBrightness: 1.1
   cloudMap: {fileID: 2800000, guid: 29f29693192d4b9e9fbf6f5ac2c1c2bf, type: 3}
+  nightMap: {fileID: 2800000, guid: a836185cf7d84d09a597f55aaec1f7cb, type: 3}
+  regionMap: {fileID: 2800000, guid: bb295a224e6b4ea6a9602c970d6c8a84, type: 3}
+  clearSkyDegrees: {x: 3, y: 6}
   atmosphere: 1
   airDepth: 0.025
   scaleHeight: 0.25
