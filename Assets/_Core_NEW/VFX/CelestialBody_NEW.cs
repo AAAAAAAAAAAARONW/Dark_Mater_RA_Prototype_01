@@ -71,6 +71,10 @@ public class CelestialBody_NEW : MonoBehaviour
     [SerializeField] float cloudDrift = 0.01f;
     [Range(0f, 1f)] [SerializeField] float cloudShadows = 0.5f;
     [Range(0f, 3f)] [SerializeField] float cloudBrightness = 1.1f;
+    [Tooltip("Optional. A real cloud map (equirectangular, cover in red, aligned with the day map), " +
+             "read instead of the noise. Cloud Cover then thins (lower) or thickens (higher) it; " +
+             "0.55 is the map as it is.")]
+    [SerializeField] Texture cloudMap;
 
     [Header("Air")]
     [SerializeField] bool atmosphere = false;
@@ -345,6 +349,8 @@ public class CelestialBody_NEW : MonoBehaviour
         _surface.SetFloat("_CityAmount", cityLights);
         _surface.SetFloat("_CloudShadow", clouds ? cloudShadows : 0f);
         _surface.SetFloat("_CloudCover", cloudCover);
+        if (cloudMap != null) _surface.SetTexture("_CloudMap", cloudMap);
+        _surface.SetFloat("_CloudMapOn", cloudMap != null ? 1f : 0f);
         _surface.SetFloat("_CloudSpin", cloudDrift);
         _surface.SetFloat("_LimbDarkening", limbDarkening);
         _surface.SetFloat("_BandFlow", bandFlow);

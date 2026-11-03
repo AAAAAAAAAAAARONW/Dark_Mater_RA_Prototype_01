@@ -38,6 +38,16 @@ using UnityEngine;
 /// Earth. So it is held to sunSeenDegrees on screen as the rest grows, a bright disc that goes
 /// down behind Earth's limb as Earth comes to fill the view: the light arrives in the dark.
 ///
+/// THE DESCENT. Past the gate the light would fly on into the ground and out through the
+/// inside of the sphere. EarthClouds_NEW used to hide that under a deck of cloud; without it,
+/// the light is held where it crossed the gate, at the top of the air, and the whole system
+/// goes on growing — now about the point of ground straight below it, the one point that
+/// stays put. The ground comes up, the curve flattens, the night-side clouds and city lights
+/// spread out under the camera: a fall, with the light hanging in front of it. It grows by
+/// descentGrowth over descentSeconds, fast first and settling, and stops. Earth's maps are
+/// 2k, so much past six times they go soft; the close-up of the Los Angeles basin is the
+/// next step's.
+///
 /// THE GATE. On Awake the Earth gate is put at the top of Earth's air as it will be, so
 /// the ending starts as the light goes in. This runs after EarthApproach_NEW and overrides
 /// where that put the gate; still Awake, so UniverseJourneyTracker_NEW reads it in Start.
@@ -86,6 +96,17 @@ public class EarthZoom_NEW : MonoBehaviour
              "the rest.")]
     [Range(0f, 30f)] [SerializeField] float sunSeenDegrees = 3f;
 
+    [Header("Descent")]
+    [Tooltip("Past the gate, hold the light at the top of the air and grow Earth about the ground " +
+             "below it, so the light seems to fall towards the ground instead of flying into it.")]
+    [SerializeField] bool descend = true;
+
+    [Tooltip("Seconds the descent takes, from the gate until Earth stops growing.")]
+    [Min(0.5f)] [SerializeField] float descentSeconds = 10f;
+
+    [Tooltip("How many times Earth grows over the descent. Earth's maps are 2k: much past 6 they go soft.")]
+    [Range(1f, 50f)] [SerializeField] float descentGrowth = 6f;
+
     [Header("Camera")]
     [SerializeField] bool driveCamera = true;
 
@@ -106,8 +127,11 @@ public class EarthZoom_NEW : MonoBehaviour
 
     CelestialBody_NEW _body;
     LayerDive_NEW _dive;
-    bool _zooming, _done, _warned;
+    LayerState_NEW _state;
+    bool _zooming, _done, _warned, _descending, _landed;
     float _u, _from, _r0, _radius, _logSeenFrom, _logSeenTo;
+    float _descentClock, _sAtGate;
+    Vector3 _ground, _rootAtGate, _scaleAtGate;
     Vector3 _rootFrom, _scaleFrom, _scaleSet, _centre, _sunScaleFrom;
     float _sunRadiusFrom, _sunSeenFrom;
     float _xFrom, _yFrom, _heightFrom, _fovFrom;
@@ -117,6 +141,8 @@ public class EarthZoom_NEW : MonoBehaviour
 
     /// <summary>Distance from Earth's centre at which Earth is full size.</summary>
     float ZoomEnd => GateDistance + holdDistance;
+
+    bool IsEarthLayer => _state != null && _state.CurrentLayerId == earthLayerId;
 
     void Awake()
     {
@@ -141,6 +167,7 @@ public class EarthZoom_NEW : MonoBehaviour
 
         _body = earth.GetComponent<CelestialBody_NEW>();
         _dive = FindObjectOfType<LayerDive_NEW>();
+        _state = FindObjectOfType<LayerState_NEW>();
 
         if (startDistance <= ZoomEnd)
             Debug.LogWarning("[EarthZoom_NEW] startDistance " + startDistance + " is inside where Earth is full size (" +
@@ -165,18 +192,30 @@ public class EarthZoom_NEW : MonoBehaviour
 
     void Update()
     {
-        if (_done) return;
+        if (_landed) return;
 
         // The dive into the Solar System places and scales this root itself every frame, and
         // puts it back as built at the end. Nothing is measured or moved until it is over.
         if (_dive != null && _dive.IsActive) return;
 
-        if (_zooming && !_warned && (transform.localScale - _scaleSet).sqrMagnitude > 1e-8f && (_warned = true))
+        if ((_zooming || _descending) && !_warned && (transform.localScale - _scaleSet).sqrMagnitude > 1e-8f && (_warned = true))
             Debug.LogWarning("[EarthZoom_NEW] Something else set '" + name + "''s scale to " + transform.localScale.x +
                              " (this set " + _scaleSet.x + ").", this);
 
+        if (_descending) { Descend(); return; }
+
         Vector3 dir = photon.MovementDirection;
         float distance = Vector3.Dot(earth.position - photon.transform.position, dir);
+
+        if (_done)
+        {
+            // Held once the Earth layer has begun, so the light is through the gate first; and
+            // half way into the air at the latest, should that never come.
+            float deepInAir = GateDistance - 0.5f * (GateDistance - finalRadius);
+            if (!descend) _landed = true;
+            else if (IsEarthLayer || distance <= deepInAir) BeginDescent(dir);
+            return;
+        }
 
         if (!_zooming)
         {
@@ -223,6 +262,48 @@ public class EarthZoom_NEW : MonoBehaviour
         float seen = Mathf.Lerp(_sunSeenFrom, sunSeenDegrees, Mathf.SmoothStep(0f, 1f, _u));
         float wanted = Mathf.Tan(seen * Mathf.Deg2Rad) * Vector3.Distance(sun.position, cam.transform.position);
         sun.localScale = _sunScaleFrom * Mathf.Min(1f, wanted / (_sunRadiusFrom * s));
+    }
+
+    /// <summary>Holds the light at the gate and fixes the point of ground below it (see THE DESCENT).</summary>
+    void BeginDescent(Vector3 dir)
+    {
+        _descending = true;
+        _descentClock = 0f;
+        photon.SetHeld(true);
+
+        float r = _body != null ? _body.GroundRadius : 0.5f * earth.lossyScale.x;
+        _ground = earth.position - dir * r;
+        _rootAtGate = transform.position;
+        _scaleAtGate = transform.localScale;
+        _scaleSet = _scaleAtGate;
+        _sAtGate = _zooming ? _radius / _r0 : 1f;
+
+        if (debugLog) Debug.Log("[EarthZoom_NEW] Descent: light held " + Vector3.Dot(photon.transform.position - _ground, -dir).ToString("0.00") +
+                                " above the ground; Earth grows x" + descentGrowth + " over " + descentSeconds + "s.", this);
+    }
+
+    void Descend()
+    {
+        // On the same clock the light flies by, so every copy on the wall descends alike.
+        _descentClock += Time.deltaTime;
+        float p = Mathf.Clamp01(_descentClock / descentSeconds);
+
+        // Fastest at the gate, as the zoom was, settling to a stop.
+        float eased = 1f - (1f - p) * (1f - p);
+        float k = Mathf.Exp(Mathf.Log(descentGrowth) * eased);
+
+        transform.localScale = _scaleAtGate * k;
+        transform.position = _ground + (_rootAtGate - _ground) * k;
+        _scaleSet = transform.localScale;
+
+        if (_zooming) HoldSun(_sAtGate * k);
+
+        if (p >= 1f)
+        {
+            _descending = false;
+            _landed = true;
+            if (debugLog) Debug.Log("[EarthZoom_NEW] Descent over: Earth radius " + (_body != null ? _body.GroundRadius.ToString("0.0") : "?") + ".", this);
+        }
     }
 
     /// <summary>

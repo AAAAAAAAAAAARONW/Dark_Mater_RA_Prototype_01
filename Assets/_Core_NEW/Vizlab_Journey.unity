@@ -143968,7 +143968,7 @@ MonoBehaviour:
   videoPlayer: {fileID: 226437941}
   videoCanvasGroup: {fileID: 226437942}
   videoCanvas: {fileID: 226437936}
-  startDelay: 5.0236073
+  startDelay: 10
   fadeDuration: 1.5
   targetAlpha: 0.85
   debugLog: 0
@@ -144434,7 +144434,6 @@ GameObject:
   - component: {fileID: 800000009}
   - component: {fileID: 800000023}
   - component: {fileID: 800100011}
-  - component: {fileID: 800100012}
   m_Layer: 0
   m_Name: LayerResponders
   m_TagString: Untagged
@@ -144942,57 +144941,6 @@ MonoBehaviour:
   player: {fileID: 0}
   nebula: {fileID: 0}
   overlaySortOrder: -50
-  debugLog: 0
---- !u!114 &800100012
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 800100005}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fb1ac4376bf1975e7ae2714617d6d78c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  layerId: Earth
-  passSeconds: 7
-  startDepth: 12
-  thickness: 7
-  endHeight: 6
-  coverage: 0.6
-  clumping: 0.9
-  density: 1.4
-  shapeSize: 8
-  detailSize: 2.2
-  erosion: 0.4
-  wind: {x: 0.25, y: 0, z: 0.1}
-  sun: {fileID: 0}
-  sunElevation: 28
-  sunColor: {r: 1, g: 0.96, b: 0.9, a: 1}
-  sunIntensity: 1.6
-  skyLightTop: {r: 0.62, g: 0.72, b: 0.9, a: 1}
-  skyLightBottom: {r: 0.3, g: 0.35, b: 0.46, a: 1}
-  skyLight: 0.5
-  photonGlow: {r: 1, g: 0.95, b: 0.85, a: 1}
-  photonGlowStrength: 1.5
-  photonGlowRadius: 2.5
-  skyOverhead: {r: 0.16, g: 0.3, b: 0.6, a: 1}
-  skyAtHorizon: {r: 0.62, g: 0.74, b: 0.9, a: 1}
-  groundThroughAir: {r: 0.1, g: 0.16, b: 0.26, a: 1}
-  sky: 0.9
-  skySeconds: 3.5
-  spaceAbove: 14
-  limb: 0.35
-  evolve: 0.05
-  hideGroup: SolarSystem
-  steps: 40
-  longestStep: 0.6
-  farthest: 60
-  state: {fileID: 0}
-  worlds: {fileID: 0}
-  player: {fileID: 0}
-  brain: {fileID: 0}
   debugLog: 0
 --- !u!4 &801936157 stripped
 Transform:
@@ -286096,6 +286044,7 @@ MonoBehaviour:
   cloudDrift: 0.01
   cloudShadows: 0.5
   cloudBrightness: 1.1
+  cloudMap: {fileID: 2800000, guid: 29f29693192d4b9e9fbf6f5ac2c1c2bf, type: 3}
   atmosphere: 1
   airDepth: 0.025
   scaleHeight: 0.25

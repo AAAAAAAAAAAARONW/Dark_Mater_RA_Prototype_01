@@ -33,6 +33,12 @@ Shader "Custom/CelestialSurface_NEW"
     // faint glow. And a body under two pixels across — the Moon, from far off — fades out
     // rather than blink between pixels.
     //
+    // LATER: EARTH'S REAL CLOUDS. Given a cloud map (_CloudMap, CelestialBody_NEW's cloudMap)
+    // the cover is read from it instead of the noise, for the clouds and their shadows alike.
+    // At night they are dark and lie over the city lights, as from orbit: the lights show
+    // through the gaps. It replaces EarthClouds_NEW's full-screen deck in Vizlab_Journey,
+    // which on the wall cost a raymarch per copy and turned the night into white fog.
+    //
     // Opaque. _Color fades it as WorldSwitcher_NEW fades a world. In Resources so a build has it.
 
     Properties
@@ -53,6 +59,8 @@ Shader "Custom/CelestialSurface_NEW"
         _Ocean ("Oceans (from the map's colour)", Range(0, 1)) = 0
         [HDR] _City ("City lights", Color) = (1.0, 0.68, 0.32, 1)
         _CityAmount ("City lights amount", Range(0, 3)) = 0
+        [NoScaleOffset] _CloudMap ("Cloud map (equirectangular, cover in red)", 2D) = "black" {}
+        _CloudMapOn ("Clouds from the map, not the noise", Float) = 0
         _CloudShadow ("Cloud shadows", Range(0, 1)) = 0
         _CloudCover ("Cloud cover", Range(0, 1)) = 0.55
         _CloudSpin ("Cloud drift, radians a second", Float) = 0.01
