@@ -113,6 +113,7 @@ public class EarthSummit_NEW : MonoBehaviour
     Quaternion _liftFrom, _liftTo;
 
     readonly List<Renderer> _photonParts = new List<Renderer>();
+    readonly List<Renderer> _systemParts = new List<Renderer>();
     readonly List<TrailRenderer> _trails = new List<TrailRenderer>();
     readonly List<float> _trailWidths = new List<float>();
     bool _photonHidden;
@@ -147,6 +148,8 @@ public class EarthSummit_NEW : MonoBehaviour
     {
         if (_skySwapped) { RenderSettings.skybox = _skyBefore; _skySwapped = false; }
         ShowPhoton();
+        foreach (Renderer r in _systemParts) if (r != null) r.enabled = true;
+        _systemParts.Clear();
         if (_built && _zoom != null && _zoom.Body != null && _zoom.Earth != null) { _zoom.Body.SetAirVisible(true); SetSurfaceVisible(true); }
         if (_zoom != null && _zoom.Photon != null && _lifting) _zoom.Photon.SetCameraInputLocked(false);
         foreach (Object o in _made) Kill(o);
@@ -231,6 +234,11 @@ public class EarthSummit_NEW : MonoBehaviour
 
         // The sky, while the camera still looks at the ground.
         BuildSky();
+
+        // The rest of the Solar System, left behind by EarthZoom_NEW when it took Earth out:
+        // no planet belongs in this sky.
+        foreach (Renderer r in GetComponentsInChildren<Renderer>(false))
+            if (r.enabled) { r.enabled = false; _systemParts.Add(r); }
 
         // The light, to be let go of as the camera lifts.
         PlayerRig_NEW photon = _zoom.Photon;

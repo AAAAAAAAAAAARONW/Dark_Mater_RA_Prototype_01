@@ -54,6 +54,13 @@ using UnityEngine;
 /// to stand on; EarthSummit_NEW lays the true sphere round the landing point, the mountains,
 /// the dome and the night sky over it, and lifts the camera to the horizon.
 ///
+/// Earth alone grows over that stretch, taken out of the group first. Grown with it, the
+/// group's own position went out to tens of millions of units, where a float is a few
+/// units apart — a kilometre at that scale — and the ground came out above the camera,
+/// which then saw nothing below the horizon (first try in Unity, 3 Nov). Earth on its own
+/// stays within some tens of thousands. The rest of the system is left where it was, and
+/// EarthSummit_NEW hides it: no planet belongs in that sky.
+///
 /// THE GATE. On Awake the Earth gate is put at the top of Earth's air as it will be, so
 /// the ending starts as the light goes in. This runs after EarthApproach_NEW and overrides
 /// where that put the gate; still Awake, so UniverseJourneyTracker_NEW reads it in Start.
@@ -147,6 +154,7 @@ public class EarthZoom_NEW : MonoBehaviour
     float _descentClock, _sAtGate;
     Vector3 _ground, _rootAtGate, _scaleAtGate;
     float _summitClock, _summitFactor = 1f;
+    Vector3 _earthAtSummit, _earthScaleAtSummit;
 
     /// <summary>Earth's mean radius, km: what one radius of the sphere stands for.</summary>
     public const float EarthRadiusKm = 6371f;
@@ -358,6 +366,11 @@ public class EarthZoom_NEW : MonoBehaviour
         _toSummit = true;
         SummitProgress = 0f;
 
+        // Earth on its own from here (see THE SUMMIT): the group stays as it is.
+        earth.SetParent(null, true);
+        _earthAtSummit = earth.position;
+        _earthScaleAtSummit = earth.localScale;
+
         if (debugLog) Debug.Log("[EarthZoom_NEW] To the summit: camera " + heightKm.ToString("0") + " km up, down to " +
                                 summitCameraKm + " km, Earth grows x" + _summitFactor.ToString("0") + " more.", this);
         return true;
@@ -369,14 +382,10 @@ public class EarthZoom_NEW : MonoBehaviour
         float p = Mathf.Clamp01(_summitClock / summitSeconds);
         SummitProgress = p;
 
-        // From rest, as the descent ended, and to rest.
-        float k = descentGrowth * Mathf.Exp(Mathf.Log(_summitFactor) * Mathf.SmoothStep(0f, 1f, p));
-
-        transform.localScale = _scaleAtGate * k;
-        transform.position = _ground + (_rootAtGate - _ground) * k;
-        _scaleSet = transform.localScale;
-
-        if (_zooming) HoldSun(_sAtGate * k);
+        // From rest, as the descent ended, and to rest. Earth alone, about the same point.
+        float k = Mathf.Exp(Mathf.Log(_summitFactor) * Mathf.SmoothStep(0f, 1f, p));
+        earth.localScale = _earthScaleAtSummit * k;
+        earth.position = _ground + (_earthAtSummit - _ground) * k;
 
         if (p >= 1f)
         {

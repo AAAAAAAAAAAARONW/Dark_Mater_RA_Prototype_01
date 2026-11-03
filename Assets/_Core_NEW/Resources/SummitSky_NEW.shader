@@ -108,11 +108,13 @@ Shader "Custom/SummitSky_NEW"
                 // The Milky Way.
                 float b = dot(d, _GalPole.xyz);
                 float l = atan2(dot(d, _GalB.xyz), dot(d, _GalA.xyz));
-                float band = exp(-b * b / (0.16 * 0.16));
-                float core = exp(-l * l / (0.7 * 0.7)) * exp(-b * b / (0.22 * 0.22));
-                float clumps = saturate((Triplanar(d * 3.0).r * 0.6 + Triplanar(d * 7.0).g * 0.4 - 0.38) * 2.4);
-                float lane = exp(-pow((b - 0.012) / 0.045, 2.0)) * smoothstep(0.42, 0.62, Triplanar(d * 5.0 + 1.7).b);
-                float mw = (band * (0.3 + 0.7 * clumps) + core * 1.6 * (0.5 + 0.5 * clumps)) * (1.0 - 0.8 * lane);
+                // Fine-grained: big soft noise alone read as clouds (first try in Unity, 3 Nov).
+                float band = exp(-b * b / (0.12 * 0.12));
+                float core = exp(-l * l / (0.45 * 0.45)) * exp(-b * b / (0.15 * 0.15));
+                float clumps = saturate((Triplanar(d * 7.0).r * 0.6 + Triplanar(d * 16.0).g * 0.4 - 0.38) * 2.4);
+                float grain = 0.4 + 1.2 * Triplanar(d * 40.0).a;
+                float lane = exp(-pow((b - 0.01) / 0.03, 2.0)) * smoothstep(0.42, 0.6, Triplanar(d * 11.0 + 1.7).b);
+                float mw = (band * (0.25 + 0.75 * clumps) + core * 1.1 * (0.4 + 0.6 * clumps)) * grain * (1.0 - 0.85 * lane);
                 sky += _MilkyWay.rgb * mw * clear;
 
                 // Stars: a sparse bright layer, and a fine one thickest along the band.
