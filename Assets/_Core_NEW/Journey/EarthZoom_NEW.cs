@@ -48,6 +48,12 @@ using UnityEngine;
 /// night side's global map gives way to the close-up of the Los Angeles basin
 /// (CelestialBody_NEW's region map), so twelve times still has detail.
 ///
+/// THE SUMMIT. Then, with summitCameraKm set, it goes on down: from about 190 km over the
+/// ground to summitCameraKm, growing again about the same point, slow, fast and slow over
+/// summitSeconds. That is a hundredfold more, and there Earth's own sphere is too coarse
+/// to stand on; EarthSummit_NEW lays the true sphere round the landing point, the mountains,
+/// the dome and the night sky over it, and lifts the camera to the horizon.
+///
 /// THE GATE. On Awake the Earth gate is put at the top of Earth's air as it will be, so
 /// the ending starts as the light goes in. This runs after EarthApproach_NEW and overrides
 /// where that put the gate; still Awake, so UniverseJourneyTracker_NEW reads it in Start.
@@ -108,6 +114,13 @@ public class EarthZoom_NEW : MonoBehaviour
              "map) about 12 still has detail; much past 20 it goes soft.")]
     [Range(1f, 50f)] [SerializeField] float descentGrowth = 12f;
 
+    [Tooltip("Then on down until the camera is this many km over the ground (sea level), for " +
+             "EarthSummit_NEW; Mount Wilson's summit is 1.74. 0: stop after the descent.")]
+    [Min(0f)] [SerializeField] float summitCameraKm = 1.8f;
+
+    [Tooltip("Seconds that last stretch takes.")]
+    [Min(0.5f)] [SerializeField] float summitSeconds = 12f;
+
     [Header("Camera")]
     [SerializeField] bool driveCamera = true;
 
@@ -129,10 +142,33 @@ public class EarthZoom_NEW : MonoBehaviour
     CelestialBody_NEW _body;
     LayerDive_NEW _dive;
     LayerState_NEW _state;
-    bool _zooming, _done, _warned, _descending, _landed;
+    bool _zooming, _done, _warned, _descending, _landed, _toSummit;
     float _u, _from, _r0, _radius, _logSeenFrom, _logSeenTo;
     float _descentClock, _sAtGate;
     Vector3 _ground, _rootAtGate, _scaleAtGate;
+    float _summitClock, _summitFactor = 1f;
+
+    /// <summary>Earth's mean radius, km: what one radius of the sphere stands for.</summary>
+    public const float EarthRadiusKm = 6371f;
+
+    /// <summary>-1 until the last stretch to the summit begins, then 0 to 1 through it.</summary>
+    public float SummitProgress { get; private set; } = -1f;
+
+    /// <summary>How many times Earth grows over the last stretch; set as it begins.</summary>
+    public float SummitFactor => _summitFactor;
+
+    /// <summary>The camera's height over the ground once down, km.</summary>
+    public float SummitCameraKm => summitCameraKm;
+
+    /// <summary>The point of ground the descent grows about, world space; it does not move.</summary>
+    public Vector3 GroundPoint => _ground;
+
+    /// <summary>Up at the ground point, world space.</summary>
+    public Vector3 GroundUp { get; private set; }
+
+    public Transform Earth => earth;
+    public CelestialBody_NEW Body => _body;
+    public PlayerRig_NEW Photon => photon;
     Vector3 _rootFrom, _scaleFrom, _scaleSet, _centre, _sunScaleFrom;
     float _sunRadiusFrom, _sunSeenFrom;
     float _xFrom, _yFrom, _heightFrom, _fovFrom;
@@ -199,11 +235,12 @@ public class EarthZoom_NEW : MonoBehaviour
         // puts it back as built at the end. Nothing is measured or moved until it is over.
         if (_dive != null && _dive.IsActive) return;
 
-        if ((_zooming || _descending) && !_warned && (transform.localScale - _scaleSet).sqrMagnitude > 1e-8f && (_warned = true))
+        if ((_zooming || _descending || _toSummit) && !_warned && (transform.localScale - _scaleSet).sqrMagnitude > 1e-8f && (_warned = true))
             Debug.LogWarning("[EarthZoom_NEW] Something else set '" + name + "''s scale to " + transform.localScale.x +
                              " (this set " + _scaleSet.x + ").", this);
 
         if (_descending) { Descend(); return; }
+        if (_toSummit) { ToSummit(); return; }
 
         Vector3 dir = photon.MovementDirection;
         float distance = Vector3.Dot(earth.position - photon.transform.position, dir);
@@ -274,6 +311,7 @@ public class EarthZoom_NEW : MonoBehaviour
 
         float r = _body != null ? _body.GroundRadius : 0.5f * earth.lossyScale.x;
         _ground = earth.position - dir * r;
+        GroundUp = -dir;
         _rootAtGate = transform.position;
         _scaleAtGate = transform.localScale;
         _scaleSet = _scaleAtGate;
@@ -302,8 +340,48 @@ public class EarthZoom_NEW : MonoBehaviour
         if (p >= 1f)
         {
             _descending = false;
-            _landed = true;
             if (debugLog) Debug.Log("[EarthZoom_NEW] Descent over: Earth radius " + (_body != null ? _body.GroundRadius.ToString("0.0") : "?") + ".", this);
+            if (!BeginSummit()) _landed = true;
+        }
+    }
+
+    /// <summary>Works out how much further to grow for the camera to be summitCameraKm up (see THE SUMMIT).</summary>
+    bool BeginSummit()
+    {
+        Camera cam = GetReal3DView_NEW.ScreenCamera;
+        if (summitCameraKm <= 0f || cam == null || _body == null) return false;
+
+        float kmWorld = _body.GroundRadius / EarthRadiusKm;
+        float heightKm = Vector3.Dot(cam.transform.position - _ground, GroundUp) / kmWorld;
+        _summitFactor = Mathf.Max(1f, heightKm / summitCameraKm);
+        _summitClock = 0f;
+        _toSummit = true;
+        SummitProgress = 0f;
+
+        if (debugLog) Debug.Log("[EarthZoom_NEW] To the summit: camera " + heightKm.ToString("0") + " km up, down to " +
+                                summitCameraKm + " km, Earth grows x" + _summitFactor.ToString("0") + " more.", this);
+        return true;
+    }
+
+    void ToSummit()
+    {
+        _summitClock += Time.deltaTime;
+        float p = Mathf.Clamp01(_summitClock / summitSeconds);
+        SummitProgress = p;
+
+        // From rest, as the descent ended, and to rest.
+        float k = descentGrowth * Mathf.Exp(Mathf.Log(_summitFactor) * Mathf.SmoothStep(0f, 1f, p));
+
+        transform.localScale = _scaleAtGate * k;
+        transform.position = _ground + (_rootAtGate - _ground) * k;
+        _scaleSet = transform.localScale;
+
+        if (_zooming) HoldSun(_sAtGate * k);
+
+        if (p >= 1f)
+        {
+            _toSummit = false;
+            _landed = true;
         }
     }
 

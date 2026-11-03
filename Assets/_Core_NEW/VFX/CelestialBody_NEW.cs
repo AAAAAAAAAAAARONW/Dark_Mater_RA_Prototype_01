@@ -97,6 +97,18 @@ public class CelestialBody_NEW : MonoBehaviour
     [Tooltip("Clear inside x degrees of it, the weather back by y. 0, 0: no clearing.")]
     [SerializeField] Vector2 clearSkyDegrees = Vector2.zero;
 
+    [Tooltip("Down on the ground (EarthSummit_NEW): the region map's bright city broken into points " +
+             "in cells this many km across, 0 for none.")]
+    [Range(0f, 1f)] [SerializeField] float cityLightsKm = 0.15f;
+    [Tooltip("Each point's size, as a fraction of its cell.")]
+    [Range(0.05f, 0.5f)] [SerializeField] float cityLightSize = 0.22f;
+    [Range(0f, 4f)] [SerializeField] float cityLightBrightness = 1.6f;
+    [Tooltip("The region map's brightness (it is saturated over Los Angeles).")]
+    [Range(0f, 2f)] [SerializeField] float regionExposure = 0.8f;
+    [Tooltip("Down on the ground, the haze the far ground fades into.")]
+    [SerializeField] Color groundHaze = new Color(0.1f, 0.06f, 0.04f, 1f);
+    [Min(1f)] [SerializeField] float groundHazeKm = 30f;
+
     [Header("Air")]
     [SerializeField] bool atmosphere = false;
     [Tooltip("How deep the air is, as a fraction of the radius. Earth's visible air is very thin.")]
@@ -112,6 +124,7 @@ public class CelestialBody_NEW : MonoBehaviour
     readonly List<GameObject> _parts = new List<GameObject>();
     readonly List<Material> _materials = new List<Material>();
     Material _surface, _air;
+    GameObject _airPart;
     Renderer _original;
     float _meshRadius = 0.5f;
     bool _rebuild, _dirty;
@@ -127,6 +140,21 @@ public class CelestialBody_NEW : MonoBehaviour
 
     /// <summary>How deep the air is, as a fraction of the radius; 0 without one.</summary>
     public float AirDepth => atmosphere ? airDepth : 0f;
+
+    /// <summary>
+    /// The surface as drawn, for EarthSummit_NEW's finer patch of the same ground: drawn with
+    /// this, it is the same picture. Null until built.
+    /// </summary>
+    public Material SurfaceMaterial => _surface;
+
+    /// <summary>The mesh's radius, object space.</summary>
+    public float MeshRadius => _meshRadius;
+
+    /// <summary>Hides the air, or shows it again. For a camera down on the ground, where the shell is too big to draw true.</summary>
+    public void SetAirVisible(bool visible)
+    {
+        if (_airPart != null) _airPart.SetActive(visible);
+    }
 
     /// <summary>Sets every look to the kind's own, for Tools > Journey NEW > Polish Solar System.</summary>
     public void ApplyPreset(Kind k)
@@ -305,7 +333,11 @@ public class CelestialBody_NEW : MonoBehaviour
         _meshRadius = Mathf.Max(mesh.bounds.extents.x, 1e-4f);
 
         _surface = Part("Surface", mesh, surfaceShader, 1f, 2000);
-        if (atmosphere) _air = Part("Air", mesh, airShader, 1f + airDepth * 1.05f, 3000);
+        if (atmosphere)
+        {
+            _air = Part("Air", mesh, airShader, 1f + airDepth * 1.05f, 3000);
+            _airPart = _parts[_parts.Count - 1];
+        }
 
         _original.forceRenderingOff = true;
 
@@ -342,6 +374,7 @@ public class CelestialBody_NEW : MonoBehaviour
         _parts.Clear();
         _materials.Clear();
         _surface = _air = null;
+        _airPart = null;
     }
 
     static void Kill(Object o)
@@ -381,6 +414,9 @@ public class CelestialBody_NEW : MonoBehaviour
         _surface.SetFloat("_RegionOn", nightMap != null && regionMap != null ? 1f : 0f);
         _surface.SetVector("_RegionRect", regionRect);
         _surface.SetVector("_RegionFade", regionFade);
+        _surface.SetVector("_Lights", new Vector4(Mathf.Max(cityLightsKm, 0.01f), cityLightSize, cityLightsKm > 0f ? 1f : 0f, regionExposure));
+        _surface.SetFloat("_LightsBright", cityLightBrightness);
+        _surface.SetVector("_GroundHaze", new Vector4(groundHaze.r, groundHaze.g, groundHaze.b, groundHazeKm));
 
         // The point as the maps lie on PlanetSphere_NEW: longitude -180 at u = 0.
         float phi = (clearSkyAt.y + 180f) * Mathf.Deg2Rad, lat = clearSkyAt.x * Mathf.Deg2Rad;

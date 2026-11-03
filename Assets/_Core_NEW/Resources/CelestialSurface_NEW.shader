@@ -49,6 +49,15 @@ Shader "Custom/CelestialSurface_NEW"
     // edges feathered; and round the landing point the sky is cleared (_ClearSky), so it is
     // a clear night where the light comes down.
     //
+    // LATER: ON THE GROUND. Down on Mount Wilson (EarthSummit_NEW draws a finer patch of this
+    // sphere with this material) the region map's texels are 460 m, and the city, seen across
+    // at a glance, came out as a white slab. So where the map is bright, close up, it is
+    // broken into the lights it is made of (_Lights): a point in each cell of a grid
+    // _Lights.x km across, the brighter the map the more cells lit, each as bright as
+    // _LightsBright; as cells come under two pixels the points give way to the map again. And
+    // the ground thickens into the city's haze with distance (_GroundHaze, in km), once the
+    // camera is down (_GroundHazeFrom, radius over height).
+    //
     // Opaque. _Color fades it as WorldSwitcher_NEW fades a world. In Resources so a build has it.
 
     Properties
@@ -81,6 +90,10 @@ Shader "Custom/CelestialSurface_NEW"
         _RegionFade ("Region in from / to (radius over height)", Vector) = (3, 9, 0, 0)
         _ClearSky ("Clear sky round (object-space direction)", Vector) = (0, 1, 0, 0)
         _ClearSkyCos ("Clear sky cosines: inside, outside", Vector) = (2, 1.5, 0, 0)
+        _Lights ("City lights close up: cell km, point size, amount, region exposure", Vector) = (0.15, 0.22, 0, 1)
+        _LightsBright ("City lights close up: each point's brightness", Range(0, 4)) = 1.6
+        _GroundHaze ("Ground haze (rgb), km (w)", Vector) = (0.1, 0.06, 0.04, 30)
+        _GroundHazeFrom ("Ground haze from / to (radius over height)", Vector) = (200, 800, 0, 0)
         _CloudShadow ("Cloud shadows", Range(0, 1)) = 0
         _CloudCover ("Cloud cover", Range(0, 1)) = 0.55
         _CloudSpin ("Cloud drift, radians a second", Float) = 0.01
@@ -114,6 +127,38 @@ Shader "Custom/CelestialSurface_NEW"
             sampler2D _NightMap, _RegionMap;
             float4 _NightMap_ST, _NightCloud, _RegionRect, _RegionFade;
             float _NightMapOn, _NightExposure, _RegionOn;
+            float4 _Lights, _GroundHaze, _GroundHazeFrom;
+            float _LightsBright;
+
+            float3 LightHash(float3 p)
+            {
+                p = frac(p * float3(0.1031, 0.1030, 0.0973));
+                p += dot(p, p.yxz + 33.33);
+                return frac((p.xxy + p.yxx) * p.zyx);
+            }
+
+            // The map's light broken into points (see LATER: ON THE GROUND): a light in a
+            // cell if its hash is under the map's brightness. Between them, the map's
+            // moonlit ground, dimmed to the land's own tone.
+            float3 CityPoints(float3 nObj, float3 night, float weight)
+            {
+                float luma = dot(night, float3(0.299, 0.587, 0.114));
+                float3 q = nObj * (6371.0 / _Lights.x);
+                float pixel = length(fwidth(q));
+                float detail = weight * _Lights.z * smoothstep(0.6, 0.3, pixel) * smoothstep(0.12, 0.35, luma);
+                if (detail <= 0.0) return night;
+
+                float3 cell = floor(q);
+                float3 h = LightHash(cell);
+                float3 at = 0.2 + 0.6 * LightHash(cell + 19.0);
+                float size = max(_Lights.y, pixel * 0.7);
+                float spot = saturate(1.0 - length(frac(q) - at) / size);
+                float lit = step(h.x, saturate(luma * 1.2));
+                float3 hue = night / max(luma, 0.05);
+                float3 ground = hue * 0.04;
+                float3 points = ground + hue * spot * spot * lit * _LightsBright * (0.6 + 0.8 * h.y);
+                return lerp(night, points, detail);
+            }
 
             struct v2f
             {
@@ -123,6 +168,7 @@ Shader "Custom/CelestialSurface_NEW"
                 float3 world  : TEXCOORD2;
                 float  pixels : TEXCOORD3;   // the planet's radius on screen, in pixels
                 float  close  : TEXCOORD4;   // the planet's radius over the camera's height above it
+                float  km     : TEXCOORD5;   // km a world unit, Earth's radius standing for 6371
             };
 
             v2f vert(appdata_base v)
@@ -137,6 +183,7 @@ Shader "Custom/CelestialSurface_NEW"
                 o.pixels = radius / max(length(centre - _WorldSpaceCameraPos), 1e-6)
                          * abs(unity_CameraProjection._m11) * _ScreenParams.y * 0.5;
                 o.close = radius / max(length(centre - _WorldSpaceCameraPos) - radius, 1e-5);
+                o.km = 6371.0 / max(radius, 1e-6);
                 return o;
             }
 
@@ -223,7 +270,8 @@ Shader "Custom/CelestialSurface_NEW"
                                           (lat - _RegionRect.y) / (_RegionRect.w - _RegionRect.y));
                         float2 edge = saturate(min(r, 1.0 - r) / 0.12);
                         float w = edge.x * edge.y * smoothstep(_RegionFade.x, _RegionFade.y, i.close);
-                        night = lerp(night, tex2D(_RegionMap, saturate(r)).rgb, w);
+                        night = lerp(night, tex2D(_RegionMap, saturate(r)).rgb * _Lights.w, w);
+                        night = CityPoints(nObj, night, w);
                     }
                     dark = lerp(dark, night * _NightExposure, nightSide);
                 }
@@ -263,6 +311,14 @@ Shader "Custom/CelestialSurface_NEW"
 
                 // Giants: darker towards the limb.
                 lit *= lerp(1.0, pow(max(mu, 0.02), 0.45), _LimbDarkening);
+
+                // Down on the ground, the city's haze with distance.
+                float hazeOn = smoothstep(_GroundHazeFrom.x, _GroundHazeFrom.y, i.close);
+                if (hazeOn > 0.0)
+                {
+                    float km = length(i.world - _WorldSpaceCameraPos) * i.km;
+                    lit = lerp(lit, _GroundHaze.rgb, (1.0 - exp(-km / max(_GroundHaze.w, 1e-3))) * hazeOn);
+                }
 
                 // Under two pixels across, gone rather than blinking between pixels.
                 lit *= smoothstep(0.6, 1.2, i.pixels);
