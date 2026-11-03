@@ -12,9 +12,15 @@ using UnityEditor;
 /// THE PATH. Earth's centre is where the photon's line meets the gate into the Earth layer —
 /// at the gate itself: the gate is moved across onto the line with it, so Earth sits right
 /// on the trigger and the light goes through the middle of both. The Sun is off to one side
-/// of the line by sunAside of Earth's orbit, and short of Earth along it, so the line comes in
-/// from outside the system and goes out through Earth's orbit just where Earth is. So the
-/// light reaches Earth from the Sun's side, and Earth ahead is seen mostly lit.
+/// of the line by sunAside of Earth's orbit, and beyond Earth along it, so the line comes in
+/// from outside the system and enters Earth's orbit just where Earth is. So the light reaches
+/// Earth from the side away from the Sun: Earth ahead is a dark disc with a lit crescent, and
+/// the light arrives at night, as J9 says. (sunBeyondEarth off is how it was: the Sun short of
+/// Earth, and Earth seen mostly lit.)
+///
+/// THE ARRIVAL. Earth is turned so the place the light ends at (arrivalLatitude and
+/// arrivalLongitude) faces straight back along the line, north up. So that place is what the
+/// light flies into, in the middle of the night side.
 ///
 /// The planets in passBy are put where the line crosses their orbits, moved round them until
 /// the line passes passClearance clear (beyond two and a half of their radii, or their rings),
@@ -64,6 +70,20 @@ public class SolarSystemPath_NEW : MonoBehaviour
              "the photon passes the Sun further off and comes to Earth from more to its side, so " +
              "less of Earth is lit; lower: closer past the Sun, Earth fuller.")]
     [Range(0.3f, 0.95f)] [SerializeField] float sunAside = 0.8f;
+
+    [Tooltip("The Sun beyond Earth along the line, so the light arrives on the night side. With " +
+             "it, a higher sunAside lights more of Earth: at 0.6 about a tenth of the disc is lit, " +
+             "and the point the light flies into is 53 degrees past the terminator.")]
+    [SerializeField] bool sunBeyondEarth = true;
+
+    [Tooltip("Turn Earth so the arrival point faces back along the line. Off leaves its turn alone.")]
+    [SerializeField] bool faceArrival = true;
+
+    [Tooltip("Where the light ends, degrees north. Mount Wilson, above Pasadena.")]
+    [Range(-90f, 90f)] [SerializeField] float arrivalLatitude = 34.22f;
+
+    [Tooltip("Where the light ends, degrees east. Mount Wilson, above Pasadena.")]
+    [Range(-180f, 180f)] [SerializeField] float arrivalLongitude = -118.06f;
 
     [Tooltip("The planets the light passes on its way to Earth. Each needs an orbit bigger than " +
              "the Sun's distance from the line. The rest are spread round their orbits.")]
@@ -170,9 +190,11 @@ public class SolarSystemPath_NEW : MonoBehaviour
         float sEarth = Mathf.Abs(facing) > 1e-4f ? Vector3.Dot(gate.position - origin, normal) / facing
                                                  : Vector3.Dot(gate.position - origin, d);
 
-        // The Sun to the side, and short of Earth: the line leaves Earth's orbit at Earth.
+        // The Sun to the side, and beyond Earth: the line enters Earth's orbit at Earth. (Short
+        // of Earth, it leaves the orbit there, and the light comes in from the Sun's side.)
         float b = sunAside * earthOrbit;
-        float sSun = sEarth - Mathf.Sqrt(Mathf.Max(0f, earthOrbit * earthOrbit - b * b));
+        float along = Mathf.Sqrt(Mathf.Max(0f, earthOrbit * earthOrbit - b * b));
+        float sSun = sEarth + (sunBeyondEarth ? along : -along);
 
         // A point s along the line and y across it, y measured towards the Sun.
         Vector3 At(float s, float y) => origin + d * s + side * (towardsSun * y);
@@ -254,12 +276,26 @@ public class SolarSystemPath_NEW : MonoBehaviour
         transform.position = sunAt + rootFromSun;
         sun.position = sunAt;
         earth.position = earthAt;
+        if (faceArrival) earth.rotation = FacingBack(d, up);
         foreach (KeyValuePair<Transform, Vector3> t in targets) t.Key.position = t.Value;
         gate.position = earthAt;
         pathDirection = d;
 
         return $"Earth on '{gate.name}' at {earthAt}, on the line; the Sun {b:0.0} to the side, " +
-               $"{sEarth - sSun:0.0} short of it.{report}";
+               $"{Mathf.Abs(sEarth - sSun):0.0} {(sunBeyondEarth ? "beyond" : "short of")} it.{report}";
+    }
+
+    /// <summary>
+    /// Earth's turn with the arrival point facing back along the line, north up. The point's
+    /// direction is PlanetSphere_NEW's: u = (longitude + 180) / 360, v = (latitude + 90) / 180,
+    /// for a map with the prime meridian in its middle.
+    /// </summary>
+    Quaternion FacingBack(Vector3 direction, Vector3 up)
+    {
+        float phi = (arrivalLongitude + 180f) / 360f * 2f * Mathf.PI;
+        float theta = (90f - arrivalLatitude) * Mathf.Deg2Rad;
+        var point = new Vector3(-Mathf.Sin(phi) * Mathf.Sin(theta), Mathf.Cos(theta), -Mathf.Cos(phi) * Mathf.Sin(theta));
+        return Quaternion.LookRotation(-direction, up) * Quaternion.Inverse(Quaternion.LookRotation(point, Vector3.up));
     }
 
     /// <summary>

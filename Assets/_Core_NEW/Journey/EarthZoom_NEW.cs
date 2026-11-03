@@ -33,6 +33,11 @@ using UnityEngine;
 /// the rush, not for size. What it leaves is kept into the Earth layer, which shares the
 /// camera; the Earth arrival's own transition unlocks look.
 ///
+/// THE SUN. It is beyond Earth (SolarSystemPath_NEW), and in this system half as wide as
+/// Earth's orbit, so grown with everything else it would stand as a third of the sky beside
+/// Earth. So it is held to sunSeenDegrees on screen as the rest grows, a bright disc that goes
+/// down behind Earth's limb as Earth comes to fill the view: the light arrives in the dark.
+///
 /// THE GATE. On Awake the Earth gate is put at the top of Earth's air as it will be, so
 /// the ending starts as the light goes in. This runs after EarthApproach_NEW and overrides
 /// where that put the gate; still Awake, so UniverseJourneyTracker_NEW reads it in Start.
@@ -58,6 +63,9 @@ public class EarthZoom_NEW : MonoBehaviour
     [Tooltip("The Solar System's camera. VCam_SolarSystem if empty.")]
     [SerializeField] CinemachineFreeLook solarCamera;
 
+    [Tooltip("The Sun. The child named 'Sun' if empty.")]
+    [SerializeField] Transform sun;
+
     [Header("Zoom")]
     [Tooltip("How far short of Earth's centre, along the light's line, the growth starts. " +
              "Further: a longer, gentler rush; nearer: more of the plain approach first.")]
@@ -73,6 +81,10 @@ public class EarthZoom_NEW : MonoBehaviour
 
     [Tooltip("Where in the air the gate sits: 1 at its top, 0 on the ground.")]
     [Range(0f, 1f)] [SerializeField] float gateInAir = 1f;
+
+    [Tooltip("The Sun's radius on screen, in degrees, by the end of the zoom. 0 lets it grow with " +
+             "the rest.")]
+    [Range(0f, 30f)] [SerializeField] float sunSeenDegrees = 3f;
 
     [Header("Camera")]
     [SerializeField] bool driveCamera = true;
@@ -96,7 +108,8 @@ public class EarthZoom_NEW : MonoBehaviour
     LayerDive_NEW _dive;
     bool _zooming, _done, _warned;
     float _u, _from, _r0, _radius, _logSeenFrom, _logSeenTo;
-    Vector3 _rootFrom, _scaleFrom, _scaleSet, _centre;
+    Vector3 _rootFrom, _scaleFrom, _scaleSet, _centre, _sunScaleFrom;
+    float _sunRadiusFrom, _sunSeenFrom;
     float _xFrom, _yFrom, _heightFrom, _fovFrom;
 
     /// <summary>Distance from Earth's centre, along the line, at which the light reaches the gate.</summary>
@@ -109,6 +122,7 @@ public class EarthZoom_NEW : MonoBehaviour
     {
         if (photon == null) photon = FindObjectOfType<PlayerRig_NEW>();
         if (earth == null) earth = transform.Find("Earth");
+        if (sun == null) sun = transform.Find("Sun");
         if (earthGate == null)
             foreach (LayerGate_NEW g in FindObjectsOfType<LayerGate_NEW>())
                 if (g.LayerId == earthLayerId) { earthGate = g; break; }
@@ -183,6 +197,8 @@ public class EarthZoom_NEW : MonoBehaviour
         transform.position = _centre + (_rootFrom - _centre) * s;
         _scaleSet = transform.localScale;
 
+        HoldSun(s);
+
         if (driveCamera && solarCamera != null) Frame(_u);
 
         if (debugLog && Time.frameCount % 30 == 0)
@@ -196,10 +212,27 @@ public class EarthZoom_NEW : MonoBehaviour
         }
     }
 
-    /// <summary>How far behind the light, along its line, the camera is.</summary>
+    /// <summary>Holds the Sun, grown s times with the rest, to the size on screen it should have now.</summary>
+    void HoldSun(float s)
+    {
+        if (sun == null || sunSeenDegrees <= 0f) return;
+
+        Camera cam = GetReal3DView_NEW.ScreenCamera;
+        if (cam == null) return;
+
+        float seen = Mathf.Lerp(_sunSeenFrom, sunSeenDegrees, Mathf.SmoothStep(0f, 1f, _u));
+        float wanted = Mathf.Tan(seen * Mathf.Deg2Rad) * Vector3.Distance(sun.position, cam.transform.position);
+        sun.localScale = _sunScaleFrom * Mathf.Min(1f, wanted / (_sunRadiusFrom * s));
+    }
+
+    /// <summary>
+    /// How far behind the light, along its line, the camera is. Through ScreenCamera, not
+    /// Camera.main: every copy on the wall must get the same answer, or the copies grow Earth
+    /// differently and the wall comes apart at its seams.
+    /// </summary>
     float CameraBack()
     {
-        Camera cam = Camera.main;
+        Camera cam = GetReal3DView_NEW.ScreenCamera;
         return cam != null ? Mathf.Max(0f, Vector3.Dot(photon.transform.position - cam.transform.position, photon.MovementDirection)) : 5f;
     }
 
@@ -216,6 +249,15 @@ public class EarthZoom_NEW : MonoBehaviour
         _scaleFrom = transform.localScale;
         _scaleSet = _scaleFrom;
         _centre = earth.position;
+
+        if (sun != null)
+        {
+            _sunScaleFrom = sun.localScale;
+            _sunRadiusFrom = 0.5f * sun.lossyScale.x;
+            Camera cam = GetReal3DView_NEW.ScreenCamera;
+            float away = cam != null ? Vector3.Distance(sun.position, cam.transform.position) : 50f;
+            _sunSeenFrom = Mathf.Atan2(_sunRadiusFrom, away) * Mathf.Rad2Deg;
+        }
 
         if (driveCamera && solarCamera != null)
         {
