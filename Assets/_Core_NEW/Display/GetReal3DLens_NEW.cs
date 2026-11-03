@@ -25,6 +25,14 @@ using UnityEngine;
 /// The updater may rewrite the projection every frame or set it once and leave it. Both
 /// are handled: if the matrix is still the one written here last time, nobody has touched
 /// it, and the magnification is reapplied to the stored original instead of compounding.
+///
+/// LATER: THE DESK'S WINDOW. At a desk getReal3D runs on editor_config, one 530 x 300
+/// screen - 16:9 - and builds the projection for that, whatever shape the window is. Since
+/// Play started putting the Game view in the wall's 1.27 : 1, a 16:9 picture was squeezed
+/// into it and everything stood 1.39 times too tall: the Sun an upright egg. So on a desk
+/// (not RunningAsSeveralCopies) the projection is refitted to the window's own shape, the
+/// height getReal3D gave it kept and the width following the window. On the wall each
+/// copy's window is its screens' shape, and nothing is changed.
 /// </summary>
 [RequireComponent(typeof(Camera))]
 public class GetReal3DLens_NEW : MonoBehaviour
@@ -48,13 +56,16 @@ public class GetReal3DLens_NEW : MonoBehaviour
     public float Magnification { get; private set; }
 
     /// <summary>
-    /// The projection getReal3D gave this camera, before the zoom. GetReal3DHudDraw_NEW
-    /// draws the HUD with it: the HUD is fixed to the screens, so it must not zoom.
+    /// The projection getReal3D gave this camera, before the zoom (fitted to the window on a
+    /// desk). GetReal3DHudDraw_NEW draws the HUD with it: the HUD is fixed to the screens,
+    /// so it must not zoom.
     /// </summary>
     public Matrix4x4 UnmagnifiedProjection
     {
-        get { return _hasWritten ? _original : _camera.projectionMatrix; }
+        get { return _hasWritten ? _original * Matrix4x4.Scale(new Vector3(_aspectFix, 1f, 1f)) : _camera.projectionMatrix; }
     }
+
+    float _aspectFix = 1f;
 
     void Awake()
     {
@@ -75,18 +86,36 @@ public class GetReal3DLens_NEW : MonoBehaviour
         float k = TargetMagnification();
         Magnification = k;
 
-        // Never touched the projection, and nothing to do: leave Unity's own in charge.
-        if (!_hasWritten && Mathf.Approximately(k, 1f)) return;
-
         Matrix4x4 current = _camera.projectionMatrix;
-        if (!_hasWritten || current != _written) _original = current;
+        Matrix4x4 source = !_hasWritten || current != _written ? current : _original;
+        float fix = DeskAspectFix(source);
 
-        _written = Mathf.Approximately(k, 1f)
+        // Never touched the projection, and nothing to do: leave Unity's own in charge.
+        if (!_hasWritten && Mathf.Approximately(k, 1f) && Mathf.Approximately(fix, 1f)) return;
+
+        _original = source;
+        _aspectFix = fix;
+
+        _written = Mathf.Approximately(k, 1f) && Mathf.Approximately(fix, 1f)
             ? _original
-            : _original * Matrix4x4.Scale(new Vector3(k, k, 1f));
+            : _original * Matrix4x4.Scale(new Vector3(k * fix, k, 1f));
 
         _camera.projectionMatrix = _written;
         _hasWritten = true;
+    }
+
+    /// <summary>
+    /// On a desk, how much to widen x so getReal3D's frustum takes the window's shape (see
+    /// LATER, above): its own aspect, m11 / m00, over the window's. 1 on the wall.
+    /// </summary>
+    float DeskAspectFix(Matrix4x4 projection)
+    {
+        if (InputScheme_NEW.RunningAsSeveralCopies) return 1f;
+        if (_camera.pixelHeight <= 0 || Mathf.Abs(projection.m00) < 1e-6f) return 1f;
+
+        float projected = projection.m11 / projection.m00;
+        float window = _camera.pixelWidth / (float)_camera.pixelHeight;
+        return projected / window;
     }
 
     float TargetMagnification()
