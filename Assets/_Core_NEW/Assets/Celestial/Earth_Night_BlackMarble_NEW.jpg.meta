@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 2f45c36c865f06e47a8a61d4da5bc619
+guid: a836185cf7d84d09a597f55aaec1f7cb
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -28,14 +28,14 @@ TextureImporter:
   cubemapConvolution: 0
   seamlessCubemap: 0
   textureFormat: 1
-  maxTextureSize: 2048
+  maxTextureSize: 4096
   textureSettings:
     serializedVersion: 2
     filterMode: 1
-    aniso: 1
+    aniso: 4
     mipBias: 0
     wrapU: 0
-    wrapV: 0
+    wrapV: 1
     wrapW: 0
   nPOTScale: 1
   lightmap: 0
@@ -48,7 +48,7 @@ TextureImporter:
   spritePixelsToUnits: 100
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
-  alphaUsage: 1
+  alphaUsage: 0
   alphaIsTransparency: 0
   spriteTessellationDetail: -1
   textureType: 0
@@ -61,7 +61,7 @@ TextureImporter:
   platformSettings:
   - serializedVersion: 3
     buildTarget: DefaultTexturePlatform
-    maxTextureSize: 2048
+    maxTextureSize: 4096
     resizeAlgorithm: 0
     textureFormat: -1
     textureCompression: 1

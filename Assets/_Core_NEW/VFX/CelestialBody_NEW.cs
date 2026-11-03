@@ -76,6 +76,39 @@ public class CelestialBody_NEW : MonoBehaviour
              "0.55 is the map as it is.")]
     [SerializeField] Texture cloudMap;
 
+    [Header("Night (Earth)")]
+    [Tooltip("Optional. The whole night side by moonlight, city lights and all (NASA's Black Marble, " +
+             "aligned with the day map). Shown as it is on the night side, in place of the fill and " +
+             "the noise's city lights.")]
+    [SerializeField] Texture nightMap;
+    [Range(0f, 4f)] [SerializeField] float nightExposure = 1f;
+    [Tooltip("The clouds over the night map, by moonlight.")]
+    [SerializeField] Color nightClouds = new Color(0.13f, 0.135f, 0.16f, 1f);
+    [Tooltip("Optional. A close-up of the night over one region, laid over the night map as the camera " +
+             "comes down to it.")]
+    [SerializeField] Texture regionMap;
+    [Tooltip("Where the region map lies, in degrees: west, south, east, north.")]
+    [SerializeField] Vector4 regionRect = new Vector4(-120.19167f, 32.62083f, -115.925f, 35.82083f);
+    [Tooltip("The region map comes in as the planet's radius over the camera's height above the " +
+             "ground goes from x to y. About 2.8 as the light reaches the air, growing as it comes down.")]
+    [SerializeField] Vector2 regionFade = new Vector2(4f, 10f);
+    [Tooltip("A clear sky round this point, latitude and longitude in degrees: where the light comes down.")]
+    [SerializeField] Vector2 clearSkyAt = new Vector2(34.22f, -118.06f);
+    [Tooltip("Clear inside x degrees of it, the weather back by y. 0, 0: no clearing.")]
+    [SerializeField] Vector2 clearSkyDegrees = Vector2.zero;
+
+    [Tooltip("Down on the ground (EarthSummit_NEW): the region map's bright city broken into points " +
+             "in cells this many km across, 0 for none.")]
+    [Range(0f, 1f)] [SerializeField] float cityLightsKm = 0.15f;
+    [Tooltip("Each point's size, as a fraction of its cell.")]
+    [Range(0.05f, 0.5f)] [SerializeField] float cityLightSize = 0.22f;
+    [Range(0f, 4f)] [SerializeField] float cityLightBrightness = 1.6f;
+    [Tooltip("The region map's brightness (it is saturated over Los Angeles).")]
+    [Range(0f, 2f)] [SerializeField] float regionExposure = 0.8f;
+    [Tooltip("Down on the ground, the haze the far ground fades into.")]
+    [SerializeField] Color groundHaze = new Color(0.1f, 0.06f, 0.04f, 1f);
+    [Min(1f)] [SerializeField] float groundHazeKm = 30f;
+
     [Header("Air")]
     [SerializeField] bool atmosphere = false;
     [Tooltip("How deep the air is, as a fraction of the radius. Earth's visible air is very thin.")]
@@ -91,6 +124,7 @@ public class CelestialBody_NEW : MonoBehaviour
     readonly List<GameObject> _parts = new List<GameObject>();
     readonly List<Material> _materials = new List<Material>();
     Material _surface, _air;
+    GameObject _airPart;
     Renderer _original;
     float _meshRadius = 0.5f;
     bool _rebuild, _dirty;
@@ -106,6 +140,21 @@ public class CelestialBody_NEW : MonoBehaviour
 
     /// <summary>How deep the air is, as a fraction of the radius; 0 without one.</summary>
     public float AirDepth => atmosphere ? airDepth : 0f;
+
+    /// <summary>
+    /// The surface as drawn, for EarthSummit_NEW's finer patch of the same ground: drawn with
+    /// this, it is the same picture. Null until built.
+    /// </summary>
+    public Material SurfaceMaterial => _surface;
+
+    /// <summary>The mesh's radius, object space.</summary>
+    public float MeshRadius => _meshRadius;
+
+    /// <summary>Hides the air, or shows it again. For a camera down on the ground, where the shell is too big to draw true.</summary>
+    public void SetAirVisible(bool visible)
+    {
+        if (_airPart != null) _airPart.SetActive(visible);
+    }
 
     /// <summary>Sets every look to the kind's own, for Tools > Journey NEW > Polish Solar System.</summary>
     public void ApplyPreset(Kind k)
@@ -284,7 +333,11 @@ public class CelestialBody_NEW : MonoBehaviour
         _meshRadius = Mathf.Max(mesh.bounds.extents.x, 1e-4f);
 
         _surface = Part("Surface", mesh, surfaceShader, 1f, 2000);
-        if (atmosphere) _air = Part("Air", mesh, airShader, 1f + airDepth * 1.05f, 3000);
+        if (atmosphere)
+        {
+            _air = Part("Air", mesh, airShader, 1f + airDepth * 1.05f, 3000);
+            _airPart = _parts[_parts.Count - 1];
+        }
 
         _original.forceRenderingOff = true;
 
@@ -321,6 +374,7 @@ public class CelestialBody_NEW : MonoBehaviour
         _parts.Clear();
         _materials.Clear();
         _surface = _air = null;
+        _airPart = null;
     }
 
     static void Kill(Object o)
@@ -351,6 +405,25 @@ public class CelestialBody_NEW : MonoBehaviour
         _surface.SetFloat("_CloudCover", cloudCover);
         if (cloudMap != null) _surface.SetTexture("_CloudMap", cloudMap);
         _surface.SetFloat("_CloudMapOn", cloudMap != null ? 1f : 0f);
+
+        if (nightMap != null) _surface.SetTexture("_NightMap", nightMap);
+        _surface.SetFloat("_NightMapOn", nightMap != null ? 1f : 0f);
+        _surface.SetFloat("_NightExposure", nightExposure);
+        _surface.SetColor("_NightCloud", nightClouds);
+        if (regionMap != null) _surface.SetTexture("_RegionMap", regionMap);
+        _surface.SetFloat("_RegionOn", nightMap != null && regionMap != null ? 1f : 0f);
+        _surface.SetVector("_RegionRect", regionRect);
+        _surface.SetVector("_RegionFade", regionFade);
+        _surface.SetVector("_Lights", new Vector4(Mathf.Max(cityLightsKm, 0.01f), cityLightSize, cityLightsKm > 0f ? 1f : 0f, regionExposure));
+        _surface.SetFloat("_LightsBright", cityLightBrightness);
+        _surface.SetVector("_GroundHaze", new Vector4(groundHaze.r, groundHaze.g, groundHaze.b, groundHazeKm));
+
+        // The point as the maps lie on PlanetSphere_NEW: longitude -180 at u = 0.
+        float phi = (clearSkyAt.y + 180f) * Mathf.Deg2Rad, lat = clearSkyAt.x * Mathf.Deg2Rad;
+        _surface.SetVector("_ClearSky", new Vector4(-Mathf.Sin(phi) * Mathf.Cos(lat), Mathf.Sin(lat), -Mathf.Cos(phi) * Mathf.Cos(lat), 0f));
+        _surface.SetVector("_ClearSkyCos", clearSkyDegrees.y > 0f
+            ? new Vector4(Mathf.Cos(clearSkyDegrees.x * Mathf.Deg2Rad), Mathf.Cos(Mathf.Max(clearSkyDegrees.y, clearSkyDegrees.x + 0.01f) * Mathf.Deg2Rad), 0f, 0f)
+            : new Vector4(2f, 1.5f, 0f, 0f));
         _surface.SetFloat("_CloudSpin", cloudDrift);
         _surface.SetFloat("_LimbDarkening", limbDarkening);
         _surface.SetFloat("_BandFlow", bandFlow);

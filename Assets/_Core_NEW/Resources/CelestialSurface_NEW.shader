@@ -39,6 +39,25 @@ Shader "Custom/CelestialSurface_NEW"
     // through the gaps. It replaces EarthClouds_NEW's full-screen deck in Vizlab_Journey,
     // which on the wall cost a raymarch per copy and turned the night into white fog.
     //
+    // LATER: EARTH'S REAL NIGHT. Given a night map (_NightMap: NASA's Black Marble, the whole
+    // Earth by moonlight with its city lights) the night side shows it as it is, in place of
+    // the day map's albedo under the fill and the noise's cities: moonlit land a dark blue,
+    // the cities where they are. The clouds over it are a moonlit grey (_NightCloud), not
+    // black. A region map (_RegionMap, the same night at 24 times the detail, over
+    // _RegionRect in degrees) comes in over the global one as the camera comes down to the
+    // ground (_RegionFade, in the planet's radius over the camera's height above it), its
+    // edges feathered; and round the landing point the sky is cleared (_ClearSky), so it is
+    // a clear night where the light comes down.
+    //
+    // LATER: ON THE GROUND. Down on Mount Wilson (EarthSummit_NEW draws a finer patch of this
+    // sphere with this material) the region map's texels are 460 m, and the city, seen across
+    // at a glance, came out as a white slab. So where the map is bright, close up, it is
+    // broken into the lights it is made of (_Lights): a point in each cell of a grid
+    // _Lights.x km across, the brighter the map the more cells lit, each as bright as
+    // _LightsBright; as cells come under two pixels the points give way to the map again. And
+    // the ground thickens into the city's haze with distance (_GroundHaze, in km), once the
+    // camera is down (_GroundHazeFrom, radius over height).
+    //
     // Opaque. _Color fades it as WorldSwitcher_NEW fades a world. In Resources so a build has it.
 
     Properties
@@ -61,6 +80,20 @@ Shader "Custom/CelestialSurface_NEW"
         _CityAmount ("City lights amount", Range(0, 3)) = 0
         [NoScaleOffset] _CloudMap ("Cloud map (equirectangular, cover in red)", 2D) = "black" {}
         _CloudMapOn ("Clouds from the map, not the noise", Float) = 0
+        _NightMap ("Night map (equirectangular, Black Marble)", 2D) = "black" {}
+        _NightMapOn ("Night from the map", Float) = 0
+        _NightExposure ("Night map exposure", Range(0, 4)) = 1
+        _NightCloud ("Clouds by moonlight", Color) = (0.13, 0.135, 0.16, 1)
+        [NoScaleOffset] _RegionMap ("Region night map", 2D) = "black" {}
+        _RegionOn ("Region map in use", Float) = 0
+        _RegionRect ("Region: west, south, east, north (degrees)", Vector) = (0, 0, 1, 1)
+        _RegionFade ("Region in from / to (radius over height)", Vector) = (3, 9, 0, 0)
+        _ClearSky ("Clear sky round (object-space direction)", Vector) = (0, 1, 0, 0)
+        _ClearSkyCos ("Clear sky cosines: inside, outside", Vector) = (2, 1.5, 0, 0)
+        _Lights ("City lights close up: cell km, point size, amount, region exposure", Vector) = (0.15, 0.22, 0, 1)
+        _LightsBright ("City lights close up: each point's brightness", Range(0, 4)) = 1.6
+        _GroundHaze ("Ground haze (rgb), km (w)", Vector) = (0.1, 0.06, 0.04, 30)
+        _GroundHazeFrom ("Ground haze from / to (radius over height)", Vector) = (200, 800, 0, 0)
         _CloudShadow ("Cloud shadows", Range(0, 1)) = 0
         _CloudCover ("Cloud cover", Range(0, 1)) = 0.55
         _CloudSpin ("Cloud drift, radians a second", Float) = 0.01
@@ -91,6 +124,41 @@ Shader "Custom/CelestialSurface_NEW"
             float _Exposure, _Bump, _Regolith, _TerminatorAmount, _HazeAmount, _Ocean, _CityAmount;
             float _CloudShadow, _LimbDarkening, _BandFlow, _CloudAmount, _CloudBrightness;
             float4 _CloudTerminator;
+            sampler2D _NightMap, _RegionMap;
+            float4 _NightMap_ST, _NightCloud, _RegionRect, _RegionFade;
+            float _NightMapOn, _NightExposure, _RegionOn;
+            float4 _Lights, _GroundHaze, _GroundHazeFrom;
+            float _LightsBright;
+
+            float3 LightHash(float3 p)
+            {
+                p = frac(p * float3(0.1031, 0.1030, 0.0973));
+                p += dot(p, p.yxz + 33.33);
+                return frac((p.xxy + p.yxx) * p.zyx);
+            }
+
+            // The map's light broken into points (see LATER: ON THE GROUND): a light in a
+            // cell if its hash is under the map's brightness. Between them, the map's
+            // moonlit ground, dimmed to the land's own tone.
+            float3 CityPoints(float3 nObj, float3 night, float weight)
+            {
+                float luma = dot(night, float3(0.299, 0.587, 0.114));
+                float3 q = nObj * (6371.0 / _Lights.x);
+                float pixel = length(fwidth(q));
+                float detail = weight * _Lights.z * smoothstep(0.6, 0.3, pixel) * smoothstep(0.12, 0.35, luma);
+                if (detail <= 0.0) return night;
+
+                float3 cell = floor(q);
+                float3 h = LightHash(cell);
+                float3 at = 0.2 + 0.6 * LightHash(cell + 19.0);
+                float size = max(_Lights.y, pixel * 0.7);
+                float spot = saturate(1.0 - length(frac(q) - at) / size);
+                float lit = step(h.x, saturate(luma * 1.2));
+                float3 hue = night / max(luma, 0.05);
+                float3 ground = hue * 0.04;
+                float3 points = ground + hue * spot * spot * lit * _LightsBright * (0.6 + 0.8 * h.y);
+                return lerp(night, points, detail);
+            }
 
             struct v2f
             {
@@ -99,6 +167,8 @@ Shader "Custom/CelestialSurface_NEW"
                 float3 local  : TEXCOORD1;   // object space, on the sphere
                 float3 world  : TEXCOORD2;
                 float  pixels : TEXCOORD3;   // the planet's radius on screen, in pixels
+                float  close  : TEXCOORD4;   // the planet's radius over the camera's height above it
+                float  km     : TEXCOORD5;   // km a world unit, Earth's radius standing for 6371
             };
 
             v2f vert(appdata_base v)
@@ -112,6 +182,8 @@ Shader "Custom/CelestialSurface_NEW"
                 float radius = length(mul((float3x3)unity_ObjectToWorld, v.vertex.xyz));
                 o.pixels = radius / max(length(centre - _WorldSpaceCameraPos), 1e-6)
                          * abs(unity_CameraProjection._m11) * _ScreenParams.y * 0.5;
+                o.close = radius / max(length(centre - _WorldSpaceCameraPos) - radius, 1e-5);
+                o.km = 6371.0 / max(radius, 1e-6);
                 return o;
             }
 
@@ -181,11 +253,35 @@ Shader "Custom/CelestialSurface_NEW"
                 // The fill: brightest face on, falling off towards the limb; on the night side
                 // most, but on the day side too, a little.
                 float fill = (0.45 + 0.55 * mu) * (1.0 - 0.45 * day);
-                float3 lit = albedo * sun * diffuse * _Exposure * (1.0 - shadow) + (_Night.rgb + _Fill.rgb * fill) * albedo;
+                float3 dark = (_Night.rgb + _Fill.rgb * fill) * albedo;
+
+                // The night from the map, where there is one: on the night side it is the
+                // night side, moonlit land, cities and all (see LATER, above).
+                float nightSide = smoothstep(0.06, -0.14, nlSmooth);
+                if (_NightMapOn > 0.5)
+                {
+                    float3 night = tex2D(_NightMap, TRANSFORM_TEX(i.uv, _NightMap)).rgb;
+                    if (_RegionOn > 0.5)
+                    {
+                        // Longitude and latitude, as the maps lay them out on PlanetSphere_NEW.
+                        float lon = frac(atan2(-nObj.x, -nObj.z) / 6.2831853) * 360.0 - 180.0;
+                        float lat = degrees(asin(clamp(nObj.y, -1.0, 1.0)));
+                        float2 r = float2((lon - _RegionRect.x) / (_RegionRect.z - _RegionRect.x),
+                                          (lat - _RegionRect.y) / (_RegionRect.w - _RegionRect.y));
+                        float2 edge = saturate(min(r, 1.0 - r) / 0.12);
+                        float w = edge.x * edge.y * smoothstep(_RegionFade.x, _RegionFade.y, i.close);
+                        night = lerp(night, tex2D(_RegionMap, saturate(r)).rgb * _Lights.w, w);
+                        night = CityPoints(nObj, night, w);
+                    }
+                    dark = lerp(dark, night * _NightExposure, nightSide);
+                }
+
+                float3 lit = albedo * sun * diffuse * _Exposure * (1.0 - shadow) + dark;
                 lit += specular * (1.0 - shadow);
 
-                // City lights on the night side, on land, in clusters.
-                if (_CityAmount > 0.0)
+                // City lights on the night side, on land, in clusters. Not with a night map:
+                // it has the real ones.
+                if (_CityAmount > 0.0 && _NightMapOn < 0.5)
                 {
                     float land = saturate(1.0 - ocean * 3.0) * saturate(1.0 - (Luma(albedo) - 0.55) * 6.0);
                     float clusters = smoothstep(0.58, 0.8, Triplanar(nObj * 6.0).r) * smoothstep(0.5, 0.9, Triplanar(nObj * 23.0).a);
@@ -205,6 +301,7 @@ Shader "Custom/CelestialSurface_NEW"
                     float cloudLit = saturate(nlSmooth * 0.7 + 0.35);
                     float a = cover * smoothstep(0.0, 0.25, mu) * 0.92;
                     float3 cloud = cloudSun * cloudLit * cloudDay * _CloudBrightness + _Night.rgb + _Fill.rgb * fill * 0.8;
+                    cloud += _NightCloud.rgb * nightSide * _NightMapOn;
                     lit = lerp(lit, cloud, a);
                 }
 
@@ -214,6 +311,14 @@ Shader "Custom/CelestialSurface_NEW"
 
                 // Giants: darker towards the limb.
                 lit *= lerp(1.0, pow(max(mu, 0.02), 0.45), _LimbDarkening);
+
+                // Down on the ground, the city's haze with distance.
+                float hazeOn = smoothstep(_GroundHazeFrom.x, _GroundHazeFrom.y, i.close);
+                if (hazeOn > 0.0)
+                {
+                    float km = length(i.world - _WorldSpaceCameraPos) * i.km;
+                    lit = lerp(lit, _GroundHaze.rgb, (1.0 - exp(-km / max(_GroundHaze.w, 1e-3))) * hazeOn);
+                }
 
                 // Under two pixels across, gone rather than blinking between pixels.
                 lit *= smoothstep(0.6, 1.2, i.pixels);
