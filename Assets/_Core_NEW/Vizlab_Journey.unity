@@ -128659,30 +128659,30 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   version: 1
   shownByDefault:
-    before: {fileID: 0}
-    beforeText: The soft glow around these threads is dark matter, drawn so you can
-      see it. It gives off no light, yet it outweighs ordinary matter five to one.
-    beforeEstimate: 12
-    after: {fileID: 0}
-    afterText: Without it on screen, only the gas remains. Dark matter's gravity
-      pulled the gas into this structure, so the gas is a beacon, showing us where
-      the dark matter lies.
-    afterEstimate: 13
-    nudge: {fileID: 0}
+    before: {fileID: 8300000, guid: dd870c7486b7e1f4aa1f059ce027e9da, type: 3}
+    beforeText: The wider haze around these threads is dark matter, drawn so you
+      can see it. It is invisible scaffolding of the cosmic web, five times heavier
+      than ordinary matter.
+    beforeEstimate: 11
+    after: {fileID: 8300000, guid: d13e2063ef979124da0039d33a59c8ba, type: 3}
+    afterText: Without the drawing, only the gas remains. It gathers along that
+      scaffolding, a beacon that shows us where the dark matter lies.
+    afterEstimate: 10
+    nudge: {fileID: 8300000, guid: 0b2a230d26b1cb64ebc9aee92e9bfe2c, type: 3}
     nudgeText: Press Y to hide the dark matter.
     hint: HIDE DARK MATTER
   hiddenByDefault:
-    before: {fileID: 0}
+    before: {fileID: 8300000, guid: f1dd688a7d9f8cc439deca110230afe6, type: 3}
     beforeText: There is far too little gas here to pull itself into threads like
       these. Something you cannot see is holding it in place.
     beforeEstimate: 10
-    after: {fileID: 0}
-    afterText: This is dark matter, drawn so you can see it. It gives off no light,
-      yet it outweighs ordinary matter five to one, and its gravity pulls the gas
-      into this structure.
-    afterEstimate: 14
-    nudge: {fileID: 0}
-    nudgeText: Press Y to see what holds it together.
+    after: {fileID: 8300000, guid: 1e57e59453d45a84fadc85b6a48de878, type: 3}
+    afterText: This is dark matter, invisible scaffolding of the cosmic web, five
+      times heavier than ordinary matter. The gas gathers along it, a beacon that
+      shows us where the dark matter lies.
+    afterEstimate: 14.5
+    nudge: {fileID: 8300000, guid: c0249b026a45a184796be736cbbae614, type: 3}
+    nudgeText: Press Y to see the dark matter.
     hint: SHOW DARK MATTER
   layerId: Macro
   layerState: {fileID: 800000002}
@@ -200188,10 +200188,22 @@ MonoBehaviour:
           m_CallState: 2
   - id: F6
     description: 
-    duration: 10.3
+    duration: 15.5
     onEnter:
       m_PersistentCalls:
-        m_Calls: []
+        m_Calls:
+        - m_Target: {fileID: 612471642}
+          m_MethodName: Say
+          m_Mode: 2
+          m_Arguments:
+            m_ObjectArgument: {fileID: 8300000, guid: b5e2d74703104b8419ab8c99cedb1476,
+              type: 3}
+            m_ObjectArgumentAssemblyTypeName: UnityEngine.AudioClip, UnityEngine
+            m_IntArgument: 0
+            m_FloatArgument: 0
+            m_StringArgument: 
+            m_BoolArgument: 0
+          m_CallState: 2
   useUnscaledTime: 0
   debugLog: 0
   skipStepKey: 287

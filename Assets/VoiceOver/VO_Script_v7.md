@@ -88,13 +88,13 @@ No story lines. Button prompts only.
 | --- | --- | --- | --- |
 | J3_DMoff_Before | Straight after J3. The hint `Y · SHOW DARK MATTER` appears. | There is far too little gas here to pull itself into threads like these. Something you cannot see is holding it in place. | 10 s |
 | N_J3_DMoff | If Y has not been pressed 1.5 s after the line above. | Press Y to see the dark matter. | 2.5 s |
-| J3_DMoff_After | When Y is pressed (or on its own, 6 s after the line above), as the dark matter appears. | This is dark matter, drawn so you can see it: the web's invisible scaffolding, five times heavier than ordinary matter. The gas gathers along it, a beacon that shows us where the dark matter lies. | 14.5 s |
+| J3_DMoff_After | When Y is pressed (or on its own, 6 s after the line above), as the dark matter appears. | This is dark matter, invisible scaffolding of the cosmic web, five times heavier than ordinary matter. The gas gathers along it, a beacon that shows us where the dark matter lies. | 14.5 s |
 
 *Version A · the dark matter starts shown, Y hides it*
 
 | ID | When | Line | ≈ |
 | --- | --- | --- | --- |
-| J3_DMon_Before | Straight after J3. The hint `Y · HIDE DARK MATTER` appears. | The wider haze around these threads is dark matter, drawn so you can see it. It is the web's invisible scaffolding, five times heavier than ordinary matter. | 11 s |
+| J3_DMon_Before | Straight after J3. The hint `Y · HIDE DARK MATTER` appears. | The wider haze around these threads is dark matter, drawn so you can see it. It is invisible scaffolding of the cosmic web, five times heavier than ordinary matter. | 11 s |
 | N_J3_DMon | If Y has not been pressed 1.5 s after the line above. | Press Y to hide the dark matter. | 2.5 s |
 | J3_DMon_After | When Y is pressed (or on its own, 6 s after the line above), as the dark matter fades. | Without the drawing, only the gas remains. It gathers along that scaffolding, a beacon that shows us where the dark matter lies. | 10 s |
 

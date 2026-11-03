@@ -31,12 +31,11 @@ MonoBehaviour:
       takes:
       - language: en
         variant: 
-        text: This streak is your trail. It carries every color of your light, from
-          ultraviolet to infrared.
+        text: 'Your light is made of many colors, spread out here from ultraviolet to infrared.'
         clip: {fileID: 8300000, guid: 3ef25136640fbb144ba26ea73067b20d, type: 3}
-        estimatedSeconds: 7
-        status: 1
-        recordedText: 
+        estimatedSeconds: 5
+        status: 2
+        recordedText: 'Your light is made of many colors, spread out here from ultraviolet to infrared.'
       cues: []
   - beatId: D2
     settings:
@@ -55,12 +54,11 @@ MonoBehaviour:
       takes:
       - language: en
         variant: 
-        text: Human eyes can only see this narrow band in the middle. The rest is
-          invisible.
+        text: 'Human eyes can only see this narrow band in the middle. The rest is invisible.'
         clip: {fileID: 8300000, guid: 4488b8f3ffc0ec44a88b68fe8af22adb, type: 3}
         estimatedSeconds: 6.5
-        status: 1
-        recordedText: 
+        status: 2
+        recordedText: 'Human eyes can only see this narrow band in the middle. The rest is invisible.'
       cues: []
   - beatId: D3
     settings:
@@ -79,12 +77,11 @@ MonoBehaviour:
       takes:
       - language: en
         variant: 
-        text: 'This bar is your spectrum: every color you carry, in order from shortest
-          wavelength to longest.'
+        text: 'This bar is your spectrum: the same colors, laid out in a line from purple toward red.'
         clip: {fileID: 8300000, guid: cd085345a616ed0438fac32763183ad6, type: 3}
-        estimatedSeconds: 7
-        status: 1
-        recordedText: 
+        estimatedSeconds: 6
+        status: 2
+        recordedText: 'This bar is your spectrum: the same colors, laid out in a line from purple toward red.'
       cues: []
   - beatId: D4
     settings:
@@ -103,12 +100,11 @@ MonoBehaviour:
       takes:
       - language: en
         variant: 
-        text: Ahead is a single atom of hydrogen, the simplest and most common thing
-          in the universe.
+        text: 'Ahead is a cloud of hydrogen gas. Hydrogen is the simplest element, and the most common in the universe.'
         clip: {fileID: 8300000, guid: 3df727774f2f6814b85d526df79ebc24, type: 3}
         estimatedSeconds: 7
-        status: 1
-        recordedText: 
+        status: 2
+        recordedText: 'Ahead is a cloud of hydrogen gas. Hydrogen is the simplest element, and the most common in the universe.'
       cues: []
   - beatId: D5
     settings:
@@ -127,12 +123,11 @@ MonoBehaviour:
       takes:
       - language: en
         variant: 
-        text: The hydrogen has absorbed one wavelength of your light. That color
-          is gone, and the black line marks where it was.
+        text: 'The gas has absorbed one wavelength of your light. That color is gone, and the black line marks where it was.'
         clip: {fileID: 8300000, guid: 2bb7887434a1e744fb773d84002f5c03, type: 3}
         estimatedSeconds: 9
-        status: 1
-        recordedText: 
+        status: 2
+        recordedText: 'The gas has absorbed one wavelength of your light. That color is gone, and the black line marks where it was.'
       cues: []
   - beatId: D6
     settings:
@@ -151,12 +146,11 @@ MonoBehaviour:
       takes:
       - language: en
         variant: 
-        text: Space itself is expanding. It stretches your light as you travel, and
-          the line slides toward the red. This is redshift.
+        text: 'Now the line is moving. Space itself is expanding, stretching your light as you travel, so the line slides toward the red. This is redshift.'
         clip: {fileID: 8300000, guid: fe417890487e2be4d9c9fb9d52424352, type: 3}
-        estimatedSeconds: 9
-        status: 1
-        recordedText: 
+        estimatedSeconds: 9.5
+        status: 2
+        recordedText: 'Now the line is moving. Space itself is expanding, stretching your light as you travel, so the line slides toward the red. This is redshift.'
       cues: []
   - beatId: D7
     settings:
@@ -175,12 +169,11 @@ MonoBehaviour:
       takes:
       - language: en
         variant: 
-        text: Every hydrogen atom absorbs that same wavelength. The more you pass
-          through, the darker and deeper that line becomes.
+        text: 'Every cloud of hydrogen absorbs that same wavelength. But your light has stretched since the last one, so each cloud cuts a fresh line. The more gas, the deeper the line.'
         clip: {fileID: 8300000, guid: 13a47cdd8abf9954a994717be073ed60, type: 3}
-        estimatedSeconds: 8.5
-        status: 1
-        recordedText: 
+        estimatedSeconds: 10.5
+        status: 2
+        recordedText: 'Every cloud of hydrogen absorbs that same wavelength. But your light has stretched since the last one, so each cloud cuts a fresh line. The more gas, the deeper the line.'
       cues: []
   - beatId: D8
     settings:
@@ -199,12 +192,11 @@ MonoBehaviour:
       takes:
       - language: en
         variant: 
-        text: Another atom cuts a fresh line, while the first keeps sliding toward
-          red. Line by line, a pattern builds.
+        text: 'Another cloud, another line, and every line keeps sliding toward the red. Line by line, a pattern builds.'
         clip: {fileID: 8300000, guid: a402d44773807d34887746ba21eb41b4, type: 3}
-        estimatedSeconds: 8.5
-        status: 1
-        recordedText: 
+        estimatedSeconds: 7
+        status: 2
+        recordedText: 'Another cloud, another line, and every line keeps sliding toward the red. Line by line, a pattern builds.'
       cues: []
   - beatId: D9
     settings:
@@ -223,12 +215,11 @@ MonoBehaviour:
       takes:
       - language: en
         variant: 
-        text: 'These lines stay with you forever: a barcode of everything you pass
-          through.'
+        text: 'These lines stay with you forever: a barcode of everything you pass through.'
         clip: {fileID: 8300000, guid: eb7685486fcaf784c8b185d1ca7699c6, type: 3}
         estimatedSeconds: 6
-        status: 1
-        recordedText: 
+        status: 2
+        recordedText: 'These lines stay with you forever: a barcode of everything you pass through.'
       cues: []
   - beatId: D10
     settings:
@@ -247,9 +238,9 @@ MonoBehaviour:
       takes:
       - language: en
         variant: 
-        text: Press B to pause. Press it again to carry on.
+        text: 'Press B to pause. Press it again to carry on.'
         clip: {fileID: 8300000, guid: dc6c816a396dc5543adaf7ceee48f403, type: 3}
         estimatedSeconds: 3.5
-        status: 1
-        recordedText: 
+        status: 2
+        recordedText: 'Press B to pause. Press it again to carry on.'
       cues: []
