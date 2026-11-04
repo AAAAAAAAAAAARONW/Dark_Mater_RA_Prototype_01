@@ -71,13 +71,20 @@ public class EarthSummit_NEW : MonoBehaviour
     [Range(0.1f, 3f)] [SerializeField] float domeKm = 0.3f;
 
     [Tooltip("Times its real size (a drum and dome 30 m across). Bigger reads better from afar.")]
-    [Range(0.5f, 5f)] [SerializeField] float domeScale = 1.6f;
+    [Range(0.5f, 5f)] [SerializeField] float domeScale = 2.2f;
 
-    [SerializeField] Color domeColour = new Color(0.55f, 0.57f, 0.6f, 1f);
-    [SerializeField] Color mountainColour = new Color(0.04f, 0.04f, 0.045f, 1f);
+    [SerializeField] Color domeColour = new Color(0.75f, 0.77f, 0.8f, 1f);
+    [Tooltip("The city's glow round the dome's edges, so it stands out against the dark.")]
+    [SerializeField] Color domeRim = new Color(0.35f, 0.22f, 0.14f, 1f);
+    [Tooltip("The dim red light inside the dome, seen through the slit.")]
+    [SerializeField] Color domeInside = new Color(0.22f, 0.035f, 0.025f, 1f);
+    [SerializeField] Color mountainColour = new Color(0.06f, 0.06f, 0.065f, 1f);
+    [SerializeField] Color mountainRim = new Color(0.05f, 0.035f, 0.03f, 1f);
 
     [Header("Light")]
-    [SerializeField] Color moonlight = new Color(0.16f, 0.17f, 0.21f, 1f);
+    [SerializeField] Color moonlight = new Color(0.45f, 0.47f, 0.55f, 1f);
+    [Tooltip("Light from the whole sky, on everything.")]
+    [SerializeField] Color skyLight = new Color(0.03f, 0.032f, 0.045f, 1f);
     [SerializeField] Color cityGlow = new Color(0.3f, 0.17f, 0.08f, 1f);
     [SerializeField] Color haze = new Color(0.08f, 0.05f, 0.045f, 1f);
     [Tooltip("km over which the haze thickens on the mountains: short, so ridge behind ridge stands paler.")]
@@ -212,7 +219,9 @@ public class EarthSummit_NEW : MonoBehaviour
 
         Shader set = Resources.Load<Shader>("SummitSet_NEW");
         _setMountain = Lit(set, mountainColour);
+        _setMountain.SetColor("_Rim", mountainRim);
         _setDome = Lit(set, domeColour);
+        _setDome.SetColor("_Rim", domeRim);
 
         // In the frame: the way to the city, and the camera's spot on the ground.
         Vector3 cityKm = _frame.InverseTransformDirection(_toCity);
@@ -275,6 +284,7 @@ public class EarthSummit_NEW : MonoBehaviour
         m.SetVector("_GlowDir", (_toCity - _up * 0.25f).normalized);
         m.SetColor("_GlowColor", cityGlow);
         m.SetColor("_HazeColor", haze);
+        m.SetColor("_Ambient", skyLight);
         m.SetFloat("_HazeKm", hazeKm);
         _made.Add(m);
         _setMaterials.Add(m);
@@ -582,6 +592,7 @@ public class EarthSummit_NEW : MonoBehaviour
         Mesh inside = NewMesh("Dome inside", inV.ToArray(), inT.ToArray());
         inside.RecalculateNormals();
         Material dark = Lit(Resources.Load<Shader>("SummitSet_NEW"), new Color(0.01f, 0.01f, 0.012f, 1f));
+        dark.SetColor("_Emission", domeInside);
         Part("Dome inside", inside, dark, dome);
     }
 
