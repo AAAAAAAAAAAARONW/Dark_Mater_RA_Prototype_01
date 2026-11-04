@@ -105,7 +105,8 @@ public class EarthSummit_NEW : MonoBehaviour
     [Header("Debug")]
     [SerializeField] bool debugLog = false;
 
-    const HideFlags Built = HideFlags.HideAndDontSave;
+    // Not saved, but listed in the Hierarchy while playing, so they can be found and looked at.
+    const HideFlags Built = HideFlags.DontSave;
     const float CapLift = 1e-5f;   // the patch above the sphere, a fraction of the radius: 64 m
 
     EarthZoom_NEW _zoom;
@@ -122,6 +123,7 @@ public class EarthSummit_NEW : MonoBehaviour
 
     CinemachineVirtualCamera _vcam;
     Quaternion _liftFrom, _liftTo;
+    Transform _dome;
     Vector3 _liftStart, _stand;   // world, where the lift began; the frame, where it ends
 
     readonly List<Renderer> _photonParts = new List<Renderer>();
@@ -154,6 +156,26 @@ public class EarthSummit_NEW : MonoBehaviour
 
         if (!_lifting && _zoom.SummitProgress >= liftFrom) BeginLift();
         if (_lifting) Lift();
+    }
+
+    // While the debug overlay is on (F1), what the summit is doing, under the layer panel:
+    // the camera that draws, how high it is over the summit's frame, how far the dome is,
+    // and whether this summit's camera is the live one.
+    void OnGUI()
+    {
+        if (!DebugView_NEW.Overlay || _frame == null) return;
+        Camera cam = GetReal3DView_NEW.ScreenCamera;
+        if (cam == null) return;
+
+        Vector3 c = _frame.InverseTransformPoint(cam.transform.position);
+        string live = _brain != null && _vcam != null && ReferenceEquals(_brain.ActiveVirtualCamera, _vcam) ? "yes" : "no";
+        string text = "SUMMIT  camera " + c.y.ToString("0.000") + " km up, " + new Vector2(c.x, c.z).magnitude.ToString("0.00") +
+                      " km aside   stand " + _stand.y.ToString("0.00") + " km   dome " +
+                      (_dome != null ? (Vector3.Distance(cam.transform.position, _dome.position) / _frame.lossyScale.x).ToString("0.00") + " km" : "-") +
+                      "   km = " + _frame.lossyScale.x.ToString("0.0000") + " units   summit camera live " + live +
+                      "   progress " + _zoom.SummitProgress.ToString("0.00") + "   clip " + cam.nearClipPlane.ToString("0.###") + "-" + cam.farClipPlane.ToString("0");
+        GUI.color = Color.yellow;
+        GUI.Label(new Rect(10, Screen.height - 46, Screen.width - 20, 22), text);
     }
 
     void OnDisable()
@@ -251,6 +273,7 @@ public class EarthSummit_NEW : MonoBehaviour
         // The slit opens three-quarters towards the camera, so it shows.
         Vector2 faces = Rotate((spot - domeAt).normalized, 50f);
         var dome = Make("Dome").transform;
+        _dome = dome;
         dome.SetParent(_frame, false);
         dome.localPosition = new Vector3(domeAt.x, domeGround, domeAt.y);
         dome.localRotation = Quaternion.LookRotation(new Vector3(faces.x, 0f, faces.y), Vector3.up);
