@@ -174,7 +174,22 @@ public class EarthSummit_NEW : MonoBehaviour
                       (_dome != null ? (Vector3.Distance(cam.transform.position, _dome.position) / _frame.lossyScale.x).ToString("0.00") + " km" : "-") +
                       "   km = " + _frame.lossyScale.x.ToString("0.0000") + " units   summit camera live " + live +
                       "   progress " + _zoom.SummitProgress.ToString("0.00") + "   clip " + cam.nearClipPlane.ToString("0.###") + "-" + cam.farClipPlane.ToString("0");
+        // Whether each part is on, and whether any camera drew it last frame; where the dome
+        // falls on the screen (0-1 across and up, and in front if z > 0).
+        string parts = "";
+        foreach (Object o in _made)
+        {
+            var go = o as GameObject;
+            Renderer r = go != null ? go.GetComponent<Renderer>() : null;
+            if (r == null) continue;
+            parts += go.name + " " + (r.enabled ? "on" : "OFF") + "/" + (r.isVisible ? "drawn" : "NOT DRAWN") + " L" + go.layer + "   ";
+        }
+        Vector3 vp = _dome != null ? cam.WorldToViewportPoint(_dome.position) : Vector3.zero;
+        parts += "dome on screen " + vp.x.ToString("0.00") + ", " + vp.y.ToString("0.00") + ", z " + vp.z.ToString("0.0") +
+                 "   cull mask " + cam.cullingMask + "   drawing camera " + (Camera.current != null ? Camera.current.name : "-");
+
         GUI.color = Color.yellow;
+        GUI.Label(new Rect(10, Screen.height - 66, Screen.width - 20, 22), parts);
         GUI.Label(new Rect(10, Screen.height - 46, Screen.width - 20, 22), text);
     }
 
