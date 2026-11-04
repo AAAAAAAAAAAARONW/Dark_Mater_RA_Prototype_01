@@ -15,7 +15,7 @@
 | 2 | **从地球的夜面进** | `SolarSystemPath_NEW` 改成太阳在地球前方更远处：光先到地球，看到的是背光的地球（黑色圆盘、一圈亮的大气、夜面城市灯光）。地球转到终点（Pasadena）正好在夜面中央 | 🟡 代码好了，等你跑菜单、看效果（见下） |
 | 3 | **大气层换掉** | 去掉 `EarthClouds_NEW`（全屏 raymarch，墙上 4 个 copy 太贵，夜里的白雾也不真实）。换成球面上的解析大气（一个 pass）+ 球面上的云贴图（夜里是挡住城市灯光的暗影）；往下降时天空保持黑色，星星和银河逐渐清楚 | 🟡 代码好了（11 月 3 日，云端写的，Unity 外只做了语法检查），等你和第 2 步一起看（见下）。星星和银河留到第 4 步 |
 | 4 | **终点改成实时场景，去掉 Google Earth 录屏** | 夜光贴图从整个地球交叉淡化到洛杉矶盆地的高分辨率贴图 → 落到 Pasadena 上方山上的天文台：山脊剪影、银河、开着缝的圆顶 → 光进入望远镜，屏幕上出现一路收集的光谱条形码；J9、Closing 在这里说完。`EarthCutscene_NEW` 和视频关掉 | 🟡 分四段做：4a 夜面、4b 落到洛杉矶、4c 山顶天文台代码好了（11 月 3 日），等你看（见下）；4d 进望远镜收尾 ⬜ |
-| 5 | **VO 对时间** | 拿到 Notion 上最新的 v7，按 ID 重新生成、导入。用 Flight Path 录一遍完整旅程，每句台词标出能不能在下一道门前说完；装不下的，优先让那一层停留更久，而不是改台词 | ⬜ |
+| 5 | **VO 对时间** | 拿到 Notion 上最新的 v7，按 ID 重新生成、导入。用 Flight Path 录一遍完整旅程，每句台词标出能不能在下一道门前说完；装不下的，优先让那一层停留更久，而不是改台词 | 🟡 录音已换成 v7（11 月 3 日），等你在 Unity 里飞一遍、对时间（见第 5 步） |
 | 6 | **墙上的声音和同步** | 4 个 copy 只让 master 出声；台词推进按 clip 长度和 master 的时钟计算，不读各 copy 自己的 `AudioSource`。用 local cluster + probe 测一遍完整旅程 | ⬜ |
 
 **实时终点场景的成本预算**（第 4 步）：不比现在的 cosmic web 贵。不开实时阴影，不用体积效果，不加后处理以外的全屏 pass。夜景大部分是黑的：山脊是低模剪影，圆顶几千个三角形，天空用现有的星空，城市灯光是贴图。在编辑器里看帧时间，超出预算就砍。
@@ -26,7 +26,31 @@
 - Carnegie 现在做研究用的望远镜（Magellan）在智利的 Las Campanas
 
 
-**第 5 步备忘：** Notion 上的 v7（https://app.notion.com/p/anastasiaye/VO_Script_v7-40be78236c6c8005afcfc16906312de8）和仓库里的 `VO_Script_v7.md` 只差两句：J3_DMoff_After 和 J3_DMon_Before 改成了 "invisible scaffolding of the cosmic web"。这两句要按 Notion 版重新生成。
+### 第 5 步：v7 录音已换上，在 Unity 里看
+
+**改了什么（11 月 3 日，云端做的，Unity 外只做了文本检查）：**
+- **覆盖 41 个旧录音**（Tutorial 25、Journey 16）：只换了内容，文件名和 `.meta` 没动，GUID 不变，所以 `VO_Tutorial` 表、`Vizlab_Journey` 的接线一行都没改。`Gameplay_Scene_Ana`、`Test_Journey*`、`Tutorial.unity` 引用的是同一批文件，也会听到新录音（这些场景本身没改）。
+- **D6/D7 改了名**：`D7_Redshift` → `D6_Redshift`，`D6_FourMoreAtoms` → `D7_Clouds`（连 `.meta` 一起改，GUID 跟着走）。10 月 26 日的对调就此理顺：文件名、内容、表里的 D6/D7 三者一致。
+- **新加 7 个**（`Assets/VoiceOver/Journey/`）：暗物质 6 句 + `J6_4`。
+  - `Vizlab_Journey` 的 `DarkMatterMoment_NEW`：A/B 两个版本的 6 个 clip 槽填上了，字幕文字换成 v7。
+  - `J6_4`：挂在红移演示 `F6` 的 onEnter 上（排队，J6_3 说完接着说）；`F6` 时长 10.3 → 15.5。`JourneyVoiceOverBuilder_NEW` 同步改了，以后再跑 Wire Journey Voice Over 也会加上。
+- **Tutorial 表的文字**换成 v7（25 句），`recordedText` 填成同样的文字，状态改成 Final，所以 Report 不会报"需要重录"或"未核对"。
+- `VO_Script_v7.md` 的 J3_DMoff_After、J3_DMon_Before 改成 Notion 版。
+- 上传的 `vo_out_v7-…` 文件夹删了（内容都已经放到位；要找回在 git 历史里）。
+
+**注意 `ledger.json`：** 这批不是 `elevenlabs_vo.py` 生成的，ledger 不知道。**不要**直接跑 `generate --go`，`plan` 会把整套列成要生成、白花额度。以后只用 `--only` 补单句。
+
+**做：**
+1. 回到 Unity，等它重新导入音频、编译完，Console 里没有红色 error。提示场景被改过就点 **Reload**（有没保存的改动先别点，告诉我）。
+2. `Tools > Journey NEW > Voice Over > Timeline` → **Report**：Tutorial 应该没有缺录音、需要重录的行（E1/E2 那几句不在流程里，可以忽略）。
+
+**看：**
+- `Vizlab_tut`：按 `2` 跳到 D4，看完 D5–D9。D6（10.8 s）和 D7（11.2 s）比 beat 长（10 / 10.5 s），beat 会撑到说完；看红移加速、四团云是不是在台词说完之前就演完了、画面空等。
+- `Vizlab_Journey`：用 Flight Path 录一遍完整旅程，Console 里搜 `Dropped` 和 `[DarkMatterMoment_NEW] Ended early`。
+  - 第一个 cosmic web：J3 → 暗物质 Before → 按 Y → After，真实录音比原来的估时短约 4 s；J3b 还要落在 After 说完之后。
+  - 第二个 cosmic web：J6_3 说完接 J6_4，都在出这一层之前说完。
+  - 结尾：Closing 从 8.4 s 变成 **16 s**，看结尾视频够不够长（第 4 步换成实时场景时再定）。
+- 装不下的，按第 5 步原来的原则：先让那一层停留更久，不改台词。
 
 ### 第 4 步 · 4c 山顶天文台：在 Unity 里看
 

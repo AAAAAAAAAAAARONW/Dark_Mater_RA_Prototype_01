@@ -179,6 +179,8 @@ The milestone text "infant star clusters" (Milky Way) means star clusters, not g
 
 ## 6 · To re-record
 
+**Done 3 November 2026:** the whole v7 set is recorded and installed (every row below). D6 and D7's files were renamed to match their content (`D6_Redshift`, `D7_Clouds`; GUIDs kept). The table is kept as the record of why each line changed.
+
 The whole set is re-recorded in the female voice after the scientists' pass, so these can wait for that. Re-records keep their current file names, so clips already wired in Unity are replaced without rewiring. New lines get their ID as the file name, which is where `install` and the builders look.
 
 | Line | File | Why |
@@ -187,7 +189,7 @@ The whole set is re-recorded in the female voice after the scientists' pass, so 
 | D1 | `D1_UVIRUnfold` | no "trail" |
 | D3 | `D3_SpectrumBar` | "the same colors … purple toward red" |
 | D4 | `D4_AtomApproaches` | "the most common element", not "material" |
-| D6, D7, D8 | `D6_FourMoreAtoms`, `D7_Redshift`, `D8_OneMoreAtom` | Redshift moved to D6; D7 and D8 rewritten. D6 and D7 swap content, so the old file names no longer describe them. |
+| D6, D7, D8 | `D6_Redshift`, `D7_Clouds`, `D8_OneMoreAtom` | Redshift moved to D6; D7 and D8 rewritten. (Files were `D7_Redshift` and `D6_FourMoreAtoms` until 3 Nov.) |
 | J3 | `J3_CosmicWeb1` | shortened |
 | J3_DMoff_Before, J3_DMoff_After, N_J3_DMoff | new | dark matter moment, Version B |
 | J3_DMon_Before, J3_DMon_After, N_J3_DMon | new | dark matter moment, Version A |

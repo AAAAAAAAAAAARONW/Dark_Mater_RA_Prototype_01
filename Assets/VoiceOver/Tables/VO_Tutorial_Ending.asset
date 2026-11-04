@@ -31,12 +31,11 @@ MonoBehaviour:
       takes:
       - language: en
         variant: 
-        text: Now your journey begins. At the far end, a telescope on Earth is waiting
-          to read your lines.
+        text: 'Now your journey begins. At the far end, a telescope on Earth is waiting to read your lines.'
         clip: {fileID: 8300000, guid: 14618286adde1184f9f9b789c174b1e2, type: 3}
         estimatedSeconds: 7.5
-        status: 1
-        recordedText: 
+        status: 2
+        recordedText: 'Now your journey begins. At the far end, a telescope on Earth is waiting to read your lines.'
       cues: []
   - beatId: Pause
     settings:
@@ -55,9 +54,9 @@ MonoBehaviour:
       takes:
       - language: en
         variant: 
-        text: Press B again to resume.
+        text: 'Press B again to resume.'
         clip: {fileID: 8300000, guid: d01427323d7380542899e37935bc9678, type: 3}
-        estimatedSeconds: 0
-        status: 1
-        recordedText: 
+        estimatedSeconds: 1.5
+        status: 2
+        recordedText: 'Press B again to resume.'
       cues: []

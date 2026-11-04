@@ -65,6 +65,7 @@ public static class JourneyVoiceOverBuilder_NEW
         new[] { "F1", "J6_1_Redshift" },
         new[] { "F4", "J6_2_Redshift" },
         new[] { "F5", "J6_3_Forest" },
+        new[] { "F6", "J6_4" },   // queued at F6, said once J6_3 is done
     };
 
     static int _changes;
@@ -617,6 +618,8 @@ public static class JourneyVoiceOverBuilder_NEW
         // sequence was authored with, so a duration somebody tuned is not touched.
         RepairDuration(sequence, steps, "F4", 10f, 11.6f, "J6_2_Redshift is 11.2s");
         RepairDuration(sequence, steps, "F6", 6f, 10.3f, "J6_3_Forest is 17.9s across F5 and F6");
+        // VO v7 (3 Nov): J6_3 is 14.7s from F5 (8s), then J6_4 (8.3s) follows it in F6.
+        RepairDuration(sequence, steps, "F6", 10.3f, 15.5f, "J6_3 (14.7s) and J6_4 (8.3s) across F5 and F6");
 
         EditorUtility.SetDirty(sequence);
     }
