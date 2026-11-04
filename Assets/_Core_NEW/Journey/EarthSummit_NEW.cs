@@ -29,7 +29,11 @@ using UnityEngine;
 ///
 /// THE CAMERA. A virtual camera of its own, at the live camera's place and turned as it is,
 /// so the brain's blend to it changes nothing; then it turns from looking down to the
-/// horizon, towards the city. The light is let go of meanwhile: its trail thins away, then
+/// horizon, towards the city, and comes down onto its stand just over the summit, held
+/// there in the frame of km. Not left where the growth would bring the live camera: in
+/// Unity that ended somewhere the ground and the dome were not to be seen (3-4 Nov), so the
+/// stand is where the camera goes, whatever the growth did. A line in the Console says
+/// where it was and where it ended. The light is let go of meanwhile: its trail thins away, then
 /// it is hidden. The telescope is the next step's.
 ///
 /// THE SKY. A skybox of its own (Resources/SummitSky_NEW), swapped in while the camera still
@@ -106,7 +110,7 @@ public class EarthSummit_NEW : MonoBehaviour
 
     EarthZoom_NEW _zoom;
     CinemachineBrain _brain;
-    bool _built, _lifting;
+    bool _built, _lifting, _reported;
     float _liftClock;
 
     readonly List<Object> _made = new List<Object>();
@@ -118,6 +122,7 @@ public class EarthSummit_NEW : MonoBehaviour
 
     CinemachineVirtualCamera _vcam;
     Quaternion _liftFrom, _liftTo;
+    Vector3 _liftStart, _stand;   // world, where the lift began; the frame, where it ends
 
     readonly List<Renderer> _photonParts = new List<Renderer>();
     readonly List<Renderer> _systemParts = new List<Renderer>();
@@ -164,7 +169,7 @@ public class EarthSummit_NEW : MonoBehaviour
         _setMaterials.Clear();
         _frame = null;
         _vcam = null;
-        _built = _lifting = false;
+        _built = _lifting = _reported = false;
     }
 
     // ── Building ────────────────────────────────────────────────────────────
@@ -198,6 +203,17 @@ public class EarthSummit_NEW : MonoBehaviour
         float kmEnd = kmNow * _zoom.SummitFactor;
         Vector3 c = cam.transform.position - ground;
         Vector3 camKm = new Vector3(Vector3.Dot(c, _east), Vector3.Dot(c, _up), Vector3.Dot(c, _north)) / kmEnd;
+
+        // The camera's stand: just over the summit, near the landing point, whatever the
+        // sums above came to (see THE CAMERA).
+        Vector2 aside = Vector2.ClampMagnitude(new Vector2(camKm.x, camKm.z), 0.5f);
+        float standKm = Mathf.Clamp(camKm.y, summitKm + 0.04f, summitKm + 0.3f);
+        Debug.Log("[EarthSummit_NEW] Building the summit at " + here.x.ToString("0.00") + ", " + here.y.ToString("0.00") +
+                  ". The growth should bring the camera to " + camKm.y.ToString("0.00") + " km up, " +
+                  new Vector2(camKm.x, camKm.z).magnitude.ToString("0.00") + " km aside; its stand is " +
+                  standKm.ToString("0.00") + " km up, " + aside.magnitude.ToString("0.00") + " km aside.", this);
+        camKm = new Vector3(aside.x, standKm, aside.y);
+        _stand = camKm;
 
         if (debugLog)
             Debug.Log("[EarthSummit_NEW] Landing at " + here.x.ToString("0.00") + ", " + here.y.ToString("0.00") +
@@ -342,6 +358,7 @@ public class EarthSummit_NEW : MonoBehaviour
         _vcam.Priority = 90;   // over CameraDirector_NEW's 50: nothing else is to move it now
 
         _liftFrom = cam.transform.rotation;
+        _liftStart = cam.transform.position;
         Vector3 level = Rotate(_toCity, viewYaw);
         Vector3 forward = level * Mathf.Cos(viewPitch * Mathf.Deg2Rad) + _up * Mathf.Sin(viewPitch * Mathf.Deg2Rad);
         _liftTo = Quaternion.LookRotation(forward, _up);
@@ -359,6 +376,20 @@ public class EarthSummit_NEW : MonoBehaviour
             // Smootherstep: from rest and to rest, no jolt either end.
             float s = q * q * q * (q * (q * 6f - 15f) + 10f);
             _vcam.transform.rotation = Quaternion.Slerp(_liftFrom, _liftTo, s);
+
+            // Down onto the stand: across in step, the height by the same factor each moment.
+            Vector3 from = _frame.InverseTransformPoint(_liftStart);
+            float height = Mathf.Exp(Mathf.Lerp(Mathf.Log(Mathf.Max(from.y, 1e-3f)), Mathf.Log(_stand.y), s));
+            Vector3 at = new Vector3(Mathf.Lerp(from.x, _stand.x, s), height, Mathf.Lerp(from.z, _stand.z, s));
+            _vcam.transform.position = _frame.TransformPoint(at);
+
+            if (q >= 1f && !_reported)
+            {
+                _reported = true;
+                Debug.Log("[EarthSummit_NEW] On the summit. The camera started the lift " + from.y.ToString("0.00") +
+                          " km up and is " + height.ToString("0.00") + " km up; a km is " + _frame.lossyScale.x.ToString("0.000") +
+                          " world units; Earth's radius is " + (_zoom.Body != null ? _zoom.Body.GroundRadius.ToString("0") : "?") + ".", this);
+            }
         }
 
         // The trail thins away over the first third; then the light is hidden.
