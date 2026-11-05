@@ -128,6 +128,12 @@ public class EarthZoom_NEW : MonoBehaviour
     [Tooltip("Seconds that last stretch takes.")]
     [Min(0.5f)] [SerializeField] float summitSeconds = 12f;
 
+    [Tooltip("How many world units a km is once down. Fixed, not worked out from where the camera " +
+             "happens to be: after a debug jump that came to almost nothing, and the summit, a few " +
+             "hundredths of a unit across, fell inside the camera's near clip (0.1). At 3.6 the dome, " +
+             "300 m off, is a unit away.")]
+    [Min(0.01f)] [SerializeField] float summitUnitsPerKm = 3.6f;
+
     [Header("Camera")]
     [SerializeField] bool driveCamera = true;
 
@@ -361,7 +367,7 @@ public class EarthZoom_NEW : MonoBehaviour
 
         float kmWorld = _body.GroundRadius / EarthRadiusKm;
         float heightKm = Vector3.Dot(cam.transform.position - _ground, GroundUp) / kmWorld;
-        _summitFactor = Mathf.Max(1f, heightKm / summitCameraKm);
+        _summitFactor = Mathf.Max(1f, summitUnitsPerKm / kmWorld);
         _summitClock = 0f;
         _toSummit = true;
         SummitProgress = 0f;

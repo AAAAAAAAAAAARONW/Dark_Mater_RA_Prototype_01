@@ -244,7 +244,7 @@ public class EarthSummit_NEW : MonoBehaviour
         // The camera's stand: just over the summit, near the landing point, whatever the
         // sums above came to (see THE CAMERA).
         Vector2 aside = Vector2.ClampMagnitude(new Vector2(camKm.x, camKm.z), 0.5f);
-        float standKm = Mathf.Clamp(camKm.y, summitKm + 0.04f, summitKm + 0.3f);
+        float standKm = Mathf.Clamp(_zoom.SummitCameraKm, summitKm + 0.02f, summitKm + 0.3f);
         Debug.Log("[EarthSummit_NEW] Building the summit at " + here.x.ToString("0.00") + ", " + here.y.ToString("0.00") +
                   ". The growth should bring the camera to " + camKm.y.ToString("0.00") + " km up, " +
                   new Vector2(camKm.x, camKm.z).magnitude.ToString("0.00") + " km aside; its stand is " +
@@ -271,6 +271,8 @@ public class EarthSummit_NEW : MonoBehaviour
         _frame.localScale = Vector3.one * (body.MeshRadius / EarthZoom_NEW.EarthRadiusKm);
 
         Shader set = Resources.Load<Shader>("SummitSet_NEW");
+        if (set == null) Debug.LogError("[EarthSummit_NEW] Resources/SummitSet_NEW.shader is missing: no mountains or dome.", this);
+        else if (!set.isSupported) Debug.LogError("[EarthSummit_NEW] SummitSet_NEW does not run here (a compile error?): the mountains and dome will not show.", this);
         _setMountain = Lit(set, mountainColour);
         _setMountain.SetColor("_Rim", mountainRim);
         _setDome = Lit(set, domeColour);
