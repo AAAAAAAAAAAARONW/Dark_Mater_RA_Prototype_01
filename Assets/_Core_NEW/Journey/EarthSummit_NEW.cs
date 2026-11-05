@@ -189,8 +189,8 @@ public class EarthSummit_NEW : MonoBehaviour
                  "   cull mask " + cam.cullingMask + "   drawing camera " + (Camera.current != null ? Camera.current.name : "-");
 
         GUI.color = Color.yellow;
-        GUI.Label(new Rect(10, Screen.height - 66, Screen.width - 20, 22), parts);
-        GUI.Label(new Rect(10, Screen.height - 46, Screen.width - 20, 22), text);
+        GUI.Label(new Rect(10, Screen.height - 150, Screen.width - 20, 22), parts);
+        GUI.Label(new Rect(10, Screen.height - 128, Screen.width - 20, 22), text);
     }
 
     void OnDisable()
@@ -522,11 +522,11 @@ public class EarthSummit_NEW : MonoBehaviour
         float t = Vector2.Dot(d, new Vector2(-toward.y, toward.x)); // across
 
         // Steep from the summit's edge, as Mount Wilson falls to the basin.
-        float front = 1f - Mathf.SmoothStep(0.15f, 3f, s);
+        float front = 1f - Edge(0.15f, 3f, s);
         float h = Mathf.Lerp(-0.4f, summitKm, front);
 
         // Spurs running down towards the city, valleys between them, on the slope only.
-        float slope = Mathf.SmoothStep(-0.5f, 2f, s) * (1f - Mathf.SmoothStep(5.5f, 8f, s));
+        float slope = Edge(-0.5f, 2f, s) * (1f - Edge(5.5f, 8f, s));
         float spur = 0.5f + 0.5f * Mathf.Sin(t * 1.35f + (Mathf.PerlinNoise(s * 0.25f + 3.1f, t * 0.15f + 7.7f) - 0.5f) * 6f);
         h -= (1f - spur) * slope * 0.55f;
 
@@ -545,15 +545,15 @@ public class EarthSummit_NEW : MonoBehaviour
         float rough = (Mathf.PerlinNoise(s * 0.6f + 11f, t * 0.6f + 5f) - 0.5f) * 0.25f
                     + (Mathf.PerlinNoise(s * 1.7f + 2f, t * 1.7f + 9f) - 0.5f) * 0.08f;
         h += rough * front;
-        h += Mathf.PerlinNoise(s * 0.18f + 4f, t * 0.18f + 1f) * 0.35f * (1f - Mathf.SmoothStep(-4f, -1f, s));
+        h += Mathf.PerlinNoise(s * 0.18f + 4f, t * 0.18f + 1f) * 0.35f * (1f - Edge(-4f, -1f, s));
 
         // A rounded summit under the camera, and kept well below it.
         float r = d.magnitude;
-        h = Mathf.Lerp(summitKm + 0.01f * Mathf.Cos(r * 4f), h, Mathf.SmoothStep(0.25f, 0.7f, r));
+        h = Mathf.Lerp(summitKm + 0.01f * Mathf.Cos(r * 4f), h, Edge(0.25f, 0.7f, r));
         h = Mathf.Min(h, cameraKm - 0.04f);
 
         if (flat > 0f || dome != Vector2.zero)
-            h = Mathf.Lerp(flat, h, Mathf.SmoothStep(0.03f * domeScale, 0.07f * domeScale, (p - dome).magnitude));
+            h = Mathf.Lerp(flat, h, Edge(0.03f * domeScale, 0.07f * domeScale, (p - dome).magnitude));
         return h;
     }
 
@@ -572,7 +572,7 @@ public class EarthSummit_NEW : MonoBehaviour
             Vector2 p = spot + toward * s + perp * t;
             float h = Mountains(p, spot, toward, cameraKm, dome, domeGround);
             // The sides sink away, out of sight anyway.
-            h = Mathf.Lerp(h, -0.6f, Mathf.SmoothStep(side * 0.8f, side, Mathf.Abs(t)));
+            h = Mathf.Lerp(h, -0.6f, Edge(side * 0.8f, side, Mathf.Abs(t)));
             vertices[a * (across + 1) + b] = new Vector3(p.x, h, p.y);
         }
 
@@ -668,6 +668,17 @@ public class EarthSummit_NEW : MonoBehaviour
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 0 below a, 1 above b, smooth between: a shader's smoothstep. NOT Mathf.SmoothStep, which
+    /// eases from a to b by a t of 0 to 1 — used here by mistake at first, it made the mountains
+    /// nothing like their design, and put the dome down the slope out of the picture (5 Nov).
+    /// </summary>
+    static float Edge(float a, float b, float x)
+    {
+        float t = Mathf.Clamp01((x - a) / (b - a));
+        return t * t * (3f - 2f * t);
+    }
 
     /// <summary>Object-space direction of a latitude and longitude, as the maps lie on PlanetSphere_NEW.</summary>
     static Vector3 Direction(float latDeg, float lonDeg)
