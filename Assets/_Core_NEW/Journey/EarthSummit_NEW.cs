@@ -61,14 +61,15 @@ public class EarthSummit_NEW : MonoBehaviour
     [Tooltip("How far behind the light the camera rides, world units, as through the journey.")]
     [Min(0.5f)] [SerializeField] float chaseUnits = 5f;
 
-    [Tooltip("How far behind it the camera is as it reaches the slit, world units.")]
+    [Tooltip("How far behind it the camera is at the end, world units; it stops above the telescope's tube.")]
     [Min(0.2f)] [SerializeField] float chaseEnd = 1.6f;
 
-    [Tooltip("The light's size at the slit, as a fraction of its own, so it fits.")]
-    [Range(0.02f, 1f)] [SerializeField] float lightShrink = 0.12f;
+    [Tooltip("Where the camera stops: this many km above the top of the telescope's tube, inside the dome, " +
+             "looking down the tube as the light goes on to the mirror.")]
+    [Min(0.001f)] [SerializeField] float aboveTubeKm = 0.01f;
 
-    [Tooltip("The last straight run into the slit, km.")]
-    [Min(0.05f)] [SerializeField] float approachKm = 0.6f;
+    [Tooltip("The light's size at the end, as a fraction of its own, so it fits the slit and the tube.")]
+    [Range(0.02f, 1f)] [SerializeField] float lightShrink = 0.12f;
 
     [Tooltip("Seconds from the light going in to the cut to the observatory from outside.")]
     [Min(0f)] [SerializeField] float holdInside = 1.2f;
@@ -134,10 +135,11 @@ public class EarthSummit_NEW : MonoBehaviour
     CinemachineVirtualCamera _vcam;
     Quaternion _cutTo;
     Vector3 _camUpFrom;
-    Vector3 _p0, _p1, _p2, _p3;      // the light's way in, in the frame of km
+    Vector3 _p0, _p3, _tubeTop;      // the light's way in, in the frame of km: from, to, past
     Vector3 _photonScale;
     Transform _dome;
-    Material _domeInside;
+    readonly List<Material> _insideLights = new List<Material>();
+    readonly List<Color> _insideEmission = new List<Color>();
 
     // ── For EarthEnding_NEW ─────────────────────────────────────────────────
 
@@ -173,8 +175,15 @@ public class EarthSummit_NEW : MonoBehaviour
     /// <summary>The light inside the dome, for a flash as the light goes in.</summary>
     public void SetInsideLight(float times)
     {
-        if (_domeInside != null) _domeInside.SetColor("_Emission", domeInside * times);
+        for (int i = 0; i < _insideLights.Count; i++)
+            if (_insideLights[i] != null) _insideLights[i].SetColor("_Emission", _insideEmission[i] * times);
     }
+
+    /// <summary>The open top of the telescope's tube, world space.</summary>
+    public Vector3 TubeTop => _dome != null ? _dome.TransformPoint(Vector3.up * TubeTopY) : Vector3.zero;
+
+    /// <summary>The telescope's mirror, world space: where the light ends.</summary>
+    public Vector3 MirrorPoint => _dome != null ? _dome.TransformPoint(Vector3.up * (MirrorY + 0.3f)) : Vector3.zero;
     Vector3 _stand;   // the frame: where the camera stands for the view from outside
 
     readonly List<Renderer> _photonParts = new List<Renderer>();
@@ -261,6 +270,8 @@ public class EarthSummit_NEW : MonoBehaviour
         foreach (Object o in _made) Kill(o);
         _made.Clear();
         _setMaterials.Clear();
+        _insideLights.Clear();
+        _insideEmission.Clear();
         _frame = null;
         _vcam = null;
         _built = _chasing = _entered = _cut = false;
@@ -292,27 +303,11 @@ public class EarthSummit_NEW : MonoBehaviour
         Vector3 cityWorld = earth.TransformPoint(Direction(city.x, city.y) * body.MeshRadius);
         _toCity = Level(cityWorld - ground);
 
-        // How big a km will be once down, and where the camera will be then, in km.
+        // The camera's stand for the view from outside: just over the summit.
         float kmNow = body.GroundRadius / EarthZoom_NEW.EarthRadiusKm;
-        float kmEnd = kmNow * _zoom.SummitFactor;
-        Vector3 c = cam.transform.position - ground;
-        Vector3 camKm = new Vector3(Vector3.Dot(c, _east), Vector3.Dot(c, _up), Vector3.Dot(c, _north)) / kmEnd;
-
-        // The camera's stand: just over the summit, near the landing point, whatever the
-        // sums above came to (see THE CAMERA).
-        Vector2 aside = Vector2.ClampMagnitude(new Vector2(camKm.x, camKm.z), 0.5f);
         float standKm = Mathf.Clamp(_zoom.SummitCameraKm, summitKm + 0.02f, summitKm + 0.3f);
         Debug.Log("[EarthSummit_NEW] Building the summit at " + here.x.ToString("0.00") + ", " + here.y.ToString("0.00") +
-                  ". The growth should bring the camera to " + camKm.y.ToString("0.00") + " km up, " +
-                  new Vector2(camKm.x, camKm.z).magnitude.ToString("0.00") + " km aside; its stand is " +
-                  standKm.ToString("0.00") + " km up, " + aside.magnitude.ToString("0.00") + " km aside.", this);
-        camKm = new Vector3(aside.x, standKm, aside.y);
-        _stand = camKm;
-
-        if (debugLog)
-            Debug.Log("[EarthSummit_NEW] Landing at " + here.x.ToString("0.00") + ", " + here.y.ToString("0.00") +
-                      "; the city " + (Vector3.Distance(cityWorld, ground) / kmNow).ToString("0") + " km away; the camera will be " +
-                      camKm.y.ToString("0.00") + " km up.", this);
+                  "; the city " + (Vector3.Distance(cityWorld, ground) / kmNow).ToString("0") + " km away.", this);
 
         // The finer patch of the true sphere, and the coarse one put away.
         BuildCap(earth, body, here);
@@ -335,14 +330,19 @@ public class EarthSummit_NEW : MonoBehaviour
         _setDome = Lit(set, domeColour);
         _setDome.SetColor("_Rim", domeRim);
 
-        // In the frame: the way to the city, and the camera's spot on the ground.
+        // In the frame: the way to the city; the dome straight under the light, which comes
+        // straight down its own line into it; and the camera's stand for the view from
+        // outside, placed so the dome stands domeKm off at domeYaw from the way to the city.
         Vector3 cityKm = _frame.InverseTransformDirection(_toCity);
         Vector2 toward = new Vector2(cityKm.x, cityKm.z).normalized;
-        Vector2 spot = new Vector2(camKm.x, camKm.z);
+        PlayerRig_NEW lightRig = _zoom.Photon;
+        Vector3 lightKm = lightRig != null ? _frame.InverseTransformPoint(lightRig.transform.position) : Vector3.zero;
+        Vector2 domeAt = Vector2.ClampMagnitude(new Vector2(lightKm.x, lightKm.z), 2f);
+        Vector2 spot = domeAt - Rotate(toward, domeYaw) * domeKm;
+        _stand = new Vector3(spot.x, standKm, spot.y);
 
-        Vector2 domeAt = spot + Rotate(toward, domeYaw) * domeKm;
-        float domeGround = Mountains(domeAt, spot, toward, camKm.y, Vector2.zero, 0f);
-        Part("Mountains", BuildMountains(spot, toward, camKm.y, domeAt, domeGround), _setMountain, _frame);
+        float domeGround = Mountains(domeAt, spot, toward, standKm, Vector2.zero, 0f);
+        Part("Mountains", BuildMountains(spot, toward, standKm, domeAt, domeGround), _setMountain, _frame);
 
         // The slit opens three-quarters towards the camera, so it shows.
         Vector2 faces = Rotate((spot - domeAt).normalized, 50f);
@@ -456,33 +456,18 @@ public class EarthSummit_NEW : MonoBehaviour
         photon.SetCameraInputLocked(true, "Mount Wilson");
         _photonScale = photon.transform.localScale;
 
-        // The way in: straight down at first, as the light was going, then round into the
-        // last straight run at the slit, along the slit's own outward line.
-        Vector3 slit = _frame.InverseTransformPoint(SlitPoint);
-        Vector3 outward = _frame.InverseTransformDirection(SlitOutward).normalized;
+        // The way in: straight on down the light's own line, through the top of the slit,
+        // down the telescope's tube to its mirror. The dome was put under the light for it.
         _p0 = _frame.InverseTransformPoint(photon.transform.position);
-        _p3 = slit;
-        _p2 = slit + outward * approachKm;
-        _p1 = _p0 + Vector3.down * Mathf.Max(0f, _p0.y - slit.y) * 0.6f;
+        _p3 = _frame.InverseTransformPoint(MirrorPoint);
+        _tubeTop = _frame.InverseTransformPoint(TubeTop);
 
         // The view from outside, cut to after the light goes in.
         Vector3 level = Rotate(_toCity, viewYaw);
         _cutTo = Quaternion.LookRotation(level * Mathf.Cos(viewPitch * Mathf.Deg2Rad) + _up * Mathf.Sin(viewPitch * Mathf.Deg2Rad), _up);
 
-        Debug.Log("[EarthSummit_NEW] The light flies in from " + _p0.y.ToString("0.0") + " km up to the slit, " +
-                  slit.y.ToString("0.00") + " km up, " + new Vector2(slit.x - _p0.x, slit.z - _p0.z).magnitude.ToString("0.00") + " km across.", this);
-    }
-
-    static Vector3 Bezier(Vector3 a, Vector3 b, Vector3 c, Vector3 d, float u)
-    {
-        float v = 1f - u;
-        return v * v * v * a + 3f * v * v * u * b + 3f * v * u * u * c + u * u * u * d;
-    }
-
-    static Vector3 BezierTangent(Vector3 a, Vector3 b, Vector3 c, Vector3 d, float u)
-    {
-        float v = 1f - u;
-        return 3f * v * v * (b - a) + 6f * v * u * (c - b) + 3f * u * u * (d - c);
+        Debug.Log("[EarthSummit_NEW] The light comes straight down from " + _p0.y.ToString("0.0") + " km up to the telescope's mirror, " +
+                  _p3.y.ToString("0.000") + " km up, " + new Vector2(_p3.x - _p0.x, _p3.z - _p0.z).magnitude.ToString("0.000") + " km across.", this);
     }
 
     void Chase()
@@ -492,10 +477,13 @@ public class EarthSummit_NEW : MonoBehaviour
 
         if (!_entered)
         {
-            float u = Mathf.SmoothStep(0f, 1f, p);
-            Vector3 light = _frame.TransformPoint(Bezier(_p0, _p1, _p2, _p3, u));
-            Vector3 along = _frame.TransformDirection(BezierTangent(_p0, _p1, _p2, _p3, Mathf.Clamp(u, 0.001f, 0.999f)));
-            along = along.sqrMagnitude > 1e-12f ? along.normalized : -_up;
+            // Straight down, slowing to the mirror; the world's growth does the rest.
+            float s = Mathf.SmoothStep(0f, 1f, p);
+            float fall = Mathf.Pow(1f - s, 4f);
+            Vector3 km = new Vector3(Mathf.Lerp(_p3.x, _p0.x, fall), _p3.y + (_p0.y - _p3.y) * fall, Mathf.Lerp(_p3.z, _p0.z, fall));
+            Vector3 light = _frame.TransformPoint(km);
+            Vector3 along = (_frame.TransformPoint(_p3) - _frame.TransformPoint(_p0)).normalized;
+            if (along.sqrMagnitude < 1e-12f) along = -_up;
 
             // We are the light: it is carried, narrowing to fit the slit.
             photon.transform.position = light;
@@ -504,10 +492,15 @@ public class EarthSummit_NEW : MonoBehaviour
             for (int i = 0; i < _trails.Count; i++)
                 if (_trails[i] != null) _trails[i].widthMultiplier = _trailWidths[i] * size;
 
-            // Riding behind it, a little above, looking a little ahead of it. Up turns from
-            // the live camera's to the summit's own, by way of the city while looking down.
+            // Riding behind it, a little to one side so its trail is not end on, looking a
+            // little ahead of it; stopping above the tube's top as the light goes on down
+            // the tube, so the mirror is seen to take it. Up turns from the live camera's to
+            // the way to the city, which is up on the screen while looking down.
             float back = Mathf.Lerp(chaseUnits, chaseEnd, Edge(0.6f, 1f, p));
-            Vector3 eye = light - along * back + _up * back * 0.12f;
+            Vector3 eye = light - along * back + _toCity * back * 0.12f * (1f - Edge(0.6f, 1f, p));
+            Vector3 eyeKm = _frame.InverseTransformPoint(eye);
+            eyeKm.y = Mathf.Max(eyeKm.y, _tubeTop.y + aboveTubeKm);
+            eye = _frame.TransformPoint(eyeKm);
             float down = Mathf.Abs(Vector3.Dot(along, _up));
             Vector3 upHint = Vector3.Slerp(_camUpFrom, (_up * (1f - down) + _toCity * down).normalized, Edge(0f, 0.25f, p));
             _vcam.transform.SetPositionAndRotation(eye, Quaternion.LookRotation(light + along * back * 0.4f - eye, upHint));
@@ -689,7 +682,8 @@ public class EarthSummit_NEW : MonoBehaviour
 
     /// <summary>
     /// The 100-inch's dome, in metres: a drum 15 m round and 11 high, a hemisphere on it, the
-    /// slit 5 m wide open from just past the top down the far side (+z), and inside it dark.
+    /// slit 5 m wide open from just past the top down the far side (+z), and inside it the
+    /// telescope pointing straight up at the top of the slit, under a dim red light.
     /// </summary>
     void BuildDome(Transform dome)
     {
@@ -701,22 +695,25 @@ public class EarthSummit_NEW : MonoBehaviour
         var inV = new List<Vector3>();
         var inT = new List<int>();
 
-        // The drum, open at the top where the dome sits.
+        // The drum, open at the top where the dome sits; and its wall inside, facing in.
         for (int i = 0; i <= around; i++)
         {
             float a = i * Mathf.PI * 2f / around;
-            Vector3 rim = new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a)) * r;
-            outV.Add(rim - Vector3.up * 2f);   // into the ground a little
-            outV.Add(rim + Vector3.up * drum);
+            Vector3 rim = new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a));
+            outV.Add(rim * r - Vector3.up * 2f);   // into the ground a little
+            outV.Add(rim * r + Vector3.up * drum);
+            inV.Add(rim * (r - 0.4f));
+            inV.Add(rim * (r - 0.4f) + Vector3.up * drum);
         }
         for (int i = 0; i < around; i++)
         {
             int v = i * 2;
             outT.AddRange(new[] { v, v + 2, v + 1, v + 2, v + 3, v + 1 });
+            inT.AddRange(new[] { v, v + 1, v + 2, v + 2, v + 1, v + 3 });
         }
 
-        // The hemisphere, less the slit; and the same inside, darker, facing in.
-        int baseOut = outV.Count;
+        // The hemisphere, less the slit, outside and in.
+        int baseOut = outV.Count, baseIn = inV.Count;
         for (int j = 0; j <= up; j++)
         for (int i = 0; i <= around; i++)
         {
@@ -733,32 +730,124 @@ public class EarthSummit_NEW : MonoBehaviour
             Vector3 c = new Vector3(Mathf.Sin(a) * Mathf.Cos(el), Mathf.Sin(el), Mathf.Cos(a) * Mathf.Cos(el)) * r;
             // In the slit: narrow across x, from a little past the top (z > -0.3 r) down the far side.
             bool open = Mathf.Abs(c.x) < slit && c.z > -0.3f * r && el > 0.2f;
-            if (!open) outT.AddRange(new[] { baseOut + v, baseOut + v + 1, baseOut + w, baseOut + v + 1, baseOut + w + 1, baseOut + w });
-            inT.AddRange(new[] { v, w, v + 1, v + 1, w, w + 1 });
+            if (open) continue;
+            outT.AddRange(new[] { baseOut + v, baseOut + v + 1, baseOut + w, baseOut + v + 1, baseOut + w + 1, baseOut + w });
+            inT.AddRange(new[] { baseIn + v, baseIn + w, baseIn + v + 1, baseIn + v + 1, baseIn + w, baseIn + w + 1 });
         }
 
-        // A floor inside, dark, so the slit is not a window onto the ground.
+        // The floor, at the ground.
         int floor = inV.Count;
-        inV.Add(Vector3.up * (drum - 1f));
+        inV.Add(Vector3.up * 0.3f);
         for (int i = 0; i <= around; i++)
         {
             float a = i * Mathf.PI * 2f / around;
-            inV.Add(Vector3.up * (drum - 1f) + new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a)) * (r - 0.4f));
+            inV.Add(Vector3.up * 0.3f + new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a)) * (r - 0.4f));
         }
         for (int i = 0; i < around; i++) inT.AddRange(new[] { floor, floor + 1 + i, floor + 2 + i });
 
         // Wound by hand (FixWinding cannot tell out from in on the drum's upright walls):
-        // drum and dome face out, the inside and the floor face in and up.
+        // drum and dome face out, the inside faces in, the floor up.
         Mesh outside = NewMesh("Dome", outV.ToArray(), outT.ToArray());
         outside.RecalculateNormals();
         Part("Dome outside", outside, _setDome, dome);
 
+        Shader set = Resources.Load<Shader>("SummitSet_NEW");
+        Material dark = Inside(set, new Color(0.06f, 0.05f, 0.05f, 1f), domeInside);
         Mesh inside = NewMesh("Dome inside", inV.ToArray(), inT.ToArray());
         inside.RecalculateNormals();
-        Material dark = Lit(Resources.Load<Shader>("SummitSet_NEW"), new Color(0.01f, 0.01f, 0.012f, 1f));
-        dark.SetColor("_Emission", domeInside);
-        _domeInside = dark;
         Part("Dome inside", inside, dark, dome);
+
+        BuildTelescope(dome, set);
+    }
+
+    // Where the telescope's parts are, in the dome's metres: the mirror at the foot of the
+    // tube, the open top of the tube under the top of the slit.
+    const float MirrorY = 6.55f, TubeTopY = 17.6f, TubeRadius = 1.6f;
+
+    /// <summary>
+    /// The 100-inch, after a fashion: a pier, the mirror's cell, an open truss of eight struts
+    /// to a ring at the top, and a cradle round the middle - pointing straight up. The mirror
+    /// has a light of its own, to flash as the light reaches it.
+    /// </summary>
+    void BuildTelescope(Transform dome, Shader set)
+    {
+        var v = new List<Vector3>();
+        var tri = new List<int>();
+
+        Box(v, tri, new Vector3(0f, 2.65f, 0f), new Vector3(4f, 4.7f, 4f));                 // the pier
+        Band(v, tri, TubeRadius, 5f, MirrorY, 24);                                          // the mirror's cell
+        Band(v, tri, TubeRadius * 1.2f, 10f, 10.8f, 24);                                     // the cradle
+        Band(v, tri, TubeRadius, TubeTopY - 0.6f, TubeTopY, 24);                             // the top ring
+        for (int i = 0; i < 8; i++)                                                          // the truss
+        {
+            float a = i * Mathf.PI * 2f / 8f;
+            Vector3 at = new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a)) * (TubeRadius - 0.1f);
+            Box(v, tri, at + Vector3.up * (MirrorY + TubeTopY) * 0.5f, new Vector3(0.18f, TubeTopY - MirrorY, 0.18f));
+        }
+        Mesh frame = NewMesh("Telescope", v.ToArray(), tri.ToArray());
+        frame.RecalculateNormals();
+        Part("Telescope", frame, Inside(set, new Color(0.55f, 0.55f, 0.58f, 1f), new Color(0.01f, 0.004f, 0.004f, 1f)), dome);
+
+        // The mirror: a disc facing up.
+        var mv = new List<Vector3> { Vector3.up * (MirrorY + 0.05f) };
+        var mt = new List<int>();
+        for (int i = 0; i <= 32; i++)
+        {
+            float a = i * Mathf.PI * 2f / 32f;
+            mv.Add(Vector3.up * (MirrorY + 0.05f) + new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a)) * (TubeRadius - 0.25f));
+        }
+        for (int i = 0; i < 32; i++) mt.AddRange(new[] { 0, 1 + i, 2 + i });
+        Mesh mirror = NewMesh("Mirror", mv.ToArray(), mt.ToArray());
+        mirror.RecalculateNormals();
+        Part("Mirror", mirror, Inside(set, Color.black, new Color(0.18f, 0.17f, 0.2f, 1f)), dome);
+    }
+
+    /// <summary>A material for inside the dome: no moon, no city, a dim red light all round, and a light of its own.</summary>
+    Material Inside(Shader set, Color albedo, Color emission)
+    {
+        Material m = Lit(set, albedo);
+        m.SetColor("_MoonColor", Color.black);
+        m.SetColor("_GlowColor", Color.black);
+        m.SetColor("_Rim", Color.black);
+        m.SetColor("_Ambient", new Color(0.32f, 0.07f, 0.05f, 1f));
+        m.SetColor("_Emission", emission);
+        _insideLights.Add(m);
+        _insideEmission.Add(emission);
+        return m;
+    }
+
+    /// <summary>A box, centre and size in metres, wound to face out.</summary>
+    static void Box(List<Vector3> v, List<int> tri, Vector3 centre, Vector3 size)
+    {
+        Vector3 h = size * 0.5f;
+        int b = v.Count;
+        for (int i = 0; i < 8; i++)
+            v.Add(centre + new Vector3((i & 1) == 0 ? -h.x : h.x, (i & 2) == 0 ? -h.y : h.y, (i & 4) == 0 ? -h.z : h.z));
+        int[] q = { 0, 2, 3, 1,  4, 5, 7, 6,  0, 1, 5, 4,  2, 6, 7, 3,  0, 4, 6, 2,  1, 3, 7, 5 };
+        for (int f = 0; f < 6; f++)
+        {
+            int a = b + q[f * 4], c = b + q[f * 4 + 1], d = b + q[f * 4 + 2], e = b + q[f * 4 + 3];
+            tri.AddRange(new[] { a, c, d, a, d, e });
+        }
+    }
+
+    /// <summary>An open band round the vertical axis, seen from both sides.</summary>
+    static void Band(List<Vector3> v, List<int> tri, float radius, float from, float to, int around)
+    {
+        int b = v.Count;
+        for (int i = 0; i <= around; i++)
+        {
+            float a = i * Mathf.PI * 2f / around;
+            Vector3 rim = new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a)) * radius;
+            v.Add(rim + Vector3.up * from);
+            v.Add(rim + Vector3.up * to);
+        }
+        for (int i = 0; i < around; i++)
+        {
+            int k = b + i * 2;
+            tri.AddRange(new[] { k, k + 2, k + 1, k + 2, k + 3, k + 1 });   // out
+            tri.AddRange(new[] { k, k + 1, k + 2, k + 2, k + 1, k + 3 });   // in
+        }
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
