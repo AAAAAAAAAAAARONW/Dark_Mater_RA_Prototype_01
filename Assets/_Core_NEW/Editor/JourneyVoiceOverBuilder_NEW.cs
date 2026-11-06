@@ -34,7 +34,9 @@ using UnityEngine.Events;
 ///     step F5     J6_3_Forest      (ShowAll: the forest)
 ///   MilkyWay      J7_MilkyWay
 ///   SolarSystem   J8_SolarSystem
-///   Earth         J9_Earth, then Closing over the end video (which has no sound of its own)
+///   Earth         J9_Earth, then Closing over the end video (which has no sound of its own).
+///                 Not Closing where the scene has an EarthEnding_NEW (Vizlab_Journey): that
+///                 says it itself, as the light goes into the dome.
 ///
 ///   J3b           said by FilamentAbsorber_NEW, the first time the light crosses a placed
 ///                 yellow filament - which also cuts and highlights a line. A placeholder
@@ -159,6 +161,8 @@ public static class JourneyVoiceOverBuilder_NEW
         SerializedObject so = new SerializedObject(voiceOver);
         SerializedProperty rows = so.FindProperty("layers");
 
+        bool endingSaysClosing = UnityEngine.Object.FindObjectOfType<EarthEnding_NEW>() != null;
+
         for (int i = 0; i < LayerClips.Length; i++)
         {
             string layerId = LayerClips[i][0];
@@ -189,6 +193,7 @@ public static class JourneyVoiceOverBuilder_NEW
 
             for (int c = 1; c < LayerClips[i].Length; c++)
             {
+                if (endingSaysClosing && LayerClips[i][c] == "Closing") continue;
                 AudioClip clip = Load(LayerClips[i][c]);
                 if (clip == null) continue;
 

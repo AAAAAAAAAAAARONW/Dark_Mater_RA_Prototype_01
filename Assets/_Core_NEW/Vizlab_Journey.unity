@@ -118045,7 +118045,6 @@ MonoBehaviour:
     delay: 0
     clips:
     - {fileID: 8300000, guid: 73aef9dc6a88ff04ab2fc4a6ba4ad4d0, type: 3}
-    - {fileID: 8300000, guid: c87539a7840b79d44b34095862d25c83, type: 3}
     cues: []
     onFinished:
       m_PersistentCalls:
@@ -143958,7 +143957,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 800100005}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3aa24b4ff30f7dc37f827504bc942b50, type: 3}
   m_Name: 
@@ -352809,6 +352808,7 @@ GameObject:
   - component: {fileID: 2059859078}
   - component: {fileID: 2059859079}
   - component: {fileID: 2059859190}
+  - component: {fileID: 2059859191}
   m_Layer: 13
   m_Name: SolarSystem
   m_TagString: Untagged
@@ -352816,6 +352816,19 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
+--- !u!114 &2059859191
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2059859076}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0383d56812e748998d98e38d055fe910, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  closing: {fileID: 8300000, guid: c87539a7840b79d44b34095862d25c83, type: 3}
 --- !u!114 &2059859190
 MonoBehaviour:
   m_ObjectHideFlags: 0

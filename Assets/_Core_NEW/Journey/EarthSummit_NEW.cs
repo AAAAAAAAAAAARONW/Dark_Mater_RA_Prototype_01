@@ -124,6 +124,38 @@ public class EarthSummit_NEW : MonoBehaviour
     CinemachineVirtualCamera _vcam;
     Quaternion _liftFrom, _liftTo;
     Transform _dome;
+    Material _domeInside;
+
+    // ── For EarthEnding_NEW ─────────────────────────────────────────────────
+
+    /// <summary>The camera has lifted and stands on the summit.</summary>
+    public bool Landed => _lifting && _liftClock >= liftSeconds;
+
+    /// <summary>Up at the summit, world space.</summary>
+    public Vector3 Up => _up;
+
+    /// <summary>Which way the camera ends up looking, level, world space.</summary>
+    public Vector3 ViewLevel => Rotate(_toCity, viewYaw);
+
+    /// <summary>World units a km, now.</summary>
+    public float KmToWorld => _frame != null ? _frame.lossyScale.x : 1f;
+
+    /// <summary>A point in the open slit, half way up it, world space.</summary>
+    public Vector3 SlitPoint
+    {
+        get
+        {
+            if (_dome == null) return Vector3.zero;
+            const float r = 15f, drum = 11f, el = 50f * Mathf.Deg2Rad;
+            return _dome.TransformPoint(new Vector3(0f, drum + r * Mathf.Sin(el), r * Mathf.Cos(el)));
+        }
+    }
+
+    /// <summary>The light inside the dome, for a flash as the light goes in.</summary>
+    public void SetInsideLight(float times)
+    {
+        if (_domeInside != null) _domeInside.SetColor("_Emission", domeInside * times);
+    }
     Vector3 _liftStart, _stand;   // world, where the lift began; the frame, where it ends
 
     readonly List<Renderer> _photonParts = new List<Renderer>();
@@ -664,6 +696,7 @@ public class EarthSummit_NEW : MonoBehaviour
         inside.RecalculateNormals();
         Material dark = Lit(Resources.Load<Shader>("SummitSet_NEW"), new Color(0.01f, 0.01f, 0.012f, 1f));
         dark.SetColor("_Emission", domeInside);
+        _domeInside = dark;
         Part("Dome inside", inside, dark, dome);
     }
 
