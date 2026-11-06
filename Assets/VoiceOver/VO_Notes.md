@@ -110,7 +110,7 @@ Said once per run: the first time the photon passes through a filament and the a
 
 ### Galaxy
 
-J4b plays straight after J4. The journey stays slow while it is said, then speeds up to leave. J2 (the HUD) follows J4b: the opening is only 14 seconds of flight, and by the galaxy the marker has visibly moved along the chain. J2b is optional.
+J4b plays straight after J4. The journey stays slow while it is said, then speeds up to leave. J2 (the HUD) follows J4b: the opening is only 14 seconds of flight, and by the galaxy the marker has visibly moved along the chain. J2 slides the tracker up for its whole length (it otherwise hides 8 s after each phase change). J2b is optional and **not said in `Vizlab_Journey`** (6 November): the tracker's tab counts light-years to Earth, not a clock of years travelled.
 
 ### Redshift demo (second cosmic web, z ≈ 0.8)
 
@@ -127,7 +127,7 @@ Four lines over the 6 s replay and the 12 marked lines, about 42 s in all. J6_3 
 - **"Eight minutes" (J8).** Sun–Earth light travel time is 8 min 20 s. Correct.
 - **"Half its present age" at seven billion years ago (J5).** 13.8 − 7 = 6.8 Gyr. Close enough for the read. Moved from J4 to J5 in v4, because the galaxy and the second cosmic web were both at seven billion years ago, so the same date would have been said twice.
 - **"Making stars faster every year" (J0).** At z ≈ 3.6 the universe's star-formation rate is still rising; it peaks around z ≈ 1.9 (Madau & Dickinson 2014). Correct.
-- **"Faster than at any time before or since", ten billion years ago (J4).** The cosmic star-formation peak, "cosmic noon", is at z ≈ 1.9, about 10.4 Gyr ago. Requires the journey tracker's Galaxy phase at 10 billion.
+- **"Faster than at any time before or since", ten billion years ago (J4).** The cosmic star-formation peak, "cosmic noon", is at z ≈ 1.9, about 10.4 Gyr ago. Requires the journey tracker's Galaxy phase at 10 billion: done 6 November. The tracker reads 12.07 B at the start, 11 → 10 B through the first cosmic web, 10 B in the galaxy, and 7 B entering the second cosmic web (J5); the 3 billion years in between pass at the galaxy's exit door, as a jump during the layer transition.
 - **"A hundred thousand years to cross a galaxy like this one" (J4b).** Light crosses a Milky Way–sized galaxy (about 100,000 light-years) in about 100,000 years. "Like this one" covers the art not stating a size. "Less than the blink of an eye": 100,000 years is 1/120,000 of the journey, so if the journey took an hour, the galaxy would take 0.03 s, and a blink is 0.1 to 0.4 s. The line never says light slows down; it does not.
 - **"Dark energy is about to start speeding up the expansion" (J5).** The expansion starts accelerating at z ≈ 0.6 to 0.7, about 6 Gyr ago, just after the second cosmic web (z ≈ 0.8, 7 Gyr ago).
 

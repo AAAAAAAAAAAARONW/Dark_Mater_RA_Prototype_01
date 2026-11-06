@@ -68,7 +68,8 @@ public class GetReal3DView_NEW : MonoBehaviour
     [SerializeField] int zeroWithinFrames = 10;
 
     bool _rigCameraWasEnabled;
-    InputScheme_NEW.Source _previousSource;
+    static int _liveViews;
+    static InputScheme_NEW.Source _sourceBeforeViews;
     Transform _eye;
     bool _zeroed;
     int _framesWaited;
@@ -97,7 +98,11 @@ public class GetReal3DView_NEW : MonoBehaviour
     {
         _live = this;
 
-        _previousSource = InputScheme_NEW.InputSource;
+        // Counted, not remembered per view: a scene can carry two of these (Vizlab_tut
+        // does), and each one remembering "what it was before me" put the source back to
+        // GetReal3D or Unity depending on which was switched off first. The source the
+        // first one found is the one the last one hands back.
+        if (_liveViews++ == 0) _sourceBeforeViews = InputScheme_NEW.InputSource;
         InputScheme_NEW.InputSource = InputScheme_NEW.Source.GetReal3D;
 
         if (rigCamera != null)
@@ -115,7 +120,7 @@ public class GetReal3DView_NEW : MonoBehaviour
     {
         if (_live == this) _live = null;
 
-        InputScheme_NEW.InputSource = _previousSource;
+        if (_liveViews > 0 && --_liveViews == 0) InputScheme_NEW.InputSource = _sourceBeforeViews;
 
         if (rigCamera != null) rigCamera.enabled = _rigCameraWasEnabled;
     }

@@ -51,10 +51,14 @@ TutorialInput_NEW     OrbitCameraRig_NEW (look)
 | Right stick | Look | Rig (`OrbitCameraRig_NEW`, `FirstPersonLookRig_NEW`) |
 | Left stick | Zoom (tutorial only, for now) | `TutorialZoom_NEW` |
 | **A** | Confirm / recentre / emit — one meaning everywhere | `InputScheme_NEW.ConfirmDown()` |
-| **B** | Pause | `InputScheme_NEW.PauseDown()` |
+| **B** | Pause — tutorial (`TutorialPause_NEW`) and journey (`JourneyPause_NEW`) | `InputScheme_NEW.PauseDown()` |
+| **Y** | Show / hide dark matter (journey, cosmic webs) | `InputScheme_NEW.ToggleDown()` |
+| **X** | Journey tracker HUD | `InputScheme_NEW.ShowHudDown()` |
 | D-pad | Attendant only. Never in a prompt | `PlayerRig_NEW` when `speedInput = Attendant` |
 
-Keyboard fallbacks: **Space** = A, **P** = B, **mouse** = look, **WASD** = left stick (Xbox/PS profiles only).
+Keyboard fallbacks: **Space** / Enter = A, **P** = B, **Y** = Y, **Left Shift** = X, **mouse** = look, **WASD** = left stick (Xbox/PS profiles only).
+
+> **The Vizlab scenes read getReal3D, not the profile.** While a `GetReal3DView_NEW` is enabled (both `Vizlab_*` scenes, editor included) every control above comes from `Assets/Resources/mappings.xml`; the profile then decides only the printed letters and the D-pad. On that path Q/E and R/F also look. Pause has **no** Unity fallback there — `Fire2` would add the right mouse button and Left Alt.
 
 ---
 
@@ -172,7 +176,7 @@ Don't. "One button, one meaning, tutorial and journey alike" is a design rule. I
 | **Double inversion** | `RightStickY` and `PadRightStickY` already have `invert: 1` in `InputManager.asset`, so their profiles use `false`. `Joy*` axes are raw, so Vizlab uses `true`. Invert twice = upside down |
 | **`Horizontal` / `Vertical` are the D-pad on Vizlab** | Any code reading those names directly is wired to the D-pad on the exhibition pad. Use `InputScheme_NEW` |
 | **`TutorialInput_NEW.LookStick` is serialized** | Stored as an int on `FirstPersonLookRig_NEW`. Don't renumber `Left=0, Right=1, Either=2` |
-| **F5 pins** | Cycling on the diagnostic page pins the result; auto-detect won't run again this session |
+| **F3 pins** | Cycling on the diagnostic page pins the result; auto-detect won't run again this session |
 | **`Joy*` axes have `dead: 0.19`** in the asset | Values below 0.19 already read as 0 before the profile's deadband applies. Kept to match the existing axes |
 | **`PlayerRig_NEW.speedInput` defaults to `Off`** | Applies to every scene using `PlayerRig_NEW`, including `PlaytestBuild_NEW`. Set `Visitor` to restore the old left-stick speed control |
 
@@ -181,7 +185,7 @@ Don't. "One button, one meaning, tutorial and journey alike" is a design rule. I
 ## 9. On-site checklist (no Unity needed)
 
 1. **F4** → first line reads `Vizlab Logitech (pinned)`
-2. Wrong? **F5** until it is
+2. Wrong? **F3** until it is
 3. Push the right stick **away** from you → `LOOK Y` reads **positive**
 4. Press the button printed **A** → `CONFIRM ... <- DOWN`
 5. Press the button printed **B** → `PAUSE ... <- DOWN`
@@ -195,6 +199,6 @@ Anything wrong → §7, *Fix a wrong axis, sign, or button on site*.
 | Key | Action |
 |---|---|
 | F4 | Show / hide input diagnostics |
-| F5 | Cycle pad profile (pins it) |
+| F3 | Cycle pad profile (pins it) — the director's key in the tutorial, the diagnostics' in the journey |
 
-*Other F-keys in the project: F1 layer overlay, F2/F3 tutorial director, F6/F7 journey sequence, F8 redshift advance.*
+*Other F-keys in the project: F1 layer overlay, F2 tutorial skip beat / journey dark matter moment start, F5 wall display mode, F6 tutorial rumble test, F6/F7 journey sequence, F8 redshift advance.*

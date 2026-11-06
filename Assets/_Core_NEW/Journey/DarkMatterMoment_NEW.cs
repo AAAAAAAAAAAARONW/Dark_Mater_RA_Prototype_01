@@ -132,8 +132,9 @@ public class DarkMatterMoment_NEW : MonoBehaviour
     [Header("Debug")]
     [SerializeField] bool debugLog = false;
 
-    [Tooltip("Start the moment NOW, wherever the light is. Editor and development builds only.")]
-    [SerializeField] KeyCode debugBeginKey = KeyCode.F8;
+    [Tooltip("Start the moment NOW, wherever the light is. Editor and development builds only. " +
+             "F2, not F8: F8 is RedshiftBudget_NEW's advance, and one press did both.")]
+    [SerializeField] KeyCode debugBeginKey = KeyCode.F2;
 
     const string Lane = "Moment";
 
@@ -256,7 +257,8 @@ public class DarkMatterMoment_NEW : MonoBehaviour
         float dt = Time.deltaTime;
         TickSilent(dt);
 
-        if (InputScheme_NEW.ToggleDown()) HandleToggle();
+        // Not while paused: the press would flip dark matter behind "B TO RESUME".
+        if (!JourneyPause_NEW.IsPaused && InputScheme_NEW.ToggleDown()) HandleToggle();
 
         switch (_phase)
         {

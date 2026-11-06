@@ -74,8 +74,9 @@ public class TutorialRumble_NEW : MonoBehaviour
 
     [Header("Debug")]
     [Tooltip("Fires a test pulse while the debug overlay is on. Not in the exhibition build: " +
-             "it sits behind DebugView_NEW.Overlay like the director's keys.")]
-    [SerializeField] KeyCode testKey = KeyCode.F4;
+             "it sits behind DebugView_NEW.Overlay like the director's keys. F6, not F4: " +
+             "F4 is InputDiagnostics_NEW's page.")]
+    [SerializeField] KeyCode testKey = KeyCode.F6;
 
     [SerializeField] bool debugLog = false;
 

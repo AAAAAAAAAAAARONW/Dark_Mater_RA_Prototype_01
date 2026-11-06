@@ -159,7 +159,7 @@ public class DarkMatterToggleTest_NEW : MonoBehaviour
 
     void Update()
     {
-        if (InputScheme_NEW.ToggleDown()) HandleY();
+        if (!JourneyPause_NEW.IsPaused && InputScheme_NEW.ToggleDown()) HandleY();
 
         float target = _shown ? 1f : 0f;
         if (!Mathf.Approximately(_mix, target))

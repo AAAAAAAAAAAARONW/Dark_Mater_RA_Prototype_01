@@ -106,7 +106,7 @@ public static class DarkMatterMomentBuilder_NEW
         SerializedProperty version = new SerializedObject(stop).FindProperty("version");
         Debug.Log("[DarkMatterMomentBuilder_NEW] Done, " + _changes + " change(s). Save the scene. Version: " +
                   version.enumDisplayNames[version.enumValueIndex] +
-                  ". In Play: press 2 (Macro) and wait for J3, or press F8 there to start the moment at once.", stop);
+                  ". In Play: press 2 (Macro) and wait for J3, or press F2 there to start the moment at once.", stop);
     }
 
     // -- 1 + 2: bake and scaffold -------------------------------------------------------

@@ -7,7 +7,7 @@ using TMPro;
 /// <summary>
 /// The journey tracker as a horizontal bar along the bottom of the screen, drawn with the
 /// art in _Core_NEW/UI (JourneyTracker_*.png). Replaces UniverseJourneyHUD's vertical bar
-/// in Gameplay_Scene_Ana; the other scenes still use the old one.
+/// in Vizlab_Journey (and Gameplay_Scene_Ana); the other scenes still use the old one.
 ///
 /// One node per UniverseJourneyTracker phase, sitting on the background's ticks from the
 /// left. Each node shows one of three images: Passed (dark green) for phases already
@@ -365,10 +365,17 @@ public class JourneyTrackerHUD_NEW : MonoBehaviour
         }
     }
 
-    public void ShowHUD()
+    public void ShowHUD() => ShowHUDFor(hudVisibleDuration);
+
+    /// <summary>
+    /// Show for at least this long. J2 ("at the bottom of the screen, a chain of stops…")
+    /// calls it from a cue on its JourneyVoiceOver_NEW row, so the bar is up for the whole
+    /// line and not slid away 8 s into it.
+    /// </summary>
+    public void ShowHUDFor(float seconds)
     {
         if (!autoHide || _rootRT == null) return;
-        _hideTimer = hudVisibleDuration;
+        _hideTimer = Mathf.Max(_hideTimer, seconds);
         if (!_hudVisible) Slide(true);
     }
 

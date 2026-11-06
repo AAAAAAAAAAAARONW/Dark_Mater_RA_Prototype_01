@@ -4,7 +4,7 @@
 
 1. 按 **F4** 打开 `InputDiagnostics_NEW`
 2. 看第一行 `PROFILE` —— 应该是 `Vizlab Logitech (pinned)`
-3. 不对的话按 **F5** 换一个，直到对
+3. 不对的话按 **F3** 换一个，直到对
 4. 摇杆推一下，看 `RESOLVED BY PROFILE` 那几行动不动、方向对不对
 5. 按印着 **A** 的键，`CONFIRM` 那行应该出现 `<- DOWN`
 

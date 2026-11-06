@@ -26,8 +26,10 @@ using UnityEngine.Events;
 ///   Quasar        J0, J1. 1 s in, as JourneyOpening_NEW's second of black fades up.
 ///                 The camera's look-back is the journey's own, not cued from here.
 ///   Macro         J3_CosmicWeb1
-///   Micro         J4_Galaxy, J4b (why the journey slows), then J2_JourneyHUD and
-///                 J2b_Readout - moved here from the opening, which is only 14 seconds long
+///   Micro         J4_Galaxy, J4b (why the journey slows), then J2_JourneyHUD - moved here
+///                 from the opening, which is only 14 seconds long. J2 slides the journey
+///                 tracker up for its whole length (a cue on the row). J2b_Readout is not
+///                 said: the tracker's tab counts light-years to Earth, not a clock.
 ///   CosmicWeb     J5_CosmicWeb2 — then the redshift sequence starts
 ///     step F1     J6_1_Redshift
 ///     step F4     J6_2_Redshift    (Spread: the lines move apart)
@@ -55,7 +57,7 @@ public static class JourneyVoiceOverBuilder_NEW
     {
         new[] { "Quasar", "J0", "J1_LeavingQuasar" },
         new[] { "Macro", "J3_CosmicWeb1" },
-        new[] { "Micro", "J4_Galaxy", "J4b", "J2_JourneyHUD", "J2b_Readout" },
+        new[] { "Micro", "J4_Galaxy", "J4b", "J2_JourneyHUD" },
         new[] { "CosmicWeb", "J5_CosmicWeb2" },
         new[] { "MilkyWay", "J7_MilkyWay" },
         new[] { "SolarSystem", "J8_SolarSystem" },
@@ -101,6 +103,7 @@ public static class JourneyVoiceOverBuilder_NEW
 
         RemoveLookBackCue(voiceOver);
         WireOpening(voiceOver);
+        WireTrackerHud(voiceOver);
         RetireOldCallout(voiceOver);
         WireFilament(voiceOver);
         WirePace(voiceOver);
@@ -249,6 +252,9 @@ public static class JourneyVoiceOverBuilder_NEW
     static readonly string[][] MovedOut =
     {
         new[] { "Quasar", "J2_JourneyHUD", "J2b_Readout" },
+        // J2b ("the clock counts the billions of years you have been traveling") is optional
+        // in VO v7, and the tracker's tab counts light-years to Earth, not years travelled.
+        new[] { "Micro", "J2b_Readout" },
     };
 
     static int IndexOfClip(SerializedProperty clips, AudioClip clip)
@@ -310,6 +316,38 @@ public static class JourneyVoiceOverBuilder_NEW
         quasar.cues = kept.ToArray();
         EditorUtility.SetDirty(voiceOver);
         _changes++;
+    }
+
+    // -- J2: the journey tracker on screen --------------------------------------------
+
+    /// <summary>Seconds J2 holds the tracker up: the line (10.5 s) and a little after.</summary>
+    const float J2ShowSeconds = 12f;
+
+    /// <summary>
+    /// J2 says "at the bottom of the screen, a chain of stops", but the tracker slides away
+    /// 8 s after each phase change, so by the galaxy's third line it is gone. A cue at the
+    /// start of J2 slides it up for the whole line.
+    /// </summary>
+    static void WireTrackerHud(JourneyVoiceOver_NEW voiceOver)
+    {
+        JourneyTrackerHUD_NEW hud = UnityEngine.Object.FindObjectOfType<JourneyTrackerHUD_NEW>();
+        JourneyVoiceOver_NEW.LayerLines micro = FindRowObject(voiceOver, "Micro");
+        AudioClip j2 = Load("J2_JourneyHUD");
+        if (hud == null || micro == null || j2 == null) return;
+
+        foreach (JourneyVoiceOver_NEW.LineCue c in micro.cues)
+            if (c != null && c.line == j2 && HasCall(c.onCue, hud, "ShowHUDFor")) return;
+
+        var cue = new JourneyVoiceOver_NEW.LineCue { line = j2, seconds = 0f };
+        UnityEventTools.AddFloatPersistentListener(cue.onCue, hud.ShowHUDFor, J2ShowSeconds);
+
+        Undo.RecordObject(voiceOver, "Show the journey tracker during J2");
+        var cues = new System.Collections.Generic.List<JourneyVoiceOver_NEW.LineCue>(micro.cues) { cue };
+        micro.cues = cues.ToArray();
+        EditorUtility.SetDirty(voiceOver);
+        _changes++;
+        Debug.Log("[JourneyVoiceOverBuilder_NEW] Micro: J2 now slides the journey tracker up for " +
+                  J2ShowSeconds + " s.", hud);
     }
 
     // -- J1's look back: removed ----------------------------------------------------

@@ -26,6 +26,22 @@
 - Carnegie 现在做研究用的望远镜（Magellan）在智利的 Las Campanas
 
 
+### 第 5 步 · Journey tracker 对上 v7（11 月 6 日）：在 Unity 里看
+
+**之前的问题：** 场景里 Galaxy 改成了 10 B 但前后没跟着改，tracker 开场显示约 **15.07 B**（应该是 12.07 B），光谱也按 15 Gyr 算，开场要等很久才"追上"。底部的条在 J2（"at the bottom of the screen…"）说的时候早就滑走了（每次换阶段只显示 8 秒）。
+
+**改了什么（只动了 `Vizlab_Journey`）：**
+- 距离按 v7：Quasar 12.07 → 11 B，第一段 web 11 → 10 B，Galaxy 10 B（J4 "ten billion years ago"），第二段 web 从 **7 B** 开始（J5 "seven billion years ago"）。中间的 3 B 在 Galaxy → 第二段 web 那道门上**跳过去**（你选的），数字和光谱的线在层切换时跳一下。
+- `UniverseJourneyTracker.RemainingDistanceLy` 改成每个阶段从自己的 start 走到 end（以前是把后面各阶段的跨度加起来，所以不能有跳变，前面一改后面全错）。代码里的默认值、`Apply Default Phase Distances` 菜单也改成这套数。
+- J2 开始时底部的条滑上来，停 12 秒（`JourneyTrackerHUD_NEW.ShowHUDFor`，挂在 Micro 那行 VO 的 cue 上）。
+- **J2b 不说了**（你选的）：条上显示的是"到地球还有多少光年"，不是计时的钟。Galaxy 的 Hurry 因此早约 5 秒开始。
+- `Wire Journey Voice Over` 菜单同步改了，以后再跑不会把 J2b 加回来，也会补上 J2 的 cue。
+
+**看：**
+1. Play `Vizlab_Journey`，按 X（或 Fire3）让条出来：右下角 **12.07 B LIGHTYEARS TO EARTH**。Console 里不应再有 `Tracker is at 15.07 Gyr, bake starts at 12.07 Gyr`。
+2. 到星系：显示约 10 B；J4、J4b 说完，J2 一开口条就滑上来，整句都在屏幕上；J2b 不再出现。
+3. 出星系进第二段 web：数字从 ~10 B 跳到 ~7 B，光谱的线同时滑一下。觉得跳得太突兀再说，可以改成在星系后段慢慢走。
+
 ### 第 5 步：v7 录音已换上，在 Unity 里看
 
 **改了什么（11 月 3 日，云端做的，Unity 外只做了文本检查）：**

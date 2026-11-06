@@ -41,10 +41,12 @@ public class InputDiagnostics_NEW : MonoBehaviour
              "the layer jump tool and the tutorial director.")]
     [SerializeField] KeyCode toggleKey = KeyCode.F4;
 
-    [Tooltip("Cycle the pad profile and pin it. Same action as the tutorial director's " +
-             "F3, repeated here so the diagnostic page is self-contained in a build " +
-             "that has no director.")]
-    [SerializeField] KeyCode cycleProfileKey = KeyCode.F5;
+    [Tooltip("Cycle the pad profile and pin it. Same action and same key as the tutorial " +
+             "director's F3, repeated here so the diagnostic page is self-contained in a " +
+             "build that has no director. Set it to None in a scene that has the director, " +
+             "or one press cycles twice. Not F5: that is VizlabWallTest_NEW's display mode, " +
+             "and sharing it un-pinned the profile every time the wall mode was changed.")]
+    [SerializeField] KeyCode cycleProfileKey = KeyCode.F3;
 
     [Tooltip("Visible from the first frame. Leave off for anything a visitor can see.")]
     [SerializeField] bool startVisible = false;

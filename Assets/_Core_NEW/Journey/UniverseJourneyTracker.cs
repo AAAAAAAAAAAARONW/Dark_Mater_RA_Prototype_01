@@ -8,6 +8,13 @@ using UnityEngine;
 /// Progress is computed from the player's Z position relative to
 /// consecutive layer trigger transforms. No lyPerUnityUnit needed.
 ///
+/// Remaining distance (= lookback time, which the spectrum follows) runs from each
+/// phase's remainingDistanceAtStart to its remainingDistanceAtEnd as the player crosses
+/// that phase. Phases do not have to meet: VO v7 puts the galaxy at ten billion years
+/// ago and the second cosmic web at seven, so the Galaxy phase ends at 9.9999 B, the
+/// Cosmic Web 2 phase starts at 7 B, and the number jumps at that door, during the
+/// layer transition.
+///
 /// Setup:
 ///   1. Assign Player Transform.
 ///   2. Assign Layer Triggers in journey order (Quasar door → CW door →
@@ -116,23 +123,23 @@ public class UniverseJourneyTracker : MonoBehaviour
 
     [Header("Journey")]
     [Tooltip("Total journey distance in light years (for display only).")]
-    [SerializeField] double totalJourneyLy = 13_000_100_024e3;
+    [SerializeField] double totalJourneyLy = 12.07e9;
 
     [Header("Phase Data (7 entries, one per JourneyPhase)")]
     [SerializeField]
     PhaseData[] phases = new PhaseData[]
     {
         new PhaseData { displayName="Quasar",
-            remainingDistanceAtStart=13.0e9,  remainingDistanceAtEnd=11.0e9,
+            remainingDistanceAtStart=12.07e9, remainingDistanceAtEnd=11.0e9,
             lyPerUnityUnit=3e7  },
         new PhaseData { displayName="Cosmic Web",
-            remainingDistanceAtStart=11.0e9,  remainingDistanceAtEnd=7.0e9,
+            remainingDistanceAtStart=11.0e9,  remainingDistanceAtEnd=10.0e9,
             lyPerUnityUnit=3e7  },
         new PhaseData { displayName="Galaxy",
-            remainingDistanceAtStart=7.0e9,   remainingDistanceAtEnd=6.9999e9,
+            remainingDistanceAtStart=10.0e9,  remainingDistanceAtEnd=9.9999e9,
             lyPerUnityUnit=1e3  },
         new PhaseData { displayName="Cosmic Web",
-            remainingDistanceAtStart=6.9999e9,remainingDistanceAtEnd=2.4e4,
+            remainingDistanceAtStart=7.0e9,   remainingDistanceAtEnd=2.4e4,
             lyPerUnityUnit=6e7  },
         new PhaseData { displayName="Milky Way",
             remainingDistanceAtStart=2.4e4,   remainingDistanceAtEnd=1.0,
@@ -153,12 +160,12 @@ public class UniverseJourneyTracker : MonoBehaviour
 
     [Header("Milestones — exposed for timeline tuning")]
     [Tooltip("Milestones fire when RemainingDistanceLy drops BELOW remainingDistanceThresholdLy.\n" +
-             "Journey starts at ~13B ly (Quasar). Thresholds above 13B fire at game start.\n\n" +
-             "Phase ranges (remaining ly):\n" +
-             "  Quasar        13B → 11B\n" +
-             "  CosmicWeb1    11B → 7B\n" +
-             "  Galaxy        7B  → 6.9999B  (100K ly window)\n" +
-             "  CosmicWeb2    6.9999B → 24K\n" +
+             "Journey starts at 12.07B ly (Quasar). Thresholds above that fire at game start.\n\n" +
+             "Phase ranges (remaining ly, VO v7):\n" +
+             "  Quasar        12.07B → 11B\n" +
+             "  CosmicWeb1    11B → 10B\n" +
+             "  Galaxy        10B → 9.9999B  (100K ly window)\n" +
+             "  CosmicWeb2    7B → 24K       (jumps from 10B at its door)\n" +
              "  MilkyWay      24K → 1\n" +
              "  SolarSystem   1   → 1e-12\n" +
              "  Earth         1e-12 → 0")]
@@ -597,14 +604,15 @@ public class UniverseJourneyTracker : MonoBehaviour
     /// <summary>
     /// Remaining journey distance in light-years to Earth.
     ///
-    /// Formula:
-    ///   remaining  =  remaining_Z_in_current_phase × ly/unit[current]
-    ///              +  Σ( full_Z_span[i] × ly/unit[i] )  for every future phase i
+    /// Inside phase i it runs from phases[i].remainingDistanceAtStart to
+    /// remainingDistanceAtEnd as the player crosses that phase's Z span:
     ///
-    /// The ly/unit scale is DIFFERENT per phase (see BuildLyPerUnitCache), so:
-    ///   • In CosmicWeb  the number drops by ~30 M ly per Unity unit
-    ///   • In MilkyWay   it drops by ~248 ly per Unity unit
-    ///   • In SolarSystem it drops by ~0.009 ly per Unity unit
+    ///   remaining = start − (start − end) × t
+    ///
+    /// Z spans differ per phase, so the rate does too (see BuildLyPerUnitCache):
+    /// billions per unit in the cosmic webs, a crawl in the Solar System. Where one
+    /// phase's end is not the next one's start (Galaxy 9.9999 B → Cosmic Web 2 7 B) the
+    /// number jumps at that door.
     ///
     /// Always reads raw player Z — unaffected by phase pinning.
     /// </summary>
@@ -612,26 +620,12 @@ public class UniverseJourneyTracker : MonoBehaviour
     {
         get
         {
-            if (_lyPerUnit == null || _triggerZ == null) return 0.0;
+            if (!_initialized || phases == null || phases.Length == 0) return 0.0;
             var (idx, t) = RawZProgress();
+            if (idx < 0 || idx >= phases.Length) return 0.0;
 
-            double remaining = 0.0;
-
-            // ── Remaining fraction of the CURRENT phase ──────────────────────
-            if (idx < _lyPerUnit.Length && idx + 1 < _triggerZ.Length)
-            {
-                double zSpan = Math.Abs(_triggerZ[idx + 1] - _triggerZ[idx]);
-                remaining += zSpan * (1.0 - t) * _lyPerUnit[idx];
-            }
-
-            // ── Full span of every FUTURE phase ──────────────────────────────
-            for (int i = idx + 1; i < phases.Length; i++)
-            {
-                if (i < _lyPerUnit.Length && i + 1 < _triggerZ.Length)
-                    remaining += Math.Abs(_triggerZ[i + 1] - _triggerZ[i]) * _lyPerUnit[i];
-            }
-
-            return Math.Max(0.0, remaining);
+            PhaseData p = phases[idx];
+            return Math.Max(0.0, p.remainingDistanceAtStart - p.TotalDistanceLy * t);
         }
     }
 
@@ -755,11 +749,11 @@ public class UniverseJourneyTracker : MonoBehaviour
     /// Run this if the Inspector shows wrong start/end distances —
     /// symptoms: early number drops too fast, or Solar System doesn't show ~1 ly.
     ///
-    /// Phase boundaries (remaining ly to Earth at each phase entry):
-    ///   Quasar      13.0 B → 11.0 B ly
-    ///   CosmicWeb1  11.0 B →  7.0 B ly
-    ///   Galaxy       7.0 B →  6.9999 B ly  (100 K ly window)
-    ///   CosmicWeb2   6.9999 B → 24 K ly
+    /// Phase boundaries (remaining ly to Earth at each phase entry), as VO v7 says them:
+    ///   Quasar      12.07 B → 11.0 B ly    (z = 3.62, matches bake_settings lookback_start_gyr)
+    ///   CosmicWeb1  11.0 B  → 10.0 B ly
+    ///   Galaxy      10.0 B  →  9.9999 B ly (100 K ly window; J4 "ten billion years ago")
+    ///   CosmicWeb2   7.0 B  → 24 K ly      (J5 "seven billion years ago"; jumps at its door)
     ///   MilkyWay     24 K → 1 ly
     ///   SolarSystem  1 ly → ~0 ly          ← entry shows ~1 ly
     ///   Earth        ~0 → 0
@@ -770,16 +764,16 @@ public class UniverseJourneyTracker : MonoBehaviour
         phases = new PhaseData[]
         {
             new PhaseData { displayName = "Quasar",
-                remainingDistanceAtStart = 13.0e9,    remainingDistanceAtEnd = 11.0e9,
+                remainingDistanceAtStart = 12.07e9,   remainingDistanceAtEnd = 11.0e9,
                 lyPerUnityUnit = 3e7  },
             new PhaseData { displayName = "Cosmic Web",
-                remainingDistanceAtStart = 11.0e9,    remainingDistanceAtEnd = 7.0e9,
+                remainingDistanceAtStart = 11.0e9,    remainingDistanceAtEnd = 10.0e9,
                 lyPerUnityUnit = 3e7  },
             new PhaseData { displayName = "Galaxy",
-                remainingDistanceAtStart = 7.0e9,     remainingDistanceAtEnd = 6.9999e9,
+                remainingDistanceAtStart = 10.0e9,    remainingDistanceAtEnd = 9.9999e9,
                 lyPerUnityUnit = 1e3  },
             new PhaseData { displayName = "Cosmic Web",
-                remainingDistanceAtStart = 6.9999e9,  remainingDistanceAtEnd = 2.4e4,
+                remainingDistanceAtStart = 7.0e9,     remainingDistanceAtEnd = 2.4e4,
                 lyPerUnityUnit = 6e7  },
             new PhaseData { displayName = "Milky Way",
                 remainingDistanceAtStart = 2.4e4,     remainingDistanceAtEnd = 1.0,

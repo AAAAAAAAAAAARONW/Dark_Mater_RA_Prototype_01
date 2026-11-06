@@ -30529,7 +30529,7 @@ MonoBehaviour:
   - {fileID: 540613744}
   - {fileID: 327048403}
   - {fileID: 809299531}
-  totalJourneyLy: 13800000000
+  totalJourneyLy: 12070000000
   phases:
   - displayName: Quasar
     remainingDistanceAtStart: 12070000000
@@ -30537,14 +30537,14 @@ MonoBehaviour:
     lyPerUnityUnit: 30000000
   - displayName: Cosmic Web
     remainingDistanceAtStart: 11000000000
-    remainingDistanceAtEnd: 7000000000
+    remainingDistanceAtEnd: 10000000000
     lyPerUnityUnit: 30000000
   - displayName: Galaxy
     remainingDistanceAtStart: 10000000000
-    remainingDistanceAtEnd: 6999900000
+    remainingDistanceAtEnd: 9999900000
     lyPerUnityUnit: 1000
   - displayName: Cosmic Web
-    remainingDistanceAtStart: 6999900000
+    remainingDistanceAtStart: 7000000000
     remainingDistanceAtEnd: 24000
     lyPerUnityUnit: 60000000
   - displayName: Milky Way
@@ -117975,8 +117975,23 @@ MonoBehaviour:
     - {fileID: 8300000, guid: 5ba36f157f107284284854d8f85fe158, type: 3}
     - {fileID: 8300000, guid: 97af0d940215b5e4c92fbed3ee25aec9, type: 3}
     - {fileID: 8300000, guid: 8f325eabf71e04649aa2c865b2d2225a, type: 3}
-    - {fileID: 8300000, guid: b9829a674b88e6c4aa0b5d0630159ca0, type: 3}
-    cues: []
+    cues:
+    - line: {fileID: 8300000, guid: 8f325eabf71e04649aa2c865b2d2225a, type: 3}
+      seconds: 0
+      onCue:
+        m_PersistentCalls:
+          m_Calls:
+          - m_Target: {fileID: 87778407}
+            m_MethodName: ShowHUDFor
+            m_Mode: 4
+            m_Arguments:
+              m_ObjectArgument: {fileID: 0}
+              m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+              m_IntArgument: 0
+              m_FloatArgument: 12
+              m_StringArgument:
+              m_BoolArgument: 0
+            m_CallState: 2
     onFinished:
       m_PersistentCalls:
         m_Calls:

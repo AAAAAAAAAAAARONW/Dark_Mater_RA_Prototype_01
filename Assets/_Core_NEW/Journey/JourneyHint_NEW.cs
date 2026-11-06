@@ -48,6 +48,12 @@ public class JourneyHint_NEW : MonoBehaviour
     /// <summary>True while the hint is up or on its way up.</summary>
     public bool IsShown { get { return _target > 0f; } }
 
+    /// <summary>The words on the line now. JourneyPause_NEW puts them back after a pause.</summary>
+    public string Text
+    {
+        get { Init(); return label != null ? label.text : ""; }
+    }
+
     void Init()
     {
         if (_group != null) return;
@@ -67,7 +73,8 @@ public class JourneyHint_NEW : MonoBehaviour
 
     void Update()
     {
-        float step = fadeSeconds > 0f ? Time.deltaTime / fadeSeconds : 1f;
+        // Unscaled: the pause stops the time scale and still has to put "B TO RESUME" up.
+        float step = fadeSeconds > 0f ? Time.unscaledDeltaTime / fadeSeconds : 1f;
         _group.alpha = Mathf.MoveTowards(_group.alpha, _target, step);
 
         if (Mathf.Approximately(_group.alpha, _target)) enabled = false;
