@@ -27,13 +27,16 @@ using UnityEngine;
 /// The dome is made too — a drum and a hemisphere with the slit open across the top — at
 /// domeScale times its real size, so it reads at the distance it stands.
 ///
-/// THE CAMERA. A virtual camera of its own, at the live camera's place and turned as it is,
-/// so the brain's blend to it changes nothing; then it turns from looking down to the
-/// horizon, towards the city, and comes down onto its stand just over the summit, held
-/// there in the frame of km. Not left where the growth would bring the live camera: in
-/// Unity that ended somewhere the ground and the dome were not to be seen (3-4 Nov), so the
-/// stand is where the camera goes, whatever the growth did. A line in the Console says
-/// where it was and where it ended. The light is let go of meanwhile: its trail thins away, then
+/// THE WAY IN. We are the light to the end: it is not left hanging in the sky but flown,
+/// on a curve in the frame of km, from where it was down into the dome's open slit, and a
+/// virtual camera of its own rides behind it as the journey's camera did - first at the
+/// usual few units back, which the world's growth makes a long way down, closing in as it
+/// comes. It starts where the live camera is, so the brain's blend changes nothing. The
+/// light narrows on the way (lightShrink) so that it fits the slit, and goes in; the red
+/// light inside flashes (EarthEnding_NEW), and after holdInside the picture cuts to the
+/// observatory from outside: the camera's stand just over the summit, the dome to the left,
+/// the city beyond, the stars and the Milky Way come up over it. (6 Nov: until then the
+/// camera lifted to the horizon and a separate streak fell into the dome.) The light is let go of meanwhile: its trail thins away, then
 /// it is hidden. The telescope is the next step's.
 ///
 /// THE SKY. A skybox of its own (Resources/SummitSky_NEW), swapped in while the camera still
@@ -54,17 +57,27 @@ public class EarthSummit_NEW : MonoBehaviour
     [Tooltip("The summit's height, km: Mount Wilson, 1.74.")]
     [SerializeField] float summitKm = 1.74f;
 
-    [Header("Camera")]
-    [Tooltip("How far into the last stretch the camera starts to lift, 0 to 1.")]
-    [Range(0f, 1f)] [SerializeField] float liftFrom = 0.55f;
+    [Header("The way in")]
+    [Tooltip("How far behind the light the camera rides, world units, as through the journey.")]
+    [Min(0.5f)] [SerializeField] float chaseUnits = 5f;
 
-    [Tooltip("Seconds the camera takes to lift from the ground to the horizon.")]
-    [Min(0.5f)] [SerializeField] float liftSeconds = 7f;
+    [Tooltip("How far behind it the camera is as it reaches the slit, world units.")]
+    [Min(0.2f)] [SerializeField] float chaseEnd = 1.6f;
 
-    [Tooltip("Degrees the camera ends up turned from the city: negative to the left, towards the dome.")]
+    [Tooltip("The light's size at the slit, as a fraction of its own, so it fits.")]
+    [Range(0.02f, 1f)] [SerializeField] float lightShrink = 0.12f;
+
+    [Tooltip("The last straight run into the slit, km.")]
+    [Min(0.05f)] [SerializeField] float approachKm = 0.6f;
+
+    [Tooltip("Seconds from the light going in to the cut to the observatory from outside.")]
+    [Min(0f)] [SerializeField] float holdInside = 1.2f;
+
+    [Header("The observatory from outside")]
+    [Tooltip("Degrees the camera is turned from the city: negative to the left, towards the dome.")]
     [Range(-60f, 60f)] [SerializeField] float viewYaw = -8f;
 
-    [Tooltip("Degrees the camera ends up looking below the horizon.")]
+    [Tooltip("Degrees the camera looks above the horizon.")]
     [Range(-30f, 30f)] [SerializeField] float viewPitch = 2f;
 
     [Header("Dome")]
@@ -95,9 +108,6 @@ public class EarthSummit_NEW : MonoBehaviour
     [Min(1f)] [SerializeField] float hazeKm = 8f;
 
     [Header("Sky")]
-    [Tooltip("Seconds after the camera has lifted until the stars and the Milky Way are fully up.")]
-    [Min(0f)] [SerializeField] float revealAfter = 3f;
-
     [ColorUsage(false, true)] [SerializeField] Color skyGlow = new Color(0.32f, 0.14f, 0.05f, 1f);
     [ColorUsage(false, true)] [SerializeField] Color milkyWay = new Color(0.22f, 0.21f, 0.19f, 1f);
     [Range(0f, 4f)] [SerializeField] float stars = 1.2f;
@@ -111,8 +121,8 @@ public class EarthSummit_NEW : MonoBehaviour
 
     EarthZoom_NEW _zoom;
     CinemachineBrain _brain;
-    bool _built, _lifting, _reported;
-    float _liftClock;
+    bool _built, _chasing, _entered, _cut;
+    float _insideClock;
 
     readonly List<Object> _made = new List<Object>();
     Transform _frame;
@@ -122,14 +132,20 @@ public class EarthSummit_NEW : MonoBehaviour
     bool _skySwapped;
 
     CinemachineVirtualCamera _vcam;
-    Quaternion _liftFrom, _liftTo;
+    Quaternion _cutTo;
+    Vector3 _camUpFrom;
+    Vector3 _p0, _p1, _p2, _p3;      // the light's way in, in the frame of km
+    Vector3 _photonScale;
     Transform _dome;
     Material _domeInside;
 
     // ── For EarthEnding_NEW ─────────────────────────────────────────────────
 
-    /// <summary>The camera has lifted and stands on the summit.</summary>
-    public bool Landed => _lifting && _liftClock >= liftSeconds;
+    /// <summary>The light has gone into the dome.</summary>
+    public bool Entered => _entered;
+
+    /// <summary>The picture has cut to the observatory from outside.</summary>
+    public bool CutToOutside => _cut;
 
     /// <summary>Up at the summit, world space.</summary>
     public Vector3 Up => _up;
@@ -151,12 +167,15 @@ public class EarthSummit_NEW : MonoBehaviour
         }
     }
 
+    /// <summary>Out of the slit, the way the light comes in from, world space.</summary>
+    public Vector3 SlitOutward => _dome != null ? _dome.TransformDirection(new Vector3(0f, Mathf.Sin(50f * Mathf.Deg2Rad), Mathf.Cos(50f * Mathf.Deg2Rad))) : _up;
+
     /// <summary>The light inside the dome, for a flash as the light goes in.</summary>
     public void SetInsideLight(float times)
     {
         if (_domeInside != null) _domeInside.SetColor("_Emission", domeInside * times);
     }
-    Vector3 _liftStart, _stand;   // world, where the lift began; the frame, where it ends
+    Vector3 _stand;   // the frame: where the camera stands for the view from outside
 
     readonly List<Renderer> _photonParts = new List<Renderer>();
     readonly List<Renderer> _systemParts = new List<Renderer>();
@@ -173,21 +192,23 @@ public class EarthSummit_NEW : MonoBehaviour
         _brain = FindObjectOfType<CinemachineBrain>();
     }
 
-    void LateUpdate()
+    // Update, after EarthZoom_NEW's (it runs early) has grown Earth for the frame, and before
+    // the brain reads the camera.
+    void Update()
     {
         if (!_built)
         {
             if (_zoom.SummitProgress < 0f) return;
             _built = true;
             Build();
+            if (_frame != null) BeginChase();
         }
         if (_frame == null) return;
 
         float kmToWorld = _frame.lossyScale.x;
         foreach (Material m in _setMaterials) m.SetFloat("_KmToWorld", kmToWorld);
 
-        if (!_lifting && _zoom.SummitProgress >= liftFrom) BeginLift();
-        if (_lifting) Lift();
+        if (_chasing) Chase();
     }
 
     // While the debug overlay is on (F1), what the summit is doing, under the layer panel:
@@ -232,13 +253,17 @@ public class EarthSummit_NEW : MonoBehaviour
         foreach (Renderer r in _systemParts) if (r != null) r.enabled = true;
         _systemParts.Clear();
         if (_built && _zoom != null && _zoom.Body != null && _zoom.Earth != null) { _zoom.Body.SetAirVisible(true); SetSurfaceVisible(true); }
-        if (_zoom != null && _zoom.Photon != null && _lifting) _zoom.Photon.SetCameraInputLocked(false);
+        if (_zoom != null && _zoom.Photon != null && _chasing)
+        {
+            _zoom.Photon.SetCameraInputLocked(false);
+            _zoom.Photon.transform.localScale = _photonScale;
+        }
         foreach (Object o in _made) Kill(o);
         _made.Clear();
         _setMaterials.Clear();
         _frame = null;
         _vcam = null;
-        _built = _lifting = _reported = false;
+        _built = _chasing = _entered = _cut = false;
     }
 
     // ── Building ────────────────────────────────────────────────────────────
@@ -337,7 +362,7 @@ public class EarthSummit_NEW : MonoBehaviour
         foreach (Renderer r in GetComponentsInChildren<Renderer>(false))
             if (r.enabled) { r.enabled = false; _systemParts.Add(r); }
 
-        // The light, to be let go of as the camera lifts.
+        // The light, to be flown into the dome.
         PlayerRig_NEW photon = _zoom.Photon;
         if (photon != null)
         {
@@ -411,13 +436,12 @@ public class EarthSummit_NEW : MonoBehaviour
 
     // ── The camera ──────────────────────────────────────────────────────────
 
-    void BeginLift()
+    void BeginChase()
     {
-        _lifting = true;
-        _liftClock = 0f;
-
         Camera cam = GetReal3DView_NEW.ScreenCamera;
-        if (cam == null) return;
+        PlayerRig_NEW photon = _zoom.Photon;
+        if (cam == null || photon == null || _dome == null) return;
+        _chasing = true;
 
         var go = Make("VCam_Summit");
         go.transform.SetPositionAndRotation(cam.transform.position, cam.transform.rotation);
@@ -428,52 +452,89 @@ public class EarthSummit_NEW : MonoBehaviour
         lens.FarClipPlane = cam.farClipPlane;
         _vcam.m_Lens = lens;
         _vcam.Priority = 90;   // over CameraDirector_NEW's 50: nothing else is to move it now
+        _camUpFrom = cam.transform.up;
+        photon.SetCameraInputLocked(true, "Mount Wilson");
+        _photonScale = photon.transform.localScale;
 
-        _liftFrom = cam.transform.rotation;
-        _liftStart = cam.transform.position;
+        // The way in: straight down at first, as the light was going, then round into the
+        // last straight run at the slit, along the slit's own outward line.
+        Vector3 slit = _frame.InverseTransformPoint(SlitPoint);
+        Vector3 outward = _frame.InverseTransformDirection(SlitOutward).normalized;
+        _p0 = _frame.InverseTransformPoint(photon.transform.position);
+        _p3 = slit;
+        _p2 = slit + outward * approachKm;
+        _p1 = _p0 + Vector3.down * Mathf.Max(0f, _p0.y - slit.y) * 0.6f;
+
+        // The view from outside, cut to after the light goes in.
         Vector3 level = Rotate(_toCity, viewYaw);
-        Vector3 forward = level * Mathf.Cos(viewPitch * Mathf.Deg2Rad) + _up * Mathf.Sin(viewPitch * Mathf.Deg2Rad);
-        _liftTo = Quaternion.LookRotation(forward, _up);
+        _cutTo = Quaternion.LookRotation(level * Mathf.Cos(viewPitch * Mathf.Deg2Rad) + _up * Mathf.Sin(viewPitch * Mathf.Deg2Rad), _up);
 
-        if (_zoom.Photon != null) _zoom.Photon.SetCameraInputLocked(true, "Mount Wilson");
+        Debug.Log("[EarthSummit_NEW] The light flies in from " + _p0.y.ToString("0.0") + " km up to the slit, " +
+                  slit.y.ToString("0.00") + " km up, " + new Vector2(slit.x - _p0.x, slit.z - _p0.z).magnitude.ToString("0.00") + " km across.", this);
     }
 
-    void Lift()
+    static Vector3 Bezier(Vector3 a, Vector3 b, Vector3 c, Vector3 d, float u)
     {
-        _liftClock += Time.deltaTime;
-        float q = Mathf.Clamp01(_liftClock / liftSeconds);
+        float v = 1f - u;
+        return v * v * v * a + 3f * v * v * u * b + 3f * v * u * u * c + u * u * u * d;
+    }
 
-        if (_vcam != null)
+    static Vector3 BezierTangent(Vector3 a, Vector3 b, Vector3 c, Vector3 d, float u)
+    {
+        float v = 1f - u;
+        return 3f * v * v * (b - a) + 6f * v * u * (c - b) + 3f * u * u * (d - c);
+    }
+
+    void Chase()
+    {
+        PlayerRig_NEW photon = _zoom.Photon;
+        float p = Mathf.Clamp01(_zoom.SummitProgress);
+
+        if (!_entered)
         {
-            // Smootherstep: from rest and to rest, no jolt either end.
-            float s = q * q * q * (q * (q * 6f - 15f) + 10f);
-            _vcam.transform.rotation = Quaternion.Slerp(_liftFrom, _liftTo, s);
+            float u = Mathf.SmoothStep(0f, 1f, p);
+            Vector3 light = _frame.TransformPoint(Bezier(_p0, _p1, _p2, _p3, u));
+            Vector3 along = _frame.TransformDirection(BezierTangent(_p0, _p1, _p2, _p3, Mathf.Clamp(u, 0.001f, 0.999f)));
+            along = along.sqrMagnitude > 1e-12f ? along.normalized : -_up;
 
-            // Down onto the stand: across in step, the height by the same factor each moment.
-            Vector3 from = _frame.InverseTransformPoint(_liftStart);
-            float height = Mathf.Exp(Mathf.Lerp(Mathf.Log(Mathf.Max(from.y, 1e-3f)), Mathf.Log(_stand.y), s));
-            Vector3 at = new Vector3(Mathf.Lerp(from.x, _stand.x, s), height, Mathf.Lerp(from.z, _stand.z, s));
-            _vcam.transform.position = _frame.TransformPoint(at);
+            // We are the light: it is carried, narrowing to fit the slit.
+            photon.transform.position = light;
+            float size = Mathf.Lerp(1f, lightShrink, Edge(0.5f, 1f, p));
+            photon.transform.localScale = _photonScale * size;
+            for (int i = 0; i < _trails.Count; i++)
+                if (_trails[i] != null) _trails[i].widthMultiplier = _trailWidths[i] * size;
 
-            if (q >= 1f && !_reported)
+            // Riding behind it, a little above, looking a little ahead of it. Up turns from
+            // the live camera's to the summit's own, by way of the city while looking down.
+            float back = Mathf.Lerp(chaseUnits, chaseEnd, Edge(0.6f, 1f, p));
+            Vector3 eye = light - along * back + _up * back * 0.12f;
+            float down = Mathf.Abs(Vector3.Dot(along, _up));
+            Vector3 upHint = Vector3.Slerp(_camUpFrom, (_up * (1f - down) + _toCity * down).normalized, Edge(0f, 0.25f, p));
+            _vcam.transform.SetPositionAndRotation(eye, Quaternion.LookRotation(light + along * back * 0.4f - eye, upHint));
+
+            if (_sky != null) _sky.SetFloat("_Reveal", Edge(0.3f, 1f, p));
+
+            if (p >= 1f)
             {
-                _reported = true;
-                Debug.Log("[EarthSummit_NEW] On the summit. The camera started the lift " + from.y.ToString("0.00") +
-                          " km up and is " + height.ToString("0.00") + " km up; a km is " + _frame.lossyScale.x.ToString("0.000") +
-                          " world units; Earth's radius is " + (_zoom.Body != null ? _zoom.Body.GroundRadius.ToString("0") : "?") + ".", this);
+                _entered = true;
+                _insideClock = 0f;
+                HidePhoton();
             }
+            return;
         }
 
-        // The trail thins away over the first third; then the light is hidden.
-        float thin = 1f - Mathf.Clamp01(q / 0.3f);
-        for (int i = 0; i < _trails.Count; i++)
-            if (_trails[i] != null) _trails[i].widthMultiplier = _trailWidths[i] * thin;
-        if (thin <= 0f) HidePhoton();
-
-        if (_sky != null)
+        // In: a moment on the slit, then the observatory from outside.
+        _insideClock += Time.deltaTime;
+        if (!_cut && _insideClock >= holdInside)
         {
-            float t = _liftClock - liftSeconds * 0.3f;
-            _sky.SetFloat("_Reveal", Mathf.SmoothStep(0f, 1f, t / (liftSeconds * 0.7f + revealAfter)));
+            _cut = true;
+            _vcam.transform.SetPositionAndRotation(_frame.TransformPoint(_stand), _cutTo);
+            if (_vcam.PreviousStateIsValid) _vcam.PreviousStateIsValid = false;   // a cut, not a glide
+            if (_sky != null) _sky.SetFloat("_Reveal", 1f);
+        }
+        else if (_cut)
+        {
+            _vcam.transform.position = _frame.TransformPoint(_stand);
         }
     }
 
