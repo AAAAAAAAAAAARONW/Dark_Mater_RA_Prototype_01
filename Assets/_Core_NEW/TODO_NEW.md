@@ -4,6 +4,44 @@
 
 ---
 
+## 🟣 getReal3D / 墙上的问题，合在一起（11 月 6 日整理，还没动手）
+
+11 月 6 日的会议记录里有五条都和墙有关，放在一起看，因为它们很可能互相牵连：头部追踪、getReal3D 的相机代码、追踪开/关的 A/B 开关、启动弹窗、场景原点和玩家路径对不上。**今天只整理，不写代码。**
+
+### 已经知道的
+
+- **相机代码大部分是源码，不只是 DLL。** `getReal3D.dll` 只管读传感器、算投影的核心；外面一层是 C#，可以读、可以包：
+  - `Assets/getReal3D/Scripts/Updaters/getRealCameraUpdater.cs` 第 45 行有公开开关 `m_updateTrackingPosition`（默认 true）。关掉以后 `OnPreCull` 不再调用 `CameraUpdaterHelper.PreCull()`。**还没验证**它关掉的是"跟着头动"还是整个投影更新（如果是后者，画面会冻住或错位）。
+  - `getRealHeadUpdater.cs` 只做一件事：`localPosition = getHead().position`。`getRealSensorUpdater.cs` 用 `getReal3D.Input.GetSensor(name)` 读任意传感器。原始位置在这里就能读到。
+- **头的位置**（`Display/GETREAL3D_GUIDE.md` 第 4.5 节）：配置里没有追踪、也没把头固定住时，getReal3D 认为眼睛在地板上（0, 0, 0），画面挤到墙的最下面。已有菜单 **Tools > Vizlab > Pin the Viewer's Head in a getReal3D Config**：先在 Console 里列出配置里头在哪（不写文件），再另存一份把头固定在 1.24 m（曲面圆心）或 1.6 m（站立）的配置。指南里写"getReal3D 没有从脚本移动头部的接口"，上面那个开关可能是例外，要验证。
+- **启动弹窗**（指南第 4 节）：是 getReal3D launcher 的 Unity 版本检查。项目用 2019.4.41**f2**，launcher 只认 **f1**。点掉照样能跑。
+
+### 会议上提的，对应到哪里
+
+| 会议上的事 | 现在的理解 | 办法，从根上解决的排前面 |
+|---|---|---|
+| 曲面屏上的头部追踪 | 要先弄清楚 Vizlab 到底有没有在跑头部追踪：有的话，偏移是哪里来的；没有的话，就是头在地板上的那个问题 | ① 用上面的菜单看配置（不改文件）；② 没有追踪 → 用固定头位置的配置；③ 有追踪但有偏移 → 在 C# 这一层减掉一个固定的 offset；④ 展示屏桌面软件里的设置，作为备选 |
+| 研究 GetReal3D 的 prefab / DLL | 不用改 DLL：读原始位置、伪造位置都可以在 C# 层做 | 加一个 probe：把 head 传感器的原始位置、配置里头的位置、相机最后用的位置三个一起显示在 HUD 上、写进日志 |
+| 追踪开 / 关的 A/B 开关 | 要做成三种模式，热键切换，HUD 上显示当前模式，4 个 copy 由 master 同步 | **On**（原样）/ **Off**（头固定在设定点）/ **Damped**（只跟一部分，再加平滑）。实现方式取决于第一行查出来的结果：是用 `m_updateTrackingPosition` 加一个假的头位置，还是只换 `.gr3d` |
+| 自动关掉弹窗的脚本 | 是版本检查，不是程序出错 | ① 用 2019.4.41**f1** 出墙的包（项目不用改，要和实验室说一声）；② 问实验室 launcher 能不能对这个游戏关掉版本检查；③ 实在不行才写脚本（AutoHotkey 或 Python + pywinauto，按窗口标题点"仍要打开"，需要管理员权限装） |
+| 场景原点和玩家路径对不上 | 可能和头的位置是同一个问题（眼睛位置错了，整个画面看起来就偏了），也可能是 getReal3D 的 player 根节点和我们的 rig 本来就没对齐 | 先修好头的位置再看；还对不上，再比较 Flight Path 录的路径和场景原点差多少 |
+
+### 下次去实验室要做的（按顺序）
+
+1. 拍下弹窗：标题、内容、出现几次（只在启动前弹一次，还是每个 copy 各弹一次）
+2. 跑 **Pin the Viewer's Head** 菜单的"只看不改"，把 Console 截图带回来
+3. 问实验室：有没有观众戴的头部追踪？桌面软件里有没有关掉或校准追踪的选项？
+4. 带上有 probe 和 A/B 开关的 build，三种模式各录一段视频（同一个位置、同一个镜头）
+5. 看原点对不上的问题在修好头的位置以后还在不在
+
+### 要写的代码（等上面查清楚了再写）
+
+- `HeadTrackingProbe_NEW`：上面说的 probe（小，只读）
+- `HeadTrackingMode_NEW`：On / Off / Damped 三种模式，master 同步
+- 出 build 的检查清单：用哪个 Unity 版本（f1）、用哪份 `.gr3d`、默认是哪种追踪模式、标题栏写上 commit 号
+
+---
+
 ## 🔵 Journey 精修计划（11 月 1 日定）
 
 **范围：只改 `Vizlab_Journey.unity`，`Gameplay_Scene_Ana` 不再同步。** 所有改动都要能在墙上（getReal3D）跑，也能在一台电脑上测。一步做完、在 Unity 里确认了，再做下一步。

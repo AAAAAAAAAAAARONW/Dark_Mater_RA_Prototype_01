@@ -108,13 +108,13 @@
     "text": "By the time you reach Earth, your light will be stretched to nearly five times its original wavelength. What left the quasar as ultraviolet arrives as light our eyes can see."
   },
   "Journey/J6_3_Forest.mp3": {
-    "characters": 288,
-    "fingerprint": "977976d47f588a25",
-    "generated": "2026-10-13T13:25:59",
-    "installed": true,
+    "characters": 113,
+    "fingerprint": "6f67e54282cce666",
+    "generated": "2026-11-06T09:33:07",
+    "installed": false,
     "line": "J6_3",
-    "sent": "[thoughtfully] Thousands of hydrogen clouds have cut lines into your light, and each cloud sat at a different distance, so each line was stretched by a different amount. Astronomers call this pattern the Lyman alpha forest. Read like tree rings, it maps the invisible web of the universe.",
-    "text": "Thousands of hydrogen clouds have cut lines into your light, and each cloud sat at a different distance, so each line was stretched by a different amount. Astronomers call this pattern the Lyman-alpha forest. Read like tree rings, it maps the invisible web of the universe."
+    "sent": "[thoughtfully] Thousands of hydrogen clouds have cut lines into your light, each stretched by a different amount.",
+    "text": "Thousands of hydrogen clouds have cut lines into your light, each stretched by a different amount."
   },
   "Journey/J7_MilkyWay.mp3": {
     "characters": 138,
@@ -142,6 +142,15 @@
     "line": "J9",
     "sent": "[warmly] You have arrived. A telescope collects your light, and astronomers read the lines you carried across the cosmos: a record of twelve billion years of cosmic history.",
     "text": "You have arrived. A telescope collects your light, and astronomers read the lines you carried across the cosmos: a record of twelve billion years of cosmic history."
+  },
+  "Journey/J9b.mp3": {
+    "characters": 251,
+    "fingerprint": "60fcbf1516f44c3d",
+    "generated": "2026-11-06T09:33:13",
+    "installed": false,
+    "line": "J9b",
+    "sent": "[thoughtfully] Astronomers call this pattern the Lyman alpha forest. Lyman, after Theodore Lyman, who first measured this line of hydrogen. Alpha, because it is the strongest line in its family. And forest, because the lines crowd together like trees.",
+    "text": "Astronomers call this pattern the Lyman-alpha forest. Lyman, after Theodore Lyman, who first measured this line of hydrogen. Alpha, because it is the strongest line in its family. And forest, because the lines crowd together like trees."
   },
   "Tutorial/A1_LookAround.mp3": {
     "characters": 139,

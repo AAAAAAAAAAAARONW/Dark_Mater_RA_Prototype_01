@@ -114,7 +114,11 @@ J4b plays straight after J4. The journey stays slow while it is said, then speed
 
 ### Redshift demo (second cosmic web, z ≈ 0.8)
 
-Four lines over the 6 s replay and the 12 marked lines, about 42 s in all. J6_3 names the forest and says who Lyman was in the same breath, so nobody guesses where the name comes from. J6_4, the forest's value, is split out so J6_3 does not run to 19 s. **J6_4 needs a fourth slot** in `JourneyVoiceOverBuilder_NEW` (today F5 holds J6_3, lengthened across F6).
+Three lines over the 6 s replay and the 12 marked lines, about 29 s in all. J6_3 only says that the clouds have cut lines, each stretched differently; it no longer names the forest (6 November).
+
+### The forest, at the telescope (6 November)
+
+The forest is named and explained at the end, when the light reaches the telescope and the barcode of lines fills the screen (Earth step 4d): J9, then **J9b** (the name: Lyman, alpha and forest, each explained), then **J6_4** (what the lines are worth), then Closing. Naming the forest where astronomers actually read it ties the name to the picture of the whole pattern. J6_4 keeps its ID and file, so it needs no re-record, only rewiring. J9 + J9b + J6_4 is about 38 s before Closing; step 4d has to hold the barcode that long.
 
 ## 4 · Science checks
 
@@ -149,7 +153,9 @@ Four lines over the 6 s replay and the 12 marked lines, about 42 s in all. J6_3 
 
 **The forest**
 
-- **"After Theodore Lyman, the physicist who first measured this line of hydrogen" (J6_3).** Lyman found hydrogen's ultraviolet series at Harvard (1906 to 1914); Lyman-alpha is its first and strongest line, at 121.6 nm. If the scientists want "alpha" and "forest" explained too: "…: Lyman for the physicist who discovered this line of hydrogen, alpha because it is the strongest line in its family, and forest because, packed together, the lines stand like trees." About 15 s for that sentence.
+- **"Lyman, after Theodore Lyman, who first measured this line of hydrogen" (J9b).** Lyman found hydrogen's ultraviolet series at Harvard (1906 to 1914); Lyman-alpha is its first line, at 121.6 nm.
+- **"Alpha, because it is the strongest line in its family" (J9b).** Alpha marks the first line of the Lyman series (n = 2 → 1), which is also its strongest. "Strongest" is the version for visitors; "first" is the exact meaning of the letter.
+- **"Forest, because the lines crowd together like trees" (J9b).** The name describes how the spectrum looks: many narrow absorption lines packed blueward of the quasar's Lyman-alpha peak. Said plainly, so nobody guesses tree rings (§1).
 - **"Maps of galaxies show only where stars shine" (J6_4).** A simplification of the scientists' point: galaxy surveys trace light from stars in the densest regions, while the forest traces diffuse gas through more of the volume.
 - **"Cut lines into your light" (J6_3).** After z ≈ 2.46 the drawn Lyα lines are not in the light that reaches Earth (LAF & Redshift, open questions). J6 says "cut lines into your light", not "in the light that reaches Earth". Keep it that way.
 - **"Each one marks a moment of your journey" (J9).** Each line comes from gas at a different distance along the path, so the lines are a record ordered in time.
@@ -198,6 +204,8 @@ The whole set is re-recorded in the female voice after the scientists' pass, so 
 | J6_3 | `J6_3_Forest` | Lyman named; the forest's value moved out |
 | J6_4 | new | the forest's value |
 | J9 | `J9_Earth` | tree rings cut |
+| J6_3 | `J6_3_Forest` | 6 Nov: shortened, the forest is named at the telescope instead |
+| J9b | new | 6 Nov: the forest's name, all three words explained |
 | Closing | `Closing` | observations, simulations, theory; around the world |
 
 ## 7 · Status in Unity
@@ -207,17 +215,24 @@ Done: every tutorial beat has a VO slot (narration plus prompt). One player queu
 To do:
 
 - Swap D6 and D7 in the tutorial builder (redshift first).
-- Give the redshift demo a fourth slot for J6_4.
+- Give the redshift demo a fourth slot for J6_4. **Superseded 6 November:** J6_4 moves to the telescope. Take it off `F6`, shorten `F6` to fit the shorter J6_3 (7 s), and wire J9 → J9b → J6_4 → Closing in step 4d.
 - Re-import the script in Unity (**Import Script**). The tutorial table still holds the v2 text for D4, D6, D8 ("a single atom"); nobody sees it (no subtitles), but its re-record flags depend on it.
 - The two cards in §5.
 
 ## 8 · Open questions
 
 1. **Which dark matter version?** A or B, after playtests.
-2. **Explain "alpha" and "forest" too?** See the J6_3 science note for the longer sentence.
+2. ~~**Explain "alpha" and "forest" too?**~~ Yes, all three words, in J9b at the telescope (6 November).
 3. **Prompts at all?** The `N_` lines are for discussion with the team (§3).
 
 ## 9 · Feedback log
+
+### 6 November · lab meeting
+
+| Note | What changed |
+| --- | --- |
+| Move the Lyman-alpha forest explanation to the end of the experience | J6_3 keeps only "cut lines … each stretched by a different amount". The name moves to the telescope as J9b, and J6_4 follows it there (§3). |
+| Explain where the name "forest" comes from, together with the name | J9b explains Lyman, alpha and forest in one line (Version B of two drafts; A explained only Lyman and forest). |
 
 ### 25 October · scientists' notes, second pass
 

@@ -120,8 +120,7 @@ No story lines. Button prompts only.
 | J5 | Entering the second cosmic web. | Seven billion years ago, the universe was half its present age. Gravity has pulled matter into thicker, denser threads, and dark energy is about to start speeding up the expansion of space. | 14 s |
 | J6_1 | As the redshift replay starts and the marked lines slide toward red. | Look at the lines on your spectrum. Every one of them has slid toward the red. Space has been stretching your light the whole way, and longer waves look redder to us. | 11 s |
 | J6_2 | Straight after J6_1. | By the time you reach Earth, your light will be stretched to nearly five times its original wavelength. What left the quasar as ultraviolet arrives as light our eyes can see. | 11 s |
-| J6_3 | As the whole pattern of lines is shown. | Thousands of hydrogen clouds have cut lines into your light, each stretched by a different amount. Astronomers call this pattern the Lyman-alpha forest, after Theodore Lyman, the physicist who first measured this line of hydrogen. | 13 s |
-| J6_4 | Straight after J6_3. | Maps of galaxies show only where stars shine. These lines reveal the gas in between, and the hidden web it traces. | 7 s |
+| J6_3 | As the whole pattern of lines is shown. | Thousands of hydrogen clouds have cut lines into your light, each stretched by a different amount. | 7 s |
 
 ### Home
 
@@ -130,4 +129,6 @@ No story lines. Button prompts only.
 | J7 | Approaching the Milky Way. | Ahead is the Milky Way, home to hundreds of billions of stars. You set out more than seven billion years before our Sun was born. | 10 s |
 | J8 | Entering the Solar System. | Light from our Sun takes eight minutes to reach Earth. Your journey has taken twelve billion years. | 7.5 s |
 | J9 | Arriving on Earth's night side, at a telescope. | You have arrived, on Earth's night side. A telescope collects your light, and astronomers read the lines you carried. Each one marks a moment of your journey: twelve billion years of cosmic history. | 14 s |
+| J9b | Straight after J9, as the barcode of lines fills the screen. | Astronomers call this pattern the Lyman-alpha forest. Lyman, after Theodore Lyman, who first measured this line of hydrogen. Alpha, because it is the strongest line in its family. And forest, because the lines crowd together like trees. | 17 s |
+| J6_4 | Straight after J9b. | Maps of galaxies show only where stars shine. These lines reveal the gas in between, and the hidden web it traces. | 7 s |
 | Closing | Over the end video. | From lines like these, astronomers around the world learn how the cosmic web formed and what it is made of. Observations, simulations and theory together turn your light into the story of where we came from, and where we are going. | 16 s |
