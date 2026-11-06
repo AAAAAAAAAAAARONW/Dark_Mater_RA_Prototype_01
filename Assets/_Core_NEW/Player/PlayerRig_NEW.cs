@@ -182,7 +182,8 @@ public class PlayerRig_NEW : MonoBehaviour
     /// <summary>
     /// Hold the light where it is. For JourneyOpening_NEW, which keeps it at the spawn while
     /// the screen is black and the first line is said - nothing on screen, so nothing about
-    /// the trail is seen to change. Not a speed: the multipliers are left as they are.
+    /// the trail is seen to change. Not a speed: the multipliers are left as they are. While
+    /// held the controller is not moved at all, so whatever holds it may place it itself.
     /// </summary>
     public void SetHeld(bool held) { _held = held; }
 
@@ -244,7 +245,9 @@ public class PlayerRig_NEW : MonoBehaviour
 
         // 3 · Move
         float finalSpeed = _held ? 0f : speed * _externalSpeedMultiplier * _narrationSpeedMultiplier * _paceSpeedMultiplier;
-        _controller.Move(movementDirection * (finalSpeed * dt));
+        // Held, not moved at all: what holds it may carry it itself (EarthSummit_NEW flies it
+        // into the dome), and a Move of nothing would put it back where the controller had it.
+        if (!_held) _controller.Move(movementDirection * (finalSpeed * dt));
 
         // 4 · Look input
         //

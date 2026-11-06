@@ -52,7 +52,27 @@
   - 结尾：Closing 从 8.4 s 变成 **16 s**，看结尾视频够不够长（第 4 步换成实时场景时再定）。
 - 装不下的，按第 5 步原来的原则：先让那一层停留更久，不改台词。
 
-### 第 4 步 · 4d 光进望远镜、光谱全屏：在 Unity 里看
+### 第 4 步 · 4d 第二版：一直是第一视角，自己作为光飞进天文台（11 月 6 日）
+
+**你的反馈（第一版）：** 光进去、光谱全屏都看到了，但希望一直维持第一视角：看着自己作为一束光进入天文台，然后再切到天文台的外景。
+
+**改成了：**
+- 最后这段下降（`Earth Zoom_NEW` 的 `Summit Seconds`，12 → 16 秒）里，不再是镜头在山顶抬头、另放一道光：**玩家自己的那束光**沿一条曲线从空中直接飞进圆顶的缝（先笔直往下，和一路飞来的方向一样，再拐进缝外 0.6 km 的直线段，`Approach Km`），镜头一直跟在它后面，就像整个旅程里那样（开始离光 5 个单位，`Chase Units`；到缝口时 1.6 个单位，`Chase End`）。
+- 光在后半段慢慢变细（`Light Shrink`，到缝口是原来的 0.12），这样能装进 11 米宽的缝。为此最后的比例改成 1 km = 30 个世界单位（`Summit Units Per Km`，原来 3.6）：光本来 1 个单位粗，变细后约 4 米；地平线 155 km 外 = 4650 个单位，还在相机的远裁剪面（5000）以内。
+- 光钻进缝里时：光消失，缝里的红灯闪亮（`Earth Ending_NEW` 的 `Flash`），Closing 开始说。
+- 停 1.2 秒（`Hold Inside`），**切**到天文台外景：山顶上的机位，圆顶在左，洛杉矶在前方，星空和银河在上面（`View Yaw`、`View Pitch`）。
+- 外景停 2.5 秒（`Spectrum After`）后，光谱全屏。
+- 去掉了第一版里另外那道"白光"。`PlayerRig_NEW` 改了一行：光被停住（`SetHeld`）时不再调用 CharacterController 的 Move（原来是 Move 0），这样山顶这段才能直接摆光的位置；开场停住光的那段行为不变。
+
+**看：** 正常飞到地球。过门后约 14 秒降到洛杉矶上空，接着 16 秒里一路跟着光飞向山顶、圆顶越来越大、光钻进缝里（约 30 秒），红光一闪，1.2 秒后切到外景，再 2.5 秒光谱全屏。
+- 镜头接手时不跳（开始时镜头就在原来的位置）。
+- 飞的过程里一直看得到光在前面；拐弯时镜头不翻滚。
+- 光到缝口时大小合适，钻进去而不是撞在圆顶上。
+- 切到外景是干脆的一切，不是滑过去。
+
+**不合适就调：** 都在 `SolarSystem` 上：`Earth Summit_NEW` 的 **The way in**（`Chase Units`、`Chase End`、`Light Shrink`、`Approach Km`、`Hold Inside`）和 **The observatory from outside**（`View Yaw`、`View Pitch`）；`Earth Zoom_NEW` 的 `Summit Seconds`（飞多久）、`Summit Units Per Km`；`Earth Ending_NEW` 的 `Flash`、`Spectrum After`、`Grow Seconds`、`Spectrum Rect`、`Backdrop`。
+
+### 第 4 步 · 4d 光进望远镜、光谱全屏：第一版（已被上面替换）
 
 **定了：** 最后光谱全屏展示。
 

@@ -126,13 +126,14 @@ public class EarthZoom_NEW : MonoBehaviour
     [Min(0f)] [SerializeField] float summitCameraKm = 1.8f;
 
     [Tooltip("Seconds that last stretch takes.")]
-    [Min(0.5f)] [SerializeField] float summitSeconds = 12f;
+    [Min(0.5f)] [SerializeField] float summitSeconds = 16f;
 
     [Tooltip("How many world units a km is once down. Fixed, not worked out from where the camera " +
              "happens to be: after a debug jump that came to almost nothing, and the summit, a few " +
-             "hundredths of a unit across, fell inside the camera's near clip (0.1). At 3.6 the dome, " +
-             "300 m off, is a unit away.")]
-    [Min(0.01f)] [SerializeField] float summitUnitsPerKm = 3.6f;
+             "hundredths of a unit across, fell inside the camera's near clip (0.1). At 30 the light, " +
+             "a unit wide and narrowed to an eighth by EarthSummit_NEW, fits the dome's 11 m slit, " +
+             "and the horizon, 155 km off, is inside the camera's far clip (5000).")]
+    [Min(0.01f)] [SerializeField] float summitUnitsPerKm = 30f;
 
     [Header("Camera")]
     [SerializeField] bool driveCamera = true;

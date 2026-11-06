@@ -2,15 +2,10 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// The journey's last moment: the light comes down out of the sky into the 100-inch's dome,
-/// and the spectrum it has gathered all the way from the quasar fills the screen while the
-/// Closing line is said.
-///
-/// WHEN. Once EarthSummit_NEW has the camera standing on the summit (Landed), after
-/// lightAfter seconds a streak of light falls from high behind the camera into the open
-/// slit, faster as it comes, over flightSeconds. As it goes in, the dome's red inside light
-/// flashes, and the Closing line starts. spectrumAfter seconds later the picture darkens and
-/// the spectrum bar grows from its place on the HUD to the middle of the screen.
+/// The journey's last moment: as the light - the player - goes into the 100-inch's dome
+/// (EarthSummit_NEW flies it in), the red light inside flashes and the Closing line is
+/// said; once the picture has cut to the observatory from outside, the spectrum the light
+/// gathered all the way from the quasar fills the screen.
 ///
 /// THE SPECTRUM. It is the HUD's own bar (SpectrumHUD_NEW's panel, the 'LAF HUD' on row 2),
 /// with every line the light crossed cut into it, not a copy: taken out of its row (its row
@@ -19,37 +14,29 @@ using UnityEngine.UI;
 /// draws per copy.
 ///
 /// THE VOICE. Closing is said from here, not from the Earth row of JourneyVoiceOver_NEW
-/// (which keeps J9), so it lands on the spectrum rather than on the way down.
+/// (which keeps J9), so it lands on the light going in rather than on the way down.
 ///
 /// Replaces EarthCutscene_NEW's video, which is switched off. Put it on the Solar System's
 /// group root, beside EarthSummit_NEW.
+///
+/// 6 Nov: it used to send a streak of its own down into the dome while the camera looked on
+/// from the summit; now the light is the player's own, ridden in from behind.
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(EarthSummit_NEW))]
 [HierarchyBadge_NEW("ENDING", "#4A94F2")]
 public class EarthEnding_NEW : MonoBehaviour
 {
-    [Header("The light into the dome")]
-    [Tooltip("Seconds after the camera stands on the summit before the light comes down.")]
-    [Min(0f)] [SerializeField] float lightAfter = 1f;
-
-    [Tooltip("Seconds the light takes to come down into the slit.")]
-    [Min(0.3f)] [SerializeField] float flightSeconds = 3.5f;
-
-    [Tooltip("Where it starts: km above the slit, and km behind the camera's view.")]
-    [SerializeField] Vector2 fromKm = new Vector2(1.2f, 0.6f);
-
-    [Tooltip("How wide the streak is, metres.")]
-    [Min(0.1f)] [SerializeField] float lightWidthMetres = 10f;
-
-    [SerializeField] Color lightColour = new Color(1f, 0.97f, 0.9f, 1f);
-
+    [Header("The light going in")]
     [Tooltip("How bright the dome's inside flashes as the light goes in, times its usual light.")]
     [Min(1f)] [SerializeField] float flash = 5f;
 
+    [Tooltip("Seconds the flash takes to die down.")]
+    [Min(0.1f)] [SerializeField] float flashSeconds = 1.5f;
+
     [Header("The spectrum")]
-    [Tooltip("Seconds after the light goes in before the spectrum comes up.")]
-    [Min(0f)] [SerializeField] float spectrumAfter = 1f;
+    [Tooltip("Seconds after the cut to the observatory from outside before the spectrum comes up.")]
+    [Min(0f)] [SerializeField] float spectrumAfter = 2.5f;
 
     [Tooltip("Seconds it takes to grow to the middle of the screen.")]
     [Min(0.1f)] [SerializeField] float growSeconds = 2.5f;
@@ -70,16 +57,11 @@ public class EarthEnding_NEW : MonoBehaviour
 
     [SerializeField] bool debugLog = false;
 
-    enum Stage { Waiting, Falling, Inside, Growing, Done }
+    enum Stage { Waiting, Inside, Outside, Growing, Done }
 
     EarthSummit_NEW _summit;
     Stage _stage = Stage.Waiting;
-    float _clock;
-
-    GameObject _light;
-    TrailRenderer _trail;
-    Material _lightMaterial;
-    Vector3 _from, _to;
+    float _clock, _flashClock;
 
     RectTransform _panel, _panelParent, _root;
     int _panelSibling;
@@ -98,31 +80,37 @@ public class EarthEnding_NEW : MonoBehaviour
 
     void Update()
     {
+        if (_stage != Stage.Waiting && _flashClock < flashSeconds)
+        {
+            _flashClock += Time.deltaTime;
+            _summit.SetInsideLight(Mathf.Lerp(flash, 1f, Mathf.Clamp01(_flashClock / flashSeconds)));
+        }
+
         switch (_stage)
         {
             case Stage.Waiting:
-                if (!_summit.Landed) return;
-                _clock += Time.deltaTime;
-                if (_clock >= lightAfter) BeginFall();
-                break;
-
-            case Stage.Falling:
-                _clock += Time.deltaTime;
-                float p = Mathf.Clamp01(_clock / flightSeconds);
-                // Faster as it comes, as a thing falling does.
-                _light.transform.position = Vector3.Lerp(_from, _to, p * p * p);
-                if (p >= 1f) GoIn();
+                if (!_summit.Entered) return;
+                _stage = Stage.Inside;
+                _flashClock = 0f;
+                _summit.SetInsideLight(flash);
+                if (voiceOver != null && closing != null) voiceOver.Say(closing);
+                else if (closing == null) Debug.LogWarning("[EarthEnding_NEW] No Closing clip assigned; nothing is said.", this);
+                if (debugLog) Debug.Log("[EarthEnding_NEW] The light is in.", this);
                 break;
 
             case Stage.Inside:
+                if (!_summit.CutToOutside) return;
+                _stage = Stage.Outside;
+                _clock = 0f;
+                break;
+
+            case Stage.Outside:
                 _clock += Time.deltaTime;
-                _summit.SetInsideLight(Mathf.Lerp(flash, 1f, Mathf.Clamp01(_clock / 1.5f)));
                 if (_clock >= spectrumAfter) BeginGrow();
                 break;
 
             case Stage.Growing:
                 _clock += Time.deltaTime;
-                _summit.SetInsideLight(1f);
                 float g = Mathf.SmoothStep(0f, 1f, _clock / growSeconds);
                 _panel.anchorMin = Vector2.Lerp(_anchorMinFrom, _growMin, g);
                 _panel.anchorMax = Vector2.Lerp(_anchorMaxFrom, _growMax, g);
@@ -130,51 +118,6 @@ public class EarthEnding_NEW : MonoBehaviour
                 if (g >= 1f) _stage = Stage.Done;
                 break;
         }
-    }
-
-    // ── The light ───────────────────────────────────────────────────────────
-
-    void BeginFall()
-    {
-        _stage = Stage.Falling;
-        _clock = 0f;
-
-        float km = _summit.KmToWorld;
-        _to = _summit.SlitPoint;
-        _from = _to + _summit.Up * fromKm.x * km - _summit.ViewLevel * fromKm.y * km;
-
-        _light = new GameObject("Light into the dome") { hideFlags = HideFlags.DontSave };
-        _light.layer = gameObject.layer;
-        _light.transform.position = _from;
-
-        _trail = _light.AddComponent<TrailRenderer>();
-        Shader shader = Shader.Find("Sprites/Default");
-        if (shader == null) shader = Shader.Find("Unlit/Color");
-        _lightMaterial = new Material(shader) { hideFlags = HideFlags.DontSave };
-        _trail.sharedMaterial = _lightMaterial;
-        _trail.time = 0.8f;
-        _trail.minVertexDistance = 0.001f * km;
-        _trail.widthMultiplier = lightWidthMetres * 0.001f * km;
-        _trail.widthCurve = new AnimationCurve(new Keyframe(0f, 1f), new Keyframe(1f, 0f));
-        var fade = new Gradient();
-        fade.SetKeys(new[] { new GradientColorKey(lightColour, 0f), new GradientColorKey(lightColour, 1f) },
-                     new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0f, 1f) });
-        _trail.colorGradient = fade;
-        _trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        _trail.receiveShadows = false;
-
-        if (debugLog) Debug.Log("[EarthEnding_NEW] The light comes down into the dome.", this);
-    }
-
-    void GoIn()
-    {
-        _stage = Stage.Inside;
-        _clock = 0f;
-        _trail.emitting = false;
-        _summit.SetInsideLight(flash);
-
-        if (voiceOver != null && closing != null) voiceOver.Say(closing);
-        else if (closing == null) Debug.LogWarning("[EarthEnding_NEW] No Closing clip assigned; nothing is said.", this);
     }
 
     // ── The spectrum ────────────────────────────────────────────────────────
@@ -234,8 +177,6 @@ public class EarthEnding_NEW : MonoBehaviour
 
     void OnDisable()
     {
-        if (_light != null) Destroy(_light);
-        if (_lightMaterial != null) Destroy(_lightMaterial);
         if (_black != null) Destroy(_black.gameObject);
         if (_panel != null && _panelParent != null)
         {
