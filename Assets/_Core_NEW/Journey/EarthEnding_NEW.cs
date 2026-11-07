@@ -70,11 +70,15 @@ public class EarthEnding_NEW : MonoBehaviour
     [Tooltip("Seconds of the fade to black before the next scene.")]
     [Min(0.1f)] [SerializeField] float fadeSeconds = 2f;
 
+    [Tooltip("Longest wait for the voice-over to finish before the hold starts anyway. A line " +
+             "queued and never played must not keep the piece on the spectrum for good.")]
+    [Min(0f)] [SerializeField] float maxVoiceWaitSeconds = 30f;
+
     [SerializeField] bool debugLog = false;
 
     enum Stage { Waiting, Inside, Outside, Growing, Done }
 
-    float _afterClock = -1f;
+    float _afterClock = -1f, _voiceWait;
     Image _fade;
 
     EarthSummit_NEW _summit;
@@ -148,8 +152,12 @@ public class EarthEnding_NEW : MonoBehaviour
     {
         if (string.IsNullOrEmpty(nextScenePath) || _afterClock < 0f) return;
 
-        // The hold starts counting only once the Closing line is over.
-        if (voiceOver != null && voiceOver.IsSpeaking) return;
+        // The hold starts counting only once the Closing line is over - or after a limit.
+        if (voiceOver != null && voiceOver.IsSpeaking && _voiceWait < maxVoiceWaitSeconds)
+        {
+            _voiceWait += Time.unscaledDeltaTime;
+            return;
+        }
 
         _afterClock += Time.unscaledDeltaTime;
         if (_afterClock < holdSeconds) return;
