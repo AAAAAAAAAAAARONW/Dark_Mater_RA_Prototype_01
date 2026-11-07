@@ -696,9 +696,10 @@ MonoBehaviour:
   galaxyRadius: 200
   galaxyPlace: {x: 140, y: 0, z: 6000}
   sunInGalaxy: {x: 0.5, y: 0, z: 0}
-  sunDistance: 500
-  zoomOut: 2500
-  zoomOutSeconds: 16
+  galaxyToSystem: 2000
+  orbitBrightness: 0.35
+  swarmCount: 900
+  zoomOutSeconds: 22
 
 --- !u!1 &152715049
 GameObject:
