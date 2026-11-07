@@ -175,7 +175,7 @@ public class EarthEnding_NEW : MonoBehaviour
     /// <summary>A black screen over everything, its own canvas above every HUD.</summary>
     static Image BuildFade()
     {
-        var go = new GameObject("Ending fade") { hideFlags = HideFlags.DontSave };
+        var go = new GameObject("Ending fade");
         var canvas = go.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 32000;
@@ -229,7 +229,7 @@ public class EarthEnding_NEW : MonoBehaviour
         _growMax = new Vector2(spectrumRect.z, spectrumRect.w);
 
         // The picture darkens behind it, on the same canvas.
-        var go = new GameObject("Ending backdrop", typeof(RectTransform)) { hideFlags = HideFlags.DontSave };
+        var go = new GameObject("Ending backdrop", typeof(RectTransform));
         go.layer = _panel.gameObject.layer;
         var rt = (RectTransform)go.transform;
         rt.SetParent(_root, false);

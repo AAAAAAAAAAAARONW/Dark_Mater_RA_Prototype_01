@@ -79,7 +79,7 @@ public class CoverScreen_NEW : MonoBehaviour
         if (starfield) _sky = Starfield_NEW.AddBehind(root, Starfield_NEW.Make(1024, 1017));
 
         // A black sheet over everything for the way out.
-        var go = new GameObject("Fade", typeof(RectTransform)) { hideFlags = HideFlags.DontSave };
+        var go = new GameObject("Fade", typeof(RectTransform));
         var rt = (RectTransform)go.transform;
         rt.SetParent(root, false);
         rt.SetAsLastSibling();
