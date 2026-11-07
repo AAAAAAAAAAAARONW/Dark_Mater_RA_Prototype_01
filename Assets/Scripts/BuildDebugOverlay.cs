@@ -131,7 +131,8 @@ public class BuildDebugOverlay : MonoBehaviour
 
     private void OnGUI()
     {
-        if (!_showOverlay) return;
+        // X (DebugToggleKey_NEW) hides every readout, this one included.
+        if (!_showOverlay || !DebugView_NEW.Overlay) return;
         EnsureGuiStyles();
 
         float avgMs = GetAverageFrameMs();

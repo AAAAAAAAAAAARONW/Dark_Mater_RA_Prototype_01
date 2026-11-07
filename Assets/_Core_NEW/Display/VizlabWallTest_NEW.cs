@@ -645,6 +645,7 @@ public class VizlabWallTest_NEW : MonoBehaviour
 
     void DrawNote(Vector2 screen)
     {
+        if (!DebugView_NEW.Overlay) return;   // X (DebugToggleKey_NEW) hides it with the rest
         if (Time.unscaledTime - _noteTime > NoteSeconds || string.IsNullOrEmpty(_note)) return;
 
         GUIStyle style = VizlabDebugGUI_NEW.Label(noteFontSize);

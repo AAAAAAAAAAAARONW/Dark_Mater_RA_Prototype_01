@@ -115,6 +115,9 @@ public class InputDiagnostics_NEW : MonoBehaviour
 
     void OnGUI()
     {
+        // X (DebugToggleKey_NEW) hides every readout, the banner and the F4 page included.
+        if (!DebugView_NEW.Overlay) return;
+
         if (showBlockedBanner && Debug.isDebugBuild) DrawBlockedBanner();
 
         if (!_visible) return;

@@ -18,6 +18,12 @@ using UnityEngine.UI;
 /// −1. Anything that survives a restart is a bug that only shows up on the exhibition
 /// floor, hours in, with a queue.
 ///
+/// WITH A COVER SCENE IN FRONT (PC_Cover, CoverScreen_NEW). The cover is the title card, so
+/// when the visitor comes from it the card here is skipped and A1 opens at once
+/// (SkipCardOnce). With coverScenePath set, an idle visitor is sent back to the cover rather
+/// than to this card: loading a scene afresh is the most total restart there is. Both are
+/// off when there is no cover, and the card works exactly as before.
+///
 /// The one thing this does not do is fade the world. What the tutorial backdrop should
 /// be — live universe or slow drift — is still open (GDD §10, item 3), and a fade
 /// written now would have to be rewritten either way.
@@ -89,9 +95,25 @@ public class TutorialAttract_NEW : MonoBehaviour
              "only appears on the exhibition floor, hours in, with a queue.")]
     [SerializeField] UnityEvent onReset = new UnityEvent();
 
+    [Header("Cover scene")]
+    [Tooltip("The cover scene to go back to when the visitor walks away, as an asset path " +
+             "(e.g. Assets/_Core_NEW/PC_Cover.unity). Empty = show this scene's own card, as " +
+             "always. If it cannot be loaded, the card is shown instead.")]
+    [SerializeField] string coverScenePath = "";
+
     [Header("Debug")]
     [SerializeField] bool debugLog = false;
 
+    /// <summary>
+    /// Set by the cover scene just before it loads this one: the visitor has already pressed
+    /// A on the title, so this scene opens on A1 rather than on its own card. Read once.
+    /// </summary>
+    public static bool SkipCardOnce;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetStatics() { SkipCardOnce = false; }
+
+    bool _beginPending;
     bool _showing;
     float _shownFor;
 
@@ -127,16 +149,38 @@ public class TutorialAttract_NEW : MonoBehaviour
 
     void OnEnable()
     {
-        if (director != null) director.OnIdleTimeout += Show;
+        if (director != null) director.OnIdleTimeout += OnIdle;
     }
 
     void OnDisable()
     {
-        if (director != null) director.OnIdleTimeout -= Show;
+        if (director != null) director.OnIdleTimeout -= OnIdle;
+    }
+
+    /// <summary>The visitor walked away: back to the cover scene if there is one, else this card.</summary>
+    void OnIdle()
+    {
+        if (!string.IsNullOrEmpty(coverScenePath))
+        {
+            if (debugLog) Debug.Log("[TutorialAttract_NEW] Idle: back to the cover.", this);
+            if (SceneFlow_NEW.Load(coverScenePath, this)) return;
+        }
+
+        Show();
     }
 
     void Start()
     {
+        // Straight from the cover: no card, A1 on the first frame - once every Start has
+        // run, so the director is ready for it.
+        if (SkipCardOnce)
+        {
+            SkipCardOnce = false;
+            HideImmediate();
+            _beginPending = true;
+            return;
+        }
+
         // StartsInAttract rather than CurrentState: the director's Start may not have
         // run yet, and Unity gives no ordering between components on different objects.
         if (director == null || director.StartsInAttract) Show();
@@ -145,6 +189,13 @@ public class TutorialAttract_NEW : MonoBehaviour
 
     void Update()
     {
+        if (_beginPending)
+        {
+            _beginPending = false;
+            if (director != null) director.StartTutorial();
+            if (debugLog) Debug.Log("[TutorialAttract_NEW] Begun from the cover.", this);
+        }
+
         float dt = Time.unscaledDeltaTime;
 
         if (cardGroup != null)

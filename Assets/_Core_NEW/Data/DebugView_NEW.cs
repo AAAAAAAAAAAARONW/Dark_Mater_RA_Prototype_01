@@ -21,7 +21,10 @@ public static class DebugView_NEW
     /// <summary>Scene-view annotations: gate volumes, camera aim, influence radii.</summary>
     public static bool Gizmos = true;
 
-    /// <summary>The on-screen readout drawn by LayerDebugJump_NEW.</summary>
+    /// <summary>
+    /// Every debug readout on screen. F1 (LayerDebugJump_NEW) and X (DebugToggleKey_NEW, in
+    /// every scene) flip it; a readout that does not ask this is one X cannot hide.
+    /// </summary>
     public static bool Overlay = true;
 
     /// <summary>Per-transition logging from the responders. Off by default; it is loud.</summary>
