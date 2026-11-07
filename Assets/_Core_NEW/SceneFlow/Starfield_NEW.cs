@@ -18,8 +18,7 @@ public static class Starfield_NEW
         {
             name = "Starfield",
             wrapMode = TextureWrapMode.Repeat,
-            filterMode = FilterMode.Bilinear,
-            hideFlags = HideFlags.DontSave
+            filterMode = FilterMode.Bilinear
         };
 
         var px = new Color[size * size];
@@ -73,7 +72,7 @@ public static class Starfield_NEW
     /// </summary>
     public static RawImage AddBehind(RectTransform parent, Texture2D sky, float tiles = 1.6f)
     {
-        var go = new GameObject("Starfield", typeof(RectTransform)) { hideFlags = HideFlags.DontSave };
+        var go = new GameObject("Starfield", typeof(RectTransform));
         go.layer = parent.gameObject.layer;
         var rt = (RectTransform)go.transform;
         rt.SetParent(parent, false);

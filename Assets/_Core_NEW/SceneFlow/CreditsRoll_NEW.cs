@@ -787,7 +787,7 @@ public class CreditsRoll_NEW : MonoBehaviour
         view.clearFlags = CameraClearFlags.SolidColor;
         view.backgroundColor = Color.black;
 
-        var go = new GameObject("Credits sky", typeof(RectTransform)) { hideFlags = HideFlags.DontSave };
+        var go = new GameObject("Credits sky", typeof(RectTransform));
         var canvas = go.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceCamera;
         canvas.worldCamera = view;
@@ -805,7 +805,7 @@ public class CreditsRoll_NEW : MonoBehaviour
 
     void BuildOverlay()
     {
-        var go = new GameObject("Credits overlay", typeof(RectTransform)) { hideFlags = HideFlags.DontSave };
+        var go = new GameObject("Credits overlay", typeof(RectTransform));
         var canvas = go.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 100;
@@ -1089,7 +1089,7 @@ public class CreditsRoll_NEW : MonoBehaviour
     {
         var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
         {
-            name = "Glow", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear, hideFlags = HideFlags.DontSave
+            name = "Glow", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear
         };
         var px = new Color[size * size];
         float c = (size - 1) * 0.5f;
@@ -1112,7 +1112,7 @@ public class CreditsRoll_NEW : MonoBehaviour
     {
         var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
         {
-            name = "Ring", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear, hideFlags = HideFlags.DontSave
+            name = "Ring", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear
         };
         var px = new Color[size * size];
         float c = (size - 1) * 0.5f, soft = 1.5f / c;
@@ -1135,7 +1135,7 @@ public class CreditsRoll_NEW : MonoBehaviour
     {
         var tex = new Texture2D(1, height, TextureFormat.RGBA32, false)
         {
-            name = "Shade", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear, hideFlags = HideFlags.DontSave
+            name = "Shade", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear
         };
         for (int y = 0; y < height; y++)
         {
