@@ -696,10 +696,9 @@ MonoBehaviour:
   galaxyRadius: 200
   galaxyPlace: {x: 140, y: 0, z: 6000}
   sunInGalaxy: {x: 0.5, y: 0, z: 0}
-  youAreHere: YOU ARE HERE
-  leavingSeconds: 4
-  flashSeconds: 1
-  revealSeconds: 9
+  sunDistance: 500
+  zoomOut: 2500
+  zoomOutSeconds: 16
 
 --- !u!1 &152715049
 GameObject:

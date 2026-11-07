@@ -21,22 +21,23 @@ using UnityEngine.UI;
 ///
 /// THE FILM. Letterbox bars close to 2.39:1 as it starts and open for the title. The camera is
 /// never still: within a shot it pushes in and orbits, so the light slides across the planet;
-/// between planets it flies a curve, banking into the turn. Where the Sun sits just behind a
-/// planet's edge, a glow and a long horizontal streak flare at the rim. The stars behind turn
-/// with the camera. A role tracks in, its rule wipes across, its names come up one by one.
+/// between planets it flies a curve, banking into the turn. Where the Sun is in frame and not
+/// behind a planet, a glow and a long horizontal streak mark it, flaring as it clears a rim and
+/// kept small near one, so the light never lies over the planet. The stars behind turn with
+/// the camera. A role tracks in, its rule wipes across, its names come up one by one.
 ///
 /// TYPE. The art's own: role titles and headings in Squada One (the drawn titles' face) in the
 /// art's yellow over a green rule; names in Montserrat SemiBold (the callouts' face). Both are
 /// TTFs made into TMP font assets at start. A note in brackets after a name - "(Annenberg
 /// Fellow)" - is set small, in capitals, in green.
 ///
-/// THE FINALE, "POWERS OF TEN". After the last planet the camera pulls away faster and faster,
-/// the planets shrinking to points and the stars streaming in; a warm flash with a long streak;
-/// and out of it, the Milky Way - the journey's own GalaxyVFX_NEW - first close over the place
-/// the Sun really is, marked YOU ARE HERE, then pulling back to the whole galaxy, tilted and
-/// turning, the bars opening and the title and supporters coming up above it. The galaxy waits
-/// far beyond the camera's far plane until then, already built, so the cut has no hitch. With
-/// no galaxy assigned the credits end on a wide shot of the planets, as before.
+/// THE FINALE, "POWERS OF TEN". The journey's dive into the Solar System, played backwards, in
+/// one unbroken zoom: the camera comes round to the last planet's night side, the Sun just past
+/// its rim; pulls back from it; the whole system falls into its Sun until it is one star; and
+/// round that star the Milky Way - the journey's own GalaxyVFX_NEW - comes in out of the dark,
+/// star by star, shrinking at the same rate until it is the whole galaxy, tilted and turning,
+/// the bars opening and the title and supporters coming up above it. No cut, no flash. With no
+/// galaxy assigned the credits end on a wide shot of the planets, as before.
 ///
 /// The planets are copies of the journey's (CelestialBody_NEW, PlanetSphere_NEW). Their size
 /// and place are set here at start, so moving them in the scene changes nothing. A skips.
@@ -137,21 +138,23 @@ public class CreditsRoll_NEW : MonoBehaviour
     [Tooltip("The Milky Way (GalaxyVFX_NEW) the credits end on; leave its object switched off in the scene, it is switched on at Start. Empty = end on the planets.")]
     [SerializeField] Transform galaxy;
 
-    [Tooltip("The galaxy's radius, world units (GalaxyVFX_NEW's radius is its scale).")]
+    [Tooltip("The galaxy's size while it waits, world units (GalaxyVFX_NEW's radius is its scale). The finale sizes it itself.")]
     [Min(10f)] [SerializeField] float galaxyRadius = 200f;
 
-    [Tooltip("Where the galaxy waits: beyond the camera's far plane from every planet, so it is never seen early.")]
+    [Tooltip("Where the galaxy waits, built and unseen, until the finale moves it round the Sun.")]
     [SerializeField] Vector3 galaxyPlace = new Vector3(140f, 0f, 6000f);
 
     [Tooltip("The Sun's place in the galaxy, in its own units: GalaxyVFX_NEW puts it at (sunRadius, 0, 0).")]
     [SerializeField] Vector3 sunInGalaxy = new Vector3(0.5f, 0f, 0f);
 
-    [Tooltip("The marker over the Sun as the galaxy is revealed. Empty = no marker.")]
-    [SerializeField] string youAreHere = "YOU ARE HERE";
+    [Tooltip("How far the last planet's Sun is from it, world units: the star the whole system falls into.")]
+    [Min(50f)] [SerializeField] float sunDistance = 500f;
 
-    [Min(0.5f)] [SerializeField] float leavingSeconds = 4f;
-    [Min(0.1f)] [SerializeField] float flashSeconds = 1f;
-    [Min(1f)] [SerializeField] float revealSeconds = 9f;
+    [Tooltip("How many times smaller everything gets over the zoom out.")]
+    [Min(10f)] [SerializeField] float zoomOut = 2500f;
+
+    [Tooltip("The zoom out, from the planet to the whole galaxy, seconds.")]
+    [Min(2f)] [SerializeField] float zoomOutSeconds = 16f;
 
     [Header("Music")]
     [Tooltip("Optional. Fades in with the picture and out with it.")]
@@ -240,10 +243,14 @@ public class CreditsRoll_NEW : MonoBehaviour
 
     float _clock, _bars, _glareWeight, _skyZoom = 1f;
     Vector2 _skySize;
-    Image _flash;
     RawImage _textShade;
-    RectTransform _marker;
-    CanvasGroup _markerGroup;
+    Renderer[] _galaxyRenderers;
+    MaterialPropertyBlock _galaxyBlock;
+    bool _sunHeld;          // the finale has the Sun: at _sunAt, a star, fading to _sunFade
+    Vector3 _sunAt;
+    float _sunFade = 1f;
+    float _sunRange = 5000f;  // how far off the Sun is, along _light, until the finale holds it
+    readonly List<MeshFilter> _occluders = new List<MeshFilter>();
     bool _skip;
     Vector3 _focus, _light = new Vector3(0.6f, 0.4f, -0.6f).normalized;
     Vector3 _lastForward;
@@ -331,7 +338,7 @@ public class CreditsRoll_NEW : MonoBehaviour
 
         foreach (Section s in sections)
             if (s.planet != null) s.planet.Rotate(Vector3.up, spin * dt, Space.Self);
-        if (sun != null) sun.position = _focus + _light * 5000f;
+        if (sun != null && !_sunHeld) sun.position = _focus + _light * _sunRange;
 
         TurnSky();
         UpdateBars();
@@ -377,44 +384,65 @@ public class CreditsRoll_NEW : MonoBehaviour
     }
 
     /// <summary>
-    /// A glow and a long streak where the Sun meets the planet in focus: at the rim when the Sun
-    /// is just behind it, a little way off when it is clear of it, nothing when it is far out of
-    /// frame or deep behind the disc.
+    /// The Sun's glare: a glow and a long streak where the Sun is, and only where it can be seen.
+    /// Any planet in front of it hides it, softly as it slips behind the rim; it flares brightest
+    /// just clear of a rim, and the closer it is to one the smaller the glow and the fainter the
+    /// streak, so the light never lies over the planet. In the finale it is the star the system
+    /// falls into, going out as its galaxy comes in.
     /// </summary>
     void UpdateGlare()
     {
         if (_glareCore == null) return;
         float a = 0f;
-        Vector3 cam = view.transform.position, toPlanet = _focus - cam;
-        float dist = toPlanet.magnitude;
+        Vector3 cam = view.transform.position;
+        Vector3 sunAt = _sunHeld ? _sunAt : _focus + _light * _sunRange;
+        Vector3 toSun = sunAt - cam;
+        float sunDist = toSun.magnitude;
 
-        if (sunGlare && dist > 1e-3f)
+        if (sunGlare && sunDist > 1e-3f)
         {
-            Vector3 dp = toPlanet / dist;
-            float disc = Mathf.Asin(Mathf.Clamp01(planetRadius / dist));
-            float theta = Mathf.Acos(Mathf.Clamp(Vector3.Dot(dp, _light), -1f, 1f));
-            Vector3 dir = theta < disc ? Vector3.RotateTowards(dp, _light, disc, 0f) : _light;
-            float width = disc * 0.08f + 0.01f;
-            float rim = Mathf.Exp(-Mathf.Pow((theta - disc) / width, 2f));
-            float clear = Mathf.SmoothStep(0f, 1f, (theta - disc) / width);
-            float strength = Mathf.Max(rim, 0.5f * clear);
+            Vector3 ds = toSun / sunDist;
 
-            Vector3 vp = view.WorldToViewportPoint(cam + dir * 100f);
-            bool onScreen = vp.z > 0f && vp.x > -0.25f && vp.x < 1.25f && vp.y > -0.25f && vp.y < 1.25f;
-            if (onScreen)
+            // The angle between the Sun and the nearest planet's edge in front of it (radians).
+            float gap = Mathf.PI;
+            foreach (MeshFilter mf in _occluders)
             {
-                a = strength * glareStrength * _glareWeight;
+                if (mf == null || !mf.gameObject.activeInHierarchy || mf.sharedMesh == null) continue;
+                Vector3 toPlanet = mf.transform.position - cam;
+                float d = toPlanet.magnitude;
+                if (d < 1e-4f || d > sunDist) continue;
+                float r = mf.sharedMesh.bounds.extents.x * mf.transform.lossyScale.x;
+                float disc = Mathf.Asin(Mathf.Clamp01(r / d));
+                float theta = Mathf.Acos(Mathf.Clamp(Vector3.Dot(toPlanet / d, ds), -1f, 1f));
+                gap = Mathf.Min(gap, theta - disc);
+            }
+
+            float vis = Mathf.SmoothStep(0f, 1f, gap / 0.006f);                 // out behind the rim
+            float rim = Mathf.Exp(-Mathf.Max(0f, gap) / 0.035f);                 // the flare just clear of it
+            float strength = vis * (0.55f + 0.45f * rim);
+
+            Vector3 vp = view.WorldToViewportPoint(sunAt);
+            bool onScreen = vp.z > 0f && vp.x > -0.25f && vp.x < 1.25f && vp.y > -0.25f && vp.y < 1.25f;
+            if (onScreen && strength > 0.001f)
+            {
+                a = strength * glareStrength * _glareWeight * _sunFade;
                 Vector2 at = new Vector2(vp.x, vp.y);
                 _glareCore.anchorMin = _glareCore.anchorMax = at;
                 _glareStreak.anchorMin = _glareStreak.anchorMax = at;
-                float scale = 0.7f + 0.6f * strength;
-                _glareCore.localScale = new Vector3(scale, scale, 1f);
-                _glareStreak.localScale = new Vector3(0.8f + 0.5f * strength, 1f, 1f);
+
+                // The gap on screen, in the canvas's 1080 lines: the glow stays inside it.
+                float gapLines = Mathf.Max(0f, gap) / (view.fieldOfView * Mathf.Deg2Rad) * 1080f;
+                // The glow's radius is 1.4 times the gap: under 7% of it reaches the planet's edge.
+                float size = Mathf.Clamp(gapLines / 200f, 0.15f, 1f) * Mathf.Lerp(0.25f, 1f, _sunFade);
+                _glareCore.localScale = new Vector3(size, size, 1f);
+                _glareStreak.localScale = new Vector3(0.6f + 0.6f * strength, 1f, 1f);
+                float streak = Smooth(gapLines / 220f) * _sunFade;
+                _glareStreakImage.color = new Color(0.75f, 0.88f, 1f, Mathf.Clamp01(a * 0.65f * streak));
             }
         }
 
         _glareCoreImage.color = new Color(1f, 0.94f, 0.82f, Mathf.Clamp01(a));
-        _glareStreakImage.color = new Color(0.75f, 0.88f, 1f, Mathf.Clamp01(a * 0.65f));
+        if (a <= 0f) _glareStreakImage.color = new Color(0.75f, 0.88f, 1f, 0f);
     }
 
     // ── The run ─────────────────────────────────────────────────────────────
@@ -518,125 +546,209 @@ public class CreditsRoll_NEW : MonoBehaviour
         galaxy.localScale = Vector3.one * galaxyRadius;
         // Switched off in the scene, so opening PC_Credits in the editor shows the planets and
         // not the ending (the galaxy draws in edit mode too). On here, at Start, well before the
-        // finale, so the cut under the flash still has no hitch.
+        // finale, so it is built and waiting; it stays invisible until the zoom fades it in.
         galaxy.gameObject.SetActive(true);
+        _galaxyRenderers = galaxy.GetComponentsInChildren<Renderer>(true);
+        _galaxyBlock = new MaterialPropertyBlock();
+        SetGalaxyFade(0f);
     }
 
+    /// <summary>The galaxy's fade, as WorldSwitcher_NEW gives it: all four channels of _Color.</summary>
+    void SetGalaxyFade(float a)
+    {
+        if (_galaxyRenderers == null) return;
+        _galaxyBlock.SetColor("_Color", new Color(a, a, a, a));
+        foreach (Renderer r in _galaxyRenderers)
+            if (r != null) r.SetPropertyBlock(_galaxyBlock);
+    }
+
+    /// <summary>
+    /// One zoom out, the journey's dive into the Solar System played backwards, on one clock:
+    ///
+    ///   turn      From the last shot to the planet's night side: the Sun just past its rim,
+    ///             the planet a lit crescent, both in frame.
+    ///   leaving   The camera pulls back from the planet at a steadily growing rate; the
+    ///             planet shrinks towards its Sun.
+    ///   the star  The pull-back moves over to the Sun: the whole system - every planet -
+    ///             falls into it, until it is one star.
+    ///   galaxy    The Milky Way has been there round the star all along, too large to see.
+    ///             It comes in out of the dark star by star, shrinking round the Sun at the
+    ///             same rate, the camera turning from the Sun to its centre, until it is the
+    ///             whole galaxy, tilted, under the title.
+    ///
+    /// Nothing is cut or covered. The world is scaled down round a point instead of the camera
+    /// flying out, so the numbers stay small whatever the zoom.
+    /// </summary>
     IEnumerator Finale()
     {
-        // 1 · Leaving: away from the planets, faster and faster, up and out.
-        Pose start = CurrentPose();
-        Vector3 row = RowCentre();
-        Vector3 away = ((start.position - row).normalized + Vector3.up * 0.5f).normalized;
-        float t = 0f;
-        while (t < leavingSeconds && !_skip)
+        // 1 · The turn: onto the planet's night side, the Sun just past its rim.
+        Pose last = CurrentPose();
+        Vector3 planet = last.focus;
+        Vector3 back = last.position - planet;
+        if (back.sqrMagnitude < 1e-4f) back = last.rotation * Vector3.back;
+        back.Normalize();
+        Vector3 right = last.rotation * Vector3.right, up = last.rotation * Vector3.up;
+        float rimAngle = Mathf.Asin(Mathf.Clamp01(planetRadius / (viewDistance * 1.15f))) * Mathf.Rad2Deg + 3.5f;
+        Vector3 toSun = (-back * Mathf.Cos(rimAngle * Mathf.Deg2Rad) +
+                         (right * 0.8f + up * 0.6f).normalized * Mathf.Sin(rimAngle * Mathf.Deg2Rad)).normalized;
+        Vector3 sunPoint = planet + toSun * sunDistance;
+        Vector3 eye = planet + back * viewDistance * 1.15f;
+        Pose turned = new Pose
         {
-            t += Step();
-            float k = Mathf.Clamp01(t / leavingSeconds);
-            float s = (Mathf.Exp(k * 4f) - 1f) / (Mathf.Exp(4f) - 1f);
-            Vector3 position = start.position + away * s * 1800f;
-            Quaternion look = Quaternion.LookRotation(row - position, Vector3.up);
-            Apply(new Pose { position = position, rotation = Quaternion.Slerp(start.rotation, look, Smooth(k * 1.5f)),
-                             light = start.light, focus = start.focus });
-            _skyZoom = Mathf.Lerp(1f, 3.2f, k * k);
-            _glareWeight = 1f - Smooth(k * 2f);
-            SetFlash(Smooth((k - 0.72f) / 0.28f), 0f);
+            position = eye,
+            rotation = Quaternion.LookRotation(Vector3.Slerp(planet - eye, sunPoint - eye, 0.5f), Vector3.up),
+            light = toSun,
+            focus = planet
+        };
+        // As Fly, and the Sun comes in from far off to the star the system will fall into, so
+        // the glare does not jump when the finale takes the Sun over.
+        float turnSeconds = moveSeconds * 1.2f;
+        for (float u = 0f; u < turnSeconds && !_skip; )
+        {
+            u += Step();
+            float raw = Mathf.Clamp01(u / turnSeconds);
+            Apply(Between(last, turned, Smooth(raw), false, raw));
+            _sunRange = Mathf.Exp(Mathf.Lerp(Mathf.Log(5000f), Mathf.Log(sunDistance), Smooth(raw)));
+            _glareWeight = 1f - 0.6f * Mathf.Sin(raw * Mathf.PI);
             yield return null;
         }
+        _glareWeight = 1f;
+        if (_skip) yield break;
+        _sunAt = planet + toSun * sunDistance;
 
-        // 2 · The flash: at its height, the cut to the galaxy.
-        SetFlash(1f, 1f);
-        _skyZoom = 1f;
-        Apply(GalaxyPose(0f));
-        t = 0f;
+        // The world: everything that is scaled, and where it all started.
+        Transform world = WorldRoot();
+        Vector3 worldPosition = world != null ? world.position : Vector3.zero;
+        Vector3 worldScale = world != null ? world.localScale : Vector3.one;
+        Vector3 offset = Vector3.zero;      // world point = offset + scale * starting point
+        float scale = 1f, logEnd = Mathf.Log(Mathf.Max(10f, zoomOut));
+        _sunHeld = true;
 
-        // 3 · The reveal: from over the Sun to the whole galaxy, the bars opening, the title up.
-        while (t < revealSeconds && !_skip)
+        // The galaxy's place round the Sun, settled once the pull-back is centred on the Sun.
+        bool placed = false;
+        Quaternion galaxyTurn = Quaternion.identity;
+        float galaxyEnd = galaxyRadius;
+        Vector3 galaxyCentreEnd = Vector3.zero;
+        Quaternion finalLook = turned.rotation;
+        Vector3 galaxyCamera = GalaxyCameraLocal();
+
+        float t = 0f, previousLog = 0f;
+        while (t < zoomOutSeconds && !_skip)
         {
             t += Step();
-            float k = Mathf.Clamp01(t / revealSeconds);
-            Apply(GalaxyPose(k));
-            float out01 = Mathf.Clamp01(t / flashSeconds);
-            SetFlash(1f - Smooth(out01), 1f - Smooth(out01 * 1.4f));
-            if (_markerGroup != null) _markerGroup.alpha = Smooth((k - 0.06f) / 0.12f) * (1f - Smooth((k - 0.45f) / 0.15f));
-            PlaceMarker();
-            _bars = 1f - Smooth((k - 0.45f) / 0.4f);
-            _textShade.color = new Color(0f, 0f, 0f, 0.55f * Smooth((k - 0.5f) / 0.4f));
-            _endGroup.alpha = Smooth((k - 0.6f) / 0.35f);
+            float k = Mathf.Clamp01(t / zoomOutSeconds);
+
+            // A steady magnification, eased in and out: each second shows the last as a
+            // smaller part of the next, as the dive does going in.
+            float logNow = -logEnd * Smooth(k);
+            float ds = Mathf.Exp(logNow - previousLog);
+            previousLog = logNow;
+
+            // About the planet first, then about the Sun.
+            Vector3 planetNow = offset + scale * planet;
+            Vector3 sunNow = offset + scale * sunPoint;
+            Vector3 about = Vector3.Lerp(planetNow, sunNow, Smooth((k - 0.04f) / 0.4f));
+            offset = about + (offset - about) * ds;
+            scale *= ds;
+            planetNow = offset + scale * planet;
+            sunNow = offset + scale * sunPoint;
+
+            if (world != null)
+            {
+                world.localScale = worldScale * scale;
+                world.position = offset + scale * worldPosition;
+                // A planet under a pixel only flickers: by then they are all in the Sun's light,
+                // and they go.
+                float px = planetRadius * scale / Mathf.Max(1e-3f, Vector3.Distance(eye, sunNow)) /
+                           Mathf.Tan(view.fieldOfView * 0.5f * Mathf.Deg2Rad) * Screen.height * 0.5f;
+                if (px < 0.6f && world.gameObject.activeSelf) world.gameObject.SetActive(false);
+            }
+            _sunAt = sunNow;
+            if (sun != null) sun.position = sunNow;
+            _focus = planetNow;
+            _light = (sunNow - planetNow).sqrMagnitude > 1e-8f ? (sunNow - planetNow).normalized : _light;
+
+            // The galaxy: from the moment the pull-back is on the Sun, its Sun on ours, its
+            // radius shrinking at the same rate as everything else.
+            if (galaxy != null && k >= 0.42f)
+            {
+                if (!placed)
+                {
+                    placed = true;
+                    PlaceGalaxyRound(sunNow, eye, galaxyCamera, out galaxyTurn, out galaxyEnd);
+                    galaxyCentreEnd = sunNow - galaxyTurn * (sunInGalaxy * galaxyEnd);
+                    float tanV = Mathf.Tan(view.fieldOfView * 0.5f * Mathf.Deg2Rad);
+                    finalLook = Quaternion.LookRotation(galaxyCentreEnd - eye, galaxyTurn * Vector3.up) *
+                                Quaternion.Euler(Mathf.Atan(-0.5f * tanV) * Mathf.Rad2Deg, 0f, 0f);
+                }
+                float radius = galaxyEnd * Mathf.Exp(logNow + logEnd);   // galaxyEnd at k = 1
+                galaxy.rotation = galaxyTurn;
+                galaxy.localScale = Vector3.one * radius;
+                galaxy.position = sunNow - galaxyTurn * (sunInGalaxy * radius);
+                // In from the dark star by star from seventy times too big, whole by the end.
+                float fade = 1f - Smooth((Mathf.Log(radius / galaxyEnd) - 0.25f) / 4.05f);
+                SetGalaxyFade(fade);
+                _sunFade = 1f - Smooth(fade * 1.25f);
+            }
+
+            // The camera holds its place; it looks between the planet and the Sun, then at the
+            // Sun alone as the planet falls into it, then round to the galaxy's centre.
+            Vector3 toPlanet = planetNow - eye, toTheSun = sunNow - eye;
+            Vector3 look = Vector3.Slerp(toPlanet, toTheSun, 0.5f + 0.5f * Smooth((k - 0.08f) / 0.35f));
+            Quaternion rotation = Quaternion.LookRotation(look, Vector3.up);
+            if (placed) rotation = Quaternion.Slerp(rotation, finalLook, Smooth((k - 0.5f) / 0.45f));
+            view.transform.SetPositionAndRotation(eye, rotation);
+
+            _skyZoom = Mathf.Lerp(1f, 2.4f, Smooth(k));
+            _bars = 1f - Smooth((k - 0.72f) / 0.25f);
+            _textShade.color = new Color(0f, 0f, 0f, 0.55f * Smooth((k - 0.75f) / 0.25f));
+            _endGroup.alpha = Smooth((k - 0.8f) / 0.2f);
             yield return null;
         }
-        SetFlash(0f, 0f);
         _endGroup.alpha = 1f;
-        if (_markerGroup != null) _markerGroup.alpha = 0f;
+        if (!placed || _skip) yield break;
 
-        // 4 · Held over the turning galaxy.
+        // Held over the turning galaxy, drifting in a little.
+        Vector3 from = view.transform.position;
         t = 0f;
         while (t < endHoldSeconds && !_skip)
         {
             t += Step();
-            Pose drift = GalaxyPose(1f);
-            drift.position = Vector3.Lerp(drift.position, drift.focus, 0.06f * t / Mathf.Max(0.01f, endHoldSeconds));
-            Apply(drift);
+            view.transform.position = Vector3.Lerp(from, galaxyCentreEnd, 0.06f * t / Mathf.Max(0.01f, endHoldSeconds));
             galaxy.Rotate(Vector3.up, -1.2f * Step(), Space.Self);
             yield return null;
         }
     }
 
+    /// <summary>The camera's place at the end, from the galaxy's centre, in its radii: 22 degrees above the disc, 3.8 out.</summary>
+    static Vector3 GalaxyCameraLocal()
+    {
+        return Quaternion.Euler(0f, -24f, 0f) * new Vector3(0f, Mathf.Sin(22f * Mathf.Deg2Rad), -Mathf.Cos(22f * Mathf.Deg2Rad)) * 3.8f;
+    }
+
     /// <summary>
-    /// From just over the Sun's place (u = 0) to the whole galaxy, tilted (u = 1). The distance
-    /// grows exponentially - each second shows the last as a smaller part of the next - and the
-    /// framing settles the galaxy into the lower half, under the title.
+    /// The galaxy's turn and final radius that put its Sun on <paramref name="sunAt"/> and the
+    /// camera, where it stands, at <paramref name="cameraLocal"/> from its centre - its disc as
+    /// level as that allows.
     /// </summary>
-    Pose GalaxyPose(float u)
+    void PlaceGalaxyRound(Vector3 sunAt, Vector3 eye, Vector3 cameraLocal, out Quaternion turn, out float radius)
     {
-        float k = Smooth(u);
-        Vector3 centre = galaxy.position;
-        Vector3 sunAt = galaxy.TransformPoint(sunInGalaxy);
-        // On the Sun for the first fifth, then across to the centre: the marker stays in frame,
-        // settling low and to the right as the galaxy opens out round it.
-        Vector3 target = Vector3.Lerp(sunAt, centre, Smooth((u - 0.2f) / 0.6f));
-
-        Vector3 from = new Vector3(0.15f, 0.92f, -0.36f).normalized;
-        // 22 degrees above the disc: tilted steeply, so the whole galaxy fits under the title.
-        Vector3 to = (Quaternion.Euler(0f, -24f, 0f) * new Vector3(0f, Mathf.Sin(22f * Mathf.Deg2Rad), -Mathf.Cos(22f * Mathf.Deg2Rad))).normalized;
-        Vector3 dir = Vector3.Slerp(from, to, k);
-        float distance = Mathf.Exp(Mathf.Lerp(Mathf.Log(galaxyRadius * 0.12f), Mathf.Log(galaxyRadius * 3.8f), k));
-        Vector3 position = target + dir * distance;
-
-        float tanV = Mathf.Tan(view.fieldOfView * 0.5f * Mathf.Deg2Rad);
-        float down = Mathf.Atan(-0.5f * k * tanV) * Mathf.Rad2Deg;
-        Quaternion rotation = Quaternion.LookRotation(target - position, Vector3.up) * Quaternion.Euler(down, 0f, Mathf.Lerp(-8f, 0f, k));
-        return new Pose { position = position, rotation = rotation, light = _light, focus = target };
+        Vector3 local = cameraLocal - sunInGalaxy;            // Sun to camera, in radii
+        Vector3 world = eye - sunAt;
+        radius = world.magnitude / Mathf.Max(1e-3f, local.magnitude);
+        Vector3 n = world.normalized;
+        turn = Quaternion.FromToRotation(local.normalized, n);
+        Vector3 pole = Vector3.ProjectOnPlane(turn * Vector3.up, n), level = Vector3.ProjectOnPlane(Vector3.up, n);
+        if (pole.sqrMagnitude > 1e-6f && level.sqrMagnitude > 1e-6f)
+            turn = Quaternion.AngleAxis(Vector3.SignedAngle(pole, level, n), n) * turn;
     }
 
-    Vector3 RowCentre()
+    /// <summary>What the finale shrinks: the object all the planets are under.</summary>
+    Transform WorldRoot()
     {
-        Vector3 sum = Vector3.zero;
-        int n = Mathf.Max(1, sections.Count);
-        for (int i = 0; i < n; i++) sum += Focus(i);
-        return sum / n;
-    }
-
-    /// <summary>The white flash, and the streak across the screen with it.</summary>
-    void SetFlash(float white, float streak)
-    {
-        if (_flash != null) _flash.color = new Color(1f, 0.96f, 0.88f, Mathf.Clamp01(white));
-        if (streak > 0.001f && _glareStreak != null)
-        {
-            _glareStreak.anchorMin = _glareStreak.anchorMax = new Vector2(0.5f, 0.5f);
-            _glareStreak.localScale = new Vector3(2.2f, 1.6f, 1f);
-            _glareStreakImage.color = new Color(0.8f, 0.9f, 1f, Mathf.Clamp01(streak));
-        }
-    }
-
-    /// <summary>The YOU ARE HERE ring, over the Sun's place on screen.</summary>
-    void PlaceMarker()
-    {
-        if (_marker == null) return;
-        Vector3 vp = view.WorldToViewportPoint(galaxy.TransformPoint(sunInGalaxy));
-        bool onScreen = vp.z > 0f;
-        _marker.gameObject.SetActive(onScreen);
-        if (onScreen) _marker.anchorMin = _marker.anchorMax = new Vector2(vp.x, vp.y);
+        foreach (Section s in sections)
+            if (s.planet != null) return s.planet.parent != null ? s.planet.root : s.planet;
+        return null;
     }
 
     float HoldFor(int i)
@@ -776,6 +888,7 @@ public class CreditsRoll_NEW : MonoBehaviour
             p.position = PlaceOf(i);
 
             MeshFilter mf = p.GetComponent<MeshFilter>();
+            if (mf != null) _occluders.Add(mf);
             float r = mf != null && mf.sharedMesh != null ? mf.sharedMesh.bounds.extents.x * p.lossyScale.x : 0f;
             if (r > 1e-4f) p.localScale *= planetRadius / r;
         }
@@ -866,42 +979,13 @@ public class CreditsRoll_NEW : MonoBehaviour
         TextMeshProUGUI closing = Text(end, "Closing", closingLine, 26f, accentColour, _bodyFont, TextAlignmentOptions.Center);
         Stretch(closing.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0.1f));
 
-        // YOU ARE HERE: a green ring and the words, over the Sun's place as the galaxy opens out.
-        if (!string.IsNullOrEmpty(youAreHere))
-        {
-            var mark = new GameObject("You are here", typeof(RectTransform));
-            mark.transform.SetParent(root, false);
-            _marker = (RectTransform)mark.transform;
-            _marker.anchorMin = _marker.anchorMax = new Vector2(0.5f, 0.5f);
-            _marker.sizeDelta = new Vector2(64f, 64f);
-            _markerGroup = mark.AddComponent<CanvasGroup>();
-            _markerGroup.alpha = 0f;
-            _markerGroup.blocksRaycasts = false;
-            RectTransform ringRt;
-            RawImage ring = Raw(_marker, "Ring", Ring(128, 0.82f, 0.95f), new Vector2(64f, 64f), out ringRt);
-            ring.color = accentColour;
-            TextMeshProUGUI words = Text(_marker, "Words", youAreHere, 28f, headingColour, _headingFont, TextAlignmentOptions.Left);
-            words.characterSpacing = 10f;
-            words.enableWordWrapping = false;
-            RectTransform wr = words.rectTransform;
-            wr.anchorMin = wr.anchorMax = new Vector2(1f, 0.5f);
-            wr.pivot = new Vector2(0f, 0.5f);
-            wr.sizeDelta = new Vector2(420f, 40f);
-            wr.anchoredPosition = new Vector2(14f, 0f);
-        }
-
-        // The bars, then the flash, then black over everything for the way in and out.
+        // The bars, then black over everything for the way in and out.
         _barTop = Black(root, "Letterbox top");
         _barTop.anchorMin = new Vector2(0f, 1f);
         _barTop.anchorMax = Vector2.one;
         _barBottom = Black(root, "Letterbox bottom");
         _barBottom.anchorMin = Vector2.zero;
         _barBottom.anchorMax = new Vector2(1f, 0f);
-        RectTransform flash = Black(root, "Flash");
-        flash.anchorMin = Vector2.zero;
-        flash.anchorMax = Vector2.one;
-        _flash = flash.GetComponent<Image>();
-        _flash.color = Color.clear;
         RectTransform fade = Black(root, "Fade");
         fade.anchorMin = Vector2.zero;
         fade.anchorMax = Vector2.one;
@@ -1099,29 +1183,6 @@ public class CreditsRoll_NEW : MonoBehaviour
             {
                 float d = Mathf.Clamp01(Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c)) / c);
                 float a = Mathf.Pow(1f - d, falloff);
-                px[y * size + x] = new Color(1f, 1f, 1f, a);
-            }
-        }
-        tex.SetPixels(px);
-        tex.Apply(false, true);
-        return tex;
-    }
-
-    /// <summary>A ring, white, its alpha a soft band between <paramref name="inner"/> and <paramref name="outer"/> of the radius.</summary>
-    static Texture2D Ring(int size, float inner, float outer)
-    {
-        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
-        {
-            name = "Ring", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear
-        };
-        var px = new Color[size * size];
-        float c = (size - 1) * 0.5f, soft = 1.5f / c;
-        for (int y = 0; y < size; y++)
-        {
-            for (int x = 0; x < size; x++)
-            {
-                float d = Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c)) / c;
-                float a = Mathf.Clamp01((d - inner) / soft) * Mathf.Clamp01((outer - d) / soft);
                 px[y * size + x] = new Color(1f, 1f, 1f, a);
             }
         }
