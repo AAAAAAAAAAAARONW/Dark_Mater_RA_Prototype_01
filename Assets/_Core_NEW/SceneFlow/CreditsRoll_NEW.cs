@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -22,6 +23,12 @@ using UnityEngine.UI;
 /// the same size, in a row along +X - so moving them in the scene changes nothing.
 ///
 /// A skips to the end, after the first few seconds.
+///
+/// TYPE. The art's own: role titles and headings in Squada One, the squared condensed face of
+/// the drawn titles, in the art's yellow over a green rule; names in Montserrat SemiBold, the
+/// face of the callouts' body text. Both are plain TTFs (Assets/Fonts) made into TMP font
+/// assets when the credits start, so nothing has to be generated in the editor. A note in
+/// brackets after a name - "(Annenberg Fellow)" - is set small, in capitals and in green.
 /// </summary>
 [DisallowMultipleComponent]
 [HierarchyBadge_NEW("CREDITS", "#B36AE2")]
@@ -59,7 +66,25 @@ public class CreditsRoll_NEW : MonoBehaviour
              "every planet is lit from the same side.")]
     [SerializeField] Transform sun;
 
+    [Tooltip("Role titles and headings: Squada One, the drawn titles' face.")]
+    [SerializeField] Font headingFont;
+
+    [Tooltip("Names and supporters: Montserrat SemiBold, the callouts' face.")]
+    [SerializeField] Font bodyFont;
+
+    [Tooltip("Used where a font above is empty or cannot be made into a TMP font.")]
     [SerializeField] TMP_FontAsset font;
+
+    [Tooltip("The art's yellow: role titles and headings.")]
+    [SerializeField] Color headingColour = new Color(0.933f, 0.941f, 0f, 1f);
+
+    [Tooltip("The art's green: the rules, and notes in brackets after a name.")]
+    [SerializeField] Color accentColour = new Color(0f, 0.949f, 0.549f, 1f);
+
+    [SerializeField] Color nameColour = new Color(0.94f, 0.95f, 0.965f, 1f);
+
+    [Tooltip("Set a note in brackets after a name - (Annenberg Fellow) - small, in capitals, in the green.")]
+    [SerializeField] bool styleNotes = true;
 
     [Tooltip("Every planet's radius, world units.")]
     [Min(0.1f)] [SerializeField] float planetRadius = 3f;
@@ -100,6 +125,8 @@ public class CreditsRoll_NEW : MonoBehaviour
     Image _black;
     RawImage _sky;
 
+    TMP_FontAsset _headingFont, _bodyFont;
+
     float _clock;
     bool _skip;
     Vector3 _focus;   // where the light is aimed from: the planet in focus, or the row's middle
@@ -114,15 +141,64 @@ public class CreditsRoll_NEW : MonoBehaviour
             return;
         }
 
-        LayOutPlanets();
-        BuildSky();
-        BuildText();
+        // Each part on its own: a planet or the sky that fails to build must not stop the roll.
+        Try(LayOutPlanets, "laying out the planets");
+        Try(BuildSky, "building the sky");
+        _headingFont = MakeFont(headingFont);
+        _bodyFont = MakeFont(bodyFont);
+        if (!Try(BuildText, "building the text"))
+        {
+            enabled = false;
+            return;
+        }
         StartCoroutine(Run());
+    }
+
+    bool Try(Action step, string what)
+    {
+        try { step(); return true; }
+        catch (Exception e)
+        {
+            Debug.LogError("[CreditsRoll_NEW] Failed " + what + ": " + e, this);
+            return false;
+        }
+    }
+
+    /// <summary>A TMP font made from a TTF at runtime, or the fallback TMP font.</summary>
+    TMP_FontAsset MakeFont(Font source)
+    {
+        if (source == null) return font;
+        try
+        {
+            TMP_FontAsset made = TMP_FontAsset.CreateFontAsset(source);
+            if (made != null) return made;
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning("[CreditsRoll_NEW] Could not make a TMP font from " + source.name + "; using the fallback. " + e.Message, this);
+        }
+        return font;
+    }
+
+    /// <summary>
+    /// This frame's seconds, never more than a tenth. The first frames carry the scene load and
+    /// the sky's build; taken whole, they would skip the fade in and the first section.
+    /// </summary>
+    static float Step() { return Mathf.Min(Time.unscaledDeltaTime, 0.1f); }
+
+    /// <summary>Names as typed, tidied: no stray carriage returns, notes in brackets styled.</summary>
+    string Names(string typed)
+    {
+        string s = (typed ?? "").Replace("\r", "");
+        if (!styleNotes) return s;
+        string hex = ColorUtility.ToHtmlStringRGB(accentColour);
+        return Regex.Replace(s, @"\s*\(([^)\n]*)\)", m =>
+            "  <size=58%><cspace=0.12em><color=#" + hex + ">" + m.Groups[1].Value.Trim().ToUpperInvariant() + "</color></cspace></size>");
     }
 
     void Update()
     {
-        float dt = Time.unscaledDeltaTime;
+        float dt = Step();
         _clock += dt;
 
         // Every planet turns; the light follows the camera's subject.
@@ -152,14 +228,14 @@ public class CreditsRoll_NEW : MonoBehaviour
         for (int i = 0; i < sections.Count && !_skip; i++)
         {
             Section s = sections[i];
-            _role.text = s.role;
-            _names.text = s.names;
+            _role.text = (s.role ?? "").Replace("\r", "");
+            _names.text = Names(s.names);
 
             // In, held with a slow push, out.
             float total = textFadeSeconds * 2f + holdSeconds, t = 0f;
             while (t < total && !_skip)
             {
-                t += Time.unscaledDeltaTime;
+                t += Step();
                 PlaceCamera(Focus(i), Mathf.Lerp(1.05f, 0.97f, t / total));
 
                 float a = Mathf.Min(Mathf.Clamp01(t / textFadeSeconds), Mathf.Clamp01((total - t) / textFadeSeconds));
@@ -183,7 +259,7 @@ public class CreditsRoll_NEW : MonoBehaviour
             float t = 0f, seconds = moveSeconds * 1.6f;
             while (t < seconds && !_skip)
             {
-                t += Time.unscaledDeltaTime;
+                t += Step();
                 float k = Mathf.SmoothStep(0f, 1f, t / seconds);
                 view.transform.position = Vector3.Lerp(from, to, k);
                 view.transform.rotation = Quaternion.Slerp(r0, r1, k);
@@ -196,7 +272,7 @@ public class CreditsRoll_NEW : MonoBehaviour
             t = 0f;
             while (t < endHoldSeconds && !_skip)
             {
-                t += Time.unscaledDeltaTime;
+                t += Step();
                 view.transform.position = Vector3.Lerp(to, to + (middle - to) * 0.06f, t / Mathf.Max(0.01f, endHoldSeconds));
                 yield return null;
             }
@@ -212,7 +288,7 @@ public class CreditsRoll_NEW : MonoBehaviour
         float t = 0f;
         while (t < seconds && !_skip)
         {
-            t += Time.unscaledDeltaTime;
+            t += Step();
             float k = Mathf.SmoothStep(0f, 1f, t / seconds);
             Vector3 p = Vector3.Lerp(from, to, k);
             p.z -= Mathf.Sin(k * Mathf.PI) * pullBack * viewDistance;
@@ -228,7 +304,7 @@ public class CreditsRoll_NEW : MonoBehaviour
         float t = 0f;
         while (t < seconds)
         {
-            t += Time.unscaledDeltaTime;
+            t += Step();
             g.color = new Color(0f, 0f, 0f, Mathf.Lerp(from, to, Mathf.SmoothStep(0f, 1f, t / seconds)));
             yield return null;
         }
@@ -317,18 +393,18 @@ public class CreditsRoll_NEW : MonoBehaviour
         scaler.matchWidthOrHeight = 0.5f;
         var root = (RectTransform)go.transform;
 
-        // A section: the role above a short rule, the names below, on the right of the frame.
-        _sectionGroup = Group(root, "Section", new Vector2(0.55f, 0.2f), new Vector2(0.94f, 0.8f));
+        // A section: the role above a short green rule, the names below, on the right of the frame.
+        _sectionGroup = Group(root, "Section", new Vector2(0.55f, 0.12f), new Vector2(0.95f, 0.86f));
         _sectionBlock = (RectTransform)_sectionGroup.transform;
-        _role = Text(_sectionBlock, "Role", "", 24f, new Color(0.86f, 0.8f, 0.68f, 1f), TextAlignmentOptions.BottomLeft,
-                     new Vector2(0f, 0.56f), new Vector2(1f, 0.7f));
-        _role.characterSpacing = 22f;
+        _role = Text(_sectionBlock, "Role", "", 46f, headingColour, _headingFont, TextAlignmentOptions.BottomLeft,
+                     new Vector2(0f, 0.66f), new Vector2(1f, 0.8f));
+        _role.characterSpacing = 14f;
         _role.fontStyle = FontStyles.UpperCase;
-        Rule(_sectionBlock, new Vector2(0f, 0.53f), 140f, new Color(0.86f, 0.8f, 0.68f, 0.6f));
-        _names = Text(_sectionBlock, "Names", "", 48f, Color.white, TextAlignmentOptions.TopLeft,
-                      new Vector2(0f, 0.05f), new Vector2(1f, 0.5f));
-        _names.lineSpacing = 18f;
-        _names.characterSpacing = 2f;
+        Rule(_sectionBlock, new Vector2(0f, 0.635f), 150f, accentColour);
+        _names = Text(_sectionBlock, "Names", "", 38f, nameColour, _bodyFont, TextAlignmentOptions.TopLeft,
+                      new Vector2(0f, 0f), new Vector2(1f, 0.6f));
+        _names.lineSpacing = 12f;
+        FitInside(_names, 24f, 38f);
 
         // The end card, in the middle.
         _endGroup = Group(root, "End", new Vector2(0.15f, 0.12f), new Vector2(0.85f, 0.9f));
@@ -344,17 +420,20 @@ public class CreditsRoll_NEW : MonoBehaviour
         }
         else
         {
-            TextMeshProUGUI title = Text(end, "Title", titleWords, 64f, Color.white, TextAlignmentOptions.Center,
+            TextMeshProUGUI title = Text(end, "Title", titleWords, 96f, accentColour, _headingFont, TextAlignmentOptions.Center,
                                          new Vector2(0f, 0.7f), new Vector2(1f, 0.95f));
-            title.characterSpacing = 18f;
+            title.characterSpacing = 8f;
         }
-        TextMeshProUGUI heading = Text(end, "Heading", supportHeading, 20f, new Color(0.86f, 0.8f, 0.68f, 1f),
+        TextMeshProUGUI heading = Text(end, "Heading", supportHeading, 32f, headingColour, _headingFont,
                                        TextAlignmentOptions.Center, new Vector2(0f, 0.5f), new Vector2(1f, 0.58f));
-        heading.characterSpacing = 22f;
-        Text(end, "Supporters", supporters, 30f, Color.white, TextAlignmentOptions.Top,
-             new Vector2(0f, 0.12f), new Vector2(1f, 0.48f)).lineSpacing = 14f;
-        Text(end, "Closing", closingLine, 24f, new Color(1f, 1f, 1f, 0.75f), TextAlignmentOptions.Center,
-             new Vector2(0f, 0f), new Vector2(1f, 0.1f)).fontStyle = FontStyles.Italic;
+        heading.characterSpacing = 14f;
+        Rule(end, new Vector2(0.5f, 0.495f), 150f, accentColour).anchoredPosition = new Vector2(-75f, 0f);
+        TextMeshProUGUI supportersText = Text(end, "Supporters", (supporters ?? "").Replace("\r", ""), 34f, nameColour, _bodyFont,
+                                              TextAlignmentOptions.Top, new Vector2(0f, 0.12f), new Vector2(1f, 0.46f));
+        supportersText.lineSpacing = 12f;
+        FitInside(supportersText, 22f, 34f);
+        Text(end, "Closing", closingLine, 26f, accentColour, _bodyFont, TextAlignmentOptions.Center,
+             new Vector2(0f, 0f), new Vector2(1f, 0.1f));
 
         // Black over everything, for the way in and out.
         _black = new GameObject("Fade", typeof(RectTransform)).AddComponent<Image>();
@@ -376,13 +455,13 @@ public class CreditsRoll_NEW : MonoBehaviour
         return g;
     }
 
-    TextMeshProUGUI Text(RectTransform parent, string name, string words, float size, Color colour,
-                         TextAlignmentOptions align, Vector2 min, Vector2 max)
+    static TextMeshProUGUI Text(RectTransform parent, string name, string words, float size, Color colour, TMP_FontAsset face,
+                                TextAlignmentOptions align, Vector2 min, Vector2 max)
     {
         var t = new GameObject(name, typeof(RectTransform)).AddComponent<TextMeshProUGUI>();
         t.transform.SetParent(parent, false);
         Stretch((RectTransform)t.transform, min, max);
-        if (font != null) t.font = font;
+        if (face != null) t.font = face;
         t.text = words;
         t.fontSize = size;
         t.color = colour;
@@ -392,7 +471,15 @@ public class CreditsRoll_NEW : MonoBehaviour
         return t;
     }
 
-    static void Rule(RectTransform parent, Vector2 anchor, float width, Color colour)
+    /// <summary>Shrinks the text, down to <paramref name="smallest"/>, when a long list would not fit its box.</summary>
+    static void FitInside(TextMeshProUGUI t, float smallest, float largest)
+    {
+        t.enableAutoSizing = true;
+        t.fontSizeMin = smallest;
+        t.fontSizeMax = largest;
+    }
+
+    static RectTransform Rule(RectTransform parent, Vector2 anchor, float width, Color colour)
     {
         var img = new GameObject("Rule", typeof(RectTransform)).AddComponent<Image>();
         img.transform.SetParent(parent, false);
@@ -403,6 +490,7 @@ public class CreditsRoll_NEW : MonoBehaviour
         rt.anchoredPosition = Vector2.zero;
         img.color = colour;
         img.raycastTarget = false;
+        return rt;
     }
 
     static void Stretch(RectTransform rt, Vector2 min, Vector2 max)

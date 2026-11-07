@@ -637,7 +637,7 @@ MonoBehaviour:
       Ziqing Ye'
     planet: {fileID: 1585973279}
   - role: SCIENCE
-    names: "Prof Vera Gluscevic\nDr Gwen\r Rudie"
+    names: "Prof Vera Gluscevic\nDr Gwen Rudie"
     planet: {fileID: 1593210869}
   - role: ART AND VISUAL EFFECTS
     names: 'Winnie Yi
@@ -671,7 +671,13 @@ MonoBehaviour:
   closingLine: Thank you for travelling with the light.
   view: {fileID: 8200003}
   sun: {fileID: 8200011}
+  headingFont: {fileID: 12800000, guid: dfcfef9087a5423b9102c0dc1302da24, type: 3}
+  bodyFont: {fileID: 12800000, guid: 1f506e812c2a4e67bd935661286c2157, type: 3}
   font: {fileID: 11400000, guid: 77a68f485f67e0a4ca84fce9016a9e1d, type: 2}
+  headingColour: {r: 0.933, g: 0.941, b: 0, a: 1}
+  accentColour: {r: 0, g: 0.949, b: 0.549, a: 1}
+  nameColour: {r: 0.94, g: 0.95, b: 0.965, a: 1}
+  styleNotes: 1
   planetRadius: 3
   spacing: 40
   viewDistance: 13
