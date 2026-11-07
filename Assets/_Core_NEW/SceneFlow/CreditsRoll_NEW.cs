@@ -8,11 +8,11 @@ using UnityEngine.UI;
 
 /// <summary>
 /// The credits, after the journey: one world for each part of the team, filmed like the end
-/// of a film. The journey's own planets, Mercury out to Neptune, scattered through space; the
-/// camera flies from one to the next and frames each differently - beside it, skimming its
-/// horizon as the Sun comes up over the rim, close on its crescent, or far off - with who made
-/// that part of the piece set beside it. Then it rises to see them all, the title and the
-/// supporters come up, and the piece fades back to the cover.
+/// of a film. The journey's own planets, Mercury out to Neptune, each on its orbit round the
+/// Sun; the camera flies out from one to the next and frames each differently - beside it,
+/// skimming its horizon as the Sun comes up over the rim, close on its crescent, or far off -
+/// with who made that part of the piece set beside it. Then it leaves the Solar System for the
+/// Milky Way, the title and the supporters come up, and the piece fades back to the cover.
 ///
 /// EDITING. Everything said is in the Inspector: a section is a role, its names (one per line)
 /// and its planet, and a shot (Auto picks one from the order). Add, remove or reorder sections
@@ -31,13 +31,15 @@ using UnityEngine.UI;
 /// TTFs made into TMP font assets at start. A note in brackets after a name - "(Annenberg
 /// Fellow)" - is set small, in capitals, in green.
 ///
-/// THE FINALE, "POWERS OF TEN". The journey's dive into the Solar System, played backwards, in
-/// one unbroken zoom: the camera comes round to the last planet's night side, the Sun just past
-/// its rim; pulls back from it; the whole system falls into its Sun until it is one star; and
-/// round that star the Milky Way - the journey's own GalaxyVFX_NEW - comes in out of the dark,
-/// star by star, shrinking at the same rate until it is the whole galaxy, tilted and turning,
-/// the bars opening and the title and supporters coming up above it. No cut, no flash. With no
-/// galaxy assigned the credits end on a wide shot of the planets, as before.
+/// THE FINALE, "POWERS OF TEN". Leaving the Solar System: the journey's dive into it played
+/// backwards, with the same lights. The camera pulls back from the last planet and rises over
+/// the system - the planets on their orbits round the Sun, each orbit unrolling from its planet
+/// - then on out, faster: the orbits fade, the planets are lost in the Sun, the Sun tightens
+/// into one star that flares with diffraction spikes, the stars round it stream in along the
+/// galaxy's disc, and the Milky Way comes in round it star by star, turning as it shrinks,
+/// until it is the whole galaxy, tilted, the bars opening and the title and supporters coming
+/// up above it. No cut, no flash. With no galaxy assigned the credits end on a wide shot of
+/// the planets, as before.
 ///
 /// The planets are copies of the journey's (CelestialBody_NEW, PlanetSphere_NEW). Their size
 /// and place are set here at start, so moving them in the scene changes nothing. A skips.
@@ -116,7 +118,7 @@ public class CreditsRoll_NEW : MonoBehaviour
     [Tooltip("Camera distance from a planet in a Left / Right shot, world units. Other shots scale it.")]
     [Min(1f)] [SerializeField] float viewDistance = 13f;
 
-    [Tooltip("Scatter the planets above, below and behind one another, so the flight has depth. Off = a straight row.")]
+    [Tooltip("The planets on their orbits round the Sun, a little above and below its plane, so the flight curves and has depth. Off = a straight row.")]
     [SerializeField] bool scatter = true;
 
     [Tooltip("Degrees per second each planet turns.")]
@@ -147,14 +149,17 @@ public class CreditsRoll_NEW : MonoBehaviour
     [Tooltip("The Sun's place in the galaxy, in its own units: GalaxyVFX_NEW puts it at (sunRadius, 0, 0).")]
     [SerializeField] Vector3 sunInGalaxy = new Vector3(0.5f, 0f, 0f);
 
-    [Tooltip("How far the last planet's Sun is from it, world units: the star the whole system falls into.")]
-    [Min(50f)] [SerializeField] float sunDistance = 500f;
+    [Tooltip("The galaxy's radius, in sizes of the Solar System (its largest orbit): how far the zoom out goes.")]
+    [Min(20f)] [SerializeField] float galaxyToSystem = 2000f;
 
-    [Tooltip("How many times smaller everything gets over the zoom out.")]
-    [Min(10f)] [SerializeField] float zoomOut = 2500f;
+    [Tooltip("Brightness of the planets' orbits as the camera leaves the system. 0 = none.")]
+    [Range(0f, 1f)] [SerializeField] float orbitBrightness = 0.35f;
 
-    [Tooltip("The zoom out, from the planet to the whole galaxy, seconds.")]
-    [Min(2f)] [SerializeField] float zoomOutSeconds = 16f;
+    [Tooltip("Stars round the Sun that stream in as the galaxy closes round it.")]
+    [Range(0, 3000)] [SerializeField] int swarmCount = 900;
+
+    [Tooltip("The zoom out, from the last planet to the whole galaxy, seconds.")]
+    [Min(4f)] [SerializeField] float zoomOutSeconds = 22f;
 
     [Header("Music")]
     [Tooltip("Optional. Fades in with the picture and out with it.")]
@@ -249,6 +254,7 @@ public class CreditsRoll_NEW : MonoBehaviour
     bool _sunHeld;          // the finale has the Sun: at _sunAt, a star, fading to _sunFade
     Vector3 _sunAt;
     float _sunFade = 1f;
+    float _sunScale = 1f;     // the glare's size: smaller once the finale looks down on the whole system
     float _sunRange = 5000f;  // how far off the Sun is, along _light, until the finale holds it
     readonly List<MeshFilter> _occluders = new List<MeshFilter>();
     bool _skip;
@@ -433,9 +439,9 @@ public class CreditsRoll_NEW : MonoBehaviour
                 // The gap on screen, in the canvas's 1080 lines: the glow stays inside it.
                 float gapLines = Mathf.Max(0f, gap) / (view.fieldOfView * Mathf.Deg2Rad) * 1080f;
                 // The glow's radius is 1.4 times the gap: under 7% of it reaches the planet's edge.
-                float size = Mathf.Clamp(gapLines / 200f, 0.15f, 1f) * Mathf.Lerp(0.25f, 1f, _sunFade);
+                float size = Mathf.Clamp(gapLines / 200f, 0.15f, 1f) * Mathf.Lerp(0.25f, 1f, _sunFade) * _sunScale;
                 _glareCore.localScale = new Vector3(size, size, 1f);
-                _glareStreak.localScale = new Vector3(0.6f + 0.6f * strength, 1f, 1f);
+                _glareStreak.localScale = new Vector3((0.6f + 0.6f * strength) * Mathf.Lerp(0.5f, 1f, _sunScale), 1f, 1f);
                 float streak = Smooth(gapLines / 220f) * _sunFade;
                 _glareStreakImage.color = new Color(0.75f, 0.88f, 1f, Mathf.Clamp01(a * 0.65f * streak));
             }
@@ -563,150 +569,171 @@ public class CreditsRoll_NEW : MonoBehaviour
     }
 
     /// <summary>
-    /// One zoom out, the journey's dive into the Solar System played backwards, on one clock:
+    /// Leaving the Solar System: the journey's dive into it, played backwards, in one move on
+    /// one clock. What the dive does going in - the Milky Way growing round one of its stars,
+    /// its stars streaming out of the frame, the star flaring with spikes and opening into the
+    /// Sun, the planets' orbits unrolling round it - happens here in reverse, with the same
+    /// shaders (DiveGlow_NEW, DiveOrbit_NEW, DiveSwarm_NEW) and the same colours:
     ///
-    ///   turn      From the last shot to the planet's night side: the Sun just past its rim,
-    ///             the planet a lit crescent, both in frame.
-    ///   leaving   The camera pulls back from the planet at a steadily growing rate; the
-    ///             planet shrinks towards its Sun.
-    ///   the star  The pull-back moves over to the Sun: the whole system - every planet -
-    ///             falls into it, until it is one star.
-    ///   galaxy    The Milky Way has been there round the star all along, too large to see.
-    ///             It comes in out of the dark star by star, shrinking round the Sun at the
-    ///             same rate, the camera turning from the Sun to its centre, until it is the
-    ///             whole galaxy, tilted, under the title.
+    ///   leaving   The camera pulls back from the last planet and rises, turning to look down
+    ///             on the Sun: the planets are where they have been all along, on their orbits
+    ///             round it, and each orbit unrolls from its planet, innermost first. The Sun's
+    ///             light comes round onto the planets from where it really is.
+    ///   the star  Out over the whole system the pull-back goes on, faster: the orbits fade,
+    ///             the planets close in on the Sun and are lost in it, and the Sun's glare
+    ///             tightens into a star, which flares with diffraction spikes as the system
+    ///             becomes one point.
+    ///   the swarm The stars round the Sun stream in from beyond the frame along the galaxy's
+    ///             disc, streaking towards it - the dive's crowd, closing instead of opening.
+    ///   galaxy    The Milky Way comes in out of the dark round the star, star by star,
+    ///             shrinking at the same rate and turning back the quarter turn the dive turns
+    ///             it going in; the spikes draw back, the star becomes one of its stars and
+    ///             goes, the swarm scatters into the galaxy's own, and the camera comes round
+    ///             to its centre: the whole galaxy, tilted, under the title.
     ///
-    /// Nothing is cut or covered. The world is scaled down round a point instead of the camera
-    /// flying out, so the numbers stay small whatever the zoom.
+    /// Nothing is cut or covered. Distances run from tens of units to millions, so the camera's
+    /// path is worked out at true scale and the world drawn scaled down round the Sun, the
+    /// camera always the same distance from it: the numbers on screen stay small.
     /// </summary>
     IEnumerator Finale()
     {
-        // 1 · The turn: onto the planet's night side, the Sun just past its rim.
         Pose last = CurrentPose();
         Vector3 planet = last.focus;
-        Vector3 back = last.position - planet;
-        if (back.sqrMagnitude < 1e-4f) back = last.rotation * Vector3.back;
-        back.Normalize();
-        Vector3 right = last.rotation * Vector3.right, up = last.rotation * Vector3.up;
-        float rimAngle = Mathf.Asin(Mathf.Clamp01(planetRadius / (viewDistance * 1.15f))) * Mathf.Rad2Deg + 3.5f;
-        Vector3 toSun = (-back * Mathf.Cos(rimAngle * Mathf.Deg2Rad) +
-                         (right * 0.8f + up * 0.6f).normalized * Mathf.Sin(rimAngle * Mathf.Deg2Rad)).normalized;
-        Vector3 sunPoint = planet + toSun * sunDistance;
-        Vector3 eye = planet + back * viewDistance * 1.15f;
-        Pose turned = new Pose
-        {
-            position = eye,
-            rotation = Quaternion.LookRotation(Vector3.Slerp(planet - eye, sunPoint - eye, 0.5f), Vector3.up),
-            light = toSun,
-            focus = planet
-        };
-        // As Fly, and the Sun comes in from far off to the star the system will fall into, so
-        // the glare does not jump when the finale takes the Sun over.
-        float turnSeconds = moveSeconds * 1.2f;
-        for (float u = 0f; u < turnSeconds && !_skip; )
-        {
-            u += Step();
-            float raw = Mathf.Clamp01(u / turnSeconds);
-            Apply(Between(last, turned, Smooth(raw), false, raw));
-            _sunRange = Mathf.Exp(Mathf.Lerp(Mathf.Log(5000f), Mathf.Log(sunDistance), Smooth(raw)));
-            _glareWeight = 1f - 0.6f * Mathf.Sin(raw * Mathf.PI);
-            yield return null;
-        }
-        _glareWeight = 1f;
-        if (_skip) yield break;
-        _sunAt = planet + toSun * sunDistance;
+        Vector3 sunAt = SunCentre();
+        float outer = OuterOrbit(sunAt);
 
-        // The world: everything that is scaled, and where it all started.
+        // Where it starts: looking at the planet from where the last shot left the camera.
+        Vector3 f0 = planet - last.position;
+        float d0 = f0.magnitude;
+        if (d0 < 1e-3f) { f0 = last.rotation * Vector3.forward; d0 = viewDistance; }
+        f0 /= d0;
+
+        // Where the system is seen whole: above it, on the side the camera is already on.
+        Vector3 side = last.position - sunAt;
+        side.y = 0f;
+        if (side.sqrMagnitude < 1e-4f) side = Vector3.back;
+        side.Normalize();
+        Vector3 overhead = (side * Mathf.Cos(SystemElevation * Mathf.Deg2Rad) + Vector3.up * Mathf.Sin(SystemElevation * Mathf.Deg2Rad)).normalized;
+        float dWhole = outer * 3.2f;
+
+        // The galaxy, at true scale: galaxyToSystem times the system, the camera at its end
+        // 3.8 radii from its centre, 22 degrees above its disc.
+        Vector3 local = GalaxyCameraLocal() - sunInGalaxy;
+        float trueRadius = outer * galaxyToSystem;
+        float dEnd = trueRadius * local.magnitude;
+        Quaternion turn = GalaxyTurn(local, overhead);
+
+        // Drawn scaled down round the Sun so that the camera is always this far from it.
+        float held = Mathf.Max(1f, Vector3.Distance(last.position, sunAt));
+        float radiusEnd = held / local.magnitude;
+        Vector3 centreEnd = sunAt - turn * (sunInGalaxy * radiusEnd);
+        Vector3 eyeEnd = sunAt + overhead * held;
+        float tanV = Mathf.Tan(view.fieldOfView * 0.5f * Mathf.Deg2Rad);
+        Quaternion finalLook = Quaternion.LookRotation(centreEnd - eyeEnd, turn * Vector3.up) *
+                               Quaternion.Euler(Mathf.Atan(-0.5f * tanV) * Mathf.Rad2Deg, 0f, 0f);
+
         Transform world = WorldRoot();
         Vector3 worldPosition = world != null ? world.position : Vector3.zero;
         Vector3 worldScale = world != null ? world.localScale : Vector3.one;
-        Vector3 offset = Vector3.zero;      // world point = offset + scale * starting point
-        float scale = 1f, logEnd = Mathf.Log(Mathf.Max(10f, zoomOut));
+        Vector3 shotLight = last.light;
+
+        BuildOrbits(sunAt);
+        BuildStar();
+        BuildSwarm(outer / trueRadius);
         _sunHeld = true;
 
-        // The galaxy's place round the Sun, settled once the pull-back is centred on the Sun.
-        bool placed = false;
-        Quaternion galaxyTurn = Quaternion.identity;
-        float galaxyEnd = galaxyRadius;
-        Vector3 galaxyCentreEnd = Vector3.zero;
-        Quaternion finalLook = turned.rotation;
-        Vector3 galaxyCamera = GalaxyCameraLocal();
-
-        float t = 0f, previousLog = 0f;
+        float lnStart = Mathf.Log(d0), lnWhole = Mathf.Log(dWhole), lnEnd = Mathf.Log(dEnd);
+        float pixel = 2f * tanV * held / Mathf.Max(1, Screen.height);
+        float t = 0f;
         while (t < zoomOutSeconds && !_skip)
         {
             t += Step();
             float k = Mathf.Clamp01(t / zoomOutSeconds);
 
-            // A steady magnification, eased in and out: each second shows the last as a
-            // smaller part of the next, as the dive does going in.
-            float logNow = -logEnd * Smooth(k);
-            float ds = Mathf.Exp(logNow - previousLog);
-            previousLog = logNow;
+            // ── The camera's path, at true scale ──
+            // How far back from what it looks at, in log space: each second takes it the same
+            // number of times further, easing into and out of the moment the system is whole.
+            float lnD = k < SystemSplit
+                ? Mathf.Lerp(lnStart, lnWhole, Ease(k / SystemSplit))
+                : Mathf.Lerp(lnWhole, lnEnd, Ease((k - SystemSplit) / (1f - SystemSplit)));
+            float distance = Mathf.Exp(lnD);
+            // What it looks at moves from the planet to the Sun only as fast as the camera
+            // backs off, so there is always something in frame: the planet, then the planets
+            // and orbits between, then the Sun with them all round it.
+            float separation = Mathf.Max(1f, Vector3.Distance(planet, sunAt));
+            float lnNear = Mathf.Log(0.15f * separation);
+            Vector3 target = Vector3.Lerp(planet, sunAt, lnWhole > lnNear ? Smooth((lnD - lnNear) / (lnWhole - lnNear)) : Smooth(k / SystemSplit));
+            Vector3 forward = Vector3.Slerp(f0, -overhead, Smooth((k - 0.01f) / SystemSplit)).normalized;
+            Vector3 fromSun = (target - sunAt) - forward * distance;
 
-            // About the planet first, then about the Sun.
-            Vector3 planetNow = offset + scale * planet;
-            Vector3 sunNow = offset + scale * sunPoint;
-            Vector3 about = Vector3.Lerp(planetNow, sunNow, Smooth((k - 0.04f) / 0.4f));
-            offset = about + (offset - about) * ds;
-            scale *= ds;
-            planetNow = offset + scale * planet;
-            sunNow = offset + scale * sunPoint;
+            // ── Drawn scaled round the Sun ──
+            float scale = held / Mathf.Max(1e-3f, fromSun.magnitude);
+            Vector3 eye = sunAt + fromSun * scale;
+            float since = lnD - lnWhole;    // e-folds out past the whole system (negative before)
+            float left = lnEnd - lnD;       // e-folds still to go
 
             if (world != null)
             {
                 world.localScale = worldScale * scale;
-                world.position = offset + scale * worldPosition;
-                // A planet under a pixel only flickers: by then they are all in the Sun's light,
-                // and they go.
-                float px = planetRadius * scale / Mathf.Max(1e-3f, Vector3.Distance(eye, sunNow)) /
-                           Mathf.Tan(view.fieldOfView * 0.5f * Mathf.Deg2Rad) * Screen.height * 0.5f;
+                world.position = sunAt + (worldPosition - sunAt) * scale;
+                // A planet under a pixel only flickers: by then it is in the Sun's light.
+                float px = planetRadius * scale / Mathf.Max(1e-3f, held) / tanV * Screen.height * 0.5f;
                 if (px < 0.6f && world.gameObject.activeSelf) world.gameObject.SetActive(false);
             }
-            _sunAt = sunNow;
-            if (sun != null) sun.position = sunNow;
+
+            // The Sun's light comes round from where the last shot had it to where it is.
+            Vector3 planetNow = sunAt + (planet - sunAt) * scale;
+            Vector3 toSun = sunAt - planetNow;
+            float come = Smooth(k / (SystemSplit * 0.8f));
+            Vector3 lightDir = toSun.sqrMagnitude > 1e-8f ? Vector3.Slerp(shotLight, toSun.normalized, come).normalized : shotLight;
+            _sunAt = come >= 0.999f ? sunAt : planetNow + lightDir * toSun.magnitude;
+            if (sun != null) sun.position = _sunAt;
             _focus = planetNow;
-            _light = (sunNow - planetNow).sqrMagnitude > 1e-8f ? (sunNow - planetNow).normalized : _light;
+            _light = lightDir;
 
-            // The galaxy: from the moment the pull-back is on the Sun, its Sun on ours, its
-            // radius shrinking at the same rate as everything else.
-            if (galaxy != null && k >= 0.42f)
+            // The Sun's glare tightens into a star as the system closes in on it: smaller as the
+            // camera rises, so the inner orbits show round it, then gone into the star.
+            _sunScale = Mathf.Lerp(1f, 0.35f, Smooth((k - 0.08f) / (SystemSplit - 0.08f)));
+            _sunFade = 1f - Smooth((since - 1.2f) / 1.6f);
+            float star = 0.7f * Smooth((since - 0.8f) / 1.6f) * (1f - 0.55f * Smooth((4f - left) / 2f)) * (1f - Smooth((1.4f - left) / 1.1f));
+            float flare = Smooth((since - 1.6f) / 1.2f) * (1f - Smooth((since - 3.6f) / 1.6f));
+            PlaceStar(eye, sunAt, star, 0.024f * (1f + 0.6f * flare), 0.6f * flare + 0.12f, 0.45f + 0.5f * flare, t * 0.05f);
+
+            // The orbits unroll as the camera rises, and go as the system shrinks into its Sun.
+            TickOrbits(t - zoomOutSeconds * 0.1f, sunAt, scale, orbitBrightness * (1f - Smooth((since - 0.6f) / 1.4f)), held * tanV);
+
+            // ── The galaxy and the Sun's neighbours, round the same point ──
+            float galaxyNow = trueRadius * scale;
+            float spinLeft = GalaxySpin * Smooth((left - 0.2f) / 4.5f);
+            Quaternion turned = Quaternion.AngleAxis(spinLeft, turn * Vector3.up) * turn;
+            float fade = 1f - Smooth((left - 0.2f) / 3.8f);
+            if (galaxy != null)
             {
-                if (!placed)
+                if (fade > 0.001f)
                 {
-                    placed = true;
-                    PlaceGalaxyRound(sunNow, eye, galaxyCamera, out galaxyTurn, out galaxyEnd);
-                    galaxyCentreEnd = sunNow - galaxyTurn * (sunInGalaxy * galaxyEnd);
-                    float tanV = Mathf.Tan(view.fieldOfView * 0.5f * Mathf.Deg2Rad);
-                    finalLook = Quaternion.LookRotation(galaxyCentreEnd - eye, galaxyTurn * Vector3.up) *
-                                Quaternion.Euler(Mathf.Atan(-0.5f * tanV) * Mathf.Rad2Deg, 0f, 0f);
+                    galaxy.rotation = turned;
+                    galaxy.localScale = Vector3.one * galaxyNow;
+                    galaxy.position = sunAt - turned * (sunInGalaxy * galaxyNow);
                 }
-                float radius = galaxyEnd * Mathf.Exp(logNow + logEnd);   // galaxyEnd at k = 1
-                galaxy.rotation = galaxyTurn;
-                galaxy.localScale = Vector3.one * radius;
-                galaxy.position = sunNow - galaxyTurn * (sunInGalaxy * radius);
-                // In from the dark star by star from seventy times too big, whole by the end.
-                float fade = 1f - Smooth((Mathf.Log(radius / galaxyEnd) - 0.25f) / 4.05f);
                 SetGalaxyFade(fade);
-                _sunFade = 1f - Smooth(fade * 1.25f);
             }
+            TickSwarm(sunAt, turned, galaxyNow, 0.7f * Smooth((since - 1f) / 1.5f), Smooth((2.2f - left) / 2f), pixel);
 
-            // The camera holds its place; it looks between the planet and the Sun, then at the
-            // Sun alone as the planet falls into it, then round to the galaxy's centre.
-            Vector3 toPlanet = planetNow - eye, toTheSun = sunNow - eye;
-            Vector3 look = Vector3.Slerp(toPlanet, toTheSun, 0.5f + 0.5f * Smooth((k - 0.08f) / 0.35f));
-            Quaternion rotation = Quaternion.LookRotation(look, Vector3.up);
-            if (placed) rotation = Quaternion.Slerp(rotation, finalLook, Smooth((k - 0.5f) / 0.45f));
+            // ── The camera: the planet, then down on the Sun, then round to the galaxy ──
+            Quaternion look = Quaternion.LookRotation(forward, Vector3.up);
+            Quaternion rotation = Quaternion.Slerp(last.rotation, look, Smooth(k / 0.12f));
+            rotation = Quaternion.Slerp(rotation, finalLook, Smooth((k - 0.68f) / 0.28f));
             view.transform.SetPositionAndRotation(eye, rotation);
 
-            _skyZoom = Mathf.Lerp(1f, 2.4f, Smooth(k));
-            _bars = 1f - Smooth((k - 0.72f) / 0.25f);
-            _textShade.color = new Color(0f, 0f, 0f, 0.55f * Smooth((k - 0.75f) / 0.25f));
-            _endGroup.alpha = Smooth((k - 0.8f) / 0.2f);
+            _skyZoom = Mathf.Lerp(1f, 2.4f, Smooth((k - SystemSplit) / (1f - SystemSplit)));
+            _bars = 1f - Smooth((k - 0.8f) / 0.18f);
+            _textShade.color = new Color(0f, 0f, 0f, 0.55f * Smooth((k - 0.82f) / 0.18f));
+            _endGroup.alpha = Smooth((k - 0.86f) / 0.14f);
             yield return null;
         }
         _endGroup.alpha = 1f;
-        if (!placed || _skip) yield break;
+        HideFinaleLights();
+        if (_skip || galaxy == null) yield break;
 
         // Held over the turning galaxy, drifting in a little.
         Vector3 from = view.transform.position;
@@ -714,11 +741,20 @@ public class CreditsRoll_NEW : MonoBehaviour
         while (t < endHoldSeconds && !_skip)
         {
             t += Step();
-            view.transform.position = Vector3.Lerp(from, galaxyCentreEnd, 0.06f * t / Mathf.Max(0.01f, endHoldSeconds));
+            view.transform.position = Vector3.Lerp(from, centreEnd, 0.06f * t / Mathf.Max(0.01f, endHoldSeconds));
             galaxy.Rotate(Vector3.up, -1.2f * Step(), Space.Self);
             yield return null;
         }
     }
+
+    // The finale's shape: the camera looks down on the whole system from this many degrees
+    // up, at this point of the clock; the galaxy turns back this far as it comes in.
+    const float SystemElevation = 48f;
+    const float SystemSplit = 0.32f;
+    const float GalaxySpin = 90f;
+
+    /// <summary>Smooth, but never quite still: the move eases through a moment, it does not stop.</summary>
+    static float Ease(float k) { return 0.85f * Smooth(k) + 0.15f * Mathf.Clamp01(k); }
 
     /// <summary>The camera's place at the end, from the galaxy's centre, in its radii: 22 degrees above the disc, 3.8 out.</summary>
     static Vector3 GalaxyCameraLocal()
@@ -727,20 +763,18 @@ public class CreditsRoll_NEW : MonoBehaviour
     }
 
     /// <summary>
-    /// The galaxy's turn and final radius that put its Sun on <paramref name="sunAt"/> and the
-    /// camera, where it stands, at <paramref name="cameraLocal"/> from its centre - its disc as
-    /// level as that allows.
+    /// The galaxy's turn that puts the camera, <paramref name="towardCamera"/> from the Sun, at
+    /// <paramref name="local"/> (Sun to camera, in the galaxy's own frame) - its disc as level
+    /// as that allows.
     /// </summary>
-    void PlaceGalaxyRound(Vector3 sunAt, Vector3 eye, Vector3 cameraLocal, out Quaternion turn, out float radius)
+    static Quaternion GalaxyTurn(Vector3 local, Vector3 towardCamera)
     {
-        Vector3 local = cameraLocal - sunInGalaxy;            // Sun to camera, in radii
-        Vector3 world = eye - sunAt;
-        radius = world.magnitude / Mathf.Max(1e-3f, local.magnitude);
-        Vector3 n = world.normalized;
-        turn = Quaternion.FromToRotation(local.normalized, n);
+        Vector3 n = towardCamera.normalized;
+        Quaternion turn = Quaternion.FromToRotation(local.normalized, n);
         Vector3 pole = Vector3.ProjectOnPlane(turn * Vector3.up, n), level = Vector3.ProjectOnPlane(Vector3.up, n);
         if (pole.sqrMagnitude > 1e-6f && level.sqrMagnitude > 1e-6f)
             turn = Quaternion.AngleAxis(Vector3.SignedAngle(pole, level, n), n) * turn;
+        return turn;
     }
 
     /// <summary>What the finale shrinks: the object all the planets are under.</summary>
@@ -749,6 +783,253 @@ public class CreditsRoll_NEW : MonoBehaviour
         foreach (Section s in sections)
             if (s.planet != null) return s.planet.parent != null ? s.planet.root : s.planet;
         return null;
+    }
+
+    /// <summary>The Sun, at the middle of the planets' orbits.</summary>
+    Vector3 SunCentre() { return new Vector3(-2f * spacing, 0f, 0f); }
+
+    /// <summary>The largest orbit's radius, across the system's plane.</summary>
+    float OuterOrbit(Vector3 sunAt)
+    {
+        float r = 2f * spacing;
+        for (int i = 0; i < sections.Count; i++)
+        {
+            Vector3 d = Focus(i) - sunAt;
+            d.y = 0f;
+            r = Mathf.Max(r, d.magnitude);
+        }
+        return r;
+    }
+
+    // ── The finale's lights: the star, the orbits, the swarm ────────────────
+
+    const float StarQuad = 8f;      // the star's quad is this many times its glow, for the spikes
+    const int OrbitPoints = 128;
+    const float OrbitDrawSeconds = 1.6f, OrbitStagger = 0.14f;
+    static readonly Vector3[] OrbitBuffer = new Vector3[OrbitPoints + 1];
+
+    GameObject _star, _swarm;
+    Material _starMaterial, _swarmMaterial, _orbitMaterial;
+    MaterialPropertyBlock _orbitBlock;
+    readonly List<LineRenderer> _orbitLines = new List<LineRenderer>();
+    readonly List<Vector3> _orbitOffsets = new List<Vector3>();
+
+    int FinaleLayer() { return galaxy != null ? galaxy.gameObject.layer : gameObject.layer; }
+
+    static MeshRenderer Plain(GameObject go, Mesh mesh, Material material)
+    {
+        go.AddComponent<MeshFilter>().sharedMesh = mesh;
+        MeshRenderer mr = go.AddComponent<MeshRenderer>();
+        mr.sharedMaterial = material;
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        mr.receiveShadows = false;
+        mr.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+        mr.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+        return mr;
+    }
+
+    /// <summary>The star the system becomes: the dive's own light (DiveGlow_NEW), as a star.</summary>
+    void BuildStar()
+    {
+        if (_star != null) return;
+        Shader shader = Resources.Load<Shader>("DiveGlow_NEW");
+        if (shader == null) { Debug.LogWarning("[CreditsRoll_NEW] Resources/DiveGlow_NEW.shader is missing; no star.", this); return; }
+        _starMaterial = new Material(shader) { name = "Credits star (runtime)" };
+        var quad = new Mesh { name = "Credits star quad" };
+        quad.vertices = new[] { new Vector3(-0.5f, -0.5f, 0f), new Vector3(0.5f, -0.5f, 0f), new Vector3(0.5f, 0.5f, 0f), new Vector3(-0.5f, 0.5f, 0f) };
+        quad.uv = new[] { new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(0f, 1f) };
+        quad.triangles = new[] { 0, 2, 1, 0, 3, 2 };
+        quad.RecalculateBounds();
+        _star = new GameObject("Credits star") { layer = FinaleLayer() };
+        Plain(_star, quad, _starMaterial);
+        _starMaterial.SetFloat("_GlowScale", StarQuad);
+        _starMaterial.SetColor("_SpikeTint", new Color(0.72f, 0.82f, 1f, 1f));
+        _star.SetActive(false);
+    }
+
+    /// <param name="screenSize">The glow's diameter as a fraction of the screen's height, however far.</param>
+    void PlaceStar(Vector3 eye, Vector3 at, float intensity, float screenSize, float spikes, float spikeLength, float spikeAngle)
+    {
+        if (_star == null) return;
+        bool on = intensity > 0.001f;
+        if (_star.activeSelf != on) _star.SetActive(on);
+        if (!on) return;
+        _starMaterial.SetColor("_Color", new Color(1f, 0.95f, 0.84f, intensity));
+        _starMaterial.SetFloat("_Spikes", spikes);
+        _starMaterial.SetFloat("_SpikeLength", spikeLength);
+        _starMaterial.SetFloat("_SpikeAngle", spikeAngle);
+        float size = screenSize * StarQuad * 2f * Mathf.Tan(view.fieldOfView * 0.5f * Mathf.Deg2Rad) * Vector3.Distance(eye, at);
+        _star.transform.SetPositionAndRotation(at, view.transform.rotation);
+        _star.transform.localScale = new Vector3(size, size, size);
+    }
+
+    /// <summary>A line for each planet's orbit (DiveOrbit_NEW), innermost first, through the planet round the Sun.</summary>
+    void BuildOrbits(Vector3 sunAt)
+    {
+        if (_orbitLines.Count > 0 || orbitBrightness <= 0f) return;
+        Shader shader = Resources.Load<Shader>("DiveOrbit_NEW");
+        if (shader == null) { Debug.LogWarning("[CreditsRoll_NEW] Resources/DiveOrbit_NEW.shader is missing; no orbits.", this); return; }
+        _orbitMaterial = new Material(shader) { name = "Credits orbit (runtime)" };
+        _orbitBlock = new MaterialPropertyBlock();
+
+        var offsets = new List<Vector3>();
+        foreach (Section s in sections)
+            if (s.planet != null && (s.planet.position - sunAt).sqrMagnitude > 1e-4f) offsets.Add(s.planet.position - sunAt);
+        offsets.Sort((a, b) => a.sqrMagnitude.CompareTo(b.sqrMagnitude));
+
+        foreach (Vector3 offset in offsets)
+        {
+            var go = new GameObject("Credits orbit") { layer = FinaleLayer() };
+            LineRenderer line = go.AddComponent<LineRenderer>();
+            line.useWorldSpace = true;
+            line.loop = false;
+            line.positionCount = OrbitPoints + 1;
+            line.alignment = LineAlignment.View;
+            line.textureMode = LineTextureMode.Stretch;
+            line.numCapVertices = 0;
+            line.numCornerVertices = 0;
+            line.sharedMaterial = _orbitMaterial;
+            line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            line.receiveShadows = false;
+            line.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+            line.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+            go.SetActive(false);
+            _orbitLines.Add(line);
+            _orbitOffsets.Add(offset);
+        }
+    }
+
+    /// <summary>
+    /// Each orbit drawn from its planet round the way the planets go, over OrbitDrawSeconds,
+    /// innermost first, a bright head where it is being drawn - as the dive draws them - the
+    /// size the system is now drawn at, about a pixel and a half wide.
+    /// </summary>
+    void TickOrbits(float t, Vector3 sunAt, float scale, float shown, float halfHeightAtSun)
+    {
+        float width = 0.0016f * 2f * halfHeightAtSun;
+        for (int i = 0; i < _orbitLines.Count; i++)
+        {
+            LineRenderer line = _orbitLines[i];
+            if (line == null) continue;
+            float draw = Smooth((t - i * OrbitStagger) / OrbitDrawSeconds);
+            bool on = draw > 0f && shown > 0.001f;
+            if (line.gameObject.activeSelf != on) line.gameObject.SetActive(on);
+            if (!on) continue;
+
+            // Through the planet: in the plane of its offset and the level tangent there, so a
+            // planet a little above or below the Sun's plane still sits on its line.
+            Vector3 r = _orbitOffsets[i] * scale;
+            Vector3 flat = new Vector3(r.x, 0f, r.z);
+            Vector3 tangent = flat.sqrMagnitude > 1e-8f ? Vector3.Cross(Vector3.up, flat).normalized : Vector3.forward;
+            float radius = r.magnitude;
+            for (int j = 0; j <= OrbitPoints; j++)
+            {
+                float a = -2f * Mathf.PI * j / OrbitPoints;
+                OrbitBuffer[j] = sunAt + r * Mathf.Cos(a) + tangent * (radius * Mathf.Sin(a));
+            }
+            line.SetPositions(OrbitBuffer);
+            line.widthMultiplier = width;
+            _orbitBlock.SetColor("_Color", new Color(0.72f, 0.82f, 1f, shown));
+            _orbitBlock.SetFloat("_Draw", draw);
+            _orbitBlock.SetFloat("_Head", 1f - Smooth((draw - 0.85f) / 0.15f));
+            line.SetPropertyBlock(_orbitBlock);
+        }
+    }
+
+    /// <summary>
+    /// The Sun's neighbours in the galaxy (DiveSwarm_NEW): stars in the disc round it at radii
+    /// spread evenly in log space, from just outside the system to a quarter of the galaxy,
+    /// so that as everything shrinks they keep streaming in from beyond the frame - in the
+    /// dive's own white, blue and pink. Fixed seed: the same every run.
+    /// </summary>
+    /// <param name="inner">The system's size as a fraction of the galaxy's radius.</param>
+    void BuildSwarm(float inner)
+    {
+        if (_swarm != null || swarmCount <= 0) return;
+        Shader shader = Resources.Load<Shader>("DiveSwarm_NEW");
+        if (shader == null) { Debug.LogWarning("[CreditsRoll_NEW] Resources/DiveSwarm_NEW.shader is missing; no swarm.", this); return; }
+        _swarmMaterial = new Material(shader) { name = "Credits swarm (runtime)" };
+
+        int n = swarmCount;
+        var vertices = new Vector3[n * 4];
+        var colours = new Color[n * 4];
+        var corners = new Vector2[n * 4];
+        var sizes = new Vector2[n * 4];
+        var triangles = new int[n * 6];
+        var rng = new System.Random(2026);
+        float lo = Mathf.Log(Mathf.Max(1e-5f, inner * 2.5f)), hi = Mathf.Log(0.25f);
+        Color warm = new Color(1f, 0.93f, 0.86f, 1f), cool = new Color(0.72f, 0.82f, 1f, 1f), pink = new Color(0.96f, 0.69f, 0.92f, 1f);
+        for (int i = 0; i < n; i++)
+        {
+            float rho = Mathf.Exp(Mathf.Lerp(lo, hi, (float)rng.NextDouble()));
+            float angle = (float)rng.NextDouble() * Mathf.PI * 2f;
+            float height = ((float)rng.NextDouble() + (float)rng.NextDouble() - 1f) * 0.12f * rho;
+            Vector3 p = new Vector3(Mathf.Cos(angle) * rho, height, Mathf.Sin(angle) * rho);
+
+            double pick = rng.NextDouble();
+            Color c = pick < 0.4 ? cool : pick < 0.6 ? pink : warm;
+            c.a = Mathf.Lerp(0.25f, 1f, (float)rng.NextDouble());
+            float size = Mathf.Lerp(0.6f, 1.4f, (float)rng.NextDouble());
+            float turnToGo = Mathf.Lerp(0.12f, 1f, (float)rng.NextDouble());
+
+            int v = i * 4;
+            for (int k = 0; k < 4; k++)
+            {
+                vertices[v + k] = p;
+                colours[v + k] = c;
+                sizes[v + k] = new Vector2(size, turnToGo);
+            }
+            corners[v + 0] = new Vector2(-1f, -1f);
+            corners[v + 1] = new Vector2(1f, -1f);
+            corners[v + 2] = new Vector2(1f, 1f);
+            corners[v + 3] = new Vector2(-1f, 1f);
+            int tri = i * 6;
+            triangles[tri + 0] = v; triangles[tri + 1] = v + 2; triangles[tri + 2] = v + 1;
+            triangles[tri + 3] = v; triangles[tri + 4] = v + 3; triangles[tri + 5] = v + 2;
+        }
+
+        var mesh = new Mesh { name = "Credits swarm" };
+        mesh.vertices = vertices;
+        mesh.colors = colours;
+        mesh.uv = corners;
+        mesh.uv2 = sizes;
+        mesh.triangles = triangles;
+        // Every member is spread by the shader, so the bounds must cover them all however the
+        // swarm is scaled: never culled.
+        mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 2f);
+
+        _swarm = new GameObject("Credits swarm") { layer = FinaleLayer() };
+        Plain(_swarm, mesh, _swarmMaterial);
+        _swarmMaterial.SetFloat("_Streak", 2f);
+        _swarmMaterial.SetFloat("_Resolve", 1f);
+        _swarmMaterial.SetFloat("_Core", 0.5f);
+        _swarmMaterial.SetFloat("_Spin", 0f);
+        _swarmMaterial.SetVector("_NearFade", new Vector4(0.5f, 3f, 0f, 0f));
+        _swarm.SetActive(false);
+    }
+
+    /// <param name="radius">The galaxy's radius as drawn now: the swarm's scale.</param>
+    /// <param name="pixel">World units per pixel at the Sun's distance.</param>
+    void TickSwarm(Vector3 sunAt, Quaternion turn, float radius, float alpha, float scatter, float pixel)
+    {
+        if (_swarm == null) return;
+        bool on = alpha > 0.001f && scatter < 0.999f;
+        if (_swarm.activeSelf != on) _swarm.SetActive(on);
+        if (!on) return;
+        _swarm.transform.SetPositionAndRotation(sunAt, turn);
+        _swarm.transform.localScale = Vector3.one * radius;
+        _swarmMaterial.SetFloat("_Alpha", alpha);
+        _swarmMaterial.SetFloat("_Scatter", scatter);
+        // Members about two pixels across wherever the swarm is in its shrinking.
+        _swarmMaterial.SetFloat("_SizeScale", 1.1f * pixel / Mathf.Max(1e-6f, radius));
+    }
+
+    void HideFinaleLights()
+    {
+        if (_star != null) _star.SetActive(false);
+        if (_swarm != null) _swarm.SetActive(false);
+        foreach (LineRenderer line in _orbitLines)
+            if (line != null) line.gameObject.SetActive(false);
     }
 
     float HoldFor(int i)
@@ -861,16 +1142,25 @@ public class CreditsRoll_NEW : MonoBehaviour
         return p != null ? p.position : PlaceOf(i);
     }
 
-    // Scattered above, below and behind one another; the same every run.
+    // A little above and below the Sun's plane; the same every run.
     static readonly float[] ScatterY = { 0f, 0.15f, -0.1f, 0.2f, -0.15f, 0.08f, -0.2f, 0.12f };
-    static readonly float[] ScatterZ = { 0f, 0.45f, -0.25f, 0.6f, -0.35f, 0.2f, 0.5f, -0.15f };
     static readonly float[] Approach = { 0f, -18f, 14f, -10f, 20f, -15f, 10f, -20f };
 
     Vector3 PlaceOf(int i)
     {
         if (!scatter) return new Vector3(i * spacing, 0f, 0f);
+        // On orbits round the Sun (SunCentre), each a spacing further out than the last and
+        // a little further round the way the planets go, so the flight from one to the next
+        // is about the same length - and leaving at the end, they are a solar system.
+        float r = 2f * spacing, angle = 0f;
+        for (int m = 1; m <= i; m++)
+        {
+            float next = r + spacing;
+            angle += 1.1f * spacing / (0.5f * (r + next));
+            r = next;
+        }
         int j = i % ScatterY.Length;
-        return new Vector3(i * spacing, ScatterY[j] * spacing, ScatterZ[j] * spacing);
+        return SunCentre() + new Vector3(Mathf.Cos(angle) * r, ScatterY[j] * spacing * 0.5f, Mathf.Sin(angle) * r);
     }
 
     float BaseYaw(int i) { return scatter ? Approach[i % Approach.Length] : 0f; }
