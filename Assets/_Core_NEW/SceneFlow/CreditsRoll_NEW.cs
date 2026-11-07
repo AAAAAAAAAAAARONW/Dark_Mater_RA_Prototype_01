@@ -134,7 +134,7 @@ public class CreditsRoll_NEW : MonoBehaviour
     [Range(0f, 20f)] [SerializeField] float bankDegrees = 7f;
 
     [Header("Finale")]
-    [Tooltip("The Milky Way (GalaxyVFX_NEW) the credits end on. Empty = end on the planets.")]
+    [Tooltip("The Milky Way (GalaxyVFX_NEW) the credits end on; leave its object switched off in the scene, it is switched on at Start. Empty = end on the planets.")]
     [SerializeField] Transform galaxy;
 
     [Tooltip("The galaxy's radius, world units (GalaxyVFX_NEW's radius is its scale).")]
@@ -516,6 +516,10 @@ public class CreditsRoll_NEW : MonoBehaviour
         galaxy.SetParent(null, true);
         galaxy.SetPositionAndRotation(galaxyPlace, Quaternion.identity);
         galaxy.localScale = Vector3.one * galaxyRadius;
+        // Switched off in the scene, so opening PC_Credits in the editor shows the planets and
+        // not the ending (the galaxy draws in edit mode too). On here, at Start, well before the
+        // finale, so the cut under the flash still has no hitch.
+        galaxy.gameObject.SetActive(true);
     }
 
     IEnumerator Finale()
