@@ -30,6 +30,14 @@ using UnityEngine.UI;
 /// TTFs made into TMP font assets at start. A note in brackets after a name - "(Annenberg
 /// Fellow)" - is set small, in capitals, in green.
 ///
+/// THE FINALE, "POWERS OF TEN". After the last planet the camera pulls away faster and faster,
+/// the planets shrinking to points and the stars streaming in; a warm flash with a long streak;
+/// and out of it, the Milky Way - the journey's own GalaxyVFX_NEW - first close over the place
+/// the Sun really is, marked YOU ARE HERE, then pulling back to the whole galaxy, tilted and
+/// turning, the bars opening and the title and supporters coming up above it. The galaxy waits
+/// far beyond the camera's far plane until then, already built, so the cut has no hitch. With
+/// no galaxy assigned the credits end on a wide shot of the planets, as before.
+///
 /// The planets are copies of the journey's (CelestialBody_NEW, PlanetSphere_NEW). Their size
 /// and place are set here at start, so moving them in the scene changes nothing. A skips.
 /// </summary>
@@ -125,6 +133,26 @@ public class CreditsRoll_NEW : MonoBehaviour
     [Tooltip("Degrees the camera banks into the turn between planets.")]
     [Range(0f, 20f)] [SerializeField] float bankDegrees = 7f;
 
+    [Header("Finale")]
+    [Tooltip("The Milky Way (GalaxyVFX_NEW) the credits end on. Empty = end on the planets.")]
+    [SerializeField] Transform galaxy;
+
+    [Tooltip("The galaxy's radius, world units (GalaxyVFX_NEW's radius is its scale).")]
+    [Min(10f)] [SerializeField] float galaxyRadius = 200f;
+
+    [Tooltip("Where the galaxy waits: beyond the camera's far plane from every planet, so it is never seen early.")]
+    [SerializeField] Vector3 galaxyPlace = new Vector3(140f, 0f, 6000f);
+
+    [Tooltip("The Sun's place in the galaxy, in its own units: GalaxyVFX_NEW puts it at (sunRadius, 0, 0).")]
+    [SerializeField] Vector3 sunInGalaxy = new Vector3(0.5f, 0f, 0f);
+
+    [Tooltip("The marker over the Sun as the galaxy is revealed. Empty = no marker.")]
+    [SerializeField] string youAreHere = "YOU ARE HERE";
+
+    [Min(0.5f)] [SerializeField] float leavingSeconds = 4f;
+    [Min(0.1f)] [SerializeField] float flashSeconds = 1f;
+    [Min(1f)] [SerializeField] float revealSeconds = 9f;
+
     [Header("Music")]
     [Tooltip("Optional. Fades in with the picture and out with it.")]
     [SerializeField] AudioClip music;
@@ -210,7 +238,12 @@ public class CreditsRoll_NEW : MonoBehaviour
     readonly List<float> _lineY = new List<float>();
     float _ruleWidth = 150f;
 
-    float _clock, _bars, _glareWeight;
+    float _clock, _bars, _glareWeight, _skyZoom = 1f;
+    Vector2 _skySize;
+    Image _flash;
+    RawImage _textShade;
+    RectTransform _marker;
+    CanvasGroup _markerGroup;
     bool _skip;
     Vector3 _focus, _light = new Vector3(0.6f, 0.4f, -0.6f).normalized;
     Vector3 _lastForward;
@@ -230,6 +263,7 @@ public class CreditsRoll_NEW : MonoBehaviour
 
         // Each part on its own: a planet or the sky that fails to build must not stop the roll.
         Try(LayOutPlanets, "laying out the planets");
+        Try(PlaceGalaxy, "placing the galaxy");
         Try(BuildSky, "building the sky");
         _headingFont = MakeFont(headingFont);
         _bodyFont = MakeFont(bodyFont);
@@ -320,6 +354,10 @@ public class CreditsRoll_NEW : MonoBehaviour
             Rect uv = _sky.uvRect;
             uv.x += yaw / Mathf.Max(1f, hFov) * uv.width + 0.0015f * Step();
             uv.y += pitch / Mathf.Max(1f, vFov) * uv.height;
+            // Zoomed out about the middle: the stars stream inward as the camera backs away.
+            Vector2 centre = uv.center;
+            uv.size = _skySize * _skyZoom;
+            uv.center = centre;
             _sky.uvRect = uv;
         }
         _lastForward = forward;
@@ -421,7 +459,11 @@ public class CreditsRoll_NEW : MonoBehaviour
                 yield return Fly(PoseFor(i, 1f), PoseFor(i + 1, 0f), moveSeconds, true);
         }
 
-        if (!_skip)
+        if (!_skip && galaxy != null)
+        {
+            yield return Finale();
+        }
+        else if (!_skip)
         {
             // Up and back to see them all, the bars opening, the title coming up.
             Pose wide = WidePose();
@@ -464,6 +506,133 @@ public class CreditsRoll_NEW : MonoBehaviour
         }
         enabled = false;
         SceneFlow_NEW.Load(returnScenePath, this);
+    }
+
+    // ── The finale ──────────────────────────────────────────────────────────
+
+    void PlaceGalaxy()
+    {
+        if (galaxy == null) return;
+        galaxy.SetParent(null, true);
+        galaxy.SetPositionAndRotation(galaxyPlace, Quaternion.identity);
+        galaxy.localScale = Vector3.one * galaxyRadius;
+    }
+
+    IEnumerator Finale()
+    {
+        // 1 · Leaving: away from the planets, faster and faster, up and out.
+        Pose start = CurrentPose();
+        Vector3 row = RowCentre();
+        Vector3 away = ((start.position - row).normalized + Vector3.up * 0.5f).normalized;
+        float t = 0f;
+        while (t < leavingSeconds && !_skip)
+        {
+            t += Step();
+            float k = Mathf.Clamp01(t / leavingSeconds);
+            float s = (Mathf.Exp(k * 4f) - 1f) / (Mathf.Exp(4f) - 1f);
+            Vector3 position = start.position + away * s * 1800f;
+            Quaternion look = Quaternion.LookRotation(row - position, Vector3.up);
+            Apply(new Pose { position = position, rotation = Quaternion.Slerp(start.rotation, look, Smooth(k * 1.5f)),
+                             light = start.light, focus = start.focus });
+            _skyZoom = Mathf.Lerp(1f, 3.2f, k * k);
+            _glareWeight = 1f - Smooth(k * 2f);
+            SetFlash(Smooth((k - 0.72f) / 0.28f), 0f);
+            yield return null;
+        }
+
+        // 2 · The flash: at its height, the cut to the galaxy.
+        SetFlash(1f, 1f);
+        _skyZoom = 1f;
+        Apply(GalaxyPose(0f));
+        t = 0f;
+
+        // 3 · The reveal: from over the Sun to the whole galaxy, the bars opening, the title up.
+        while (t < revealSeconds && !_skip)
+        {
+            t += Step();
+            float k = Mathf.Clamp01(t / revealSeconds);
+            Apply(GalaxyPose(k));
+            float out01 = Mathf.Clamp01(t / flashSeconds);
+            SetFlash(1f - Smooth(out01), 1f - Smooth(out01 * 1.4f));
+            if (_markerGroup != null) _markerGroup.alpha = Smooth((k - 0.06f) / 0.12f) * (1f - Smooth((k - 0.45f) / 0.15f));
+            PlaceMarker();
+            _bars = 1f - Smooth((k - 0.45f) / 0.4f);
+            _textShade.color = new Color(0f, 0f, 0f, 0.55f * Smooth((k - 0.5f) / 0.4f));
+            _endGroup.alpha = Smooth((k - 0.6f) / 0.35f);
+            yield return null;
+        }
+        SetFlash(0f, 0f);
+        _endGroup.alpha = 1f;
+        if (_markerGroup != null) _markerGroup.alpha = 0f;
+
+        // 4 · Held over the turning galaxy.
+        t = 0f;
+        while (t < endHoldSeconds && !_skip)
+        {
+            t += Step();
+            Pose drift = GalaxyPose(1f);
+            drift.position = Vector3.Lerp(drift.position, drift.focus, 0.06f * t / Mathf.Max(0.01f, endHoldSeconds));
+            Apply(drift);
+            galaxy.Rotate(Vector3.up, -1.2f * Step(), Space.Self);
+            yield return null;
+        }
+    }
+
+    /// <summary>
+    /// From just over the Sun's place (u = 0) to the whole galaxy, tilted (u = 1). The distance
+    /// grows exponentially - each second shows the last as a smaller part of the next - and the
+    /// framing settles the galaxy into the lower half, under the title.
+    /// </summary>
+    Pose GalaxyPose(float u)
+    {
+        float k = Smooth(u);
+        Vector3 centre = galaxy.position;
+        Vector3 sunAt = galaxy.TransformPoint(sunInGalaxy);
+        // On the Sun for the first fifth, then across to the centre: the marker stays in frame,
+        // settling low and to the right as the galaxy opens out round it.
+        Vector3 target = Vector3.Lerp(sunAt, centre, Smooth((u - 0.2f) / 0.6f));
+
+        Vector3 from = new Vector3(0.15f, 0.92f, -0.36f).normalized;
+        // 22 degrees above the disc: tilted steeply, so the whole galaxy fits under the title.
+        Vector3 to = (Quaternion.Euler(0f, -24f, 0f) * new Vector3(0f, Mathf.Sin(22f * Mathf.Deg2Rad), -Mathf.Cos(22f * Mathf.Deg2Rad))).normalized;
+        Vector3 dir = Vector3.Slerp(from, to, k);
+        float distance = Mathf.Exp(Mathf.Lerp(Mathf.Log(galaxyRadius * 0.12f), Mathf.Log(galaxyRadius * 3.8f), k));
+        Vector3 position = target + dir * distance;
+
+        float tanV = Mathf.Tan(view.fieldOfView * 0.5f * Mathf.Deg2Rad);
+        float down = Mathf.Atan(-0.5f * k * tanV) * Mathf.Rad2Deg;
+        Quaternion rotation = Quaternion.LookRotation(target - position, Vector3.up) * Quaternion.Euler(down, 0f, Mathf.Lerp(-8f, 0f, k));
+        return new Pose { position = position, rotation = rotation, light = _light, focus = target };
+    }
+
+    Vector3 RowCentre()
+    {
+        Vector3 sum = Vector3.zero;
+        int n = Mathf.Max(1, sections.Count);
+        for (int i = 0; i < n; i++) sum += Focus(i);
+        return sum / n;
+    }
+
+    /// <summary>The white flash, and the streak across the screen with it.</summary>
+    void SetFlash(float white, float streak)
+    {
+        if (_flash != null) _flash.color = new Color(1f, 0.96f, 0.88f, Mathf.Clamp01(white));
+        if (streak > 0.001f && _glareStreak != null)
+        {
+            _glareStreak.anchorMin = _glareStreak.anchorMax = new Vector2(0.5f, 0.5f);
+            _glareStreak.localScale = new Vector3(2.2f, 1.6f, 1f);
+            _glareStreakImage.color = new Color(0.8f, 0.9f, 1f, Mathf.Clamp01(streak));
+        }
+    }
+
+    /// <summary>The YOU ARE HERE ring, over the Sun's place on screen.</summary>
+    void PlaceMarker()
+    {
+        if (_marker == null) return;
+        Vector3 vp = view.WorldToViewportPoint(galaxy.TransformPoint(sunInGalaxy));
+        bool onScreen = vp.z > 0f;
+        _marker.gameObject.SetActive(onScreen);
+        if (onScreen) _marker.anchorMin = _marker.anchorMax = new Vector2(vp.x, vp.y);
     }
 
     float HoldFor(int i)
@@ -624,6 +793,7 @@ public class CreditsRoll_NEW : MonoBehaviour
 
         // Oversized, so its corners stay off screen when it turns with the camera's roll.
         _skyRect = (RectTransform)_sky.transform;
+        _skySize = _sky.uvRect.size;
         _skyRect.anchorMin = new Vector2(-0.4f, -0.4f);
         _skyRect.anchorMax = new Vector2(1.4f, 1.4f);
         _skyRect.offsetMin = _skyRect.offsetMax = Vector2.zero;
@@ -650,8 +820,16 @@ public class CreditsRoll_NEW : MonoBehaviour
         _sectionGroup = Group(root, "Section", new Vector2(0.56f, 0.2f), new Vector2(0.95f, 0.8f));
         _sectionBlock = (RectTransform)_sectionGroup.transform;
 
-        // The end card, in the middle.
-        _endGroup = Group(root, "End", new Vector2(0.15f, 0.12f), new Vector2(0.85f, 0.9f));
+        // A soft dark band down from the top, behind the end card, over a bright galaxy.
+        _textShade = new GameObject("End shade", typeof(RectTransform)).AddComponent<RawImage>();
+        _textShade.transform.SetParent(root, false);
+        Stretch(_textShade.rectTransform, new Vector2(0f, 0.28f), Vector2.one);
+        _textShade.texture = Gradient(64);
+        _textShade.color = Color.clear;
+        _textShade.raycastTarget = false;
+
+        // The end card, in the upper part of the frame: the galaxy turns below it.
+        _endGroup = Group(root, "End", new Vector2(0.1f, 0.3f), new Vector2(0.9f, 0.97f));
         var end = (RectTransform)_endGroup.transform;
         if (titleSprite != null)
         {
@@ -660,23 +838,23 @@ public class CreditsRoll_NEW : MonoBehaviour
             img.sprite = titleSprite;
             img.preserveAspect = true;
             img.raycastTarget = false;
-            Stretch((RectTransform)img.transform, new Vector2(0.15f, 0.62f), new Vector2(0.85f, 0.98f));
+            Stretch((RectTransform)img.transform, new Vector2(0.2f, 0.64f), new Vector2(0.8f, 1f));
         }
         else
         {
             TextMeshProUGUI title = Text(end, "Title", titleWords, 96f, accentColour, _headingFont, TextAlignmentOptions.Center);
-            Stretch(title.rectTransform, new Vector2(0f, 0.7f), new Vector2(1f, 0.95f));
+            Stretch(title.rectTransform, new Vector2(0f, 0.64f), new Vector2(1f, 1f));
             title.characterSpacing = 8f;
         }
         TextMeshProUGUI heading = Text(end, "Heading", supportHeading, 32f, headingColour, _headingFont, TextAlignmentOptions.Center);
-        Stretch(heading.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.58f));
+        Stretch(heading.rectTransform, new Vector2(0f, 0.48f), new Vector2(1f, 0.57f));
         heading.characterSpacing = 14f;
         RectTransform rule = Rule(end, accentColour);
-        rule.anchorMin = rule.anchorMax = new Vector2(0.5f, 0.495f);
+        rule.anchorMin = rule.anchorMax = new Vector2(0.5f, 0.465f);
         rule.pivot = new Vector2(0.5f, 0.5f);
         rule.sizeDelta = new Vector2(150f, 3f);
         TextMeshProUGUI who = Text(end, "Supporters", (supporters ?? "").Replace("\r", ""), 34f, nameColour, _bodyFont, TextAlignmentOptions.Top);
-        Stretch(who.rectTransform, new Vector2(0f, 0.12f), new Vector2(1f, 0.46f));
+        Stretch(who.rectTransform, new Vector2(0f, 0.12f), new Vector2(1f, 0.44f));
         who.lineSpacing = 12f;
         who.enableAutoSizing = true;
         who.fontSizeMin = 22f;
@@ -684,13 +862,42 @@ public class CreditsRoll_NEW : MonoBehaviour
         TextMeshProUGUI closing = Text(end, "Closing", closingLine, 26f, accentColour, _bodyFont, TextAlignmentOptions.Center);
         Stretch(closing.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0.1f));
 
-        // The bars, then black over everything for the way in and out.
+        // YOU ARE HERE: a green ring and the words, over the Sun's place as the galaxy opens out.
+        if (!string.IsNullOrEmpty(youAreHere))
+        {
+            var mark = new GameObject("You are here", typeof(RectTransform));
+            mark.transform.SetParent(root, false);
+            _marker = (RectTransform)mark.transform;
+            _marker.anchorMin = _marker.anchorMax = new Vector2(0.5f, 0.5f);
+            _marker.sizeDelta = new Vector2(64f, 64f);
+            _markerGroup = mark.AddComponent<CanvasGroup>();
+            _markerGroup.alpha = 0f;
+            _markerGroup.blocksRaycasts = false;
+            RectTransform ringRt;
+            RawImage ring = Raw(_marker, "Ring", Ring(128, 0.82f, 0.95f), new Vector2(64f, 64f), out ringRt);
+            ring.color = accentColour;
+            TextMeshProUGUI words = Text(_marker, "Words", youAreHere, 28f, headingColour, _headingFont, TextAlignmentOptions.Left);
+            words.characterSpacing = 10f;
+            words.enableWordWrapping = false;
+            RectTransform wr = words.rectTransform;
+            wr.anchorMin = wr.anchorMax = new Vector2(1f, 0.5f);
+            wr.pivot = new Vector2(0f, 0.5f);
+            wr.sizeDelta = new Vector2(420f, 40f);
+            wr.anchoredPosition = new Vector2(14f, 0f);
+        }
+
+        // The bars, then the flash, then black over everything for the way in and out.
         _barTop = Black(root, "Letterbox top");
         _barTop.anchorMin = new Vector2(0f, 1f);
         _barTop.anchorMax = Vector2.one;
         _barBottom = Black(root, "Letterbox bottom");
         _barBottom.anchorMin = Vector2.zero;
         _barBottom.anchorMax = new Vector2(1f, 0f);
+        RectTransform flash = Black(root, "Flash");
+        flash.anchorMin = Vector2.zero;
+        flash.anchorMax = Vector2.one;
+        _flash = flash.GetComponent<Image>();
+        _flash.color = Color.clear;
         RectTransform fade = Black(root, "Fade");
         fade.anchorMin = Vector2.zero;
         fade.anchorMax = Vector2.one;
@@ -892,6 +1099,45 @@ public class CreditsRoll_NEW : MonoBehaviour
             }
         }
         tex.SetPixels(px);
+        tex.Apply(false, true);
+        return tex;
+    }
+
+    /// <summary>A ring, white, its alpha a soft band between <paramref name="inner"/> and <paramref name="outer"/> of the radius.</summary>
+    static Texture2D Ring(int size, float inner, float outer)
+    {
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
+        {
+            name = "Ring", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear, hideFlags = HideFlags.DontSave
+        };
+        var px = new Color[size * size];
+        float c = (size - 1) * 0.5f, soft = 1.5f / c;
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float d = Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c)) / c;
+                float a = Mathf.Clamp01((d - inner) / soft) * Mathf.Clamp01((outer - d) / soft);
+                px[y * size + x] = new Color(1f, 1f, 1f, a);
+            }
+        }
+        tex.SetPixels(px);
+        tex.Apply(false, true);
+        return tex;
+    }
+
+    /// <summary>Opaque at the top, clear at the bottom, eased: a shade that has no edge.</summary>
+    static Texture2D Gradient(int height)
+    {
+        var tex = new Texture2D(1, height, TextureFormat.RGBA32, false)
+        {
+            name = "Shade", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear, hideFlags = HideFlags.DontSave
+        };
+        for (int y = 0; y < height; y++)
+        {
+            float k = y / (float)(height - 1);
+            tex.SetPixel(0, y, new Color(1f, 1f, 1f, k * k * (3f - 2f * k)));
+        }
         tex.Apply(false, true);
         return tex;
     }

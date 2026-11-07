@@ -692,6 +692,15 @@ MonoBehaviour:
   fadeOutSeconds: 3
   skipAfterSeconds: 3
   returnScenePath: Assets/_Core_NEW/PC_Cover.unity
+  galaxy: {fileID: 1233783612}
+  galaxyRadius: 200
+  galaxyPlace: {x: 140, y: 0, z: 6000}
+  sunInGalaxy: {x: 0.5, y: 0, z: 0}
+  youAreHere: YOU ARE HERE
+  leavingSeconds: 4
+  flashSeconds: 1
+  revealSeconds: 9
+
 --- !u!1 &152715049
 GameObject:
   m_ObjectHideFlags: 0
@@ -2974,3 +2983,87 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 387562c9efc85af894e4d2b0c497be2b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!1 &1233783611
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1233783612}
+  - component: {fileID: 1233783613}
+  m_Layer: 14
+  m_Name: Milky Way VFX
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1233783612
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1233783611}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 140, y: 0, z: 6000}
+  m_LocalScale: {x: 200, y: 200, z: 200}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 4
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1233783613
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1233783611}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d7c89ee04c4ef7235e073eaccac8180e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sunRadius: 0.5
+  pitch: 12.5
+  armWidth: {x: 0.022, y: 0.04}
+  armStrength: {x: 1, y: 0.4, z: 0.45}
+  bar: {x: -27, y: 0.28, z: 0.075}
+  scaleLength: 0.16
+  warp: 0.15
+  thickness: {x: 0.028, y: 0.04}
+  dust: 0.85
+  starFormation: 1.8
+  clusters: 0.7
+  haze: 0.36
+  brightness: 0.6
+  depthGlow: 1
+  sheetBulge: 0.55
+  gasFlow: 0.01
+  twinkle: 0.3
+  pulse: 0.35
+  frameSpin: 1
+  bulgeColour: {r: 1.35, g: 1, b: 0.62, a: 1}
+  oldDisc: {r: 1, g: 0.8, b: 0.58, a: 1}
+  youngStars: {r: 0.7, g: 0.8, b: 1.05, a: 1}
+  outerDisc: {r: 0.5, g: 0.55, b: 0.78, a: 1}
+  hiiRegions: {r: 1.6, g: 0.35, b: 0.55, a: 1}
+  dustColour: {r: 0.05, g: 0.03, b: 0.025, a: 1}
+  haloColour: {r: 0.35, g: 0.38, b: 0.5, a: 1}
+  bulgeSize: 0.16
+  bulgeGlow: {r: 0.55, g: 0.42, b: 0.28, a: 1}
+  youngStarCount: 3000
+  bulgeStarCount: 600
+  discStarCount: 8000
+  globularCount: 150
+  supernovaCount: 6
+  starSize: 0.0024
+  orbitalSpeed: 0.01
+  youngStarColour: {r: 1, g: 1.08, b: 1.3, a: 1}
+  bulgeStarColour: {r: 1.6, g: 1.2, b: 0.75, a: 1}
+  discStarColour: {r: 0.27, g: 0.22, b: 0.16, a: 1}
+  globularColour: {r: 0.42, g: 0.37, b: 0.3, a: 1}
+  supernovaColour: {r: 6, g: 7, b: 10, a: 1}
+  seed: 0
