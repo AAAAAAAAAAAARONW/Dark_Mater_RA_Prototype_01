@@ -1010,7 +1010,7 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
     /// </summary>
     void OnGUI()
     {
-        if (!_showReadout) return;
+        if (!_showReadout || !DebugView_NEW.Overlay) return;
 
         if (_readoutStyle == null)
         {

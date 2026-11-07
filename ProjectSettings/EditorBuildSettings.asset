@@ -5,6 +5,18 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
+  - enabled: 1
+    path: Assets/_Core_NEW/PC_Cover.unity
+    guid: 7c7bd66fcbdb415bb2414d6888bb27eb
+  - enabled: 1
+    path: Assets/_Core_NEW/PC_Tutorial.unity
+    guid: a08d8c3fed56461e9768f4812f720dee
+  - enabled: 1
+    path: Assets/_Core_NEW/PC_Journey.unity
+    guid: b390a0caf04c4906a0248ff24036b1ec
+  - enabled: 1
+    path: Assets/_Core_NEW/PC_Credits.unity
+    guid: 44255963b4fa471f91b8f7a959c61af2
   - enabled: 0
     path: Assets/Scenes/Pre-Vertival Slice.unity
     guid: a86c6f709485fca4786b08ac9272b0b1
@@ -32,7 +44,7 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/_Core_NEW/Vizlab_tut.unity
     guid: 835aa047e8e57de488ea3bf4085fd50b
-  - enabled: 1
+  - enabled: 0
     path: Assets/_Core_NEW/Vizlab_Journey.unity
     guid: 87ba9f76e735d174b8b833c1df4c40c3
   m_configObjects: {}

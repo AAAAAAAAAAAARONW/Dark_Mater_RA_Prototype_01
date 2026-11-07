@@ -1,5 +1,21 @@
 # Scene Flow — Tutorial → Journey
 
+## The PC piece, end to end
+
+| Scene | What it is | Goes on to | How |
+|---|---|---|---|
+| `PC_Cover` | The tutorial's title card, copied, over a drifting night sky (`CoverScreen_NEW`) | `PC_Tutorial` | A |
+| `PC_Tutorial` | Copy of `Vizlab_tut`, getReal3D off. Opens straight on A1 when entered from the cover | `PC_Journey` | `SceneHandoff_NEW`, as below |
+| `PC_Journey` | Copy of `Vizlab_Journey`, getReal3D off | `PC_Credits` | `EarthEnding_NEW.nextScenePath`: the spectrum holds, Closing ends, fade to black |
+| `PC_Credits` | One of the journey's planets per part of the team, then the supporters (`CreditsRoll_NEW`) | `PC_Cover` | Plays out; A skips |
+
+An idle visitor in the tutorial goes back to `PC_Cover` (`TutorialAttract_NEW.coverScenePath`).
+Build Settings list these four first, in this order; `PC_Cover` is the first scene of a PC build.
+
+- **Names in the credits:** select `Credits` in `PC_Credits`. Each section is a role, its names (one per line) and its planet. The supporters and closing line are on the same component.
+- **PC_Tutorial / PC_Journey are copies:** work in `Vizlab_tut` / `Vizlab_Journey`, then **Tools > Journey NEW > Refresh PC Scenes from the Vizlab Scenes**. Hand edits in the two PC copies are overwritten.
+- **X** hides every debug readout on screen (`DebugToggleKey_NEW`), in every scene.
+
 `SceneHandoff_NEW` carries the piece from the end of the tutorial into the journey, through black.
 
 > **Switch:** `SceneHandoff_NEW.handoffEnabled`. Off = the tutorial ends and returns to its title card, as before.
