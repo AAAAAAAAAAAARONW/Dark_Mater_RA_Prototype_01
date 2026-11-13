@@ -29,6 +29,8 @@ using UnityEngine.UI;
 /// NAMES IN COLUMNS. A section's names are a table: titles (Prof, Dr) under titles, given
 /// names under given names, family names under family names, notes under notes, each column
 /// as wide as its widest entry (SplitNames says how a line is split, and how to say otherwise).
+/// Beside a planet every column is set from its left; over or under one, the names are set
+/// about the frame's centre line - given names up to it, family names away from it.
 ///
 /// TYPE. The art's own: role titles and headings in Squada One (the drawn titles' face) in the
 /// art's yellow over a green rule; names in Montserrat SemiBold (the callouts' face). Both are
@@ -1378,45 +1380,61 @@ public class CreditsRoll_NEW : MonoBehaviour
         TextMeshProUGUI probe = Text(_sectionBlock, "Measure", "", lineSize, nameColour, _bodyFont, TextAlignmentOptions.Left);
         probe.enableWordWrapping = false;
         probe.alpha = 0f;
+        bool centred = side == 0.5f;
+        var givenWidth = new float[rows.Count];
         float wTitle = 0f, wGiven = 0f, wFamily = 0f, wNote = 0f;
-        foreach (NameRow row in rows)
+        for (int j = 0; j < rows.Count; j++)
         {
-            wTitle = Mathf.Max(wTitle, Width(probe, row.title));
-            wGiven = Mathf.Max(wGiven, Width(probe, row.given));
-            wFamily = Mathf.Max(wFamily, Width(probe, row.family));
-            wNote = Mathf.Max(wNote, Width(probe, NoteMarkup(row.note)));
+            givenWidth[j] = Width(probe, rows[j].given);
+            wTitle = Mathf.Max(wTitle, Width(probe, rows[j].title));
+            wGiven = Mathf.Max(wGiven, givenWidth[j]);
+            wFamily = Mathf.Max(wFamily, Width(probe, rows[j].family));
+            wNote = Mathf.Max(wNote, Width(probe, NoteMarkup(rows[j].note)));
         }
+        float between = wFamily > 0f ? lineSize * 0.5f : 0f;   // the gap between given and family names
         float xGiven = wTitle > 0f ? wTitle + lineSize * 0.38f : 0f;
-        float xFamily = xGiven + wGiven + (wFamily > 0f ? lineSize * 0.5f : 0f);
+        float xFamily = xGiven + wGiven + between;
         float xNote = xFamily + wFamily + lineSize * 0.7f;
         float tableWidth = wNote > 0f ? xNote + wNote : xFamily + wFamily;
+        float fit = 1f;
         if (tableWidth > blockWidth)
         {
             // Too wide for its block: everything a little smaller, in proportion.
-            float fit = blockWidth / tableWidth;
+            fit = blockWidth / tableWidth;
             lineSize *= fit;
-            xGiven *= fit; xFamily *= fit; xNote *= fit; tableWidth = blockWidth;
+            between *= fit; xGiven *= fit; xFamily *= fit; xNote *= fit; tableWidth = blockWidth;
         }
 
-        // Role, rule and table share a left edge beside a planet; over or under one they are centred.
-        float left = side == 0.5f ? 0f : Mathf.Max(0f, (blockWidth - Mathf.Max(tableWidth, roleWidth)) * side);
-        float tableLeft = side == 0.5f ? (blockWidth - tableWidth) * 0.5f : left;
+        // Beside a planet, role, rule and table share a left edge and every column is set from
+        // its left. Over or under one, the names are set about the middle of the frame: the gap
+        // between given and family names is on the centre line in every row, given names
+        // running up to it from the left, family names away from it to the right (titles still
+        // in a column at the far left, notes at the far right).
+        float left = centred ? 0f : Mathf.Max(0f, (blockWidth - Mathf.Max(tableWidth, roleWidth)) * side);
+        float tableLeft = centred ? blockWidth * 0.5f - (xFamily - between * 0.5f) : left;
 
-        if (side == 0.5f) Row(_role.rectTransform, y, roleHeight);
+        if (centred) Row(_role.rectTransform, y, roleHeight);
         else RowAt(_role.rectTransform, left, y, Mathf.Max(1f, blockWidth - left), roleHeight);
 
         _rule = Rule(_sectionBlock, accentColour);
-        _rule.anchorMin = _rule.anchorMax = new Vector2(side == 0.5f ? 0.5f : 0f, 1f);
-        _rule.pivot = new Vector2(side == 0.5f ? 0.5f : 0f, 0.5f);
-        _rule.anchoredPosition = new Vector2(side == 0.5f ? 0f : left, y - roleHeight - gap * 0.55f);
+        _rule.anchorMin = _rule.anchorMax = new Vector2(centred ? 0.5f : 0f, 1f);
+        _rule.pivot = new Vector2(centred ? 0.5f : 0f, 0.5f);
+        _rule.anchoredPosition = new Vector2(centred ? 0f : left, y - roleHeight - gap * 0.55f);
         _rule.sizeDelta = new Vector2(0f, 3f);
 
         float lineTop = y - roleHeight - gap * 2f;
         for (int j = 0; j < rows.Count; j++)
         {
             NameRow row = rows[j];
+            float given = xGiven;
+            if (centred)
+            {
+                // Up to the centre gap from the left; a single name, with no family name, across it.
+                float w = givenWidth[j] * fit, end = xFamily - between;
+                given = row.family.Length > 0 ? end - w : end + between * 0.5f - w * 0.5f;
+            }
             string words = row.title;
-            if (row.given.Length > 0) words += "<pos=" + Units(xGiven) + ">" + row.given;
+            if (row.given.Length > 0) words += "<pos=" + Units(given) + ">" + row.given;
             if (row.family.Length > 0) words += "<pos=" + Units(xFamily) + ">" + row.family;
             if (row.note.Length > 0) words += "<pos=" + Units(xNote) + ">" + NoteMarkup(row.note);
 
