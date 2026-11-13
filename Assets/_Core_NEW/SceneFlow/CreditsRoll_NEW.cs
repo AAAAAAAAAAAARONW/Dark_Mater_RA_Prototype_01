@@ -81,6 +81,16 @@ public class CreditsRoll_NEW : MonoBehaviour
         public Shot shot = Shot.Auto;
     }
 
+    [Serializable]
+    public class Supporter
+    {
+        [Tooltip("Set in words where there is no logo.")]
+        public string name = "";
+
+        [Tooltip("Their logo, as a Sprite: their own file for dark backgrounds. Empty = the name in words.")]
+        public Sprite logo;
+    }
+
     [Header("People")]
     [SerializeField] List<Section> sections = new List<Section>();
 
@@ -89,9 +99,30 @@ public class CreditsRoll_NEW : MonoBehaviour
     [SerializeField] Sprite titleSprite;
     [SerializeField] string titleWords = "THE JOURNEY OF LIGHT";
     [SerializeField] string supportHeading = "MADE POSSIBLE WITH THE SUPPORT OF";
-    [Tooltip("One per line.")]
+    [Tooltip("One per line. Used when Supported By, below, is empty.")]
     [TextArea(3, 10)] [SerializeField] string supporters = "";
+
+    [Tooltip("Who supported the piece, each with its logo, in reading order. With a logo on any of them they are set " +
+             "as a grid of logos (one without a logo as its name in words); with none, as a list of names.")]
+    [SerializeField] List<Supporter> supportedBy = new List<Supporter>();
+
+    [Tooltip("Multiplies every logo. White leaves them as they are; logos should be their makers' own versions for dark backgrounds.")]
+    [SerializeField] Color logoTint = Color.white;
+
     [TextArea(1, 3)] [SerializeField] string closingLine = "";
+
+    [Header("Last words")]
+    [Tooltip("After the end card, in its place, a line at a time: where the piece was made, and on out. Empty = none.")]
+    [TextArea(6, 24)] [SerializeField] string address =
+        "USC SCHOOL OF CINEMATIC ARTS\nROOM 303, SCI BUILDING\n900 W 34TH ST\nLOS ANGELES, CA 90007\nUSA\nNORTH AMERICA\nEARTH\n" +
+        "INNER SOLAR SYSTEM\nSOLAR SYSTEM\nOORT CLOUD\nLOCAL INTERSTELLAR CLOUD\nORION ARM\nMILKY WAY GALAXY\nLOCAL GROUP\n" +
+        "VIRGO CLUSTER\nLANIAKEA SUPERCLUSTER\nPISCES\u2013CETUS SUPERCLUSTER COMPLEX\nOBSERVABLE UNIVERSE\nUNIVERSE";
+
+    [Tooltip("Seconds between one line coming up and the next.")]
+    [Min(0.05f)] [SerializeField] float addressLineSeconds = 0.3f;
+
+    [Tooltip("Seconds the whole of it is held before the fade to black.")]
+    [Min(0f)] [SerializeField] float addressHoldSeconds = 4f;
 
     [Header("Look")]
     [SerializeField] Camera view;
@@ -244,6 +275,11 @@ public class CreditsRoll_NEW : MonoBehaviour
 
     TMP_FontAsset _headingFont, _bodyFont;
     CanvasGroup _sectionGroup, _endGroup, _endBody;
+    RectTransform _supportArea;                                   // the supporters' logos, laid out once its size is known
+    readonly List<RectTransform> _supportCells = new List<RectTransform>();
+    readonly List<float> _supportAspect = new List<float>();     // a logo's width over its height; 0 for a name in words
+    readonly List<TextMeshProUGUI> _addressLines = new List<TextMeshProUGUI>();
+    readonly List<float> _addressY = new List<float>();
     RectTransform _sectionBlock, _barTop, _barBottom, _glareCore, _glareStreak, _skyRect;
     Image _black;
     RawImage _sky, _glareCoreImage, _glareStreakImage;
@@ -331,7 +367,7 @@ public class CreditsRoll_NEW : MonoBehaviour
         if (music == null) return;
         _music = gameObject.AddComponent<AudioSource>();
         _music.clip = music;
-        _music.loop = false;
+        _music.loop = true;   // should the credits outlast it
         _music.playOnAwake = false;
         _music.spatialBlend = 0f;
         _music.volume = 0f;
@@ -511,6 +547,7 @@ public class CreditsRoll_NEW : MonoBehaviour
         else if (!_skip)
         {
             // Up and back to see them all, the bars opening, the title coming up.
+            LayOutSupporters();
             Pose wide = WidePose();
             Pose from = CurrentPose();
             float seconds = moveSeconds * 1.8f;
@@ -534,6 +571,15 @@ public class CreditsRoll_NEW : MonoBehaviour
                 Pose drift = wide;
                 drift.position = Vector3.Lerp(wide.position, wide.focus, 0.05f * t / Mathf.Max(0.01f, endHoldSeconds));
                 Apply(drift);
+                yield return null;
+            }
+
+            float lastWords = AddressSeconds;
+            t = 0f;
+            while (t < lastWords && !_skip)
+            {
+                t += Step();
+                TickAddress(t);
                 yield return null;
             }
         }
@@ -653,6 +699,7 @@ public class CreditsRoll_NEW : MonoBehaviour
         Vector3 worldScale = world != null ? world.localScale : Vector3.one;
         Vector3 shotLight = last.light;
 
+        LayOutSupporters();
         BuildOrbits(sunAt);
         BuildStar();
         BuildSwarm(outer / trueRadius);
@@ -753,14 +800,17 @@ public class CreditsRoll_NEW : MonoBehaviour
         HideFinaleLights();
         if (_skip || galaxy == null) { _endBody.alpha = 1f; yield break; }
 
-        // Held beside the turning galaxy, drifting in a little; the supporters come up.
+        // Held beside the turning galaxy, drifting in a little: the supporters come up, and
+        // after their hold the last words take the end card's place.
         Vector3 from = view.transform.position;
+        float lasting = endHoldSeconds + AddressSeconds;
         t = 0f;
-        while (t < endHoldSeconds && !_skip)
+        while (t < lasting && !_skip)
         {
             t += Step();
             _endBody.alpha = Smooth((t - 0.5f) / 1.6f);
-            view.transform.position = Vector3.Lerp(from, centreEnd, 0.06f * t / Mathf.Max(0.01f, endHoldSeconds));
+            if (t > endHoldSeconds) TickAddress(t - endHoldSeconds);
+            view.transform.position = Vector3.Lerp(from, centreEnd, 0.08f * t / Mathf.Max(1f, lasting));
             galaxy.Rotate(Vector3.up, -1.2f * Step(), Space.Self);
             yield return null;
         }
@@ -1301,16 +1351,81 @@ public class CreditsRoll_NEW : MonoBehaviour
         heading.enableAutoSizing = true;
         heading.fontSizeMin = 18f;
         heading.fontSizeMax = 30f;
-        TextMeshProUGUI who = Text(body, "Supporters", (supporters ?? "").Replace("\r", ""), 30f, nameColour, _bodyFont, TextAlignmentOptions.TopLeft);
-        Stretch(who.rectTransform, new Vector2(0f, 0.2f), new Vector2(1f, 0.8f));
-        who.lineSpacing = 16f;
-        who.enableWordWrapping = false;
-        who.enableAutoSizing = true;
-        who.fontSizeMin = 16f;
-        who.fontSizeMax = 30f;
+        List<Supporter> backers = Supporters();
+        if (!backers.Exists(x => x.logo != null))
+        {
+            var names = new List<string>();
+            foreach (Supporter b in backers) names.Add(b.name);
+            TextMeshProUGUI who = Text(body, "Supporters", string.Join("\n", names.ToArray()), 30f, nameColour, _bodyFont, TextAlignmentOptions.TopLeft);
+            Stretch(who.rectTransform, new Vector2(0f, 0.2f), new Vector2(1f, 0.8f));
+            who.lineSpacing = 16f;
+            who.enableWordWrapping = false;
+            who.enableAutoSizing = true;
+            who.fontSizeMin = 16f;
+            who.fontSizeMax = 30f;
+        }
+        else
+        {
+            // Logos: placed by LayOutSupporters once the canvas has its size.
+            _supportArea = new GameObject("Supporters", typeof(RectTransform)).GetComponent<RectTransform>();
+            _supportArea.SetParent(body, false);
+            Stretch(_supportArea, new Vector2(0f, 0.17f), new Vector2(1f, 0.82f));
+            foreach (Supporter b in backers)
+            {
+                RectTransform cell;
+                if (b.logo != null)
+                {
+                    var img = new GameObject("Logo " + b.name, typeof(RectTransform)).AddComponent<Image>();
+                    img.transform.SetParent(_supportArea, false);
+                    img.sprite = b.logo;
+                    img.color = logoTint;
+                    img.preserveAspect = true;
+                    img.raycastTarget = false;
+                    cell = (RectTransform)img.transform;
+                    _supportAspect.Add(b.logo.rect.height > 0f ? b.logo.rect.width / b.logo.rect.height : 1f);
+                }
+                else
+                {
+                    TextMeshProUGUI words = Text(_supportArea, "Name " + b.name, b.name, 24f, nameColour, _bodyFont, TextAlignmentOptions.Left);
+                    words.enableAutoSizing = true;
+                    words.fontSizeMin = 14f;
+                    words.fontSizeMax = 24f;
+                    cell = words.rectTransform;
+                    _supportAspect.Add(0f);
+                }
+                cell.anchorMin = cell.anchorMax = new Vector2(0f, 1f);
+                cell.pivot = new Vector2(0f, 1f);
+                _supportCells.Add(cell);
+            }
+        }
         TextMeshProUGUI closing = Text(body, "Closing", closingLine, 24f, accentColour, _bodyFont, TextAlignmentOptions.BottomLeft);
         Stretch(closing.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0.12f));
         closing.enableWordWrapping = false;
+
+        // The last words, where the end card was: a line at a time, each on its own row about the
+        // column's middle (TickAddress).
+        string[] last = (address ?? "").Replace("\r", "").Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        CanvasGroup lastGroup = Group(root, "Last words", new Vector2(0.57f, 0.08f), new Vector2(0.955f, 0.92f));
+        lastGroup.alpha = 1f;
+        float rowHeight = Mathf.Min(33f, 880f / Mathf.Max(1, last.Length));
+        for (int i = 0; i < last.Length; i++)
+        {
+            // The last of them - the universe - in the green.
+            TextMeshProUGUI line = Text((RectTransform)lastGroup.transform, "Line", last[i].Trim(), rowHeight * 0.66f,
+                                        i == last.Length - 1 ? accentColour : nameColour, _bodyFont, TextAlignmentOptions.Left);
+            line.enableWordWrapping = false;
+            line.characterSpacing = 14f;
+            line.alpha = 0f;
+            RectTransform rt = line.rectTransform;
+            rt.anchorMin = new Vector2(0f, 0.5f);
+            rt.anchorMax = new Vector2(1f, 0.5f);
+            rt.pivot = new Vector2(0f, 0.5f);
+            rt.sizeDelta = new Vector2(0f, rowHeight);
+            float y = ((last.Length - 1) * 0.5f - i) * rowHeight;
+            rt.anchoredPosition = new Vector2(0f, y);
+            _addressLines.Add(line);
+            _addressY.Add(y);
+        }
 
         // The bars, then black over everything for the way in and out.
         _barTop = Black(root, "Letterbox top");
@@ -1323,6 +1438,62 @@ public class CreditsRoll_NEW : MonoBehaviour
         fade.anchorMin = Vector2.zero;
         fade.anchorMax = Vector2.one;
         _black = fade.GetComponent<Image>();
+    }
+
+    /// <summary>Who supported the piece: Supported By, or with that empty the Supporters text, a name a line.</summary>
+    List<Supporter> Supporters()
+    {
+        if (supportedBy != null && supportedBy.Count > 0) return supportedBy;
+        var list = new List<Supporter>();
+        foreach (string raw in (supporters ?? "").Replace("\r", "").Split('\n'))
+            if (raw.Trim().Length > 0) list.Add(new Supporter { name = raw.Trim() });
+        return list;
+    }
+
+    /// <summary>
+    /// The supporters' logos in their place: two columns (one, for three or fewer), in reading
+    /// order, every logo as big as its cell allows, from the cell's left edge and in the middle
+    /// of its height - so the logos share the end card's left edge, whatever their shapes.
+    /// </summary>
+    void LayOutSupporters()
+    {
+        if (_supportArea == null || _supportCells.Count == 0) return;
+        Rect area = _supportArea.rect;
+        float width = area.width > 1f ? area.width : 739f, height = area.height > 1f ? area.height : 334f;
+        int columns = _supportCells.Count > 3 ? 2 : 1;
+        int rows = Mathf.CeilToInt(_supportCells.Count / (float)columns);
+        const float gapX = 36f, gapY = 22f;
+        float cellWidth = (width - gapX * (columns - 1)) / columns;
+        float cellHeight = Mathf.Min(110f, (height - gapY * (rows - 1)) / rows);
+
+        for (int i = 0; i < _supportCells.Count; i++)
+        {
+            float x = (i % columns) * (cellWidth + gapX), y = -(i / columns) * (cellHeight + gapY);
+            float aspect = _supportAspect[i];
+            float w = aspect > 0f ? Mathf.Min(cellWidth, cellHeight * aspect) : cellWidth;
+            float h = aspect > 0f ? w / aspect : cellHeight;
+            _supportCells[i].sizeDelta = new Vector2(w, h);
+            _supportCells[i].anchoredPosition = new Vector2(x, y - (cellHeight - h) * 0.5f);
+        }
+    }
+
+    /// <summary>How long the last words take: the end card going, each line coming, the hold.</summary>
+    float AddressSeconds
+    {
+        get { return _addressLines.Count == 0 ? 0f : 1.2f + _addressLines.Count * addressLineSeconds + 0.6f + addressHoldSeconds; }
+    }
+
+    /// <summary>The last words, <paramref name="t"/> seconds in: the end card fades, and the lines come up one after another.</summary>
+    void TickAddress(float t)
+    {
+        if (_addressLines.Count == 0) return;
+        _endGroup.alpha = 1f - Smooth(t);
+        for (int i = 0; i < _addressLines.Count; i++)
+        {
+            float a = Smooth((t - 1.2f - i * addressLineSeconds) / 0.6f);
+            _addressLines[i].alpha = a;
+            _addressLines[i].rectTransform.anchoredPosition = new Vector2(0f, _addressY[i] - (1f - a) * 8f);
+        }
     }
 
     // ── A section's words ───────────────────────────────────────────────────

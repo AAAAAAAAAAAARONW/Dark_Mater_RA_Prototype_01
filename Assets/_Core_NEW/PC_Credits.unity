@@ -687,7 +687,24 @@ MonoBehaviour:
   supporters: "The John Templeton Foundation\nCarnegie Science \nUC Riverside\nUSC
     Dornsife College of Letters, Arts and Sciences\nUSC Games\nUSC School of Cinematic
     Arts"
+  supportedBy:
+  - name: The John Templeton Foundation
+    logo: {fileID: 0}
+  - name: Carnegie Science
+    logo: {fileID: 0}
+  - name: UC Riverside
+    logo: {fileID: 0}
+  - name: "USC Dornsife College of Letters, Arts and Sciences"
+    logo: {fileID: 0}
+  - name: USC Games
+    logo: {fileID: 0}
+  - name: USC School of Cinematic Arts
+    logo: {fileID: 0}
+  logoTint: {r: 1, g: 1, b: 1, a: 1}
   closingLine: Thank you for travelling with the light.
+  address: "USC SCHOOL OF CINEMATIC ARTS\nROOM 303, SCI BUILDING\n900 W 34TH ST\nLOS ANGELES, CA 90007\nUSA\nNORTH AMERICA\nEARTH\nINNER SOLAR SYSTEM\nSOLAR SYSTEM\nOORT CLOUD\nLOCAL INTERSTELLAR CLOUD\nORION ARM\nMILKY WAY GALAXY\nLOCAL GROUP\nVIRGO CLUSTER\nLANIAKEA SUPERCLUSTER\nPISCES\u2013CETUS SUPERCLUSTER COMPLEX\nOBSERVABLE UNIVERSE\nUNIVERSE"
+  addressLineSeconds: 0.3
+  addressHoldSeconds: 4
   view: {fileID: 8200003}
   sun: {fileID: 8200011}
   headingFont: {fileID: 12800000, guid: dfcfef9087a5423b9102c0dc1302da24, type: 3}
@@ -715,7 +732,7 @@ MonoBehaviour:
   orbitBrightness: 0.35
   swarmCount: 900
   zoomOutSeconds: 22
-  music: {fileID: 0}
+  music: {fileID: 8300000, guid: ff00795bb3d44202bd1f4e037bd4a302, type: 3}
   musicVolume: 0.8
   introSeconds: 3
   textFadeSeconds: 1.2
