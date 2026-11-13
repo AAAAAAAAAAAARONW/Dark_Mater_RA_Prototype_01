@@ -689,7 +689,7 @@ MonoBehaviour:
     Arts"
   supportedBy:
   - name: The John Templeton Foundation
-    logo: {fileID: 0}
+    logo: {fileID: 21300000, guid: 7afac6ce5c5d4442a57503fef2123187, type: 3}
   - name: Carnegie Science
     logo: {fileID: 0}
   - name: UC Riverside

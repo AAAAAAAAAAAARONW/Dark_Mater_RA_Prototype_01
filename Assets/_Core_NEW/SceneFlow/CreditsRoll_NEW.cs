@@ -45,7 +45,9 @@ using UnityEngine.UI;
 /// galaxy's disc, and the Milky Way comes in round it star by star, turning as it shrinks,
 /// until it fills the left of the frame, on a slant and running out of it, the bars opening
 /// and the title, then the supporters, coming up in a column on the right - the galaxy beside
-/// the end card as each planet was beside its names. No cut, no flash. With no galaxy assigned
+/// the end card as each planet was beside its names. The supporters are a row each, logo and
+/// name, rolling up through the card when there are more than it has room for; after them the
+/// card gives way to the last words, the address the piece was made at, out to the universe. No cut, no flash. With no galaxy assigned
 /// the credits end on a wide shot of the planets, as before.
 ///
 /// The planets are copies of the journey's (CelestialBody_NEW, PlanetSphere_NEW). Their size
@@ -102,9 +104,12 @@ public class CreditsRoll_NEW : MonoBehaviour
     [Tooltip("One per line. Used when Supported By, below, is empty.")]
     [TextArea(3, 10)] [SerializeField] string supporters = "";
 
-    [Tooltip("Who supported the piece, each with its logo, in reading order. With a logo on any of them they are set " +
-             "as a grid of logos (one without a logo as its name in words); with none, as a list of names.")]
+    [Tooltip("Who supported the piece, a row each: its logo, and its name beside it. A row with no logo is its name " +
+             "alone. More rows than the end card has room for roll up through it.")]
     [SerializeField] List<Supporter> supportedBy = new List<Supporter>();
+
+    [Tooltip("How fast the supporters roll up through the end card, in units a second (the frame is 1080 high).")]
+    [Min(5f)] [SerializeField] float supporterRollSpeed = 34f;
 
     [Tooltip("Multiplies every logo. White leaves them as they are; logos should be their makers' own versions for dark backgrounds.")]
     [SerializeField] Color logoTint = Color.white;
@@ -275,9 +280,11 @@ public class CreditsRoll_NEW : MonoBehaviour
 
     TMP_FontAsset _headingFont, _bodyFont;
     CanvasGroup _sectionGroup, _endGroup, _endBody;
-    RectTransform _supportArea;                                   // the supporters' logos, laid out once its size is known
-    readonly List<RectTransform> _supportCells = new List<RectTransform>();
-    readonly List<float> _supportAspect = new List<float>();     // a logo's width over its height; 0 for a name in words
+    // The supporters' rows, laid out once the canvas has its size, and rolled by TickSupporters.
+    class SupportRow { public RectTransform row, logo, name; public CanvasGroup group; public float aspect; }
+    RectTransform _supportArea;
+    readonly List<SupportRow> _supportRows = new List<SupportRow>();
+    float _supportPitch, _supportRowHeight, _supportView, _supportRoll;   // row to row, a row, the window, how far it rolls
     readonly List<TextMeshProUGUI> _addressLines = new List<TextMeshProUGUI>();
     readonly List<float> _addressY = new List<float>();
     RectTransform _sectionBlock, _barTop, _barBottom, _glareCore, _glareStreak, _skyRect;
@@ -564,12 +571,14 @@ public class CreditsRoll_NEW : MonoBehaviour
             }
             _endGroup.alpha = 1f;
 
+            float cardSeconds = Mathf.Max(endHoldSeconds, SupportSeconds);
             t = 0f;
-            while (t < endHoldSeconds && !_skip)
+            while (t < cardSeconds && !_skip)
             {
                 t += Step();
+                TickSupporters(t);
                 Pose drift = wide;
-                drift.position = Vector3.Lerp(wide.position, wide.focus, 0.05f * t / Mathf.Max(0.01f, endHoldSeconds));
+                drift.position = Vector3.Lerp(wide.position, wide.focus, 0.05f * t / Mathf.Max(1f, cardSeconds));
                 Apply(drift);
                 yield return null;
             }
@@ -800,16 +809,18 @@ public class CreditsRoll_NEW : MonoBehaviour
         HideFinaleLights();
         if (_skip || galaxy == null) { _endBody.alpha = 1f; yield break; }
 
-        // Held beside the turning galaxy, drifting in a little: the supporters come up, and
-        // after their hold the last words take the end card's place.
+        // Held beside the turning galaxy, drifting in a little: the supporters come up and roll
+        // by, and once they have the last words take the end card's place.
         Vector3 from = view.transform.position;
-        float lasting = endHoldSeconds + AddressSeconds;
+        float cardSeconds = Mathf.Max(endHoldSeconds, SupportSeconds);
+        float lasting = cardSeconds + AddressSeconds;
         t = 0f;
         while (t < lasting && !_skip)
         {
             t += Step();
             _endBody.alpha = Smooth((t - 0.5f) / 1.6f);
-            if (t > endHoldSeconds) TickAddress(t - endHoldSeconds);
+            TickSupporters(t);
+            if (t > cardSeconds) TickAddress(t - cardSeconds);
             view.transform.position = Vector3.Lerp(from, centreEnd, 0.08f * t / Mathf.Max(1f, lasting));
             galaxy.Rotate(Vector3.up, -1.2f * Step(), Space.Self);
             yield return null;
@@ -1351,52 +1362,44 @@ public class CreditsRoll_NEW : MonoBehaviour
         heading.enableAutoSizing = true;
         heading.fontSizeMin = 18f;
         heading.fontSizeMax = 30f;
-        List<Supporter> backers = Supporters();
-        if (!backers.Exists(x => x.logo != null))
+        // The supporters: a row each, logo and name; placed by LayOutSupporters once the canvas has
+        // its size, rolled and faded at the window's edges by TickSupporters.
+        _supportArea = new GameObject("Supporters", typeof(RectTransform)).GetComponent<RectTransform>();
+        _supportArea.SetParent(body, false);
+        Stretch(_supportArea, new Vector2(0f, 0.17f), new Vector2(1f, 0.82f));
+        foreach (Supporter backer in Supporters())
         {
-            var names = new List<string>();
-            foreach (Supporter b in backers) names.Add(b.name);
-            TextMeshProUGUI who = Text(body, "Supporters", string.Join("\n", names.ToArray()), 30f, nameColour, _bodyFont, TextAlignmentOptions.TopLeft);
-            Stretch(who.rectTransform, new Vector2(0f, 0.2f), new Vector2(1f, 0.8f));
-            who.lineSpacing = 16f;
-            who.enableWordWrapping = false;
-            who.enableAutoSizing = true;
-            who.fontSizeMin = 16f;
-            who.fontSizeMax = 30f;
-        }
-        else
-        {
-            // Logos: placed by LayOutSupporters once the canvas has its size.
-            _supportArea = new GameObject("Supporters", typeof(RectTransform)).GetComponent<RectTransform>();
-            _supportArea.SetParent(body, false);
-            Stretch(_supportArea, new Vector2(0f, 0.17f), new Vector2(1f, 0.82f));
-            foreach (Supporter b in backers)
+            var row = new SupportRow();
+            var rowObject = new GameObject("Supporter " + backer.name, typeof(RectTransform));
+            rowObject.transform.SetParent(_supportArea, false);
+            row.row = (RectTransform)rowObject.transform;
+            row.row.anchorMin = row.row.anchorMax = new Vector2(0f, 1f);
+            row.row.pivot = new Vector2(0f, 1f);
+            row.group = rowObject.AddComponent<CanvasGroup>();
+            row.group.alpha = 0f;
+            row.group.blocksRaycasts = false;
+            row.group.interactable = false;
+
+            if (backer.logo != null)
             {
-                RectTransform cell;
-                if (b.logo != null)
-                {
-                    var img = new GameObject("Logo " + b.name, typeof(RectTransform)).AddComponent<Image>();
-                    img.transform.SetParent(_supportArea, false);
-                    img.sprite = b.logo;
-                    img.color = logoTint;
-                    img.preserveAspect = true;
-                    img.raycastTarget = false;
-                    cell = (RectTransform)img.transform;
-                    _supportAspect.Add(b.logo.rect.height > 0f ? b.logo.rect.width / b.logo.rect.height : 1f);
-                }
-                else
-                {
-                    TextMeshProUGUI words = Text(_supportArea, "Name " + b.name, b.name, 24f, nameColour, _bodyFont, TextAlignmentOptions.Left);
-                    words.enableAutoSizing = true;
-                    words.fontSizeMin = 14f;
-                    words.fontSizeMax = 24f;
-                    cell = words.rectTransform;
-                    _supportAspect.Add(0f);
-                }
-                cell.anchorMin = cell.anchorMax = new Vector2(0f, 1f);
-                cell.pivot = new Vector2(0f, 1f);
-                _supportCells.Add(cell);
+                var img = new GameObject("Logo", typeof(RectTransform)).AddComponent<Image>();
+                img.transform.SetParent(row.row, false);
+                img.sprite = backer.logo;
+                img.color = logoTint;
+                img.preserveAspect = true;
+                img.raycastTarget = false;
+                row.logo = (RectTransform)img.transform;
+                row.logo.anchorMin = row.logo.anchorMax = new Vector2(0f, 0.5f);
+                row.logo.pivot = new Vector2(0f, 0.5f);
+                row.aspect = backer.logo.rect.height > 0f ? backer.logo.rect.width / backer.logo.rect.height : 1f;
             }
+
+            TextMeshProUGUI words = Text(row.row, "Name", backer.name, 24f, nameColour, _bodyFont, TextAlignmentOptions.Left);
+            words.enableAutoSizing = true;
+            words.fontSizeMin = 16f;
+            words.fontSizeMax = 24f;
+            row.name = words.rectTransform;
+            _supportRows.Add(row);
         }
         TextMeshProUGUI closing = Text(body, "Closing", closingLine, 24f, accentColour, _bodyFont, TextAlignmentOptions.BottomLeft);
         Stretch(closing.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0.12f));
@@ -1451,29 +1454,70 @@ public class CreditsRoll_NEW : MonoBehaviour
     }
 
     /// <summary>
-    /// The supporters' logos in their place: two columns (one, for three or fewer), in reading
-    /// order, every logo as big as its cell allows, from the cell's left edge and in the middle
-    /// of its height - so the logos share the end card's left edge, whatever their shapes.
+    /// The supporters' rows in their places: every logo in a column down the end card's left
+    /// edge, as big as its box allows, and every name in a column beside them (with no logos
+    /// at all, the names from the left edge). Works out how far the rows have to roll to show
+    /// them all.
     /// </summary>
     void LayOutSupporters()
     {
-        if (_supportArea == null || _supportCells.Count == 0) return;
+        if (_supportArea == null || _supportRows.Count == 0) return;
         Rect area = _supportArea.rect;
-        float width = area.width > 1f ? area.width : 739f, height = area.height > 1f ? area.height : 334f;
-        int columns = _supportCells.Count > 3 ? 2 : 1;
-        int rows = Mathf.CeilToInt(_supportCells.Count / (float)columns);
-        const float gapX = 36f, gapY = 22f;
-        float cellWidth = (width - gapX * (columns - 1)) / columns;
-        float cellHeight = Mathf.Min(110f, (height - gapY * (rows - 1)) / rows);
+        float width = area.width > 1f ? area.width : 739f;
+        _supportView = area.height > 1f ? area.height : 334f;
 
-        for (int i = 0; i < _supportCells.Count; i++)
+        const float logoWidth = 200f, logoHeight = 76f, gap = 22f;
+        bool logos = _supportRows.Exists(x => x.logo != null);
+        _supportRowHeight = logos ? logoHeight + 4f : 40f;
+        _supportPitch = _supportRowHeight + (logos ? gap : 6f);
+        float nameLeft = logos ? logoWidth + 32f : 0f;
+
+        foreach (SupportRow r in _supportRows)
         {
-            float x = (i % columns) * (cellWidth + gapX), y = -(i / columns) * (cellHeight + gapY);
-            float aspect = _supportAspect[i];
-            float w = aspect > 0f ? Mathf.Min(cellWidth, cellHeight * aspect) : cellWidth;
-            float h = aspect > 0f ? w / aspect : cellHeight;
-            _supportCells[i].sizeDelta = new Vector2(w, h);
-            _supportCells[i].anchoredPosition = new Vector2(x, y - (cellHeight - h) * 0.5f);
+            r.row.sizeDelta = new Vector2(width, _supportRowHeight);
+            if (r.logo != null)
+            {
+                float w = Mathf.Min(logoWidth, logoHeight * r.aspect);
+                r.logo.sizeDelta = new Vector2(w, w / r.aspect);
+                r.logo.anchoredPosition = Vector2.zero;
+            }
+            r.name.anchorMin = new Vector2(0f, 0f);
+            r.name.anchorMax = new Vector2(1f, 1f);
+            r.name.offsetMin = new Vector2(nameLeft, 0f);
+            r.name.offsetMax = Vector2.zero;
+        }
+
+        // Rows fade over SupportEdge at the window's top and bottom, so the first starts that far
+        // down and the last ends that far up: nothing is ever cut by an edge.
+        float content = _supportRows.Count * _supportPitch - (_supportPitch - _supportRowHeight) + SupportEdge * 2f;
+        _supportRoll = Mathf.Max(0f, content - _supportView);
+        TickSupporters(0f);
+    }
+
+    const float SupportEdge = 30f;       // the fade at the window's top and bottom, in units
+    const float SupportLead = 3.2f;      // seconds the first rows are held before they roll
+    const float SupportTail = 2.5f;      // and the last, after
+
+    /// <summary>How long the end card has to be up for every supporter to have gone by.</summary>
+    float SupportSeconds
+    {
+        get { return _supportRoll <= 0f ? 0f : SupportLead + _supportRoll / Mathf.Max(1f, supporterRollSpeed) + SupportTail; }
+    }
+
+    /// <summary>
+    /// The supporters, <paramref name="t"/> seconds after the end card came up: held, then
+    /// rolling up through their window at a steady rate until the last row is in, each row
+    /// fading in as it comes up from the bottom edge and out as it reaches the top.
+    /// </summary>
+    void TickSupporters(float t)
+    {
+        if (_supportRows.Count == 0 || _supportPitch <= 0f) return;
+        float rolled = Mathf.Clamp((t - SupportLead) * supporterRollSpeed, 0f, _supportRoll);
+        for (int i = 0; i < _supportRows.Count; i++)
+        {
+            float top = SupportEdge + i * _supportPitch - rolled;        // down from the window's top
+            _supportRows[i].row.anchoredPosition = new Vector2(0f, -top);
+            _supportRows[i].group.alpha = Smooth(top / SupportEdge) * Smooth((_supportView - top - _supportRowHeight) / SupportEdge);
         }
     }
 
