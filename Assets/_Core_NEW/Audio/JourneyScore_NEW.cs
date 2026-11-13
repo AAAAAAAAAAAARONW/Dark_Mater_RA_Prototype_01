@@ -17,6 +17,9 @@ using UnityEngine.SceneManagement;
 ///   Crest_<place>  the phrase the music arrives on: the place's chord struck full and its
 ///                  bells running up - played once, as its climax
 ///
+/// EVERY PLACE IS IN ITS OWN KEY - D minor, F minor, A flat, B minor, D major, E, and D to
+/// land - so each arrival is a change of key, reached by two chords climbing to it.
+///
 /// HOW IT RISES. One number, the lift, 0 to 1, is how much of the Lift layer is heard. It
 /// rises towards a gate as the light nears it (from the light's own speed: the last
 /// approachSeconds before it), goes to full over a dive, and at the dive's peak - when the new
@@ -54,26 +57,26 @@ public class JourneyScore_NEW : MonoBehaviour
     [Range(0f, 1f)] [SerializeField] float volume = 0.85f;
 
     [Tooltip("The music at rest.")]
-    [Range(0f, 1f)] [SerializeField] float bedVolume = 0.6f;
+    [Range(0f, 1f)] [SerializeField] float bedVolume = 0.42f;
 
     [Tooltip("The risen layer, at full lift.")]
-    [Range(0f, 1f)] [SerializeField] float liftVolume = 0.75f;
+    [Range(0f, 1f)] [SerializeField] float liftVolume = 0.95f;
 
     [Tooltip("The phrase a climax arrives on.")]
-    [Range(0f, 1f)] [SerializeField] float crestVolume = 0.7f;
+    [Range(0f, 1f)] [SerializeField] float crestVolume = 1f;
 
     [Tooltip("All of it while a voice-over line is being said, as a fraction of its level.")]
     [Range(0f, 1f)] [SerializeField] float underVoice = 0.55f;
 
     [Header("Shape")]
     [Tooltip("How much lift the music keeps when nothing is happening.")]
-    [Range(0f, 0.5f)] [SerializeField] float restLift = 0.1f;
+    [Range(0f, 0.5f)] [SerializeField] float restLift = 0.03f;
 
     [Tooltip("The music starts to rise this many seconds before the light reaches a gate.")]
     [Min(0f)] [SerializeField] float approachSeconds = 12f;
 
     [Tooltip("How far it has risen by the gate, before the dive takes it the rest of the way.")]
-    [Range(0f, 1f)] [SerializeField] float approachLift = 0.55f;
+    [Range(0f, 1f)] [SerializeField] float approachLift = 0.6f;
 
     [Tooltip("Seconds to settle after a climax.")]
     [Min(1f)] [SerializeField] float settleSeconds = 12f;
@@ -332,9 +335,19 @@ public class JourneyScore_NEW : MonoBehaviour
         if (!_silent) Rise(0.95f, 16f, 30f);   // Earth grows to fill the screen; held until the light goes in
     }
 
-    /// <summary>The crest phrase for <paramref name="name"/>, <paramref name="after"/> seconds from now on the game's clock.</summary>
+    /// <summary>
+    /// A crest's strike is CrestLead after it starts: two chords climb to it first. So a crest
+    /// whose moment is known ahead is started that much early.
+    /// </summary>
+    const float CrestLead = 1.2f;
+
+    /// <summary>
+    /// The crest for <paramref name="name"/>, its strike <paramref name="after"/> seconds from
+    /// now on the game's clock. Emit and Earth have no lead: they are struck the moment they are asked for.
+    /// </summary>
     void Crest(string name, float after)
     {
+        if (name != "Emit" && name != "Earth") after -= CrestLead;
         if (after <= 0f) { PlayCrest(name); return; }
         _pendingCrest = name;
         _crestAt = _clock + after;
@@ -415,7 +428,7 @@ public class JourneyScore_NEW : MonoBehaviour
         _duck = Mathf.MoveTowards(_duck, duck, real / (duck < _duck ? 0.6f : 1.8f));
 
         float master = _muted ? 0f : volume * _duck;
-        float risen = Mathf.Sin(_lift * Mathf.PI * 0.5f);
+        float risen = Mathf.Pow(_lift, 1.6f);   // quiet stays quiet; the top of the rise is where it grows
         foreach (Slot s in _slots)
         {
             s.level = Mathf.MoveTowards(s.level, s.target, s.rate * real);
