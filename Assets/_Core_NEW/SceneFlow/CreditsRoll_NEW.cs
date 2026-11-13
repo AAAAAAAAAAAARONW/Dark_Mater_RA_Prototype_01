@@ -26,6 +26,10 @@ using UnityEngine.UI;
 /// kept small near one, so the light never lies over the planet. The stars behind turn with
 /// the camera. A role tracks in, its rule wipes across, its names come up one by one.
 ///
+/// NAMES IN COLUMNS. A section's names are a table: titles (Prof, Dr) under titles, given
+/// names under given names, family names under family names, notes under notes, each column
+/// as wide as its widest entry (SplitNames says how a line is split, and how to say otherwise).
+///
 /// TYPE. The art's own: role titles and headings in Squada One (the drawn titles' face) in the
 /// art's yellow over a green rule; names in Montserrat SemiBold (the callouts' face). Both are
 /// TTFs made into TMP font assets at start. A note in brackets after a name - "(Annenberg
@@ -37,9 +41,10 @@ using UnityEngine.UI;
 /// - then on out, faster: the orbits fade, the planets are lost in the Sun, the Sun tightens
 /// into one star that flares with diffraction spikes, the stars round it stream in along the
 /// galaxy's disc, and the Milky Way comes in round it star by star, turning as it shrinks,
-/// until it is the whole galaxy, tilted, the bars opening and the title and supporters coming
-/// up above it. No cut, no flash. With no galaxy assigned the credits end on a wide shot of
-/// the planets, as before.
+/// until it fills the left of the frame, on a slant and running out of it, the bars opening
+/// and the title, then the supporters, coming up in a column on the right - the galaxy beside
+/// the end card as each planet was beside its names. No cut, no flash. With no galaxy assigned
+/// the credits end on a wide shot of the planets, as before.
 ///
 /// The planets are copies of the journey's (CelestialBody_NEW, PlanetSphere_NEW). Their size
 /// and place are set here at start, so moving them in the scene changes nothing. A skips.
@@ -57,7 +62,9 @@ public class CreditsRoll_NEW : MonoBehaviour
         [Tooltip("Shown above the names, e.g. PRODUCED BY.")]
         public string role = "ROLE";
 
-        [Tooltip("One name per line. A note in brackets after a name is set small and green.")]
+        [Tooltip("One name per line, set in columns: title (Prof, Dr), given names, family name (the last word). " +
+                 "A note in brackets after a name is set small and green. To split a name yourself, use bars: " +
+                 "Dr | Ana | de la Cruz.")]
         [TextArea(2, 8)] public string names = "Name Surname";
 
         [Tooltip("The planet this section goes by with. Empty = over the stars alone.")]
@@ -233,7 +240,7 @@ public class CreditsRoll_NEW : MonoBehaviour
     // ── State ───────────────────────────────────────────────────────────────
 
     TMP_FontAsset _headingFont, _bodyFont;
-    CanvasGroup _sectionGroup, _endGroup;
+    CanvasGroup _sectionGroup, _endGroup, _endBody;
     RectTransform _sectionBlock, _barTop, _barBottom, _glareCore, _glareStreak, _skyRect;
     Image _black;
     RawImage _sky, _glareCoreImage, _glareStreakImage;
@@ -243,6 +250,7 @@ public class CreditsRoll_NEW : MonoBehaviour
     TextMeshProUGUI _role;
     RectTransform _rule;
     readonly List<TextMeshProUGUI> _lines = new List<TextMeshProUGUI>();
+    readonly List<float> _lineX = new List<float>();
     readonly List<float> _lineY = new List<float>();
     float _ruleWidth = 150f;
 
@@ -589,7 +597,8 @@ public class CreditsRoll_NEW : MonoBehaviour
     ///             shrinking at the same rate and turning back the quarter turn the dive turns
     ///             it going in; the spikes draw back, the star becomes one of its stars and
     ///             goes, the swarm scatters into the galaxy's own, and the camera comes round
-    ///             to its centre: the whole galaxy, tilted, under the title.
+    ///             to its closing frame: the galaxy large on the left, on a slant, running
+    ///             out of the frame, and the title and supporters in a column on the right.
     ///
     /// Nothing is cut or covered. Distances run from tens of units to millions, so the camera's
     /// path is worked out at true scale and the world drawn scaled down round the Sun, the
@@ -617,7 +626,7 @@ public class CreditsRoll_NEW : MonoBehaviour
         float dWhole = outer * 3.2f;
 
         // The galaxy, at true scale: galaxyToSystem times the system, the camera at its end
-        // 3.8 radii from its centre, 22 degrees above its disc.
+        // where GalaxyCameraLocal puts it.
         Vector3 local = GalaxyCameraLocal() - sunInGalaxy;
         float trueRadius = outer * galaxyToSystem;
         float dEnd = trueRadius * local.magnitude;
@@ -629,8 +638,12 @@ public class CreditsRoll_NEW : MonoBehaviour
         Vector3 centreEnd = sunAt - turn * (sunInGalaxy * radiusEnd);
         Vector3 eyeEnd = sunAt + overhead * held;
         float tanV = Mathf.Tan(view.fieldOfView * 0.5f * Mathf.Deg2Rad);
+        // The closing frame: the galaxy large on the left, its disc on a slant and running out
+        // of the frame's left and bottom edges, the right of the frame clear for the end card.
         Quaternion finalLook = Quaternion.LookRotation(centreEnd - eyeEnd, turn * Vector3.up) *
-                               Quaternion.Euler(Mathf.Atan(-0.5f * tanV) * Mathf.Rad2Deg, 0f, 0f);
+                               Quaternion.Euler(0f, 0f, ClosingRoll) *
+                               Quaternion.Euler(Mathf.Atan(ClosingAt.y * tanV) * Mathf.Rad2Deg,
+                                                -Mathf.Atan(ClosingAt.x * tanV * view.aspect) * Mathf.Rad2Deg, 0f);
 
         Transform world = WorldRoot();
         Vector3 worldPosition = world != null ? world.position : Vector3.zero;
@@ -727,20 +740,23 @@ public class CreditsRoll_NEW : MonoBehaviour
 
             _skyZoom = Mathf.Lerp(1f, 2.4f, Smooth((k - SystemSplit) / (1f - SystemSplit)));
             _bars = 1f - Smooth((k - 0.8f) / 0.18f);
-            _textShade.color = new Color(0f, 0f, 0f, 0.55f * Smooth((k - 0.82f) / 0.18f));
-            _endGroup.alpha = Smooth((k - 0.86f) / 0.14f);
+            _textShade.color = new Color(0f, 0f, 0f, 0.5f * Smooth((k - 0.82f) / 0.18f));
+            // The title as the galaxy settles into its place; the rest once it has.
+            _endBody.alpha = 0f;
+            _endGroup.alpha = Smooth((k - 0.88f) / 0.12f);
             yield return null;
         }
         _endGroup.alpha = 1f;
         HideFinaleLights();
-        if (_skip || galaxy == null) yield break;
+        if (_skip || galaxy == null) { _endBody.alpha = 1f; yield break; }
 
-        // Held over the turning galaxy, drifting in a little.
+        // Held beside the turning galaxy, drifting in a little; the supporters come up.
         Vector3 from = view.transform.position;
         t = 0f;
         while (t < endHoldSeconds && !_skip)
         {
             t += Step();
+            _endBody.alpha = Smooth((t - 0.5f) / 1.6f);
             view.transform.position = Vector3.Lerp(from, centreEnd, 0.06f * t / Mathf.Max(0.01f, endHoldSeconds));
             galaxy.Rotate(Vector3.up, -1.2f * Step(), Space.Self);
             yield return null;
@@ -756,10 +772,17 @@ public class CreditsRoll_NEW : MonoBehaviour
     /// <summary>Smooth, but never quite still: the move eases through a moment, it does not stop.</summary>
     static float Ease(float k) { return 0.85f * Smooth(k) + 0.15f * Mathf.Clamp01(k); }
 
-    /// <summary>The camera's place at the end, from the galaxy's centre, in its radii: 22 degrees above the disc, 3.8 out.</summary>
+    // The closing frame: how far the camera is from the galaxy's centre, in its radii, and how
+    // many degrees above its disc; where the centre sits on screen (-1..1 is the frame's edge);
+    // and the camera's roll, which sets the disc on a slant.
+    const float ClosingDistance = 2.5f, ClosingElevation = 34f, ClosingRoll = 22f;
+    static readonly Vector2 ClosingAt = new Vector2(-0.56f, -0.08f);
+
+    /// <summary>The camera's place at the end, from the galaxy's centre, in its radii.</summary>
     static Vector3 GalaxyCameraLocal()
     {
-        return Quaternion.Euler(0f, -24f, 0f) * new Vector3(0f, Mathf.Sin(22f * Mathf.Deg2Rad), -Mathf.Cos(22f * Mathf.Deg2Rad)) * 3.8f;
+        return Quaternion.Euler(0f, -24f, 0f) *
+               new Vector3(0f, Mathf.Sin(ClosingElevation * Mathf.Deg2Rad), -Mathf.Cos(ClosingElevation * Mathf.Deg2Rad)) * ClosingDistance;
     }
 
     /// <summary>
@@ -1227,47 +1250,64 @@ public class CreditsRoll_NEW : MonoBehaviour
         _sectionGroup = Group(root, "Section", new Vector2(0.56f, 0.2f), new Vector2(0.95f, 0.8f));
         _sectionBlock = (RectTransform)_sectionGroup.transform;
 
-        // A soft dark band down from the top, behind the end card, over a bright galaxy.
+        // A soft shade in from the right, behind the end card, should the galaxy's rim reach under it.
         _textShade = new GameObject("End shade", typeof(RectTransform)).AddComponent<RawImage>();
         _textShade.transform.SetParent(root, false);
-        Stretch(_textShade.rectTransform, new Vector2(0f, 0.28f), Vector2.one);
-        _textShade.texture = Gradient(64);
+        Stretch(_textShade.rectTransform, new Vector2(0.4f, 0f), Vector2.one);
+        _textShade.texture = Gradient(64, true);
         _textShade.color = Color.clear;
         _textShade.raycastTarget = false;
 
-        // The end card, in the upper part of the frame: the galaxy turns below it.
-        _endGroup = Group(root, "End", new Vector2(0.1f, 0.3f), new Vector2(0.9f, 0.97f));
+        // The end card: a column down the right of the frame, everything from one left edge, as
+        // a section's words sit beside its planet - here beside the galaxy. The title first;
+        // the rest (_endBody) comes up after it.
+        _endGroup = Group(root, "End", new Vector2(0.57f, 0.16f), new Vector2(0.955f, 0.84f));
         var end = (RectTransform)_endGroup.transform;
         if (titleSprite != null)
         {
+            // Taller than the title is at this width, so the title fills the column's width.
             var img = new GameObject("Title", typeof(RectTransform)).AddComponent<Image>();
             img.transform.SetParent(end, false);
             img.sprite = titleSprite;
             img.preserveAspect = true;
             img.raycastTarget = false;
-            Stretch((RectTransform)img.transform, new Vector2(0.2f, 0.64f), new Vector2(0.8f, 1f));
+            Stretch((RectTransform)img.transform, new Vector2(0f, 0.76f), new Vector2(1f, 1f));
         }
         else
         {
-            TextMeshProUGUI title = Text(end, "Title", titleWords, 96f, accentColour, _headingFont, TextAlignmentOptions.Center);
-            Stretch(title.rectTransform, new Vector2(0f, 0.64f), new Vector2(1f, 1f));
+            TextMeshProUGUI title = Text(end, "Title", titleWords, 96f, accentColour, _headingFont, TextAlignmentOptions.Left);
+            Stretch(title.rectTransform, new Vector2(0f, 0.76f), new Vector2(1f, 1f));
             title.characterSpacing = 8f;
+            title.enableWordWrapping = false;
+            title.enableAutoSizing = true;
+            title.fontSizeMin = 40f;
+            title.fontSizeMax = 96f;
         }
-        TextMeshProUGUI heading = Text(end, "Heading", supportHeading, 32f, headingColour, _headingFont, TextAlignmentOptions.Center);
-        Stretch(heading.rectTransform, new Vector2(0f, 0.48f), new Vector2(1f, 0.57f));
-        heading.characterSpacing = 14f;
         RectTransform rule = Rule(end, accentColour);
-        rule.anchorMin = rule.anchorMax = new Vector2(0.5f, 0.465f);
-        rule.pivot = new Vector2(0.5f, 0.5f);
+        rule.anchorMin = rule.anchorMax = new Vector2(0f, 0.735f);
+        rule.pivot = new Vector2(0f, 0.5f);
         rule.sizeDelta = new Vector2(150f, 3f);
-        TextMeshProUGUI who = Text(end, "Supporters", (supporters ?? "").Replace("\r", ""), 34f, nameColour, _bodyFont, TextAlignmentOptions.Top);
-        Stretch(who.rectTransform, new Vector2(0f, 0.12f), new Vector2(1f, 0.44f));
-        who.lineSpacing = 12f;
+
+        _endBody = Group(end, "Body", Vector2.zero, new Vector2(1f, 0.7f));
+        _endBody.alpha = 1f;
+        var body = (RectTransform)_endBody.transform;
+        TextMeshProUGUI heading = Text(body, "Heading", supportHeading, 30f, headingColour, _headingFont, TextAlignmentOptions.Left);
+        Stretch(heading.rectTransform, new Vector2(0f, 0.86f), new Vector2(1f, 0.97f));
+        heading.characterSpacing = 14f;
+        heading.enableWordWrapping = false;
+        heading.enableAutoSizing = true;
+        heading.fontSizeMin = 18f;
+        heading.fontSizeMax = 30f;
+        TextMeshProUGUI who = Text(body, "Supporters", (supporters ?? "").Replace("\r", ""), 30f, nameColour, _bodyFont, TextAlignmentOptions.TopLeft);
+        Stretch(who.rectTransform, new Vector2(0f, 0.2f), new Vector2(1f, 0.8f));
+        who.lineSpacing = 16f;
+        who.enableWordWrapping = false;
         who.enableAutoSizing = true;
-        who.fontSizeMin = 22f;
-        who.fontSizeMax = 34f;
-        TextMeshProUGUI closing = Text(end, "Closing", closingLine, 26f, accentColour, _bodyFont, TextAlignmentOptions.Center);
-        Stretch(closing.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0.1f));
+        who.fontSizeMin = 16f;
+        who.fontSizeMax = 30f;
+        TextMeshProUGUI closing = Text(body, "Closing", closingLine, 24f, accentColour, _bodyFont, TextAlignmentOptions.BottomLeft);
+        Stretch(closing.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0.12f));
+        closing.enableWordWrapping = false;
 
         // The bars, then black over everything for the way in and out.
         _barTop = Black(root, "Letterbox top");
@@ -1288,55 +1328,104 @@ public class CreditsRoll_NEW : MonoBehaviour
     {
         foreach (Transform child in _sectionBlock) Destroy(child.gameObject);
         _lines.Clear();
+        _lineX.Clear();
         _lineY.Clear();
 
         Section s = sections[i];
         Layout layout = Def(ShotOf(i)).layout;
         Vector2 min, max;
-        TextAlignmentOptions align;
-        float side;   // where the rule sits across the block: 0 left, 0.5 middle, 1 right
+        float side;   // where the words sit across the block: 0 from its left, 0.5 centred, 1 against its right
         switch (layout)
         {
-            case Layout.Left: min = new Vector2(0.05f, 0.18f); max = new Vector2(0.44f, 0.82f); align = TextAlignmentOptions.Right; side = 1f; break;
-            case Layout.Top: min = new Vector2(0.12f, 0.52f); max = new Vector2(0.88f, 0.86f); align = TextAlignmentOptions.Center; side = 0.5f; break;
-            case Layout.Bottom: min = new Vector2(0.12f, 0.14f); max = new Vector2(0.88f, 0.46f); align = TextAlignmentOptions.Center; side = 0.5f; break;
+            case Layout.Left: min = new Vector2(0.05f, 0.18f); max = new Vector2(0.44f, 0.82f); side = 1f; break;
+            case Layout.Top: min = new Vector2(0.12f, 0.52f); max = new Vector2(0.88f, 0.86f); side = 0.5f; break;
+            case Layout.Bottom: min = new Vector2(0.12f, 0.14f); max = new Vector2(0.88f, 0.46f); side = 0.5f; break;
             // Under the Sun's glare, which a close-up puts high on the right.
-            case Layout.LowerRight: min = new Vector2(0.56f, 0.14f); max = new Vector2(0.95f, 0.56f); align = TextAlignmentOptions.Left; side = 0f; break;
-            default: min = new Vector2(0.56f, 0.18f); max = new Vector2(0.95f, 0.82f); align = TextAlignmentOptions.Left; side = 0f; break;
+            case Layout.LowerRight: min = new Vector2(0.56f, 0.14f); max = new Vector2(0.95f, 0.56f); side = 0f; break;
+            default: min = new Vector2(0.56f, 0.18f); max = new Vector2(0.95f, 0.82f); side = 0f; break;
         }
         Stretch(_sectionBlock, min, max);
         _sectionGroup.alpha = 1f;
 
-        List<string> names = SplitNames(s.names);
+        List<NameRow> rows = SplitNames(s.names);
+        float canvasWidth = ((RectTransform)_sectionBlock.parent).rect.width;
+        float blockWidth = (canvasWidth > 1f ? canvasWidth : 1920f) * (max.x - min.x);
         float height = (max.y - min.y) * 1080f;
         const float roleSize = 46f, gap = 20f;
         float roleHeight = roleSize * 1.2f;
-        float lineSize = Mathf.Clamp((height - roleHeight - gap * 2f) / (Mathf.Max(1, names.Count) * 1.32f), 22f, 38f);
+        float lineSize = Mathf.Clamp((height - roleHeight - gap * 2f) / (Mathf.Max(1, rows.Count) * 1.32f), 22f, 38f);
         float lineHeight = lineSize * 1.32f;
-        float content = roleHeight + gap * 2f + names.Count * lineHeight;
+        float content = roleHeight + gap * 2f + rows.Count * lineHeight;
         float y = -Mathf.Max(0f, height - content) * 0.5f;
 
-        _role = Text(_sectionBlock, "Role", (s.role ?? "").Replace("\r", ""), roleSize, headingColour, _headingFont, align);
-        _role.fontStyle = FontStyles.UpperCase;
+        // The role, sized down if it is wider than its block.
+        string role = (s.role ?? "").Replace("\r", "").ToUpperInvariant();
+        _role = Text(_sectionBlock, "Role", role, roleSize, headingColour, _headingFont,
+                     side == 0.5f ? TextAlignmentOptions.Center : TextAlignmentOptions.Left);
         _role.enableWordWrapping = false;
-        Row(_role.rectTransform, y, roleHeight);
+        _role.characterSpacing = 12f;
+        float roleWidth = Width(_role, role);
+        if (roleWidth > blockWidth)
+        {
+            _role.fontSize = roleSize * blockWidth / roleWidth;
+            roleWidth = blockWidth;
+        }
         _role.alpha = 0f;
 
+        // The names, as a table: titles under titles, given names under given names, family
+        // names under family names, notes under notes - each column as wide as its widest.
+        TextMeshProUGUI probe = Text(_sectionBlock, "Measure", "", lineSize, nameColour, _bodyFont, TextAlignmentOptions.Left);
+        probe.enableWordWrapping = false;
+        probe.alpha = 0f;
+        float wTitle = 0f, wGiven = 0f, wFamily = 0f, wNote = 0f;
+        foreach (NameRow row in rows)
+        {
+            wTitle = Mathf.Max(wTitle, Width(probe, row.title));
+            wGiven = Mathf.Max(wGiven, Width(probe, row.given));
+            wFamily = Mathf.Max(wFamily, Width(probe, row.family));
+            wNote = Mathf.Max(wNote, Width(probe, NoteMarkup(row.note)));
+        }
+        float xGiven = wTitle > 0f ? wTitle + lineSize * 0.38f : 0f;
+        float xFamily = xGiven + wGiven + (wFamily > 0f ? lineSize * 0.5f : 0f);
+        float xNote = xFamily + wFamily + lineSize * 0.7f;
+        float tableWidth = wNote > 0f ? xNote + wNote : xFamily + wFamily;
+        if (tableWidth > blockWidth)
+        {
+            // Too wide for its block: everything a little smaller, in proportion.
+            float fit = blockWidth / tableWidth;
+            lineSize *= fit;
+            xGiven *= fit; xFamily *= fit; xNote *= fit; tableWidth = blockWidth;
+        }
+
+        // Role, rule and table share a left edge beside a planet; over or under one they are centred.
+        float left = side == 0.5f ? 0f : Mathf.Max(0f, (blockWidth - Mathf.Max(tableWidth, roleWidth)) * side);
+        float tableLeft = side == 0.5f ? (blockWidth - tableWidth) * 0.5f : left;
+
+        if (side == 0.5f) Row(_role.rectTransform, y, roleHeight);
+        else RowAt(_role.rectTransform, left, y, Mathf.Max(1f, blockWidth - left), roleHeight);
+
         _rule = Rule(_sectionBlock, accentColour);
-        _rule.anchorMin = _rule.anchorMax = new Vector2(side, 1f);
-        _rule.pivot = new Vector2(side, 0.5f);
-        _rule.anchoredPosition = new Vector2(0f, y - roleHeight - gap * 0.55f);
+        _rule.anchorMin = _rule.anchorMax = new Vector2(side == 0.5f ? 0.5f : 0f, 1f);
+        _rule.pivot = new Vector2(side == 0.5f ? 0.5f : 0f, 0.5f);
+        _rule.anchoredPosition = new Vector2(side == 0.5f ? 0f : left, y - roleHeight - gap * 0.55f);
         _rule.sizeDelta = new Vector2(0f, 3f);
 
         float lineTop = y - roleHeight - gap * 2f;
-        for (int j = 0; j < names.Count; j++)
+        for (int j = 0; j < rows.Count; j++)
         {
-            TextMeshProUGUI line = Text(_sectionBlock, "Name", names[j], lineSize, nameColour, _bodyFont, align);
+            NameRow row = rows[j];
+            string words = row.title;
+            if (row.given.Length > 0) words += "<pos=" + Units(xGiven) + ">" + row.given;
+            if (row.family.Length > 0) words += "<pos=" + Units(xFamily) + ">" + row.family;
+            if (row.note.Length > 0) words += "<pos=" + Units(xNote) + ">" + NoteMarkup(row.note);
+
+            TextMeshProUGUI line = Text(_sectionBlock, "Name", words, lineSize, nameColour, _bodyFont, TextAlignmentOptions.Left);
             line.enableWordWrapping = false;
             float ly = lineTop - j * lineHeight;
-            Row(line.rectTransform, ly, lineHeight);
+            RowAt(line.rectTransform, tableLeft, ly, Mathf.Max(1f, tableWidth), lineHeight);
             line.alpha = 0f;
             _lines.Add(line);
+            _lineX.Add(tableLeft);
             _lineY.Add(ly);
         }
     }
@@ -1360,29 +1449,81 @@ public class CreditsRoll_NEW : MonoBehaviour
             float a = Smooth((t - fade * 0.45f - j * 0.14f) / (fade * 0.8f));
             _lines[j].alpha = a;
             RectTransform rt = _lines[j].rectTransform;
-            rt.anchoredPosition = new Vector2(0f, _lineY[j] - (1f - a) * 12f);
+            rt.anchoredPosition = new Vector2(_lineX[j], _lineY[j] - (1f - a) * 12f);
         }
     }
 
-    List<string> SplitNames(string typed)
+    /// <summary>A name in its columns: its title (Prof, Dr), given names, family name, and the note from its brackets.</summary>
+    struct NameRow { public string title, given, family, note; }
+
+    static readonly HashSet<string> Titles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        { "Prof", "Professor", "Dr", "Doctor", "Mr", "Mrs", "Ms", "Mx", "Sir", "Dame" };
+
+    /// <summary>
+    /// One row a line. "Prof Vera Gluscevic (Science Lead)": a first word that is a title goes
+    /// in the title column, the last word is the family name, what is between is the given
+    /// names, and what is in brackets the note. Where that guesses wrong - a family name of
+    /// two words - say it with bars: "Dr | Ana | de la Cruz", or "Ana | de la Cruz".
+    /// </summary>
+    List<NameRow> SplitNames(string typed)
     {
-        var list = new List<string>();
+        var list = new List<NameRow>();
         foreach (string raw in (typed ?? "").Replace("\r", "").Split('\n'))
         {
             string line = raw.Trim();
-            if (line.Length > 0) list.Add(StyleNote(line));
+            if (line.Length == 0) continue;
+            var row = new NameRow { title = "", given = "", family = "", note = "" };
+
+            Match note = Regex.Match(line, @"\(([^)]*)\)");
+            if (note.Success)
+            {
+                row.note = note.Groups[1].Value.Trim();
+                line = line.Remove(note.Index, note.Length).Trim();
+            }
+
+            if (line.IndexOf('|') >= 0)
+            {
+                string[] cells = line.Split('|');
+                for (int c = 0; c < cells.Length; c++) cells[c] = cells[c].Trim();
+                if (cells.Length == 2) { row.given = cells[0]; row.family = cells[1]; }
+                else { row.title = cells[0]; row.given = cells[1]; row.family = string.Join(" ", cells, 2, cells.Length - 2).Trim(); }
+            }
+            else
+            {
+                string[] words = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                int first = 0, last = words.Length - 1;
+                if (words.Length > 1 && Titles.Contains(words[0].TrimEnd('.'))) { row.title = words[0]; first = 1; }
+                if (last > first)
+                {
+                    row.family = words[last];
+                    row.given = string.Join(" ", words, first, last - first);
+                }
+                else if (last == first) row.given = words[first];
+            }
+            list.Add(row);
         }
         return list;
     }
 
-    /// <summary>A note in brackets after a name, small, in capitals, in the green.</summary>
-    string StyleNote(string line)
+    /// <summary>A note as it is set: small, in capitals, in the green; or as typed, in its brackets, with styling off.</summary>
+    string NoteMarkup(string note)
     {
-        if (!styleNotes) return line;
-        string hex = ColorUtility.ToHtmlStringRGB(accentColour);
-        return Regex.Replace(line, @"\s*\(([^)]*)\)", m =>
-            "  <size=58%><cspace=0.12em><color=#" + hex + ">" + m.Groups[1].Value.Trim().ToUpperInvariant() + "</color></cspace></size>");
+        if (string.IsNullOrEmpty(note)) return "";
+        if (!styleNotes) return "(" + note + ")";
+        return "<size=58%><cspace=0.12em><color=#" + ColorUtility.ToHtmlStringRGB(accentColour) + ">" +
+               note.ToUpperInvariant() + "</color></cspace></size>";
     }
+
+    /// <summary>How wide <paramref name="words"/> would be set in <paramref name="probe"/>'s face and size.</summary>
+    static float Width(TMP_Text probe, string words)
+    {
+        if (string.IsNullOrEmpty(words)) return 0f;
+        float w = probe.GetPreferredValues(words).x;
+        // Should the measure fail, a fair guess keeps the columns apart.
+        return w > 0f && !float.IsNaN(w) && !float.IsInfinity(w) ? w : words.Length * probe.fontSize * 0.6f;
+    }
+
+    static string Units(float x) { return x.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture); }
 
     // ── UI pieces ───────────────────────────────────────────────────────────
 
@@ -1422,6 +1563,15 @@ public class CreditsRoll_NEW : MonoBehaviour
         rt.pivot = new Vector2(0.5f, 1f);
         rt.sizeDelta = new Vector2(0f, height);
         rt.anchoredPosition = new Vector2(0f, top);
+    }
+
+    /// <summary>A row <paramref name="left"/> in from its block's left edge, <paramref name="top"/> units down (negative), of its own width.</summary>
+    static void RowAt(RectTransform rt, float left, float top, float width, float height)
+    {
+        rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
+        rt.pivot = new Vector2(0f, 1f);
+        rt.sizeDelta = new Vector2(width, height);
+        rt.anchoredPosition = new Vector2(left, top);
     }
 
     static RectTransform Rule(RectTransform parent, Color colour)
@@ -1481,17 +1631,20 @@ public class CreditsRoll_NEW : MonoBehaviour
         return tex;
     }
 
-    /// <summary>Opaque at the top, clear at the bottom, eased: a shade that has no edge.</summary>
-    static Texture2D Gradient(int height)
+    /// <summary>
+    /// A shade that has no edge, eased from clear to opaque: up to the top, or with
+    /// <paramref name="across"/> to the right.
+    /// </summary>
+    static Texture2D Gradient(int size, bool across = false)
     {
-        var tex = new Texture2D(1, height, TextureFormat.RGBA32, false)
+        var tex = new Texture2D(across ? size : 1, across ? 1 : size, TextureFormat.RGBA32, false)
         {
             name = "Shade", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear
         };
-        for (int y = 0; y < height; y++)
+        for (int i = 0; i < size; i++)
         {
-            float k = y / (float)(height - 1);
-            tex.SetPixel(0, y, new Color(1f, 1f, 1f, k * k * (3f - 2f * k)));
+            float k = i / (float)(size - 1);
+            tex.SetPixel(across ? i : 0, across ? 0 : i, new Color(1f, 1f, 1f, k * k * (3f - 2f * k)));
         }
         tex.Apply(false, true);
         return tex;
