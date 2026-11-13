@@ -101,7 +101,7 @@ def bell(track, midi, start, gain, pan=0.5, decay=1.6):
 # ── The places: each a chord in D minor's scale, in two colours ──────────────────────────
 #    name: (colour A, colour B, brightness, bells a loop, sub, air, tremolo, level)
 PLACES = {
-    'Tutorial':    ([38, 45, 52, 57, 62, 64], [38, 43, 50, 57, 62, 67], 0.40, 9, 0.5, 0.008, 0.0, 0.75),    # D, no third: open, waiting
+    'Tutorial':    ([38, 45, 54, 57, 62, 64], [38, 43, 50, 55, 59, 62, 66], 0.40, 5, 0.4, 0.008, 0.0, 0.8),   # D major, add 9: bright, curious
     'Quasar':      ([38, 45, 53, 57, 64, 69], [38, 46, 53, 58, 65, 70], 0.85, 14, 1.2, 0.020, 2.6, 1.00),   # D minor: fierce
     'Macro':       ([41, 48, 56, 60, 67, 72], [41, 49, 56, 61, 65, 68], 0.60, 10, 0.9, 0.016, 0.0, 0.9),    # F minor: vast, dark
     'Micro':       ([44, 51, 56, 60, 63, 70], [44, 53, 56, 60, 63, 68], 0.45, 8, 0.7, 0.008, 0.0, 0.85),    # A flat major: near, warm
@@ -114,13 +114,61 @@ PLACES = {
 # to F minor, its relative A flat, up a third to B minor, its relative D major, up a step to E,
 # and down onto D to land.
 
+# The lighter places move: plucked notes on a quick, even pulse (120 to the minute), each with
+# a step of its own. The others hold still.
+#   skip   four in a bar, off the beat: the tutorial - curious, a little playful
+#   waltz  three in a bar, low note then two above: the first galaxy - close, turning
+#   stride four in a bar, pushing on: the Milky Way - nearly home
+#   lilt   six in a bar, two swings: Earth - light, at rest
+STEPS = {'Tutorial': 'skip', 'Micro': 'waltz', 'MilkyWay': 'stride', 'Earth': 'lilt'}
+
+def pluck(track, midi, start, gain, pan=0.5, decay=0.28):
+    n = int(decay * 7 * SR); t = np.arange(n) / SR; f = hz(midi)
+    s = np.sin(2 * math.pi * f * t) * np.exp(-t / decay) + 0.45 * np.sin(4 * math.pi * f * t) * np.exp(-t / (decay * 0.5)) \
+        + 0.15 * np.sin(8 * math.pi * f * t) * np.exp(-t / (decay * 0.25))
+    track.add(s * np.clip(t / 0.004, 0, 1), start, pan, gain)
+
+def step(T, kind, chord, t0, seg, shade=1.0):
+    tones = sorted(m + 12 for m in chord[1:]); low = chord[0] + 12; hi = tones + [tones[0] + 12, tones[1] + 12]
+    e = 0.25
+    if kind == 'skip':
+        bar = [0, None, 2, 1, None, 3, 2, None]
+        for b in range(int(seg / 2.0)):
+            pluck(T, low, t0 + b * 2.0, 0.085 * shade, 0.5, 0.4)
+            for j, k in enumerate(bar):
+                if k is not None: pluck(T, hi[(k + (b % 2)) % len(hi)], t0 + b * 2.0 + j * e, (0.075 if j == 0 else 0.055) * shade, 0.3 + 0.4 * (j % 2))
+            if b % 2 == 1: bell(T, hi[-1], t0 + b * 2.0 + 1.5, 0.045 * shade, 0.7, 0.9)
+    elif kind == 'waltz':
+        for b in range(int(seg / 1.5)):
+            at = t0 + b * 1.5
+            pluck(T, low, at, 0.09 * shade, 0.5, 0.5)
+            for beat in (1, 2):
+                pluck(T, hi[(b + beat) % 3], at + beat * 0.5, 0.055 * shade, 0.35); pluck(T, hi[(b + beat) % 3 + 2], at + beat * 0.5, 0.05 * shade, 0.65)
+            if b % 2 == 0: bell(T, hi[(b // 2 * 2 + 3) % len(hi)] + 12, at, 0.05 * shade, 0.6, 1.2)
+    elif kind == 'stride':
+        bar = [0, 2, None, 3, 1, None, 2, 4]
+        for b in range(int(seg / 2.0)):
+            pluck(T, low, t0 + b * 2.0, 0.09 * shade, 0.5, 0.4); pluck(T, low + 7, t0 + b * 2.0 + 1.0, 0.06 * shade, 0.5, 0.35)
+            for j, k in enumerate(bar):
+                if k is not None: pluck(T, hi[(k + b) % len(hi)], t0 + b * 2.0 + j * e, (0.075 if j % 4 == 0 else 0.055) * shade, 0.3 + 0.4 * (j % 2))
+            if b % 2 == 0: bell(T, hi[(b + 2) % len(hi)] + 12, t0 + b * 2.0 + 0.5, 0.05 * shade, 0.4, 1.3)
+    elif kind == 'lilt':
+        bar = [0, None, 2, 1, None, 3]
+        for b in range(int(seg / 1.5)):
+            at = t0 + b * 1.5
+            pluck(T, low, at, 0.08 * shade, 0.5, 0.5)
+            for j, k in enumerate(bar):
+                if k is not None and j: pluck(T, hi[(k + b // 2) % len(hi)], at + j * e, 0.055 * shade, 0.3 + 0.4 * (j % 2), 0.32)
+            if b % 4 == 2: bell(T, hi[(b // 4 + 4) % len(hi)] + 12, at + 0.75, 0.045 * shade, 0.6, 1.4)
+
 def bed(name):
     a, b, bright, bells, sub, breath, trem, level = PLACES[name]
     seg = 12.0; T = Track(seg * 4, loop=True)
     for i, chord in enumerate((a, b, a, b)):
         t0 = i * seg
         for k, m in enumerate(chord):
-            pad(T, m, t0 - 1.5, seg, 0.05 * (1.25 if k == 0 else 1.0), bright, trem=trem if k >= 3 else 0.0)
+            pad(T, m, t0 - 1.5, seg, 0.05 * (1.25 if k == 0 else 1.0) * (0.55 if name in STEPS else 1.0), bright, trem=trem if k >= 3 else 0.0)
+        if name in STEPS: step(T, STEPS[name], chord, t0, seg)
         n = int((seg + 3) * SR); t = np.arange(n) / SR
         env = np.clip(t / 2.0, 0, 1) * np.clip((seg + 3 - t) / 3.0, 0, 1)
         f0 = hz(chord[0])
@@ -155,13 +203,14 @@ def lift(name):
         f0 = hz(low)
         T.add((np.sin(2 * math.pi * f0 * t) + 0.6 * np.sin(4 * math.pi * f0 * t) + 0.35 * np.sin(6 * math.pi * f0 * t)) * env, t0 - 0.4, 0.5, 0.13)
         # A slow pulse on the root, a pitched drum: two to the bar and a pick-up.
-        for beat in (0.0, 3.0, 6.0, 9.0, 10.5, 11.25):
+        for beat in ((0.0, 3.0, 6.0, 9.0, 10.5, 11.25) if name not in STEPS else (0.0, 1.5, 3.0, 4.5, 6.0, 7.5, 9.0, 10.5, 11.25)):
             n2 = int(1.6 * SR); t2 = np.arange(n2) / SR
             T.add((np.sin(2 * math.pi * f0 * t2) + 0.5 * np.sin(4 * math.pi * f0 * t2)) * np.exp(-t2 / 0.35) * np.clip(t2 / 0.008, 0, 1), t0 + beat, 0.5, 0.20 if beat in (0.0, 6.0) else 0.12)
         tones = [m + 12 for m in chord[1:]] + [chord[1] + 24, chord[2] + 24]
         run = tones + tones[-2:0:-1]
-        for j in range(32):                                                                 # the chord running, fast
-            bell(T, run[j % len(run)], t0 + j * 0.375, 0.07 if j % 4 == 0 else 0.045, 0.5 + 0.4 * math.sin(j * 1.9 + i), 0.8)
+        every = 0.25 if name in STEPS else 0.375                                           # on the place's own pulse
+        for j in range(int(seg / every)):                                                   # the chord running, fast
+            bell(T, run[j % len(run)], t0 + j * every, 0.07 if j % 4 == 0 else 0.045, 0.5 + 0.4 * math.sin(j * 1.9 + i), 0.8)
     T.hall(0.45, seed=31)
     T.write('Lift_' + name, peak=0.8)
 
