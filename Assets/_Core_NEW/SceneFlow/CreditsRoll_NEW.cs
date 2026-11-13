@@ -63,8 +63,9 @@ public class CreditsRoll_NEW : MonoBehaviour
         public string role = "ROLE";
 
         [Tooltip("One name per line, set in columns: title (Prof, Dr), given names, family name (the last word). " +
-                 "A note in brackets after a name is set small and green. To split a name yourself, use bars: " +
-                 "Dr | Ana | de la Cruz.")]
+                 "A note in round brackets after a name is set small and green: Aaron Wang (Annenberg Fellow). " +
+                 "A second name someone also goes by, in square brackets, is set small after the family name: " +
+                 "Xingru Yi [Winnie]. To split a name yourself, use bars: Dr | Ana | de la Cruz.")]
         [TextArea(2, 8)] public string names = "Name Surname";
 
         [Tooltip("The planet this section goes by with. Empty = over the stars alone.")]
@@ -1453,8 +1454,11 @@ public class CreditsRoll_NEW : MonoBehaviour
         }
     }
 
-    /// <summary>A name in its columns: its title (Prof, Dr), given names, family name, and the note from its brackets.</summary>
-    struct NameRow { public string title, given, family, note; }
+    /// <summary>
+    /// A name in its columns: its title (Prof, Dr), given names, family name, the note from its
+    /// round brackets, and the other name it also goes by, from its square ones.
+    /// </summary>
+    struct NameRow { public string title, given, family, note, also; }
 
     static readonly HashSet<string> Titles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         { "Prof", "Professor", "Dr", "Doctor", "Mr", "Mrs", "Ms", "Mx", "Sir", "Dame" };
@@ -1464,6 +1468,11 @@ public class CreditsRoll_NEW : MonoBehaviour
     /// in the title column, the last word is the family name, what is between is the given
     /// names, and what is in brackets the note. Where that guesses wrong - a family name of
     /// two words - say it with bars: "Dr | Ana | de la Cruz", or "Ana | de la Cruz".
+    ///
+    /// A second name someone also goes by - a Chinese given name and an English one - would
+    /// make the given-names column as wide as both and push every family name away from its
+    /// given name. Put one in square brackets instead: "Xingru Yi [Winnie]" sets Xingru and Yi
+    /// in their columns and (Winnie) small and quiet after the family name.
     /// </summary>
     List<NameRow> SplitNames(string typed)
     {
@@ -1472,7 +1481,14 @@ public class CreditsRoll_NEW : MonoBehaviour
         {
             string line = raw.Trim();
             if (line.Length == 0) continue;
-            var row = new NameRow { title = "", given = "", family = "", note = "" };
+            var row = new NameRow { title = "", given = "", family = "", note = "", also = "" };
+
+            Match also = Regex.Match(line, @"\[([^\]]*)\]");
+            if (also.Success)
+            {
+                row.also = also.Groups[1].Value.Trim();
+                line = line.Remove(also.Index, also.Length).Trim();
+            }
 
             Match note = Regex.Match(line, @"\(([^)]*)\)");
             if (note.Success)
@@ -1499,6 +1515,16 @@ public class CreditsRoll_NEW : MonoBehaviour
                     row.given = string.Join(" ", words, first, last - first);
                 }
                 else if (last == first) row.given = words[first];
+            }
+
+            // The other name rides after the family name, in its column (after the given
+            // name, for someone with one name only).
+            if (row.also.Length > 0)
+            {
+                string small = "<space=0.3em><size=70%><color=#" + ColorUtility.ToHtmlStringRGB(nameColour * 0.72f) + ">(" +
+                               row.also + ")</color></size>";
+                if (row.family.Length > 0) row.family += small;
+                else row.given += small;
             }
             list.Add(row);
         }

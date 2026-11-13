@@ -629,7 +629,7 @@ MonoBehaviour:
   sections:
   - role: PRODUCED BY
     names: "Prof Martzi Campos \nProf Sean Bouchard\nAaron Wang (Annenberg Fellow)\nSamuel
-      Tang (Annenberg Fellow)\nZiqing Ye\nXingru Winnie Yi"
+      Tang (Annenberg Fellow)\nZiqing Ye\nXingru Yi [Winnie]"
     planet: {fileID: 5064957}
     shot: 0
   - role: DESIGN
@@ -652,7 +652,7 @@ MonoBehaviour:
     planet: {fileID: 1593210869}
     shot: 0
   - role: ART,UIUX AND VISUAL EFFECTS
-    names: 'Xingru Winnie Yi
+    names: 'Xingru Yi [Winnie]
 
       Aaron Wang
 
