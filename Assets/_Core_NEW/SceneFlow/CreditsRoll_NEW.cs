@@ -1366,7 +1366,7 @@ public class CreditsRoll_NEW : MonoBehaviour
         // its size, rolled and faded at the window's edges by TickSupporters.
         _supportArea = new GameObject("Supporters", typeof(RectTransform)).GetComponent<RectTransform>();
         _supportArea.SetParent(body, false);
-        Stretch(_supportArea, new Vector2(0f, 0.17f), new Vector2(1f, 0.82f));
+        Stretch(_supportArea, new Vector2(0f, 0.14f), new Vector2(1f, 0.84f));
         foreach (Supporter backer in Supporters())
         {
             var row = new SupportRow();
@@ -1464,9 +1464,9 @@ public class CreditsRoll_NEW : MonoBehaviour
         if (_supportArea == null || _supportRows.Count == 0) return;
         Rect area = _supportArea.rect;
         float width = area.width > 1f ? area.width : 739f;
-        _supportView = area.height > 1f ? area.height : 334f;
+        _supportView = area.height > 1f ? area.height : 360f;
 
-        const float logoWidth = 200f, logoHeight = 76f, gap = 22f;
+        const float logoWidth = 270f, logoHeight = 80f, gap = 22f;
         bool logos = _supportRows.Exists(x => x.logo != null);
         _supportRowHeight = logos ? logoHeight + 4f : 40f;
         _supportPitch = _supportRowHeight + (logos ? gap : 6f);

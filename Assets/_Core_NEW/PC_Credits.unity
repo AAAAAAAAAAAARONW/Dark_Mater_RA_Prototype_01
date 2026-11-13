@@ -695,11 +695,11 @@ MonoBehaviour:
   - name: UC Riverside
     logo: {fileID: 0}
   - name: "USC Dornsife College of Letters, Arts and Sciences"
-    logo: {fileID: 0}
+    logo: {fileID: 21300000, guid: 5a6c83e83b954f0da194b81b07e061b9, type: 3}
   - name: USC Games
     logo: {fileID: 0}
   - name: USC School of Cinematic Arts
-    logo: {fileID: 0}
+    logo: {fileID: 21300000, guid: d246c5c4b5c04b41b06fbe2f24758e82, type: 3}
   logoTint: {r: 1, g: 1, b: 1, a: 1}
   closingLine: Thank you for travelling with the light.
   address: "USC SCHOOL OF CINEMATIC ARTS\nROOM 303, SCI BUILDING\n900 W 34TH ST\nLOS ANGELES, CA 90007\nUSA\nNORTH AMERICA\nEARTH\nINNER SOLAR SYSTEM\nSOLAR SYSTEM\nOORT CLOUD\nLOCAL INTERSTELLAR CLOUD\nORION ARM\nMILKY WAY GALAXY\nLOCAL GROUP\nVIRGO CLUSTER\nLANIAKEA SUPERCLUSTER\nPISCES\u2013CETUS SUPERCLUSTER COMPLEX\nOBSERVABLE UNIVERSE\nUNIVERSE"
