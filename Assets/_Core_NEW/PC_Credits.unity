@@ -691,9 +691,9 @@ MonoBehaviour:
   - name: The John Templeton Foundation
     logo: {fileID: 21300000, guid: 7afac6ce5c5d4442a57503fef2123187, type: 3}
   - name: Carnegie Science
-    logo: {fileID: 0}
+    logo: {fileID: 21300000, guid: a16a59432eae4162ba1d837f2eca20d2, type: 3}
   - name: UC Riverside
-    logo: {fileID: 0}
+    logo: {fileID: 21300000, guid: c10c03a8863144f182619e94bf61e551, type: 3}
   - name: "USC Dornsife College of Letters, Arts and Sciences"
     logo: {fileID: 21300000, guid: 5a6c83e83b954f0da194b81b07e061b9, type: 3}
   - name: USC Games

@@ -13,7 +13,8 @@ In here now:
   USC_Dornsife_reversed.png               USC Dornsife, reversed logotype, as supplied by the team
   USC_SchoolOfCinematicArts_reversed.png  USC School of Cinematic Arts, the same
                                           (both with their empty margin trimmed from 150 px to 30).
-Still to add, from each organisation (a sign-in or their permission is needed):
-  Carnegie Science   https://carnegiescience.edu/resources/media/logos  (partners and staff)
-  UC Riverside       https://brand.ucr.edu/downloadable-assets          (UCR sign-in)
-  USC Games          https://identity.usc.edu                            (USC sign-in)
+  CarnegieScience_white.png               Carnegie Science, white logo, as supplied by the team
+                                          (420 px wide: replace with a larger original if there is one)
+  UCRiverside_reversed.png                UC Riverside, reversed logo, as supplied by the team
+Still to add:
+  USC Games          https://identity.usc.edu  (USC sign-in)
