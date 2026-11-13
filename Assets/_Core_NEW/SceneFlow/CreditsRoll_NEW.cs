@@ -109,7 +109,7 @@ public class CreditsRoll_NEW : MonoBehaviour
     [SerializeField] List<Supporter> supportedBy = new List<Supporter>();
 
     [Tooltip("How fast the supporters roll up through the end card, in units a second (the frame is 1080 high).")]
-    [Min(5f)] [SerializeField] float supporterRollSpeed = 34f;
+    [Min(5f)] [SerializeField] float supporterRollSpeed = 42f;
 
     [Tooltip("Multiplies every logo. White leaves them as they are; logos should be their makers' own versions for dark backgrounds.")]
     [SerializeField] Color logoTint = Color.white;
@@ -1466,7 +1466,7 @@ public class CreditsRoll_NEW : MonoBehaviour
         float width = area.width > 1f ? area.width : 739f;
         _supportView = area.height > 1f ? area.height : 360f;
 
-        const float logoWidth = 270f, logoHeight = 80f, gap = 22f;
+        const float logoWidth = 270f, logoHeight = 80f, gap = 60f;   // room between rows: they roll, so two at a time is enough
         bool logos = _supportRows.Exists(x => x.logo != null);
         _supportRowHeight = logos ? logoHeight + 4f : 40f;
         _supportPitch = _supportRowHeight + (logos ? gap : 6f);

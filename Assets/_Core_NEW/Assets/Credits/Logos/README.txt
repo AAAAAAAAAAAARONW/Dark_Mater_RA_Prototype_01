@@ -16,5 +16,6 @@ In here now:
   CarnegieScience_white.png               Carnegie Science, white logo, as supplied by the team
                                           (420 px wide: replace with a larger original if there is one)
   UCRiverside_reversed.png                UC Riverside, reversed logo, as supplied by the team
-Still to add:
-  USC Games          https://identity.usc.edu  (USC sign-in)
+  USC_Games_reversed.png                  USC Games, reversed logotype, as supplied by the team
+                                          (its empty margin trimmed to 30 px, as the other two USC ones)
+Every supporter now has its logo.

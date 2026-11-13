@@ -697,7 +697,7 @@ MonoBehaviour:
   - name: "USC Dornsife College of Letters, Arts and Sciences"
     logo: {fileID: 21300000, guid: 5a6c83e83b954f0da194b81b07e061b9, type: 3}
   - name: USC Games
-    logo: {fileID: 0}
+    logo: {fileID: 21300000, guid: 4c74d49b32454ccb9c40a3734b43067b, type: 3}
   - name: USC School of Cinematic Arts
     logo: {fileID: 21300000, guid: d246c5c4b5c04b41b06fbe2f24758e82, type: 3}
   logoTint: {r: 1, g: 1, b: 1, a: 1}
