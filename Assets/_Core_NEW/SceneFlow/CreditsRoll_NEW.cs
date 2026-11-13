@@ -26,6 +26,12 @@ using UnityEngine.UI;
 /// kept small near one, so the light never lies over the planet. The stars behind turn with
 /// the camera. A role tracks in, its rule wipes across, its names come up one by one.
 ///
+/// NAMES IN COLUMNS. A section's names are a table: titles (Prof, Dr) under titles, given
+/// names under given names, family names under family names, notes under notes, each column
+/// as wide as its widest entry (SplitNames says how a line is split, and how to say otherwise).
+/// Beside a planet every column is set from its left; over or under one, the names are set
+/// about the frame's centre line - given names up to it, family names away from it.
+///
 /// TYPE. The art's own: role titles and headings in Squada One (the drawn titles' face) in the
 /// art's yellow over a green rule; names in Montserrat SemiBold (the callouts' face). Both are
 /// TTFs made into TMP font assets at start. A note in brackets after a name - "(Annenberg
@@ -37,9 +43,12 @@ using UnityEngine.UI;
 /// - then on out, faster: the orbits fade, the planets are lost in the Sun, the Sun tightens
 /// into one star that flares with diffraction spikes, the stars round it stream in along the
 /// galaxy's disc, and the Milky Way comes in round it star by star, turning as it shrinks,
-/// until it is the whole galaxy, tilted, the bars opening and the title and supporters coming
-/// up above it. No cut, no flash. With no galaxy assigned the credits end on a wide shot of
-/// the planets, as before.
+/// until it fills the left of the frame, on a slant and running out of it, the bars opening
+/// and the title, then the supporters, coming up in a column on the right - the galaxy beside
+/// the end card as each planet was beside its names. The supporters are a row each, logo and
+/// name, rolling up through the card when there are more than it has room for; after them the
+/// card gives way to the last words, the address the piece was made at, out to the universe. No cut, no flash. With no galaxy assigned
+/// the credits end on a wide shot of the planets, as before.
 ///
 /// The planets are copies of the journey's (CelestialBody_NEW, PlanetSphere_NEW). Their size
 /// and place are set here at start, so moving them in the scene changes nothing. A skips.
@@ -57,7 +66,10 @@ public class CreditsRoll_NEW : MonoBehaviour
         [Tooltip("Shown above the names, e.g. PRODUCED BY.")]
         public string role = "ROLE";
 
-        [Tooltip("One name per line. A note in brackets after a name is set small and green.")]
+        [Tooltip("One name per line, set in columns: title (Prof, Dr), given names, family name (the last word). " +
+                 "A note in round brackets after a name is set small and green: Aaron Wang (Annenberg Fellow). " +
+                 "A second name someone also goes by, in square brackets, is set small after the family name: " +
+                 "Xingru Yi [Winnie]. To split a name yourself, use bars: Dr | Ana | de la Cruz.")]
         [TextArea(2, 8)] public string names = "Name Surname";
 
         [Tooltip("The planet this section goes by with. Empty = over the stars alone.")]
@@ -71,6 +83,16 @@ public class CreditsRoll_NEW : MonoBehaviour
         public Shot shot = Shot.Auto;
     }
 
+    [Serializable]
+    public class Supporter
+    {
+        [Tooltip("Set in words where there is no logo.")]
+        public string name = "";
+
+        [Tooltip("Their logo, as a Sprite: their own file for dark backgrounds. Empty = the name in words.")]
+        public Sprite logo;
+    }
+
     [Header("People")]
     [SerializeField] List<Section> sections = new List<Section>();
 
@@ -79,9 +101,33 @@ public class CreditsRoll_NEW : MonoBehaviour
     [SerializeField] Sprite titleSprite;
     [SerializeField] string titleWords = "THE JOURNEY OF LIGHT";
     [SerializeField] string supportHeading = "MADE POSSIBLE WITH THE SUPPORT OF";
-    [Tooltip("One per line.")]
+    [Tooltip("One per line. Used when Supported By, below, is empty.")]
     [TextArea(3, 10)] [SerializeField] string supporters = "";
+
+    [Tooltip("Who supported the piece, a row each: its logo, and its name beside it. A row with no logo is its name " +
+             "alone. More rows than the end card has room for roll up through it.")]
+    [SerializeField] List<Supporter> supportedBy = new List<Supporter>();
+
+    [Tooltip("How fast the supporters roll up through the end card, in units a second (the frame is 1080 high).")]
+    [Min(5f)] [SerializeField] float supporterRollSpeed = 42f;
+
+    [Tooltip("Multiplies every logo. White leaves them as they are; logos should be their makers' own versions for dark backgrounds.")]
+    [SerializeField] Color logoTint = Color.white;
+
     [TextArea(1, 3)] [SerializeField] string closingLine = "";
+
+    [Header("Last words")]
+    [Tooltip("After the end card, in its place, a line at a time: where the piece was made, and on out. Empty = none.")]
+    [TextArea(6, 24)] [SerializeField] string address =
+        "USC SCHOOL OF CINEMATIC ARTS\nROOM 303, SCI BUILDING\n900 W 34TH ST\nLOS ANGELES, CA 90007\nUSA\nNORTH AMERICA\nEARTH\n" +
+        "INNER SOLAR SYSTEM\nSOLAR SYSTEM\nOORT CLOUD\nLOCAL INTERSTELLAR CLOUD\nORION ARM\nMILKY WAY GALAXY\nLOCAL GROUP\n" +
+        "VIRGO CLUSTER\nLANIAKEA SUPERCLUSTER\nPISCES\u2013CETUS SUPERCLUSTER COMPLEX\nOBSERVABLE UNIVERSE\nUNIVERSE";
+
+    [Tooltip("Seconds between one line coming up and the next.")]
+    [Min(0.05f)] [SerializeField] float addressLineSeconds = 0.3f;
+
+    [Tooltip("Seconds the whole of it is held before the fade to black.")]
+    [Min(0f)] [SerializeField] float addressHoldSeconds = 4f;
 
     [Header("Look")]
     [SerializeField] Camera view;
@@ -233,7 +279,14 @@ public class CreditsRoll_NEW : MonoBehaviour
     // ── State ───────────────────────────────────────────────────────────────
 
     TMP_FontAsset _headingFont, _bodyFont;
-    CanvasGroup _sectionGroup, _endGroup;
+    CanvasGroup _sectionGroup, _endGroup, _endBody;
+    // The supporters' rows, laid out once the canvas has its size, and rolled by TickSupporters.
+    class SupportRow { public RectTransform row, logo, name; public CanvasGroup group; public float aspect; }
+    RectTransform _supportArea;
+    readonly List<SupportRow> _supportRows = new List<SupportRow>();
+    float _supportPitch, _supportRowHeight, _supportView, _supportRoll;   // row to row, a row, the window, how far it rolls
+    readonly List<TextMeshProUGUI> _addressLines = new List<TextMeshProUGUI>();
+    readonly List<float> _addressY = new List<float>();
     RectTransform _sectionBlock, _barTop, _barBottom, _glareCore, _glareStreak, _skyRect;
     Image _black;
     RawImage _sky, _glareCoreImage, _glareStreakImage;
@@ -243,6 +296,7 @@ public class CreditsRoll_NEW : MonoBehaviour
     TextMeshProUGUI _role;
     RectTransform _rule;
     readonly List<TextMeshProUGUI> _lines = new List<TextMeshProUGUI>();
+    readonly List<float> _lineX = new List<float>();
     readonly List<float> _lineY = new List<float>();
     float _ruleWidth = 150f;
 
@@ -320,7 +374,7 @@ public class CreditsRoll_NEW : MonoBehaviour
         if (music == null) return;
         _music = gameObject.AddComponent<AudioSource>();
         _music.clip = music;
-        _music.loop = false;
+        _music.loop = true;   // should the credits outlast it
         _music.playOnAwake = false;
         _music.spatialBlend = 0f;
         _music.volume = 0f;
@@ -500,6 +554,7 @@ public class CreditsRoll_NEW : MonoBehaviour
         else if (!_skip)
         {
             // Up and back to see them all, the bars opening, the title coming up.
+            LayOutSupporters();
             Pose wide = WidePose();
             Pose from = CurrentPose();
             float seconds = moveSeconds * 1.8f;
@@ -516,13 +571,24 @@ public class CreditsRoll_NEW : MonoBehaviour
             }
             _endGroup.alpha = 1f;
 
+            float cardSeconds = Mathf.Max(endHoldSeconds, SupportSeconds);
             t = 0f;
-            while (t < endHoldSeconds && !_skip)
+            while (t < cardSeconds && !_skip)
             {
                 t += Step();
+                TickSupporters(t);
                 Pose drift = wide;
-                drift.position = Vector3.Lerp(wide.position, wide.focus, 0.05f * t / Mathf.Max(0.01f, endHoldSeconds));
+                drift.position = Vector3.Lerp(wide.position, wide.focus, 0.05f * t / Mathf.Max(1f, cardSeconds));
                 Apply(drift);
+                yield return null;
+            }
+
+            float lastWords = AddressSeconds;
+            t = 0f;
+            while (t < lastWords && !_skip)
+            {
+                t += Step();
+                TickAddress(t);
                 yield return null;
             }
         }
@@ -589,7 +655,8 @@ public class CreditsRoll_NEW : MonoBehaviour
     ///             shrinking at the same rate and turning back the quarter turn the dive turns
     ///             it going in; the spikes draw back, the star becomes one of its stars and
     ///             goes, the swarm scatters into the galaxy's own, and the camera comes round
-    ///             to its centre: the whole galaxy, tilted, under the title.
+    ///             to its closing frame: the galaxy large on the left, on a slant, running
+    ///             out of the frame, and the title and supporters in a column on the right.
     ///
     /// Nothing is cut or covered. Distances run from tens of units to millions, so the camera's
     /// path is worked out at true scale and the world drawn scaled down round the Sun, the
@@ -617,7 +684,7 @@ public class CreditsRoll_NEW : MonoBehaviour
         float dWhole = outer * 3.2f;
 
         // The galaxy, at true scale: galaxyToSystem times the system, the camera at its end
-        // 3.8 radii from its centre, 22 degrees above its disc.
+        // where GalaxyCameraLocal puts it.
         Vector3 local = GalaxyCameraLocal() - sunInGalaxy;
         float trueRadius = outer * galaxyToSystem;
         float dEnd = trueRadius * local.magnitude;
@@ -629,14 +696,19 @@ public class CreditsRoll_NEW : MonoBehaviour
         Vector3 centreEnd = sunAt - turn * (sunInGalaxy * radiusEnd);
         Vector3 eyeEnd = sunAt + overhead * held;
         float tanV = Mathf.Tan(view.fieldOfView * 0.5f * Mathf.Deg2Rad);
+        // The closing frame: the galaxy large on the left, its disc on a slant and running out
+        // of the frame's left and bottom edges, the right of the frame clear for the end card.
         Quaternion finalLook = Quaternion.LookRotation(centreEnd - eyeEnd, turn * Vector3.up) *
-                               Quaternion.Euler(Mathf.Atan(-0.5f * tanV) * Mathf.Rad2Deg, 0f, 0f);
+                               Quaternion.Euler(0f, 0f, ClosingRoll) *
+                               Quaternion.Euler(Mathf.Atan(ClosingAt.y * tanV) * Mathf.Rad2Deg,
+                                                -Mathf.Atan(ClosingAt.x * tanV * view.aspect) * Mathf.Rad2Deg, 0f);
 
         Transform world = WorldRoot();
         Vector3 worldPosition = world != null ? world.position : Vector3.zero;
         Vector3 worldScale = world != null ? world.localScale : Vector3.one;
         Vector3 shotLight = last.light;
 
+        LayOutSupporters();
         BuildOrbits(sunAt);
         BuildStar();
         BuildSwarm(outer / trueRadius);
@@ -727,21 +799,29 @@ public class CreditsRoll_NEW : MonoBehaviour
 
             _skyZoom = Mathf.Lerp(1f, 2.4f, Smooth((k - SystemSplit) / (1f - SystemSplit)));
             _bars = 1f - Smooth((k - 0.8f) / 0.18f);
-            _textShade.color = new Color(0f, 0f, 0f, 0.55f * Smooth((k - 0.82f) / 0.18f));
-            _endGroup.alpha = Smooth((k - 0.86f) / 0.14f);
+            _textShade.color = new Color(0f, 0f, 0f, 0.5f * Smooth((k - 0.82f) / 0.18f));
+            // The title as the galaxy settles into its place; the rest once it has.
+            _endBody.alpha = 0f;
+            _endGroup.alpha = Smooth((k - 0.88f) / 0.12f);
             yield return null;
         }
         _endGroup.alpha = 1f;
         HideFinaleLights();
-        if (_skip || galaxy == null) yield break;
+        if (_skip || galaxy == null) { _endBody.alpha = 1f; yield break; }
 
-        // Held over the turning galaxy, drifting in a little.
+        // Held beside the turning galaxy, drifting in a little: the supporters come up and roll
+        // by, and once they have the last words take the end card's place.
         Vector3 from = view.transform.position;
+        float cardSeconds = Mathf.Max(endHoldSeconds, SupportSeconds);
+        float lasting = cardSeconds + AddressSeconds;
         t = 0f;
-        while (t < endHoldSeconds && !_skip)
+        while (t < lasting && !_skip)
         {
             t += Step();
-            view.transform.position = Vector3.Lerp(from, centreEnd, 0.06f * t / Mathf.Max(0.01f, endHoldSeconds));
+            _endBody.alpha = Smooth((t - 0.5f) / 1.6f);
+            TickSupporters(t);
+            if (t > cardSeconds) TickAddress(t - cardSeconds);
+            view.transform.position = Vector3.Lerp(from, centreEnd, 0.08f * t / Mathf.Max(1f, lasting));
             galaxy.Rotate(Vector3.up, -1.2f * Step(), Space.Self);
             yield return null;
         }
@@ -756,10 +836,17 @@ public class CreditsRoll_NEW : MonoBehaviour
     /// <summary>Smooth, but never quite still: the move eases through a moment, it does not stop.</summary>
     static float Ease(float k) { return 0.85f * Smooth(k) + 0.15f * Mathf.Clamp01(k); }
 
-    /// <summary>The camera's place at the end, from the galaxy's centre, in its radii: 22 degrees above the disc, 3.8 out.</summary>
+    // The closing frame: how far the camera is from the galaxy's centre, in its radii, and how
+    // many degrees above its disc; where the centre sits on screen (-1..1 is the frame's edge);
+    // and the camera's roll, which sets the disc on a slant.
+    const float ClosingDistance = 2.5f, ClosingElevation = 34f, ClosingRoll = 22f;
+    static readonly Vector2 ClosingAt = new Vector2(-0.56f, -0.08f);
+
+    /// <summary>The camera's place at the end, from the galaxy's centre, in its radii.</summary>
     static Vector3 GalaxyCameraLocal()
     {
-        return Quaternion.Euler(0f, -24f, 0f) * new Vector3(0f, Mathf.Sin(22f * Mathf.Deg2Rad), -Mathf.Cos(22f * Mathf.Deg2Rad)) * 3.8f;
+        return Quaternion.Euler(0f, -24f, 0f) *
+               new Vector3(0f, Mathf.Sin(ClosingElevation * Mathf.Deg2Rad), -Mathf.Cos(ClosingElevation * Mathf.Deg2Rad)) * ClosingDistance;
     }
 
     /// <summary>
@@ -1227,47 +1314,121 @@ public class CreditsRoll_NEW : MonoBehaviour
         _sectionGroup = Group(root, "Section", new Vector2(0.56f, 0.2f), new Vector2(0.95f, 0.8f));
         _sectionBlock = (RectTransform)_sectionGroup.transform;
 
-        // A soft dark band down from the top, behind the end card, over a bright galaxy.
+        // A soft shade in from the right, behind the end card, should the galaxy's rim reach under it.
         _textShade = new GameObject("End shade", typeof(RectTransform)).AddComponent<RawImage>();
         _textShade.transform.SetParent(root, false);
-        Stretch(_textShade.rectTransform, new Vector2(0f, 0.28f), Vector2.one);
-        _textShade.texture = Gradient(64);
+        Stretch(_textShade.rectTransform, new Vector2(0.4f, 0f), Vector2.one);
+        _textShade.texture = Gradient(64, true);
         _textShade.color = Color.clear;
         _textShade.raycastTarget = false;
 
-        // The end card, in the upper part of the frame: the galaxy turns below it.
-        _endGroup = Group(root, "End", new Vector2(0.1f, 0.3f), new Vector2(0.9f, 0.97f));
+        // The end card: a column down the right of the frame, everything from one left edge, as
+        // a section's words sit beside its planet - here beside the galaxy. The title first;
+        // the rest (_endBody) comes up after it.
+        _endGroup = Group(root, "End", new Vector2(0.57f, 0.16f), new Vector2(0.955f, 0.84f));
         var end = (RectTransform)_endGroup.transform;
         if (titleSprite != null)
         {
+            // Taller than the title is at this width, so the title fills the column's width.
             var img = new GameObject("Title", typeof(RectTransform)).AddComponent<Image>();
             img.transform.SetParent(end, false);
             img.sprite = titleSprite;
             img.preserveAspect = true;
             img.raycastTarget = false;
-            Stretch((RectTransform)img.transform, new Vector2(0.2f, 0.64f), new Vector2(0.8f, 1f));
+            Stretch((RectTransform)img.transform, new Vector2(0f, 0.76f), new Vector2(1f, 1f));
         }
         else
         {
-            TextMeshProUGUI title = Text(end, "Title", titleWords, 96f, accentColour, _headingFont, TextAlignmentOptions.Center);
-            Stretch(title.rectTransform, new Vector2(0f, 0.64f), new Vector2(1f, 1f));
+            TextMeshProUGUI title = Text(end, "Title", titleWords, 96f, accentColour, _headingFont, TextAlignmentOptions.Left);
+            Stretch(title.rectTransform, new Vector2(0f, 0.76f), new Vector2(1f, 1f));
             title.characterSpacing = 8f;
+            title.enableWordWrapping = false;
+            title.enableAutoSizing = true;
+            title.fontSizeMin = 40f;
+            title.fontSizeMax = 96f;
         }
-        TextMeshProUGUI heading = Text(end, "Heading", supportHeading, 32f, headingColour, _headingFont, TextAlignmentOptions.Center);
-        Stretch(heading.rectTransform, new Vector2(0f, 0.48f), new Vector2(1f, 0.57f));
-        heading.characterSpacing = 14f;
         RectTransform rule = Rule(end, accentColour);
-        rule.anchorMin = rule.anchorMax = new Vector2(0.5f, 0.465f);
-        rule.pivot = new Vector2(0.5f, 0.5f);
+        rule.anchorMin = rule.anchorMax = new Vector2(0f, 0.735f);
+        rule.pivot = new Vector2(0f, 0.5f);
         rule.sizeDelta = new Vector2(150f, 3f);
-        TextMeshProUGUI who = Text(end, "Supporters", (supporters ?? "").Replace("\r", ""), 34f, nameColour, _bodyFont, TextAlignmentOptions.Top);
-        Stretch(who.rectTransform, new Vector2(0f, 0.12f), new Vector2(1f, 0.44f));
-        who.lineSpacing = 12f;
-        who.enableAutoSizing = true;
-        who.fontSizeMin = 22f;
-        who.fontSizeMax = 34f;
-        TextMeshProUGUI closing = Text(end, "Closing", closingLine, 26f, accentColour, _bodyFont, TextAlignmentOptions.Center);
-        Stretch(closing.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0.1f));
+
+        _endBody = Group(end, "Body", Vector2.zero, new Vector2(1f, 0.7f));
+        _endBody.alpha = 1f;
+        var body = (RectTransform)_endBody.transform;
+        TextMeshProUGUI heading = Text(body, "Heading", supportHeading, 30f, headingColour, _headingFont, TextAlignmentOptions.Left);
+        Stretch(heading.rectTransform, new Vector2(0f, 0.86f), new Vector2(1f, 0.97f));
+        heading.characterSpacing = 14f;
+        heading.enableWordWrapping = false;
+        heading.enableAutoSizing = true;
+        heading.fontSizeMin = 18f;
+        heading.fontSizeMax = 30f;
+        // The supporters: a row each, logo and name; placed by LayOutSupporters once the canvas has
+        // its size, rolled and faded at the window's edges by TickSupporters.
+        _supportArea = new GameObject("Supporters", typeof(RectTransform)).GetComponent<RectTransform>();
+        _supportArea.SetParent(body, false);
+        Stretch(_supportArea, new Vector2(0f, 0.14f), new Vector2(1f, 0.84f));
+        foreach (Supporter backer in Supporters())
+        {
+            var row = new SupportRow();
+            var rowObject = new GameObject("Supporter " + backer.name, typeof(RectTransform));
+            rowObject.transform.SetParent(_supportArea, false);
+            row.row = (RectTransform)rowObject.transform;
+            row.row.anchorMin = row.row.anchorMax = new Vector2(0f, 1f);
+            row.row.pivot = new Vector2(0f, 1f);
+            row.group = rowObject.AddComponent<CanvasGroup>();
+            row.group.alpha = 0f;
+            row.group.blocksRaycasts = false;
+            row.group.interactable = false;
+
+            if (backer.logo != null)
+            {
+                var img = new GameObject("Logo", typeof(RectTransform)).AddComponent<Image>();
+                img.transform.SetParent(row.row, false);
+                img.sprite = backer.logo;
+                img.color = logoTint;
+                img.preserveAspect = true;
+                img.raycastTarget = false;
+                row.logo = (RectTransform)img.transform;
+                row.logo.anchorMin = row.logo.anchorMax = new Vector2(0f, 0.5f);
+                row.logo.pivot = new Vector2(0f, 0.5f);
+                row.aspect = backer.logo.rect.height > 0f ? backer.logo.rect.width / backer.logo.rect.height : 1f;
+            }
+
+            TextMeshProUGUI words = Text(row.row, "Name", backer.name, 24f, nameColour, _bodyFont, TextAlignmentOptions.Left);
+            words.enableAutoSizing = true;
+            words.fontSizeMin = 16f;
+            words.fontSizeMax = 24f;
+            row.name = words.rectTransform;
+            _supportRows.Add(row);
+        }
+        TextMeshProUGUI closing = Text(body, "Closing", closingLine, 24f, accentColour, _bodyFont, TextAlignmentOptions.BottomLeft);
+        Stretch(closing.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0.12f));
+        closing.enableWordWrapping = false;
+
+        // The last words, where the end card was: a line at a time, each on its own row about the
+        // column's middle (TickAddress).
+        string[] last = (address ?? "").Replace("\r", "").Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        CanvasGroup lastGroup = Group(root, "Last words", new Vector2(0.57f, 0.08f), new Vector2(0.955f, 0.92f));
+        lastGroup.alpha = 1f;
+        float rowHeight = Mathf.Min(33f, 880f / Mathf.Max(1, last.Length));
+        for (int i = 0; i < last.Length; i++)
+        {
+            // The last of them - the universe - in the green.
+            TextMeshProUGUI line = Text((RectTransform)lastGroup.transform, "Line", last[i].Trim(), rowHeight * 0.66f,
+                                        i == last.Length - 1 ? accentColour : nameColour, _bodyFont, TextAlignmentOptions.Left);
+            line.enableWordWrapping = false;
+            line.characterSpacing = 14f;
+            line.alpha = 0f;
+            RectTransform rt = line.rectTransform;
+            rt.anchorMin = new Vector2(0f, 0.5f);
+            rt.anchorMax = new Vector2(1f, 0.5f);
+            rt.pivot = new Vector2(0f, 0.5f);
+            rt.sizeDelta = new Vector2(0f, rowHeight);
+            float y = ((last.Length - 1) * 0.5f - i) * rowHeight;
+            rt.anchoredPosition = new Vector2(0f, y);
+            _addressLines.Add(line);
+            _addressY.Add(y);
+        }
 
         // The bars, then black over everything for the way in and out.
         _barTop = Black(root, "Letterbox top");
@@ -1282,61 +1443,223 @@ public class CreditsRoll_NEW : MonoBehaviour
         _black = fade.GetComponent<Image>();
     }
 
+    /// <summary>Who supported the piece: Supported By, or with that empty the Supporters text, a name a line.</summary>
+    List<Supporter> Supporters()
+    {
+        if (supportedBy != null && supportedBy.Count > 0) return supportedBy;
+        var list = new List<Supporter>();
+        foreach (string raw in (supporters ?? "").Replace("\r", "").Split('\n'))
+            if (raw.Trim().Length > 0) list.Add(new Supporter { name = raw.Trim() });
+        return list;
+    }
+
+    /// <summary>
+    /// The supporters' rows in their places: every logo in a column down the end card's left
+    /// edge, as big as its box allows, and every name in a column beside them (with no logos
+    /// at all, the names from the left edge). Works out how far the rows have to roll to show
+    /// them all.
+    /// </summary>
+    void LayOutSupporters()
+    {
+        if (_supportArea == null || _supportRows.Count == 0) return;
+        Rect area = _supportArea.rect;
+        float width = area.width > 1f ? area.width : 739f;
+        _supportView = area.height > 1f ? area.height : 360f;
+
+        const float logoWidth = 270f, logoHeight = 80f, gap = 60f;   // room between rows: they roll, so two at a time is enough
+        bool logos = _supportRows.Exists(x => x.logo != null);
+        _supportRowHeight = logos ? logoHeight + 4f : 40f;
+        _supportPitch = _supportRowHeight + (logos ? gap : 6f);
+        float nameLeft = logos ? logoWidth + 32f : 0f;
+
+        foreach (SupportRow r in _supportRows)
+        {
+            r.row.sizeDelta = new Vector2(width, _supportRowHeight);
+            if (r.logo != null)
+            {
+                float w = Mathf.Min(logoWidth, logoHeight * r.aspect);
+                r.logo.sizeDelta = new Vector2(w, w / r.aspect);
+                r.logo.anchoredPosition = Vector2.zero;
+            }
+            r.name.anchorMin = new Vector2(0f, 0f);
+            r.name.anchorMax = new Vector2(1f, 1f);
+            r.name.offsetMin = new Vector2(nameLeft, 0f);
+            r.name.offsetMax = Vector2.zero;
+        }
+
+        // Rows fade over SupportEdge at the window's top and bottom, so the first starts that far
+        // down and the last ends that far up: nothing is ever cut by an edge.
+        float content = _supportRows.Count * _supportPitch - (_supportPitch - _supportRowHeight) + SupportEdge * 2f;
+        _supportRoll = Mathf.Max(0f, content - _supportView);
+        TickSupporters(0f);
+    }
+
+    const float SupportEdge = 30f;       // the fade at the window's top and bottom, in units
+    const float SupportLead = 3.2f;      // seconds the first rows are held before they roll
+    const float SupportTail = 2.5f;      // and the last, after
+
+    /// <summary>How long the end card has to be up for every supporter to have gone by.</summary>
+    float SupportSeconds
+    {
+        get { return _supportRoll <= 0f ? 0f : SupportLead + _supportRoll / Mathf.Max(1f, supporterRollSpeed) + SupportTail; }
+    }
+
+    /// <summary>
+    /// The supporters, <paramref name="t"/> seconds after the end card came up: held, then
+    /// rolling up through their window at a steady rate until the last row is in, each row
+    /// fading in as it comes up from the bottom edge and out as it reaches the top.
+    /// </summary>
+    void TickSupporters(float t)
+    {
+        if (_supportRows.Count == 0 || _supportPitch <= 0f) return;
+        float rolled = Mathf.Clamp((t - SupportLead) * supporterRollSpeed, 0f, _supportRoll);
+        for (int i = 0; i < _supportRows.Count; i++)
+        {
+            float top = SupportEdge + i * _supportPitch - rolled;        // down from the window's top
+            _supportRows[i].row.anchoredPosition = new Vector2(0f, -top);
+            _supportRows[i].group.alpha = Smooth(top / SupportEdge) * Smooth((_supportView - top - _supportRowHeight) / SupportEdge);
+        }
+    }
+
+    /// <summary>How long the last words take: the end card going, each line coming, the hold.</summary>
+    float AddressSeconds
+    {
+        get { return _addressLines.Count == 0 ? 0f : 1.2f + _addressLines.Count * addressLineSeconds + 0.6f + addressHoldSeconds; }
+    }
+
+    /// <summary>The last words, <paramref name="t"/> seconds in: the end card fades, and the lines come up one after another.</summary>
+    void TickAddress(float t)
+    {
+        if (_addressLines.Count == 0) return;
+        _endGroup.alpha = 1f - Smooth(t);
+        for (int i = 0; i < _addressLines.Count; i++)
+        {
+            float a = Smooth((t - 1.2f - i * addressLineSeconds) / 0.6f);
+            _addressLines[i].alpha = a;
+            _addressLines[i].rectTransform.anchoredPosition = new Vector2(0f, _addressY[i] - (1f - a) * 8f);
+        }
+    }
+
     // ── A section's words ───────────────────────────────────────────────────
 
     void ShowSection(int i)
     {
         foreach (Transform child in _sectionBlock) Destroy(child.gameObject);
         _lines.Clear();
+        _lineX.Clear();
         _lineY.Clear();
 
         Section s = sections[i];
         Layout layout = Def(ShotOf(i)).layout;
         Vector2 min, max;
-        TextAlignmentOptions align;
-        float side;   // where the rule sits across the block: 0 left, 0.5 middle, 1 right
+        float side;   // where the words sit across the block: 0 from its left, 0.5 centred, 1 against its right
         switch (layout)
         {
-            case Layout.Left: min = new Vector2(0.05f, 0.18f); max = new Vector2(0.44f, 0.82f); align = TextAlignmentOptions.Right; side = 1f; break;
-            case Layout.Top: min = new Vector2(0.12f, 0.52f); max = new Vector2(0.88f, 0.86f); align = TextAlignmentOptions.Center; side = 0.5f; break;
-            case Layout.Bottom: min = new Vector2(0.12f, 0.14f); max = new Vector2(0.88f, 0.46f); align = TextAlignmentOptions.Center; side = 0.5f; break;
+            case Layout.Left: min = new Vector2(0.05f, 0.18f); max = new Vector2(0.44f, 0.82f); side = 1f; break;
+            case Layout.Top: min = new Vector2(0.12f, 0.52f); max = new Vector2(0.88f, 0.86f); side = 0.5f; break;
+            case Layout.Bottom: min = new Vector2(0.12f, 0.14f); max = new Vector2(0.88f, 0.46f); side = 0.5f; break;
             // Under the Sun's glare, which a close-up puts high on the right.
-            case Layout.LowerRight: min = new Vector2(0.56f, 0.14f); max = new Vector2(0.95f, 0.56f); align = TextAlignmentOptions.Left; side = 0f; break;
-            default: min = new Vector2(0.56f, 0.18f); max = new Vector2(0.95f, 0.82f); align = TextAlignmentOptions.Left; side = 0f; break;
+            case Layout.LowerRight: min = new Vector2(0.56f, 0.14f); max = new Vector2(0.95f, 0.56f); side = 0f; break;
+            default: min = new Vector2(0.56f, 0.18f); max = new Vector2(0.95f, 0.82f); side = 0f; break;
         }
         Stretch(_sectionBlock, min, max);
         _sectionGroup.alpha = 1f;
 
-        List<string> names = SplitNames(s.names);
+        List<NameRow> rows = SplitNames(s.names);
+        float canvasWidth = ((RectTransform)_sectionBlock.parent).rect.width;
+        float blockWidth = (canvasWidth > 1f ? canvasWidth : 1920f) * (max.x - min.x);
         float height = (max.y - min.y) * 1080f;
         const float roleSize = 46f, gap = 20f;
         float roleHeight = roleSize * 1.2f;
-        float lineSize = Mathf.Clamp((height - roleHeight - gap * 2f) / (Mathf.Max(1, names.Count) * 1.32f), 22f, 38f);
+        float lineSize = Mathf.Clamp((height - roleHeight - gap * 2f) / (Mathf.Max(1, rows.Count) * 1.32f), 22f, 38f);
         float lineHeight = lineSize * 1.32f;
-        float content = roleHeight + gap * 2f + names.Count * lineHeight;
+        float content = roleHeight + gap * 2f + rows.Count * lineHeight;
         float y = -Mathf.Max(0f, height - content) * 0.5f;
 
-        _role = Text(_sectionBlock, "Role", (s.role ?? "").Replace("\r", ""), roleSize, headingColour, _headingFont, align);
-        _role.fontStyle = FontStyles.UpperCase;
+        // The role, sized down if it is wider than its block.
+        string role = (s.role ?? "").Replace("\r", "").ToUpperInvariant();
+        _role = Text(_sectionBlock, "Role", role, roleSize, headingColour, _headingFont,
+                     side == 0.5f ? TextAlignmentOptions.Center : TextAlignmentOptions.Left);
         _role.enableWordWrapping = false;
-        Row(_role.rectTransform, y, roleHeight);
+        _role.characterSpacing = 12f;
+        float roleWidth = Width(_role, role);
+        if (roleWidth > blockWidth)
+        {
+            _role.fontSize = roleSize * blockWidth / roleWidth;
+            roleWidth = blockWidth;
+        }
         _role.alpha = 0f;
 
+        // The names, as a table: titles under titles, given names under given names, family
+        // names under family names, notes under notes - each column as wide as its widest.
+        TextMeshProUGUI probe = Text(_sectionBlock, "Measure", "", lineSize, nameColour, _bodyFont, TextAlignmentOptions.Left);
+        probe.enableWordWrapping = false;
+        probe.alpha = 0f;
+        bool centred = side == 0.5f;
+        var givenWidth = new float[rows.Count];
+        float wTitle = 0f, wGiven = 0f, wFamily = 0f, wNote = 0f;
+        for (int j = 0; j < rows.Count; j++)
+        {
+            givenWidth[j] = Width(probe, rows[j].given);
+            wTitle = Mathf.Max(wTitle, Width(probe, rows[j].title));
+            wGiven = Mathf.Max(wGiven, givenWidth[j]);
+            wFamily = Mathf.Max(wFamily, Width(probe, rows[j].family));
+            wNote = Mathf.Max(wNote, Width(probe, NoteMarkup(rows[j].note)));
+        }
+        float between = wFamily > 0f ? lineSize * 0.5f : 0f;   // the gap between given and family names
+        float xGiven = wTitle > 0f ? wTitle + lineSize * 0.38f : 0f;
+        float xFamily = xGiven + wGiven + between;
+        float xNote = xFamily + wFamily + lineSize * 0.7f;
+        float tableWidth = wNote > 0f ? xNote + wNote : xFamily + wFamily;
+        float fit = 1f;
+        if (tableWidth > blockWidth)
+        {
+            // Too wide for its block: everything a little smaller, in proportion.
+            fit = blockWidth / tableWidth;
+            lineSize *= fit;
+            between *= fit; xGiven *= fit; xFamily *= fit; xNote *= fit; tableWidth = blockWidth;
+        }
+
+        // Beside a planet, role, rule and table share a left edge and every column is set from
+        // its left. Over or under one, the names are set about the middle of the frame: the gap
+        // between given and family names is on the centre line in every row, given names
+        // running up to it from the left, family names away from it to the right (titles still
+        // in a column at the far left, notes at the far right).
+        float left = centred ? 0f : Mathf.Max(0f, (blockWidth - Mathf.Max(tableWidth, roleWidth)) * side);
+        float tableLeft = centred ? blockWidth * 0.5f - (xFamily - between * 0.5f) : left;
+
+        if (centred) Row(_role.rectTransform, y, roleHeight);
+        else RowAt(_role.rectTransform, left, y, Mathf.Max(1f, blockWidth - left), roleHeight);
+
         _rule = Rule(_sectionBlock, accentColour);
-        _rule.anchorMin = _rule.anchorMax = new Vector2(side, 1f);
-        _rule.pivot = new Vector2(side, 0.5f);
-        _rule.anchoredPosition = new Vector2(0f, y - roleHeight - gap * 0.55f);
+        _rule.anchorMin = _rule.anchorMax = new Vector2(centred ? 0.5f : 0f, 1f);
+        _rule.pivot = new Vector2(centred ? 0.5f : 0f, 0.5f);
+        _rule.anchoredPosition = new Vector2(centred ? 0f : left, y - roleHeight - gap * 0.55f);
         _rule.sizeDelta = new Vector2(0f, 3f);
 
         float lineTop = y - roleHeight - gap * 2f;
-        for (int j = 0; j < names.Count; j++)
+        for (int j = 0; j < rows.Count; j++)
         {
-            TextMeshProUGUI line = Text(_sectionBlock, "Name", names[j], lineSize, nameColour, _bodyFont, align);
+            NameRow row = rows[j];
+            float given = xGiven;
+            if (centred)
+            {
+                // Up to the centre gap from the left; a single name, with no family name, across it.
+                float w = givenWidth[j] * fit, end = xFamily - between;
+                given = row.family.Length > 0 ? end - w : end + between * 0.5f - w * 0.5f;
+            }
+            string words = row.title;
+            if (row.given.Length > 0) words += "<pos=" + Units(given) + ">" + row.given;
+            if (row.family.Length > 0) words += "<pos=" + Units(xFamily) + ">" + row.family;
+            if (row.note.Length > 0) words += "<pos=" + Units(xNote) + ">" + NoteMarkup(row.note);
+
+            TextMeshProUGUI line = Text(_sectionBlock, "Name", words, lineSize, nameColour, _bodyFont, TextAlignmentOptions.Left);
             line.enableWordWrapping = false;
             float ly = lineTop - j * lineHeight;
-            Row(line.rectTransform, ly, lineHeight);
+            RowAt(line.rectTransform, tableLeft, ly, Mathf.Max(1f, tableWidth), lineHeight);
             line.alpha = 0f;
             _lines.Add(line);
+            _lineX.Add(tableLeft);
             _lineY.Add(ly);
         }
     }
@@ -1360,29 +1683,106 @@ public class CreditsRoll_NEW : MonoBehaviour
             float a = Smooth((t - fade * 0.45f - j * 0.14f) / (fade * 0.8f));
             _lines[j].alpha = a;
             RectTransform rt = _lines[j].rectTransform;
-            rt.anchoredPosition = new Vector2(0f, _lineY[j] - (1f - a) * 12f);
+            rt.anchoredPosition = new Vector2(_lineX[j], _lineY[j] - (1f - a) * 12f);
         }
     }
 
-    List<string> SplitNames(string typed)
+    /// <summary>
+    /// A name in its columns: its title (Prof, Dr), given names, family name, the note from its
+    /// round brackets, and the other name it also goes by, from its square ones.
+    /// </summary>
+    struct NameRow { public string title, given, family, note, also; }
+
+    static readonly HashSet<string> Titles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        { "Prof", "Professor", "Dr", "Doctor", "Mr", "Mrs", "Ms", "Mx", "Sir", "Dame" };
+
+    /// <summary>
+    /// One row a line. "Prof Vera Gluscevic (Science Lead)": a first word that is a title goes
+    /// in the title column, the last word is the family name, what is between is the given
+    /// names, and what is in brackets the note. Where that guesses wrong - a family name of
+    /// two words - say it with bars: "Dr | Ana | de la Cruz", or "Ana | de la Cruz".
+    ///
+    /// A second name someone also goes by - a Chinese given name and an English one - would
+    /// make the given-names column as wide as both and push every family name away from its
+    /// given name. Put one in square brackets instead: "Xingru Yi [Winnie]" sets Xingru and Yi
+    /// in their columns and (Winnie) small and quiet after the family name.
+    /// </summary>
+    List<NameRow> SplitNames(string typed)
     {
-        var list = new List<string>();
+        var list = new List<NameRow>();
         foreach (string raw in (typed ?? "").Replace("\r", "").Split('\n'))
         {
             string line = raw.Trim();
-            if (line.Length > 0) list.Add(StyleNote(line));
+            if (line.Length == 0) continue;
+            var row = new NameRow { title = "", given = "", family = "", note = "", also = "" };
+
+            Match also = Regex.Match(line, @"\[([^\]]*)\]");
+            if (also.Success)
+            {
+                row.also = also.Groups[1].Value.Trim();
+                line = line.Remove(also.Index, also.Length).Trim();
+            }
+
+            Match note = Regex.Match(line, @"\(([^)]*)\)");
+            if (note.Success)
+            {
+                row.note = note.Groups[1].Value.Trim();
+                line = line.Remove(note.Index, note.Length).Trim();
+            }
+
+            if (line.IndexOf('|') >= 0)
+            {
+                string[] cells = line.Split('|');
+                for (int c = 0; c < cells.Length; c++) cells[c] = cells[c].Trim();
+                if (cells.Length == 2) { row.given = cells[0]; row.family = cells[1]; }
+                else { row.title = cells[0]; row.given = cells[1]; row.family = string.Join(" ", cells, 2, cells.Length - 2).Trim(); }
+            }
+            else
+            {
+                string[] words = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                int first = 0, last = words.Length - 1;
+                if (words.Length > 1 && Titles.Contains(words[0].TrimEnd('.'))) { row.title = words[0]; first = 1; }
+                if (last > first)
+                {
+                    row.family = words[last];
+                    row.given = string.Join(" ", words, first, last - first);
+                }
+                else if (last == first) row.given = words[first];
+            }
+
+            // The other name rides after the family name, in its column (after the given
+            // name, for someone with one name only).
+            if (row.also.Length > 0)
+            {
+                string small = "<space=0.3em><size=70%><color=#" + ColorUtility.ToHtmlStringRGB(nameColour * 0.72f) + ">(" +
+                               row.also + ")</color></size>";
+                if (row.family.Length > 0) row.family += small;
+                else row.given += small;
+            }
+            list.Add(row);
         }
         return list;
     }
 
-    /// <summary>A note in brackets after a name, small, in capitals, in the green.</summary>
-    string StyleNote(string line)
+    /// <summary>A note as it is set: small, in capitals, in the green; or as typed, in its brackets, with styling off.</summary>
+    string NoteMarkup(string note)
     {
-        if (!styleNotes) return line;
-        string hex = ColorUtility.ToHtmlStringRGB(accentColour);
-        return Regex.Replace(line, @"\s*\(([^)]*)\)", m =>
-            "  <size=58%><cspace=0.12em><color=#" + hex + ">" + m.Groups[1].Value.Trim().ToUpperInvariant() + "</color></cspace></size>");
+        if (string.IsNullOrEmpty(note)) return "";
+        if (!styleNotes) return "(" + note + ")";
+        return "<size=58%><cspace=0.12em><color=#" + ColorUtility.ToHtmlStringRGB(accentColour) + ">" +
+               note.ToUpperInvariant() + "</color></cspace></size>";
     }
+
+    /// <summary>How wide <paramref name="words"/> would be set in <paramref name="probe"/>'s face and size.</summary>
+    static float Width(TMP_Text probe, string words)
+    {
+        if (string.IsNullOrEmpty(words)) return 0f;
+        float w = probe.GetPreferredValues(words).x;
+        // Should the measure fail, a fair guess keeps the columns apart.
+        return w > 0f && !float.IsNaN(w) && !float.IsInfinity(w) ? w : words.Length * probe.fontSize * 0.6f;
+    }
+
+    static string Units(float x) { return x.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture); }
 
     // ── UI pieces ───────────────────────────────────────────────────────────
 
@@ -1422,6 +1822,15 @@ public class CreditsRoll_NEW : MonoBehaviour
         rt.pivot = new Vector2(0.5f, 1f);
         rt.sizeDelta = new Vector2(0f, height);
         rt.anchoredPosition = new Vector2(0f, top);
+    }
+
+    /// <summary>A row <paramref name="left"/> in from its block's left edge, <paramref name="top"/> units down (negative), of its own width.</summary>
+    static void RowAt(RectTransform rt, float left, float top, float width, float height)
+    {
+        rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
+        rt.pivot = new Vector2(0f, 1f);
+        rt.sizeDelta = new Vector2(width, height);
+        rt.anchoredPosition = new Vector2(left, top);
     }
 
     static RectTransform Rule(RectTransform parent, Color colour)
@@ -1481,17 +1890,20 @@ public class CreditsRoll_NEW : MonoBehaviour
         return tex;
     }
 
-    /// <summary>Opaque at the top, clear at the bottom, eased: a shade that has no edge.</summary>
-    static Texture2D Gradient(int height)
+    /// <summary>
+    /// A shade that has no edge, eased from clear to opaque: up to the top, or with
+    /// <paramref name="across"/> to the right.
+    /// </summary>
+    static Texture2D Gradient(int size, bool across = false)
     {
-        var tex = new Texture2D(1, height, TextureFormat.RGBA32, false)
+        var tex = new Texture2D(across ? size : 1, across ? 1 : size, TextureFormat.RGBA32, false)
         {
             name = "Shade", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear
         };
-        for (int y = 0; y < height; y++)
+        for (int i = 0; i < size; i++)
         {
-            float k = y / (float)(height - 1);
-            tex.SetPixel(0, y, new Color(1f, 1f, 1f, k * k * (3f - 2f * k)));
+            float k = i / (float)(size - 1);
+            tex.SetPixel(across ? i : 0, across ? 0 : i, new Color(1f, 1f, 1f, k * k * (3f - 2f * k)));
         }
         tex.Apply(false, true);
         return tex;

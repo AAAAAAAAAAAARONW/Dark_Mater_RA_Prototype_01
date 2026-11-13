@@ -629,7 +629,7 @@ MonoBehaviour:
   sections:
   - role: PRODUCED BY
     names: "Prof Martzi Campos \nProf Sean Bouchard\nAaron Wang (Annenberg Fellow)\nSamuel
-      Tang (Annenberg Fellow)\nZiqing Ye\nXingru Winnie Yi"
+      Tang (Annenberg Fellow)\nZiqing Ye\nXingru Yi [Winnie]"
     planet: {fileID: 5064957}
     shot: 0
   - role: DESIGN
@@ -652,7 +652,7 @@ MonoBehaviour:
     planet: {fileID: 1593210869}
     shot: 0
   - role: ART,UIUX AND VISUAL EFFECTS
-    names: 'Xingru Winnie Yi
+    names: 'Xingru Yi [Winnie]
 
       Aaron Wang
 
@@ -687,7 +687,24 @@ MonoBehaviour:
   supporters: "The John Templeton Foundation\nCarnegie Science \nUC Riverside\nUSC
     Dornsife College of Letters, Arts and Sciences\nUSC Games\nUSC School of Cinematic
     Arts"
+  supportedBy:
+  - name: The John Templeton Foundation
+    logo: {fileID: 21300000, guid: 7afac6ce5c5d4442a57503fef2123187, type: 3}
+  - name: Carnegie Science
+    logo: {fileID: 21300000, guid: a16a59432eae4162ba1d837f2eca20d2, type: 3}
+  - name: UC Riverside
+    logo: {fileID: 21300000, guid: c10c03a8863144f182619e94bf61e551, type: 3}
+  - name: "USC Dornsife College of Letters, Arts and Sciences"
+    logo: {fileID: 21300000, guid: 5a6c83e83b954f0da194b81b07e061b9, type: 3}
+  - name: USC Games
+    logo: {fileID: 21300000, guid: 4c74d49b32454ccb9c40a3734b43067b, type: 3}
+  - name: USC School of Cinematic Arts
+    logo: {fileID: 21300000, guid: d246c5c4b5c04b41b06fbe2f24758e82, type: 3}
+  logoTint: {r: 1, g: 1, b: 1, a: 1}
   closingLine: Thank you for travelling with the light.
+  address: "USC SCHOOL OF CINEMATIC ARTS\nROOM 303, SCI BUILDING\n900 W 34TH ST\nLOS ANGELES, CA 90007\nUSA\nNORTH AMERICA\nEARTH\nINNER SOLAR SYSTEM\nSOLAR SYSTEM\nOORT CLOUD\nLOCAL INTERSTELLAR CLOUD\nORION ARM\nMILKY WAY GALAXY\nLOCAL GROUP\nVIRGO CLUSTER\nLANIAKEA SUPERCLUSTER\nPISCES\u2013CETUS SUPERCLUSTER COMPLEX\nOBSERVABLE UNIVERSE\nUNIVERSE"
+  addressLineSeconds: 0.3
+  addressHoldSeconds: 4
   view: {fileID: 8200003}
   sun: {fileID: 8200011}
   headingFont: {fileID: 12800000, guid: dfcfef9087a5423b9102c0dc1302da24, type: 3}
@@ -715,7 +732,7 @@ MonoBehaviour:
   orbitBrightness: 0.35
   swarmCount: 900
   zoomOutSeconds: 22
-  music: {fileID: 0}
+  music: {fileID: 8300000, guid: ff00795bb3d44202bd1f4e037bd4a302, type: 3}
   musicVolume: 0.8
   introSeconds: 3
   textFadeSeconds: 1.2
