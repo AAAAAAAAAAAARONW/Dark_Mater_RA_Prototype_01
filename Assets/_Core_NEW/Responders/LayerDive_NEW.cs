@@ -960,6 +960,12 @@ public class LayerDive_NEW : MonoBehaviour
         return false;
     }
 
+    /// <summary>
+    /// A dive has begun, with the row it plays. Its peak is diveSeconds from now, on the game's
+    /// clock: the score (JourneyScore_NEW) times its climax by it.
+    /// </summary>
+    public static event Action<Dive> DiveBegan;
+
     public void Begin(LayerProfile_NEW from, LayerProfile_NEW to, Dive dive)
     {
         if (IsActive) Abort();
@@ -1039,6 +1045,7 @@ public class LayerDive_NEW : MonoBehaviour
         BuildEffects();
         CaptureTrails();
         PlayDiveSound(dive);
+        if (DiveBegan != null) DiveBegan(dive);
         CinemachineCore.CameraUpdatedEvent.AddListener(OnCameraUpdated);
 
         if (debugLog)

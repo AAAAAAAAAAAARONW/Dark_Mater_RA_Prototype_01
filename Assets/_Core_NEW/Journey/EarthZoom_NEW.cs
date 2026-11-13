@@ -412,9 +412,13 @@ public class EarthZoom_NEW : MonoBehaviour
         return cam != null ? Mathf.Max(0f, Vector3.Dot(photon.transform.position - cam.transform.position, photon.MovementDirection)) : 5f;
     }
 
+    /// <summary>Earth has begun to grow: the last stretch before the light goes in (JourneyScore_NEW plays its rise on it).</summary>
+    public static event System.Action ZoomBegan;
+
     void Begin(float distance)
     {
         _zooming = true;
+        if (ZoomBegan != null) ZoomBegan();
 
         _r0 = Mathf.Max(_body != null ? _body.GroundRadius : 0.5f * earth.lossyScale.x, 1e-4f);
         _radius = _r0;
