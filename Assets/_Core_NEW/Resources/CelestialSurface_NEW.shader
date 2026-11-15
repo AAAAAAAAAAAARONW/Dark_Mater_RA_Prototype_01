@@ -91,7 +91,8 @@ Shader "Custom/CelestialSurface_NEW"
         _ClearSky ("Clear sky round (object-space direction)", Vector) = (0, 1, 0, 0)
         _ClearSkyCos ("Clear sky cosines: inside, outside", Vector) = (2, 1.5, 0, 0)
         _Lights ("City lights close up: cell km, point size, amount, region exposure", Vector) = (0.15, 0.22, 0, 1)
-        _LightsBright ("City lights close up: each point's brightness", Range(0, 4)) = 1.6
+        _LightsBright ("City lights close up: each point's brightness", Range(0, 6)) = 3
+        _CityGlow ("City lights from the night map, times their own light (HDR, for the bloom)", Range(1, 6)) = 3
         _GroundHaze ("Ground haze (rgb), km (w)", Vector) = (0.1, 0.06, 0.04, 30)
         _GroundHazeFrom ("Ground haze from / to (radius over height)", Vector) = (200, 800, 0, 0)
         _CloudShadow ("Cloud shadows", Range(0, 1)) = 0
@@ -128,13 +129,21 @@ Shader "Custom/CelestialSurface_NEW"
             float4 _NightMap_ST, _NightCloud, _RegionRect, _RegionFade;
             float _NightMapOn, _NightExposure, _RegionOn;
             float4 _Lights, _GroundHaze, _GroundHazeFrom;
-            float _LightsBright;
+            float _LightsBright, _CityGlow;
 
             float3 LightHash(float3 p)
             {
                 p = frac(p * float3(0.1031, 0.1030, 0.0973));
                 p += dot(p, p.yxz + 33.33);
                 return frac((p.xxy + p.yxx) * p.zyx);
+            }
+
+            // The night map's cities brighter than white, so the bloom spreads them; the
+            // moonlit land, far darker, left as it is.
+            float3 CityGlow(float3 c)
+            {
+                float glow = smoothstep(0.15, 0.6, dot(c, float3(0.299, 0.587, 0.114)));
+                return c * (1.0 + glow * (_CityGlow - 1.0));
             }
 
             // The map's light broken into points (see LATER: ON THE GROUND): a light in a
@@ -260,7 +269,7 @@ Shader "Custom/CelestialSurface_NEW"
                 float nightSide = smoothstep(0.06, -0.14, nlSmooth);
                 if (_NightMapOn > 0.5)
                 {
-                    float3 night = tex2D(_NightMap, TRANSFORM_TEX(i.uv, _NightMap)).rgb;
+                    float3 night = CityGlow(tex2D(_NightMap, TRANSFORM_TEX(i.uv, _NightMap)).rgb);
                     if (_RegionOn > 0.5)
                     {
                         // Longitude and latitude, as the maps lay them out on PlanetSphere_NEW.
@@ -270,7 +279,7 @@ Shader "Custom/CelestialSurface_NEW"
                                           (lat - _RegionRect.y) / (_RegionRect.w - _RegionRect.y));
                         float2 edge = saturate(min(r, 1.0 - r) / 0.12);
                         float w = edge.x * edge.y * smoothstep(_RegionFade.x, _RegionFade.y, i.close);
-                        night = lerp(night, tex2D(_RegionMap, saturate(r)).rgb * _Lights.w, w);
+                        night = lerp(night, CityGlow(tex2D(_RegionMap, saturate(r)).rgb * _Lights.w), w);
                         night = CityPoints(nObj, night, w);
                     }
                     dark = lerp(dark, night * _NightExposure, nightSide);

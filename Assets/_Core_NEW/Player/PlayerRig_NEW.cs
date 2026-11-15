@@ -98,6 +98,7 @@ public class PlayerRig_NEW : MonoBehaviour
     float _externalSpeedMultiplier = 1f;
     float _narrationSpeedMultiplier = 1f;
     float _paceSpeedMultiplier = 1f;
+    float _approachSpeedMultiplier = 1f;
     bool _cameraInputLocked;
     string _lockReason;
     float _lookSensitivityScale = 1f;
@@ -177,6 +178,16 @@ public class PlayerRig_NEW : MonoBehaviour
 
     public float PaceSpeedMultiplier => _paceSpeedMultiplier;
 
+    /// <summary>
+    /// A fourth, for the last approach to Earth: EarthZoom_NEW keeps the light at the speed
+    /// it has (cancelling the Earth layer's own slowing) and slows it for the last few
+    /// seconds into the dome. Multiplies with the other three. 1 = no effect.
+    /// </summary>
+    public void SetApproachSpeedMultiplier(float multiplier)
+    {
+        _approachSpeedMultiplier = Mathf.Max(0f, multiplier);
+    }
+
     bool _held;
 
     /// <summary>
@@ -244,7 +255,7 @@ public class PlayerRig_NEW : MonoBehaviour
         bend.Tick(dt, transform.position, speed, ref movementDirection, ref _defaultDirection);
 
         // 3 · Move
-        float finalSpeed = _held ? 0f : speed * _externalSpeedMultiplier * _narrationSpeedMultiplier * _paceSpeedMultiplier;
+        float finalSpeed = _held ? 0f : speed * _externalSpeedMultiplier * _narrationSpeedMultiplier * _paceSpeedMultiplier * _approachSpeedMultiplier;
         // Held, not moved at all: what holds it may carry it itself (EarthSummit_NEW flies it
         // into the dome), and a Move of nothing would put it back where the controller had it.
         if (!_held) _controller.Move(movementDirection * (finalSpeed * dt));

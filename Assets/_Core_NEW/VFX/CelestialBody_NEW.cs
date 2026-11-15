@@ -88,10 +88,11 @@ public class CelestialBody_NEW : MonoBehaviour
              "comes down to it.")]
     [SerializeField] Texture regionMap;
     [Tooltip("Where the region map lies, in degrees: west, south, east, north.")]
-    [SerializeField] Vector4 regionRect = new Vector4(-120.19167f, 32.62083f, -115.925f, 35.82083f);
+    [SerializeField] Vector4 regionRect = new Vector4(-126.59167f, 25.6875f, -109.525f, 42.75417f);
     [Tooltip("The region map comes in as the planet's radius over the camera's height above the " +
-             "ground goes from x to y. About 2.8 as the light reaches the air, growing as it comes down.")]
-    [SerializeField] Vector2 regionFade = new Vector2(4f, 10f);
+             "ground goes from x to y: about 1 with the camera a radius out, growing as it comes down. " +
+             "It is sharper than the whole-Earth map wherever it reaches, so early.")]
+    [SerializeField] Vector2 regionFade = new Vector2(0.5f, 1.5f);
     [Tooltip("A clear sky round this point, latitude and longitude in degrees: where the light comes down.")]
     [SerializeField] Vector2 clearSkyAt = new Vector2(34.22f, -118.06f);
     [Tooltip("Clear inside x degrees of it, the weather back by y. 0, 0: no clearing.")]
@@ -102,7 +103,10 @@ public class CelestialBody_NEW : MonoBehaviour
     [Range(0f, 1f)] [SerializeField] float cityLightsKm = 0.15f;
     [Tooltip("Each point's size, as a fraction of its cell.")]
     [Range(0.05f, 0.5f)] [SerializeField] float cityLightSize = 0.22f;
-    [Range(0f, 4f)] [SerializeField] float cityLightBrightness = 1.6f;
+    [Range(0f, 6f)] [SerializeField] float cityLightBrightness = 3f;
+    [Tooltip("The night map's city lights, made brighter than white so the bloom spreads them: " +
+             "times their own light. The moonlit land is left as it is. 1 = as the map has them.")]
+    [Range(1f, 6f)] [SerializeField] float cityGlow = 3f;
     [Tooltip("The region map's brightness (it is saturated over Los Angeles).")]
     [Range(0f, 2f)] [SerializeField] float regionExposure = 0.8f;
     [Tooltip("Down on the ground, the haze the far ground fades into.")]
@@ -416,6 +420,7 @@ public class CelestialBody_NEW : MonoBehaviour
         _surface.SetVector("_RegionFade", regionFade);
         _surface.SetVector("_Lights", new Vector4(Mathf.Max(cityLightsKm, 0.01f), cityLightSize, cityLightsKm > 0f ? 1f : 0f, regionExposure));
         _surface.SetFloat("_LightsBright", cityLightBrightness);
+        _surface.SetFloat("_CityGlow", cityGlow);
         _surface.SetVector("_GroundHaze", new Vector4(groundHaze.r, groundHaze.g, groundHaze.b, groundHazeKm));
 
         // The point as the maps lie on PlanetSphere_NEW: longitude -180 at u = 0.

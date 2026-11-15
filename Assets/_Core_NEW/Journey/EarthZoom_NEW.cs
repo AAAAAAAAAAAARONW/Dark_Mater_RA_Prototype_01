@@ -2,68 +2,53 @@ using Cinemachine;
 using UnityEngine;
 
 /// <summary>
-/// The last stretch to Earth: Earth grows until its air fills the screen, and the light goes
-/// into it.
+/// The last stretch: the light flies on down its line, as it has all the way from the
+/// quasar, and Earth comes up to meet it - grows from a dot until the light goes in at the
+/// slit of the 100-inch's dome on Mount Wilson and down the telescope to its mirror.
 ///
 /// WHY. The trail is drawn live at one size, and the camera rides 5 units behind it, so the
 /// trail is always about the same size on screen. Earth, true to the Sun at the Solar
-/// System's scale, is 0.12 across: flown at straight, it stayed a dot beside the trail, and
-/// the light went into the dot. How big Earth looks against the trail is only its radius
-/// against the trail's width — no lens changes that.
+/// System's scale, is 0.12 across: flown at straight, it stays a dot beside the trail. How
+/// big Earth looks against the trail is only its radius against the trail's width, so it
+/// is Earth that has to grow.
 ///
-/// HOW. From startDistance short of Earth's centre, the whole Solar System is scaled up
-/// about Earth's centre, so that holdDistance short of Earth's air, Earth's radius is
-/// finalRadius. Scaling it all keeps the Sun, the planets and Earth true to each
-/// other; scaling about Earth's centre keeps Earth on the light's line (it is the one point
-/// that does not move), and everything else falls away from it — what is between the
-/// light and Earth streams out past the camera, as it would flying in far faster. The
-/// light never turns and keeps its speed; the growth does the rest.
+/// HOW. When the light is startDistance short of Earth's centre, the point it will end at
+/// is fixed: where its line meets Earth's surface, raised by the height of the telescope's
+/// mirror on the summit (EarthSummit_NEW's ArrivalHeightKm) - the arrival. Then the world
+/// grows about that point, the one point that does not move, while the light flies on
+/// into it at its own speed, never turning, never stopping. How much it has grown goes
+/// with how far the light has come: from nothing at the start to a km being
+/// summitUnitsPerKm world units with finalUnits still to fly - an even climb in the
+/// logarithm, eased in and out. So the light's distance to the arrival shrinks only as fast
+/// as it flies, while what it stands for shrinks from millions of km to a few hundred
+/// metres: Earth from a dot to filling the screen, its night side, Los Angeles, the
+/// mountains, the dome. (6-15 Nov the light was held at the top of the air and carried
+/// down; asked for: the same straight line as all the way, unchanged.)
 ///
-/// THE CURVE. Earth's size ON SCREEN grows by the same factor every unit flown — at the
-/// light's steady speed, every second — from the dot it is at startDistance to filling the
-/// screen at holdDistance short of its air. The first version grew the system itself on a
-/// curve: Earth stayed a dot for most of the way, burst in the last second and a half, and
-/// the gate came before anyone saw it big. Then the growth stops and the light flies the
-/// last holdDistance into a screen full of Earth before the gate.
+/// THE LAST FEW SECONDS. Over the last finalUnits, at full size, the light slows to
+/// finalSpeed of its speed, eased, so it is seen to go in at the slit and down the tube;
+/// and the camera's orbit closes in on it by endCameraScale so it follows through the slit
+/// rather than standing off above the dome. Then it is held at the arrival.
 ///
-/// THE CAMERA. Over the first part of it the Solar System camera comes round behind the
-/// light (look input is locked) and down to lowHeight above its line. From above, the
-/// line ahead rises up the screen, so the light looked to go in over the top of Earth;
-/// from behind it goes in at the middle. Near the end the lens widens by fovKick — for
-/// the rush, not for size. What it leaves is kept into the Earth layer, which shares the
-/// camera; the Earth arrival's own transition unlocks look.
+/// THE SPEED. The light keeps the speed it had; the Earth layer's own slowing
+/// (SpeedResponder_NEW) is cancelled through the approach multiplier, which then does the
+/// last slowing. Narration and pacing multipliers still apply.
 ///
-/// THE SUN. It is beyond Earth (SolarSystemPath_NEW), and in this system half as wide as
-/// Earth's orbit, so grown with everything else it would stand as a third of the sky beside
-/// Earth. So it is held to sunSeenDegrees on screen as the rest grows, a bright disc that goes
-/// down behind Earth's limb as Earth comes to fill the view: the light arrives in the dark.
+/// THE GROUP AND EARTH. Up to the size where Earth is detachRadius across the whole Solar
+/// System grows, so the Sun and planets stay true to Earth; then Earth is taken out of the
+/// group and grows alone, and EarthSummit_NEW builds the summit and hides the rest. Grown
+/// together a millionfold the group's position goes out to where a float is a kilometre
+/// apart (3 Nov: the ground came out above the camera).
 ///
-/// THE DESCENT. Past the gate the light would fly on into the ground and out through the
-/// inside of the sphere. EarthClouds_NEW used to hide that under a deck of cloud; without it,
-/// the light is held where it crossed the gate, at the top of the air, and the whole system
-/// goes on growing — now about the point of ground straight below it, the one point that
-/// stays put. The ground comes up, the curve flattens, the night-side clouds and city lights
-/// spread out under the camera: a fall, with the light hanging in front of it. It grows by
-/// descentGrowth over descentSeconds, fast first and settling, and stops. On the way the
-/// night side's global map gives way to the close-up of the Los Angeles basin
-/// (CelestialBody_NEW's region map), so twelve times still has detail.
+/// THE GATE. Into the Earth layer where Earth has grown to gateRadius - about filling the
+/// screen - so J9 is said as before. Put there as the approach begins.
 ///
-/// THE SUMMIT. Then, with summitCameraKm set, it goes on down: from about 190 km over the
-/// ground to summitCameraKm, growing again about the same point, slow, fast and slow over
-/// summitSeconds. That is a hundredfold more, and there Earth's own sphere is too coarse
-/// to stand on; EarthSummit_NEW lays the true sphere round the landing point, the mountains,
-/// the dome and the night sky over it, and lifts the camera to the horizon.
+/// THE CAMERA. Over the first part the Solar System camera comes round behind the light
+/// (look input is locked) and down to lowHeight above its line; near the end the lens
+/// widens by fovKick, for the rush.
 ///
-/// Earth alone grows over that stretch, taken out of the group first. Grown with it, the
-/// group's own position went out to tens of millions of units, where a float is a few
-/// units apart — a kilometre at that scale — and the ground came out above the camera,
-/// which then saw nothing below the horizon (first try in Unity, 3 Nov). Earth on its own
-/// stays within some tens of thousands. The rest of the system is left where it was, and
-/// EarthSummit_NEW hides it: no planet belongs in that sky.
-///
-/// THE GATE. On Awake the Earth gate is put at the top of Earth's air as it will be, so
-/// the ending starts as the light goes in. This runs after EarthApproach_NEW and overrides
-/// where that put the gate; still Awake, so UniverseJourneyTracker_NEW reads it in Start.
+/// THE SUN. Beyond Earth, and half as wide as Earth's orbit in this system: held to
+/// sunSeenDegrees on screen as the rest grows, going down behind Earth's limb.
 ///
 /// Put it on the Solar System's group root, beside SolarSystemPath_NEW.
 /// </summary>
@@ -89,102 +74,108 @@ public class EarthZoom_NEW : MonoBehaviour
     [Tooltip("The Sun. The child named 'Sun' if empty.")]
     [SerializeField] Transform sun;
 
-    [Header("Zoom")]
-    [Tooltip("How far short of Earth's centre, along the light's line, the growth starts. " +
-             "Further: a longer, gentler rush; nearer: more of the plain approach first.")]
+    [Header("Approach")]
+    [Tooltip("How far short of Earth's centre, along the light's line, the growth starts. At the " +
+             "usual speed of 2.5, every 10 more is 4 seconds more of the approach.")]
     [Min(1f)] [SerializeField] float startDistance = 45f;
 
-    [Tooltip("Earth's radius, in world units, as the light reaches its air. The camera is " +
-             "about 5 behind the light: at 15 the air fills the screen before the light is in.")]
-    [Min(0.1f)] [SerializeField] float finalRadius = 15f;
+    [Tooltip("How many world units a km is at the end. At 30 the light, narrowed by EarthSummit_NEW, " +
+             "fits the dome's slit and the telescope's tube, and the horizon, 155 km off, is inside " +
+             "the camera's far clip (5000).")]
+    [Min(0.01f)] [SerializeField] float summitUnitsPerKm = 30f;
 
-    [Tooltip("How far the light flies at full size, Earth filling the screen, before it " +
-             "reaches the air and the gate. At the usual speed of 2.5, 3 is just over a second.")]
-    [Min(0f)] [SerializeField] float holdDistance = 3f;
+    [Tooltip("World units still to fly when Earth has reached full size: the last few seconds, " +
+             "slowing, into the dome. At 30 units a km, 12 is 400 m.")]
+    [Min(1f)] [SerializeField] float finalUnits = 12f;
 
-    [Tooltip("Where in the air the gate sits: 1 at its top, 0 on the ground.")]
-    [Range(0f, 1f)] [SerializeField] float gateInAir = 1f;
+    [Tooltip("The light's speed at the arrival, as a fraction of its own.")]
+    [Range(0.05f, 1f)] [SerializeField] float finalSpeed = 0.35f;
 
-    [Tooltip("The Sun's radius on screen, in degrees, by the end of the zoom. 0 lets it grow with " +
-             "the rest.")]
-    [Range(0f, 30f)] [SerializeField] float sunSeenDegrees = 3f;
+    [Tooltip("Earth's radius, world units, at which it is taken out of the group to grow alone " +
+             "and the summit is built.")]
+    [Min(1f)] [SerializeField] float detachRadius = 180f;
 
-    [Header("Descent")]
-    [Tooltip("Past the gate, hold the light at the top of the air and grow Earth about the ground " +
-             "below it, so the light seems to fall towards the ground instead of flying into it.")]
-    [SerializeField] bool descend = true;
+    [Tooltip("Earth's radius, world units, at which the light passes the gate into the Earth layer.")]
+    [Min(0.1f)] [SerializeField] float gateRadius = 15f;
 
-    [Tooltip("Seconds the descent takes, from the gate until Earth stops growing.")]
-    [Min(0.5f)] [SerializeField] float descentSeconds = 14f;
-
-    [Tooltip("How many times Earth grows over the descent. With the Los Angeles close-up (Earth's region " +
-             "map) about 12 still has detail; much past 20 it goes soft.")]
-    [Range(1f, 50f)] [SerializeField] float descentGrowth = 12f;
-
-    [Tooltip("Then on down until the camera is this many km over the ground (sea level), for " +
-             "EarthSummit_NEW; Mount Wilson's summit is 1.74. 0: stop after the descent.")]
+    [Tooltip("The camera's height over the ground at the view from outside, km, for EarthSummit_NEW; " +
+             "Mount Wilson's summit is 1.74.")]
     [Min(0f)] [SerializeField] float summitCameraKm = 1.8f;
 
-    [Tooltip("Seconds that last stretch takes.")]
-    [Min(0.5f)] [SerializeField] float summitSeconds = 16f;
-
-    [Tooltip("How many world units a km is once down. Fixed, not worked out from where the camera " +
-             "happens to be: after a debug jump that came to almost nothing, and the summit, a few " +
-             "hundredths of a unit across, fell inside the camera's near clip (0.1). At 30 the light, " +
-             "a unit wide and narrowed to an eighth by EarthSummit_NEW, fits the dome's 11 m slit, " +
-             "and the horizon, 155 km off, is inside the camera's far clip (5000).")]
-    [Min(0.01f)] [SerializeField] float summitUnitsPerKm = 30f;
+    [Tooltip("The Sun's radius on screen, in degrees, as Earth grows. 0 lets it grow with the rest.")]
+    [Range(0f, 30f)] [SerializeField] float sunSeenDegrees = 3f;
 
     [Header("Camera")]
     [SerializeField] bool driveCamera = true;
 
-    [Tooltip("By how far through the zoom the camera is behind and down, 0 to 1.")]
-    [Range(0.05f, 1f)] [SerializeField] float settleBy = 0.5f;
+    [Tooltip("By how far through the approach the camera is behind and down, 0 to 1.")]
+    [Range(0.05f, 1f)] [SerializeField] float settleBy = 0.3f;
 
     [Tooltip("The camera's height above the light's line once down. Not 0: from dead behind " +
              "the trail is end on, a dot.")]
     [SerializeField] float lowHeight = 0.5f;
 
-    [Tooltip("Degrees the lens widens by at the end, for the rush.")]
+    [Tooltip("Degrees the lens widens by, for the rush.")]
     [Range(0f, 30f)] [SerializeField] float fovKick = 10f;
 
-    [Tooltip("How far through the zoom the lens starts to widen, 0 to 1.")]
-    [Range(0f, 1f)] [SerializeField] float kickFrom = 0.6f;
+    [Tooltip("How far through the approach the lens starts to widen, 0 to 1.")]
+    [Range(0f, 1f)] [SerializeField] float kickFrom = 0.4f;
+
+    [Tooltip("How close the camera's orbit comes in over the last few seconds, as a fraction, " +
+             "so it follows the light in through the slit.")]
+    [Range(0.02f, 1f)] [SerializeField] float endCameraScale = 0.1f;
 
     [SerializeField] bool debugLog = false;
-
-    CelestialBody_NEW _body;
-    LayerDive_NEW _dive;
-    LayerState_NEW _state;
-    bool _zooming, _done, _warned, _descending, _landed, _toSummit;
-    float _u, _from, _r0, _radius, _logSeenFrom, _logSeenTo;
-    float _descentClock, _sAtGate;
-    Vector3 _ground, _rootAtGate, _scaleAtGate;
-    float _summitClock, _summitFactor = 1f;
-    Vector3 _earthAtSummit, _earthScaleAtSummit;
 
     /// <summary>Earth's mean radius, km: what one radius of the sphere stands for.</summary>
     public const float EarthRadiusKm = 6371f;
 
-    /// <summary>-1 until the last stretch to the summit begins, then 0 to 1 through it.</summary>
-    public float SummitProgress { get; private set; } = -1f;
+    CelestialBody_NEW _body;
+    EarthSummit_NEW _summit;
+    LayerDive_NEW _dive;
+    bool _zooming, _done, _warned, _detached;
+    float _r0, _d0, _lnK, _kDetach, _k = 1f, _u;
+    Vector3 _dir, _rootFrom, _scaleFrom, _scaleSet, _earthAtDetach, _earthScaleAtDetach;
+    Vector3 _sunScaleFrom;
+    float _sunRadiusFrom, _sunSeenFrom;
+    float _xFrom, _yFrom, _fovFrom;
+    readonly float[] _orbitRadius = new float[3], _orbitHeight = new float[3];
 
-    /// <summary>How many times Earth grows over the last stretch; set as it begins.</summary>
-    public float SummitFactor => _summitFactor;
+    // ── For EarthSummit_NEW, EarthEnding_NEW and the debug jump ─────────────
 
-    /// <summary>The camera's height over the ground once down, km.</summary>
-    public float SummitCameraKm => summitCameraKm;
+    /// <summary>Earth has been taken out of the group: the summit is to be built.</summary>
+    public bool SummitStarted => _detached;
 
-    /// <summary>The point of ground the descent grows about, world space; it does not move.</summary>
-    public Vector3 GroundPoint => _ground;
+    /// <summary>0 until the last few seconds, then to 1 as the light reaches the arrival.</summary>
+    public float FinalProgress { get; private set; }
 
-    /// <summary>Up at the ground point, world space.</summary>
+    /// <summary>The light is at the arrival, held.</summary>
+    public bool Arrived => _done && _zooming;
+
+    /// <summary>Where the light ends - the telescope's mirror - world space. It does not move.</summary>
+    public Vector3 ArrivalPoint { get; private set; }
+
+    /// <summary>The ground, at sea level, straight under the arrival, world space.</summary>
+    public Vector3 GroundPoint => ArrivalPoint - GroundUp * (_summit != null ? _summit.ArrivalHeightKm : 0f) * KmToWorld;
+
+    /// <summary>Up at the arrival, world space.</summary>
     public Vector3 GroundUp { get; private set; }
 
+    /// <summary>World units a km, now.</summary>
+    public float KmToWorld => _body != null ? _body.GroundRadius / EarthRadiusKm : 1f;
+
+    /// <summary>The camera's height over the ground at the view from outside, km.</summary>
+    public float SummitCameraKm => summitCameraKm;
+
     public Transform Earth => earth;
+    public CelestialBody_NEW Body => _body;
+    public PlayerRig_NEW Photon => photon;
 
     /// <summary>The layer the light goes into at the gate: Earth.</summary>
     public string EarthLayerId => earthLayerId;
+
+    /// <summary>Earth has begun to grow: the last stretch before the light goes in (JourneyScore_NEW plays its rise on it).</summary>
+    public static event System.Action ZoomBegan;
 
     /// <summary>
     /// For LayerDebugJump_NEW: where to put the light so the whole approach to Earth plays
@@ -194,23 +185,10 @@ public class EarthZoom_NEW : MonoBehaviour
     public bool TryGetApproachStart(float margin, out Vector3 at)
     {
         at = default;
-        if (photon == null || earth == null || _zooming || _done) return false;
+        if (photon == null || earth == null || _zooming) return false;
         at = earth.position - photon.MovementDirection.normalized * (startDistance + margin);
         return true;
     }
-    public CelestialBody_NEW Body => _body;
-    public PlayerRig_NEW Photon => photon;
-    Vector3 _rootFrom, _scaleFrom, _scaleSet, _centre, _sunScaleFrom;
-    float _sunRadiusFrom, _sunSeenFrom;
-    float _xFrom, _yFrom, _heightFrom, _fovFrom;
-
-    /// <summary>Distance from Earth's centre, along the line, at which the light reaches the gate.</summary>
-    float GateDistance => finalRadius * (1f + (_body != null ? _body.AirDepth : 0f) * gateInAir);
-
-    /// <summary>Distance from Earth's centre at which Earth is full size.</summary>
-    float ZoomEnd => GateDistance + holdDistance;
-
-    bool IsEarthLayer => _state != null && _state.CurrentLayerId == earthLayerId;
 
     void Awake()
     {
@@ -234,217 +212,84 @@ public class EarthZoom_NEW : MonoBehaviour
         }
 
         _body = earth.GetComponent<CelestialBody_NEW>();
+        _summit = GetComponent<EarthSummit_NEW>();
         _dive = FindObjectOfType<LayerDive_NEW>();
-        _state = FindObjectOfType<LayerState_NEW>();
-
-        if (startDistance <= ZoomEnd)
-            Debug.LogWarning("[EarthZoom_NEW] startDistance " + startDistance + " is inside where Earth is full size (" +
-                             ZoomEnd.ToString("0.0") + "); it will not grow. Raise it.", this);
-
-        if (earthGate != null)
-        {
-            // Only Z, as EarthApproach_NEW: the gate is a wide plane across the line.
-            float along = photon.MovementDirection.z < 0f ? 1f : -1f;
-            Vector3 p = earthGate.transform.position;
-            float z = earth.position.z + along * GateDistance;
-
-            if (debugLog) Debug.Log("[EarthZoom_NEW] Earth gate z " + p.z.ToString("0.00") + " -> " + z.ToString("0.00") + ".", this);
-
-            earthGate.transform.position = new Vector3(p.x, p.y, z);
-
-            if (debugLog) Debug.Log("[EarthZoom_NEW] Ready on '" + name + "': Earth '" + earth.name + "' at " + earth.position +
-                      ", radius " + (_body != null ? _body.GroundRadius.ToString("0.000") : "? (no CelestialBody_NEW)") +
-                      ", gate z " + z.ToString("0.0") + ", photon " + photon.name + " flying " + photon.MovementDirection + ".", this);
-        }
     }
 
     void Update()
     {
-        if (_landed) return;
+        if (_done) return;
 
         // The dive into the Solar System places and scales this root itself every frame, and
         // puts it back as built at the end. Nothing is measured or moved until it is over.
         if (_dive != null && _dive.IsActive) return;
 
-        if ((_zooming || _descending || _toSummit) && !_warned && (transform.localScale - _scaleSet).sqrMagnitude > 1e-8f && (_warned = true))
+        if (_zooming && !_detached && !_warned && (transform.localScale - _scaleSet).sqrMagnitude > 1e-8f && (_warned = true))
             Debug.LogWarning("[EarthZoom_NEW] Something else set '" + name + "''s scale to " + transform.localScale.x +
                              " (this set " + _scaleSet.x + ").", this);
 
-        if (_descending) { Descend(); return; }
-        if (_toSummit) { ToSummit(); return; }
-
-        Vector3 dir = photon.MovementDirection;
-        float distance = Vector3.Dot(earth.position - photon.transform.position, dir);
-
-        if (_done)
-        {
-            // Held once the Earth layer has begun, so the light is through the gate first; and
-            // half way into the air at the latest, should that never come.
-            float deepInAir = GateDistance - 0.5f * (GateDistance - finalRadius);
-            if (!descend) _landed = true;
-            else if (IsEarthLayer || distance <= deepInAir) BeginDescent(dir);
-            return;
-        }
-
         if (!_zooming)
         {
-            if (distance > startDistance) return;
-            if (distance <= ZoomEnd) { _done = true; return; }
-            Begin(distance);
+            float toCentre = Vector3.Dot(earth.position - photon.transform.position, photon.MovementDirection.normalized);
+            if (toCentre > startDistance || toCentre <= 0f) return;
+            Begin();
         }
 
-        _u = Mathf.Max(_u, Mathf.InverseLerp(_from, ZoomEnd, distance));
+        // How far the light has come towards the arrival; the growth goes with it.
+        float d = Vector3.Dot(ArrivalPoint - photon.transform.position, _dir);
+        _u = Mathf.Clamp01((_d0 - d) / Mathf.Max(_d0 - finalUnits, 1e-3f));
+        _k = Mathf.Exp(_lnK * Mathf.SmoothStep(0f, 1f, _u));
+        Grow(_k);
 
-        // Earth's size on screen, about its radius over its distance from the camera, grows by
-        // the same factor every unit; the radius is whatever gives that from here. Never smaller.
-        float seen = Mathf.Exp(Mathf.Lerp(_logSeenFrom, _logSeenTo, _u));
-        _radius = _u >= 1f ? finalRadius : Mathf.Clamp(seen * (distance + CameraBack()), _radius, finalRadius);
+        // The last few seconds: slower, and the camera closing in.
+        FinalProgress = Mathf.Clamp01(1f - d / finalUnits);
+        float target = Mathf.Lerp(1f, finalSpeed, Mathf.SmoothStep(0f, 1f, FinalProgress));
+        photon.SetApproachSpeedMultiplier(target / Mathf.Max(photon.ExternalSpeedMultiplier, 0.05f));
 
-        float s = _radius / _r0;
-        transform.localScale = _scaleFrom * s;
-        transform.position = _centre + (_rootFrom - _centre) * s;
-        _scaleSet = transform.localScale;
-
-        HoldSun(s);
-
-        if (driveCamera && solarCamera != null) Frame(_u);
+        if (driveCamera && solarCamera != null) Frame(_u, FinalProgress);
 
         if (debugLog && Time.frameCount % 30 == 0)
-            Debug.Log("[EarthZoom_NEW] u " + _u.ToString("0.00") + ", distance " + distance.ToString("0.0") +
-                      ", Earth radius " + _radius.ToString("0.00") + ".", this);
+            Debug.Log("[EarthZoom_NEW] " + d.ToString("0.00") + " to go, growth x" + _k.ToString("0") +
+                      ", a km " + KmToWorld.ToString("0.000") + " units.", this);
 
-        if (_u >= 1f)
+        if (d <= 0.01f)
         {
+            photon.SetHeld(true);
+            photon.transform.position = ArrivalPoint;
+            photon.SetApproachSpeedMultiplier(1f);
             _done = true;
-            if (debugLog) Debug.Log("[EarthZoom_NEW] Done: Earth radius " + (_body != null ? _body.GroundRadius.ToString("0.0") : "?") + ".", this);
+            if (debugLog) Debug.Log("[EarthZoom_NEW] Arrived.", this);
         }
     }
 
-    /// <summary>Holds the Sun, grown s times with the rest, to the size on screen it should have now.</summary>
-    void HoldSun(float s)
-    {
-        if (sun == null || sunSeenDegrees <= 0f) return;
-
-        Camera cam = GetReal3DView_NEW.ScreenCamera;
-        if (cam == null) return;
-
-        float seen = Mathf.Lerp(_sunSeenFrom, sunSeenDegrees, Mathf.SmoothStep(0f, 1f, _u));
-        float wanted = Mathf.Tan(seen * Mathf.Deg2Rad) * Vector3.Distance(sun.position, cam.transform.position);
-        sun.localScale = _sunScaleFrom * Mathf.Min(1f, wanted / (_sunRadiusFrom * s));
-    }
-
-    /// <summary>Holds the light at the gate and fixes the point of ground below it (see THE DESCENT).</summary>
-    void BeginDescent(Vector3 dir)
-    {
-        _descending = true;
-        _descentClock = 0f;
-        photon.SetHeld(true);
-
-        float r = _body != null ? _body.GroundRadius : 0.5f * earth.lossyScale.x;
-        _ground = earth.position - dir * r;
-        GroundUp = -dir;
-        _rootAtGate = transform.position;
-        _scaleAtGate = transform.localScale;
-        _scaleSet = _scaleAtGate;
-        _sAtGate = _zooming ? _radius / _r0 : 1f;
-
-        if (debugLog) Debug.Log("[EarthZoom_NEW] Descent: light held " + Vector3.Dot(photon.transform.position - _ground, -dir).ToString("0.00") +
-                                " above the ground; Earth grows x" + descentGrowth + " over " + descentSeconds + "s.", this);
-    }
-
-    void Descend()
-    {
-        // On the same clock the light flies by, so every copy on the wall descends alike.
-        _descentClock += Time.deltaTime;
-        float p = Mathf.Clamp01(_descentClock / descentSeconds);
-
-        // Fastest at the gate, as the zoom was, settling to a stop.
-        float eased = 1f - (1f - p) * (1f - p);
-        float k = Mathf.Exp(Mathf.Log(descentGrowth) * eased);
-
-        transform.localScale = _scaleAtGate * k;
-        transform.position = _ground + (_rootAtGate - _ground) * k;
-        _scaleSet = transform.localScale;
-
-        if (_zooming) HoldSun(_sAtGate * k);
-
-        if (p >= 1f)
-        {
-            _descending = false;
-            if (debugLog) Debug.Log("[EarthZoom_NEW] Descent over: Earth radius " + (_body != null ? _body.GroundRadius.ToString("0.0") : "?") + ".", this);
-            if (!BeginSummit()) _landed = true;
-        }
-    }
-
-    /// <summary>Works out how much further to grow for the camera to be summitCameraKm up (see THE SUMMIT).</summary>
-    bool BeginSummit()
-    {
-        Camera cam = GetReal3DView_NEW.ScreenCamera;
-        if (summitCameraKm <= 0f || cam == null || _body == null) return false;
-
-        float kmWorld = _body.GroundRadius / EarthRadiusKm;
-        float heightKm = Vector3.Dot(cam.transform.position - _ground, GroundUp) / kmWorld;
-        _summitFactor = Mathf.Max(1f, summitUnitsPerKm / kmWorld);
-        _summitClock = 0f;
-        _toSummit = true;
-        SummitProgress = 0f;
-
-        // Earth on its own from here (see THE SUMMIT): the group stays as it is.
-        earth.SetParent(null, true);
-        _earthAtSummit = earth.position;
-        _earthScaleAtSummit = earth.localScale;
-
-        if (debugLog) Debug.Log("[EarthZoom_NEW] To the summit: camera " + heightKm.ToString("0") + " km up, down to " +
-                                summitCameraKm + " km, Earth grows x" + _summitFactor.ToString("0") + " more.", this);
-        return true;
-    }
-
-    void ToSummit()
-    {
-        _summitClock += Time.deltaTime;
-        float p = Mathf.Clamp01(_summitClock / summitSeconds);
-        SummitProgress = p;
-
-        // From rest, as the descent ended, and to rest. Earth alone, about the same point.
-        float k = Mathf.Exp(Mathf.Log(_summitFactor) * Mathf.SmoothStep(0f, 1f, p));
-        earth.localScale = _earthScaleAtSummit * k;
-        earth.position = _ground + (_earthAtSummit - _ground) * k;
-
-        if (p >= 1f)
-        {
-            _toSummit = false;
-            _landed = true;
-        }
-    }
-
-    /// <summary>
-    /// How far behind the light, along its line, the camera is. Through ScreenCamera, not
-    /// Camera.main: every copy on the wall must get the same answer, or the copies grow Earth
-    /// differently and the wall comes apart at its seams.
-    /// </summary>
-    float CameraBack()
-    {
-        Camera cam = GetReal3DView_NEW.ScreenCamera;
-        return cam != null ? Mathf.Max(0f, Vector3.Dot(photon.transform.position - cam.transform.position, photon.MovementDirection)) : 5f;
-    }
-
-    /// <summary>Earth has begun to grow: the last stretch before the light goes in (JourneyScore_NEW plays its rise on it).</summary>
-    public static event System.Action ZoomBegan;
-
-    void Begin(float distance)
+    void Begin()
     {
         _zooming = true;
         if (ZoomBegan != null) ZoomBegan();
 
-        _r0 = Mathf.Max(_body != null ? _body.GroundRadius : 0.5f * earth.lossyScale.x, 1e-4f);
-        _radius = _r0;
-        _from = distance;
-        _logSeenFrom = Mathf.Log(_r0 / (distance + CameraBack()));
-        _logSeenTo = Mathf.Log(finalRadius / (ZoomEnd + CameraBack()));
+        _dir = photon.MovementDirection.normalized;
+        _r0 = Mathf.Max(_body != null ? _body.GroundRadius : 0.5f * earth.lossyScale.x, 1e-6f);
+
+        // The arrival: where the light's line meets Earth, raised by the mirror's height.
+        float rise = _summit != null ? _summit.ArrivalHeightKm : 0f;
+        float ra = _r0 * (1f + rise / EarthRadiusKm);
+        Vector3 oc = photon.transform.position - earth.position;
+        float b = Vector3.Dot(oc, _dir), c = Vector3.Dot(oc, oc) - ra * ra, disc = b * b - c;
+        Vector3 arrival = disc > 0f ? photon.transform.position + _dir * (-b - Mathf.Sqrt(disc)) : earth.position - _dir * ra;
+        ArrivalPoint = arrival;
+        GroundUp = (arrival - earth.position).normalized;
+        _d0 = Vector3.Dot(arrival - photon.transform.position, _dir);
+        if (_d0 <= finalUnits * 1.5f)
+            Debug.LogWarning("[EarthZoom_NEW] The approach begins only " + _d0.ToString("0.0") + " units out; raise startDistance.", this);
+
+        _lnK = Mathf.Log(Mathf.Max(summitUnitsPerKm / (_r0 / EarthRadiusKm), 1f));
+        _kDetach = Mathf.Max(1f, detachRadius / _r0);
+
         _rootFrom = transform.position;
         _scaleFrom = transform.localScale;
         _scaleSet = _scaleFrom;
-        _centre = earth.position;
+
+        PlaceGate();
 
         if (sun != null)
         {
@@ -460,20 +305,91 @@ public class EarthZoom_NEW : MonoBehaviour
             photon.SetCameraInputLocked(true, "Earth approach");
             _xFrom = solarCamera.m_XAxis.Value;
             _yFrom = solarCamera.m_YAxis.Value;
-            _heightFrom = solarCamera.m_Orbits[1].m_Height;
             _fovFrom = solarCamera.m_Lens.FieldOfView;
+            for (int i = 0; i < 3; i++)
+            {
+                _orbitRadius[i] = solarCamera.m_Orbits[i].m_Radius;
+                _orbitHeight[i] = solarCamera.m_Orbits[i].m_Height;
+            }
         }
 
-        if (debugLog) Debug.Log("[EarthZoom_NEW] Begin at " + distance.ToString("0.0") + ": Earth radius " + _r0.ToString("0.000") +
-                                " -> " + finalRadius + " (x" + (finalRadius / _r0).ToString("0") + ").", this);
+        Debug.Log("[EarthZoom_NEW] The approach begins: " + _d0.ToString("0.0") + " units to fly, Earth to grow x" +
+                  Mathf.Exp(_lnK).ToString("0") + "; the arrival is " + rise.ToString("0.000") + " km up.", this);
     }
 
-    void Frame(float u)
+    /// <summary>The gate where Earth has grown to gateRadius: the light's distance there, from the growth's curve.</summary>
+    void PlaceGate()
+    {
+        if (earthGate == null) return;
+        float g = Mathf.Clamp01(Mathf.Log(Mathf.Max(gateRadius / _r0, 1f)) / Mathf.Max(_lnK, 1e-3f));
+        // Invert the eased curve by halving.
+        float lo = 0f, hi = 1f;
+        for (int i = 0; i < 30; i++) { float m = (lo + hi) * 0.5f; if (Mathf.SmoothStep(0f, 1f, m) < g) lo = m; else hi = m; }
+        float d = _d0 - lo * (_d0 - finalUnits);
+        Vector3 at = ArrivalPoint - _dir * d;
+        Vector3 p = earthGate.transform.position;
+        // Only along the line, as EarthApproach_NEW: the gate is a wide plane across it.
+        earthGate.transform.position = p + _dir * Vector3.Dot(at - p, _dir);
+    }
+
+    /// <summary>Grows the world k times about the arrival: the whole group, then Earth alone.</summary>
+    void Grow(float k)
+    {
+        if (!_detached && k < _kDetach)
+        {
+            transform.localScale = _scaleFrom * k;
+            transform.position = ArrivalPoint + (_rootFrom - ArrivalPoint) * k;
+            _scaleSet = transform.localScale;
+            HoldSun(k);
+            return;
+        }
+
+        if (!_detached)
+        {
+            // To the size of the parting, then Earth on its own.
+            transform.localScale = _scaleFrom * _kDetach;
+            transform.position = ArrivalPoint + (_rootFrom - ArrivalPoint) * _kDetach;
+            _scaleSet = transform.localScale;
+            HoldSun(_kDetach);
+            earth.SetParent(null, true);
+            _earthAtDetach = earth.position;
+            _earthScaleAtDetach = earth.localScale;
+            _detached = true;
+            if (debugLog) Debug.Log("[EarthZoom_NEW] Earth grows alone from here: radius " + KmToWorld * EarthRadiusKm + ".", this);
+        }
+
+        float alone = k / _kDetach;
+        earth.localScale = _earthScaleAtDetach * alone;
+        earth.position = ArrivalPoint + (_earthAtDetach - ArrivalPoint) * alone;
+    }
+
+    /// <summary>Holds the Sun, grown s times with the rest, to the size on screen it should have now.</summary>
+    void HoldSun(float s)
+    {
+        if (sun == null || sunSeenDegrees <= 0f) return;
+
+        Camera cam = GetReal3DView_NEW.ScreenCamera;
+        if (cam == null) return;
+
+        float seen = Mathf.Lerp(_sunSeenFrom, sunSeenDegrees, Mathf.SmoothStep(0f, 1f, _u * 3f));
+        float wanted = Mathf.Tan(seen * Mathf.Deg2Rad) * Vector3.Distance(sun.position, cam.transform.position);
+        sun.localScale = _sunScaleFrom * Mathf.Min(1f, wanted / (_sunRadiusFrom * s));
+    }
+
+    void Frame(float u, float last)
     {
         float settle = Mathf.SmoothStep(0f, 1f, u / settleBy);
         solarCamera.m_XAxis.Value = Mathf.LerpAngle(_xFrom, 0f, settle);
         solarCamera.m_YAxis.Value = Mathf.Lerp(_yFrom, 0.5f, settle);
-        solarCamera.m_Orbits[1].m_Height = Mathf.Lerp(_heightFrom, lowHeight, settle);
+
+        // In close over the last few seconds, through the slit after the light.
+        float close = Mathf.Lerp(1f, endCameraScale, Mathf.SmoothStep(0f, 1f, last));
+        for (int i = 0; i < 3; i++)
+        {
+            float height = i == 1 ? Mathf.Lerp(_orbitHeight[1], lowHeight, settle) : _orbitHeight[i];
+            solarCamera.m_Orbits[i].m_Height = height * close;
+            solarCamera.m_Orbits[i].m_Radius = _orbitRadius[i] * close;
+        }
 
         float kick = kickFrom < 1f ? Mathf.SmoothStep(0f, 1f, (u - kickFrom) / (1f - kickFrom)) : 0f;
         solarCamera.m_Lens.FieldOfView = _fovFrom + fovKick * kick;
@@ -483,9 +399,12 @@ public class EarthZoom_NEW : MonoBehaviour
     {
         if (!DebugView_NEW.Gizmos || earth == null) return;
 
-        Gizmos.color = new Color(0.3f, 0.6f, 1f, 0.5f);
-        Gizmos.DrawWireSphere(earth.position, finalRadius);
         Gizmos.color = new Color(0.3f, 0.6f, 1f, 0.2f);
         Gizmos.DrawWireSphere(earth.position, startDistance);
+        if (_zooming)
+        {
+            Gizmos.color = new Color(1f, 0.8f, 0.3f, 0.8f);
+            Gizmos.DrawWireSphere(ArrivalPoint, 0.2f);
+        }
     }
 }
