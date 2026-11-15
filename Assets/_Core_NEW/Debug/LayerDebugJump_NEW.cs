@@ -13,6 +13,14 @@ using UnityEngine;
 ///
 /// Here the gates are an explicit ordered list, and the state is drawn on screen.
 ///
+/// EARTH IS DIFFERENT. Its gate sits where Earth, grown by EarthZoom_NEW, will have its air;
+/// before the growth Earth is a dot and the gate is nowhere near it, and the Earth layer has
+/// no world of its own, so a jump to the gate landed in whatever world was showing with no
+/// Earth to see, and the growth, the descent and the summit then ran from the wrong place.
+/// So the Earth key goes to the Solar System first (through its gate, as any jump), and
+/// once that has arrived - its dive over - puts the light on its line through Earth's
+/// centre, a little before the growth begins: the whole approach then plays as in a run.
+///
 /// One caveat worth knowing while using it: jumping past gates leaves LayerState_NEW's
 /// "previous" pointing at wherever you jumped from, and CameraDirector_NEW routes the
 /// look-back sequence off that. Jumping straight from the start layer to a mid-journey
@@ -60,6 +68,9 @@ public class LayerDebugJump_NEW : MonoBehaviour
     [Tooltip("Leave off so the tool strips itself out of builds.")]
     [SerializeField] bool enabledInBuild = false;
 
+    EarthZoom_NEW _earthZoom;
+    bool _toEarth;   // on the way: the Solar System first, then the approach to Earth
+
     string _lastAction = "";
     float _lastActionTime = -999f;
 
@@ -76,6 +87,7 @@ public class LayerDebugJump_NEW : MonoBehaviour
         if (state == null) state = FindObjectOfType<LayerState_NEW>();
         if (tracker == null) tracker = FindObjectOfType<UniverseJourneyTracker>();
         if (dive == null) dive = FindObjectOfType<LayerDive_NEW>();
+        _earthZoom = FindObjectOfType<EarthZoom_NEW>();
 
         if (player == null)
         {
@@ -112,6 +124,8 @@ public class LayerDebugJump_NEW : MonoBehaviour
         // light alone and the copies would never meet again. Jumps are a desk tool.
         if (InputScheme_NEW.MasterOnlyDevicesUnsafe) return;
 
+        if (_toEarth) ContinueToEarth();
+
         int max = Mathf.Min(9, gates.Length);
         for (int i = 0; i < max; i++)
         {
@@ -140,6 +154,13 @@ public class LayerDebugJump_NEW : MonoBehaviour
             return;
         }
 
+        if (_earthZoom != null && gate.LayerId == _earthZoom.EarthLayerId)
+        {
+            JumpToEarth();
+            return;
+        }
+        _toEarth = false;
+
         // A few units of margin, so the approach starts from nothing.
         float approach = beforeApproach && dive != null ? dive.ApproachDistance(gate.LayerId) : 0f;
         float along = forwardOffset - (approach > 0f ? approach + 3f : 0f);
@@ -157,6 +178,61 @@ public class LayerDebugJump_NEW : MonoBehaviour
         if (approach > 0f) Note($"jumped to before {gate.LayerId}'s dive approach ({approach:F0} out)");
         else if (beforeApproach) Note($"jumped to {gate.LayerId} (it has no dive approach)");
         else Note($"jumped to {gate.LayerId}");
+    }
+
+    // ── Earth ────────────────────────────────────────────────────────────────
+
+    const string SolarSystemId = "SolarSystem";
+
+    /// <summary>The Solar System first, unless it is already here; then the approach (see EARTH IS DIFFERENT).</summary>
+    void JumpToEarth()
+    {
+        string here = state != null ? state.CurrentLayerId : null;
+        if (here == _earthZoom.EarthLayerId)
+        {
+            Note("already at Earth - stop and Play again to see the approach");
+            return;
+        }
+
+        _toEarth = true;
+        if (here == SolarSystemId) { ContinueToEarth(); return; }
+
+        for (int i = 0; i < gates.Length; i++)
+        {
+            if (gates[i] == null || gates[i].LayerId != SolarSystemId) continue;
+            JumpTo(i, false);
+            _toEarth = true;   // JumpTo clears it for any other gate
+            Note("to the Solar System first, then on to Earth's approach");
+            return;
+        }
+
+        Note("no Solar System gate in the list: cannot reach Earth's approach");
+        _toEarth = false;
+    }
+
+    void ContinueToEarth()
+    {
+        if (state == null || state.CurrentLayerId != SolarSystemId) return;
+        if (dive != null && dive.IsActive) return;
+
+        _toEarth = false;
+        if (!_earthZoom.TryGetApproachStart(3f, out Vector3 at))
+        {
+            Note("Earth's approach has already begun - stop and Play again");
+            return;
+        }
+
+        Vector3 delta = at - player.position;
+        CharacterController cc = player.GetComponent<CharacterController>();
+        if (cc != null) cc.enabled = false;
+        player.position = at;
+        if (cc != null) cc.enabled = true;
+
+        // Tell the cameras the light was moved, so they do not sweep after it.
+        for (int i = 0; i < Cinemachine.CinemachineCore.Instance.VirtualCameraCount; i++)
+            Cinemachine.CinemachineCore.Instance.GetVirtualCamera(i).OnTargetObjectWarped(player, delta);
+
+        Note("jumped to just before Earth's approach");
     }
 
     void Note(string message)

@@ -182,6 +182,22 @@ public class EarthZoom_NEW : MonoBehaviour
     public Vector3 GroundUp { get; private set; }
 
     public Transform Earth => earth;
+
+    /// <summary>The layer the light goes into at the gate: Earth.</summary>
+    public string EarthLayerId => earthLayerId;
+
+    /// <summary>
+    /// For LayerDebugJump_NEW: where to put the light so the whole approach to Earth plays
+    /// as in a run - on its line through Earth's centre, <paramref name="margin"/> before the
+    /// growth begins. False once the growth has begun: it cannot be played twice.
+    /// </summary>
+    public bool TryGetApproachStart(float margin, out Vector3 at)
+    {
+        at = default;
+        if (photon == null || earth == null || _zooming || _done) return false;
+        at = earth.position - photon.MovementDirection.normalized * (startDistance + margin);
+        return true;
+    }
     public CelestialBody_NEW Body => _body;
     public PlayerRig_NEW Photon => photon;
     Vector3 _rootFrom, _scaleFrom, _scaleSet, _centre, _sunScaleFrom;
