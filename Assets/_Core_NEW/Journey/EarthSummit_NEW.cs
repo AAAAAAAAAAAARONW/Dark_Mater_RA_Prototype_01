@@ -757,49 +757,123 @@ public class EarthSummit_NEW : MonoBehaviour
         inside.RecalculateNormals();
         Part("Dome inside", inside, dark, dome);
 
-        BuildTelescope(dome, set);
+        // The telescope stands to the true north, which the dome, turned for its slit, does
+        // not: on the same spot, at the same scale, square to the frame of km.
+        var scope = Make("Telescope (to the north)").transform;
+        scope.SetParent(dome.parent, false);
+        scope.localPosition = dome.localPosition;
+        scope.localRotation = Quaternion.identity;
+        scope.localScale = dome.localScale;
+        BuildTelescope(scope, set);
     }
 
-    // Where the telescope's parts are, in the dome's metres: the mirror at the foot of the
-    // tube, the open top of the tube under the top of the slit.
-    const float MirrorY = 6.55f, TubeTopY = 17.6f, TubeRadius = 1.6f;
+    // Where the telescope's parts are, in the dome's metres (x east, y up, z north): the
+    // tube's pivot on the dome's axis; the mirror at the foot of the tube, its open top under
+    // the top of the slit, the tube pointing at the zenith.
+    const float PivotY = 10f, MirrorY = 4.05f, TubeTopY = 16.5f, TubeRadius = 1.7f;
 
     /// <summary>
-    /// The 100-inch, after a fashion: a pier, the mirror's cell, an open truss of eight struts
-    /// to a ring at the top, and a cradle round the middle - pointing straight up. The mirror
-    /// has a light of its own, to flash as the light reaches it.
+    /// The 100-inch as it is (near enough, from memory, not from drawings): an English yoke
+    /// mount. A long rectangular frame on two piers, a low one to the south and a tall one to
+    /// the north, its long axis the polar axis - due north, tilted up by the latitude, 34.2
+    /// degrees - so it turns with the sky. The tube hangs in the middle of the frame on two
+    /// trunnions, the declination axis, east to west; here turned to point at the zenith,
+    /// which the real one can. A skeleton tube: rings and eight longerons, the mirror's cell
+    /// closed at the foot, the Cassegrain spectrograph hanging under it. About 2.5 m of
+    /// mirror, 12.7 m of focal length, a yoke some 15 m long. The mirror has a light of its
+    /// own, to flash as the light reaches it.
     /// </summary>
-    void BuildTelescope(Transform dome, Shader set)
+    void BuildTelescope(Transform scope, Shader set)
     {
         var v = new List<Vector3>();
         var tri = new List<int>();
 
-        Box(v, tri, new Vector3(0f, 2.65f, 0f), new Vector3(4f, 4.7f, 4f));                 // the pier
-        Band(v, tri, TubeRadius, 5f, MirrorY, 24);                                          // the mirror's cell
-        Band(v, tri, TubeRadius * 1.2f, 10f, 10.8f, 24);                                     // the cradle
-        Band(v, tri, TubeRadius, TubeTopY - 0.6f, TubeTopY, 24);                             // the top ring
-        for (int i = 0; i < 8; i++)                                                          // the truss
+        // The polar axis, through the pivot, north and up by the latitude.
+        float lat = 34.2f * Mathf.Deg2Rad;
+        Vector3 pivot = Vector3.up * PivotY;
+        Vector3 polar = new Vector3(0f, Mathf.Sin(lat), Mathf.Cos(lat));
+        const float halfYoke = 7.5f, yokeSide = 2.3f, beam = 0.7f;
+        Vector3 south = pivot - polar * halfYoke, north = pivot + polar * halfYoke;
+
+        // The piers, up to the yoke's ends.
+        Box(v, tri, new Vector3(0f, south.y * 0.5f, south.z), new Vector3(3.2f, south.y, 3f));
+        Box(v, tri, new Vector3(0f, north.y * 0.5f, north.z), new Vector3(3.2f, north.y, 3f));
+
+        // The yoke: two side beams along the polar axis, a cross member at each end.
+        Vector3 side = Vector3.right * yokeSide;
+        Beam(v, tri, south - side, north - side, beam);
+        Beam(v, tri, south + side, north + side, beam);
+        Beam(v, tri, south - side, south + side, beam * 1.3f);
+        Beam(v, tri, north - side, north + side, beam * 1.3f);
+
+        // The trunnions: the declination axis, east to west through the pivot.
+        Beam(v, tri, pivot - Vector3.right * (yokeSide - beam * 0.5f), pivot - Vector3.right * TubeRadius, 0.6f);
+        Beam(v, tri, pivot + Vector3.right * TubeRadius, pivot + Vector3.right * (yokeSide - beam * 0.5f), 0.6f);
+
+        // The tube: the mirror's cell, rings, longerons.
+        Band(v, tri, TubeRadius + 0.05f, MirrorY - 1.3f, MirrorY + 0.1f, 32);         // the cell
+        Band(v, tri, TubeRadius, MirrorY + 0.1f, MirrorY + 0.6f, 32);                // the lower ring
+        Band(v, tri, TubeRadius + 0.1f, PivotY - 0.5f, PivotY + 0.5f, 32);           // the centre ring
+        Band(v, tri, TubeRadius, TubeTopY - 0.5f, TubeTopY, 32);                     // the top ring
+        for (int i = 0; i < 8; i++)
         {
-            float a = i * Mathf.PI * 2f / 8f;
-            Vector3 at = new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a)) * (TubeRadius - 0.1f);
-            Box(v, tri, at + Vector3.up * (MirrorY + TubeTopY) * 0.5f, new Vector3(0.18f, TubeTopY - MirrorY, 0.18f));
+            float a = (i + 0.5f) * Mathf.PI * 2f / 8f;
+            Vector3 at = new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a)) * (TubeRadius - 0.12f);
+            Beam(v, tri, at + Vector3.up * (MirrorY + 0.3f), at + Vector3.up * (TubeTopY - 0.2f), 0.25f);
         }
+
+        // The cell's floor, and the Cassegrain spectrograph under it.
+        Disc(v, tri, MirrorY - 1.3f, TubeRadius + 0.05f, false);
+        Box(v, tri, Vector3.up * (MirrorY - 2.1f), new Vector3(1.2f, 1.6f, 1.6f));
+
         Mesh frame = NewMesh("Telescope", v.ToArray(), tri.ToArray());
         frame.RecalculateNormals();
-        Part("Telescope", frame, Inside(set, new Color(0.55f, 0.55f, 0.58f, 1f), new Color(0.01f, 0.004f, 0.004f, 1f)), dome);
+        Part("Telescope", frame, Inside(set, new Color(0.5f, 0.54f, 0.58f, 1f), new Color(0.01f, 0.004f, 0.004f, 1f)), scope);
 
         // The mirror: a disc facing up.
-        var mv = new List<Vector3> { Vector3.up * (MirrorY + 0.05f) };
+        var mv = new List<Vector3>();
         var mt = new List<int>();
+        Disc(mv, mt, MirrorY + 0.05f, TubeRadius - 0.25f, true);
+        Mesh mirror = NewMesh("Mirror", mv.ToArray(), mt.ToArray());
+        mirror.RecalculateNormals();
+        Part("Mirror", mirror, Inside(set, Color.black, new Color(0.18f, 0.17f, 0.2f, 1f)), scope);
+    }
+
+    /// <summary>A beam from a to b, square in section, wound to face out.</summary>
+    static void Beam(List<Vector3> v, List<int> tri, Vector3 a, Vector3 b, float thickness)
+    {
+        Vector3 d = b - a;
+        float length = d.magnitude;
+        if (length < 1e-5f) return;
+        d /= length;
+        // Across it, and across both: a basis the same way round as x, y, z, so Box's winding holds.
+        Vector3 u = Vector3.Cross(d, Mathf.Abs(d.y) < 0.9f ? Vector3.up : Vector3.right).normalized;
+        Vector3 w = Vector3.Cross(u, d);
+        Vector3 c = (a + b) * 0.5f;
+        float h = thickness * 0.5f, l = length * 0.5f;
+        int start = v.Count;
+        for (int i = 0; i < 8; i++)
+            v.Add(c + u * ((i & 1) == 0 ? -h : h) + d * ((i & 2) == 0 ? -l : l) + w * ((i & 4) == 0 ? -h : h));
+        int[] q = { 0, 2, 3, 1,  4, 5, 7, 6,  0, 1, 5, 4,  2, 6, 7, 3,  0, 4, 6, 2,  1, 3, 7, 5 };
+        for (int f = 0; f < 6; f++)
+        {
+            int p = start + q[f * 4], r = start + q[f * 4 + 1], s = start + q[f * 4 + 2], e = start + q[f * 4 + 3];
+            tri.AddRange(new[] { p, r, s, p, s, e });
+        }
+    }
+
+    /// <summary>A disc round the vertical axis at height y, facing up or down.</summary>
+    static void Disc(List<Vector3> v, List<int> tri, float y, float radius, bool up)
+    {
+        int centre = v.Count;
+        v.Add(Vector3.up * y);
         for (int i = 0; i <= 32; i++)
         {
             float a = i * Mathf.PI * 2f / 32f;
-            mv.Add(Vector3.up * (MirrorY + 0.05f) + new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a)) * (TubeRadius - 0.25f));
+            v.Add(Vector3.up * y + new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a)) * radius);
         }
-        for (int i = 0; i < 32; i++) mt.AddRange(new[] { 0, 1 + i, 2 + i });
-        Mesh mirror = NewMesh("Mirror", mv.ToArray(), mt.ToArray());
-        mirror.RecalculateNormals();
-        Part("Mirror", mirror, Inside(set, Color.black, new Color(0.18f, 0.17f, 0.2f, 1f)), dome);
+        for (int i = 0; i < 32; i++)
+            tri.AddRange(up ? new[] { centre, centre + 1 + i, centre + 2 + i } : new[] { centre, centre + 2 + i, centre + 1 + i });
     }
 
     /// <summary>A material for inside the dome: no moon, no city, a dim red light all round, and a light of its own.</summary>
