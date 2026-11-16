@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.2522858, g: 0.12184367, b: 0.4306469, a: 1}
+  m_IndirectSpecularColor: {r: 0, g: 0, b: 0, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -20973,8 +20973,8 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-  debugLog: 0
   coverScenePath: Assets/_Core_NEW/PC_Cover.unity
+  debugLog: 0
 --- !u!114 &1752711751
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -23249,4 +23249,3 @@ MonoBehaviour:
   recentreOnPress: 0
   waitForRecentre: 0
   lookRig: {fileID: 714473260}
-

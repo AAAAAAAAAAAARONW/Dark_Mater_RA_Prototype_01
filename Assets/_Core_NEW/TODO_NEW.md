@@ -64,6 +64,26 @@
 - Carnegie 现在做研究用的望远镜（Magellan）在智利的 Las Campanas
 
 
+### 结尾的科学片段：光谱画出了暗物质（11 月 15 日）：在 Unity 里看
+
+**你的要求：** 结尾和 credits 之间加一段很短的科学解释，只讲一件事：这一路的线 map 出了暗物质。用现在 prebake 的线。
+
+**画面**（`DarkMatterMap_NEW`，在 `SolarSystem` 上 `Earth Ending_NEW` 旁边）：光谱长到屏幕中间以后，往上挪；下面画一条光走过的路，右端是 quasar（就在它自己的 Lyα 峰正下方），左端写"← toward Earth"。从最靠 quasar 的那条开始（光最先碰到的），每条线往下落一根细线，落到路上出现一小团暗淡的品红色气体；最后一层淡淡的雾（暗物质）在气体周围显出来，线越密的地方越浓。说 J6_4，说完接 Closing，再淡出到 credits（墙上 `Next Scene Path` 是空的，就停在这一幅）。
+
+- 线是 bake 里的：到达画面（arrival 放大以后）Lyα 透过率里最深的那些凹陷（最多 36 条，`Max Lines`、`Min Depth`），所以每根细线都从屏幕上看得到的那条线出发。这个窗口里是 z ≈ 2.8–3.6 的气体，也就是靠近 quasar 的那一段路，所以路的左端不是地球。
+- 雾的浓淡来自同一条透过率（平滑过的），雾里的丝是画的。
+- Closing 从"光进圆顶"挪到了地图之后。没有 `DarkMatterMap_NEW`（或者没有 bake 数据）时和原来一样。
+
+**要做的：**
+1. 打开 `Vizlab_Journey`，点 `Tools > Journey NEW > Voice Over > Wire Journey Voice Over (open scene)`。它会：在 `Earth Ending_NEW` 旁边加上 `Dark Matter Map_NEW` 并填好 J6_4；把 J6_4 从 F6 拿掉（F6 从 15.5 s 改回 10.3 s）。Console 会打印这几条。**Ctrl+S 保存。**
+2. 重录 J6_4（新台词在 `VO_Script_v7.md`）：`elevenlabs_vo.py --only J6_4`，不要用 `generate --go`。没重录之前，地图上说的是旧的 J6_4。
+3. 用调试键跳到 Earth，看完整个结尾。
+4. 再跑 `Tools > Journey NEW > Refresh PC Scenes from the Vizlab Scenes`，PC 版也有。
+
+**不合适就调**（`Dark Matter Map_NEW`）：光谱挪到哪 `Spectrum Rect`；路的高度 `Path Y`；雾多高 `Haze Half Height`；线的数量 `Max Lines`、`Min Depth`、`Min Separation`；颜色在 **Look**；节奏在 **Timing**（雾出现的时间 `Haze At` 要对上"Gas gathers where dark matter is"，重录后可能要挪）。整段关掉：取消勾选 `Play`。
+
+**还没做：** J9b（森林这个名字）还没录、没接上；现在的顺序是 J9 →（进圆顶、光谱长大）→ 地图 + J6_4 → Closing。
+
 ### 第 5 步 · Journey tracker 对上 v7（11 月 6 日）：在 Unity 里看
 
 **之前的问题：** 场景里 Galaxy 改成了 10 B 但前后没跟着改，tracker 开场显示约 **15.07 B**（应该是 12.07 B），光谱也按 15 Gyr 算，开场要等很久才"追上"。底部的条在 J2（"at the bottom of the screen…"）说的时候早就滑走了（每次换阶段只显示 8 秒）。

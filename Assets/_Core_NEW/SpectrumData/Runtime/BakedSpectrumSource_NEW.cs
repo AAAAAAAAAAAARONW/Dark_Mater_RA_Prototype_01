@@ -307,6 +307,15 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
     /// <summary>Where a line from gas at zAbs is on the bar now, 0–1. NaN before the light reaches that gas.</summary>
     public float BarLineT(float zAbs) { return LineTNow(zAbs); }
 
+    /// <summary>The observed wavelength (Å) at a position across the bar as it is drawn now, arrival zoom included.</summary>
+    public double BarLambda(float t) { return Math.Exp(_axisLnMin + t * (_axisLnMax - _axisLnMin)); }
+
+    /// <summary>Where an observed wavelength (Å) sits across the bar as it is drawn now, 0–1. Not clamped.</summary>
+    public float BarT(double lambdaA) { return _active ? AxisT(lambdaA) : float.NaN; }
+
+    /// <summary>The redshift the bar is drawn at: CurrentZ, except while a replay winds it. 0 at Earth.</summary>
+    public float DisplayZ { get { return _zDisplay; } }
+
     /// <summary>The birth tick (1216 Å, where every line is born) on the bar now, 0–1.</summary>
     public float BirthBarT { get { return _active ? AxisT(BakedSpectrumData_NEW.LymanAlphaA) : 0f; } }
 

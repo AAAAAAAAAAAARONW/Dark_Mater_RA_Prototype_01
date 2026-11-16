@@ -40,6 +40,11 @@ using UnityEngine.Events;
 ///                 Not Closing where the scene has an EarthEnding_NEW (Vizlab_Journey): that
 ///                 says it itself, as the light goes into the dome.
 ///
+///   J6_4          said by DarkMatterMap_NEW, at the telescope, after the spectrum has grown
+///                 (15 Nov; it used to be queued at step F6). Where the scene has an
+///                 EarthEnding_NEW, the map is added beside it and given the line, and J6_4 is
+///                 taken off F6.
+///
 ///   J3b           said by FilamentAbsorber_NEW, the first time the light crosses a placed
 ///                 yellow filament - which also cuts and highlights a line. A placeholder
 ///                 filament trigger is made before the galaxy gate; move it onto real art.
@@ -69,7 +74,7 @@ public static class JourneyVoiceOverBuilder_NEW
         new[] { "F1", "J6_1_Redshift" },
         new[] { "F4", "J6_2_Redshift" },
         new[] { "F5", "J6_3_Forest" },
-        new[] { "F6", "J6_4" },   // queued at F6, said once J6_3 is done
+        // J6_4 moved to the ending (15 Nov): DarkMatterMap_NEW says it. See WireDarkMatterMap.
     };
 
     static int _changes;
@@ -108,6 +113,7 @@ public static class JourneyVoiceOverBuilder_NEW
         WireFilament(voiceOver);
         WirePace(voiceOver);
         WireMilkyWayCleanup(voiceOver, director);
+        WireDarkMatterMap(sequence);
 
         Undo.CollapseUndoOperations(group);
         EditorSceneManager.MarkSceneDirty(voiceOver.gameObject.scene);
@@ -661,8 +667,9 @@ public static class JourneyVoiceOverBuilder_NEW
         // sequence was authored with, so a duration somebody tuned is not touched.
         RepairDuration(sequence, steps, "F4", 10f, 11.6f, "J6_2_Redshift is 11.2s");
         RepairDuration(sequence, steps, "F6", 6f, 10.3f, "J6_3_Forest is 17.9s across F5 and F6");
-        // VO v7 (3 Nov): J6_3 is 14.7s from F5 (8s), then J6_4 (8.3s) follows it in F6.
-        RepairDuration(sequence, steps, "F6", 10.3f, 15.5f, "J6_3 (14.7s) and J6_4 (8.3s) across F5 and F6");
+        // 15 Nov: J6_4 left F6 for the ending, so F6 only has to hold the end of J6_3 again.
+        if (UnityEngine.Object.FindObjectOfType<EarthEnding_NEW>() != null)
+            RepairDuration(sequence, steps, "F6", 15.5f, 10.3f, "J6_4 moved to the ending; J6_3 is 14.7s across F5 and F6");
 
         EditorUtility.SetDirty(sequence);
     }
@@ -704,6 +711,59 @@ public static class JourneyVoiceOverBuilder_NEW
                 return rows[i];
 
         return null;
+    }
+
+    // -- The ending's dark matter map -----------------------------------------
+
+    /// <summary>
+    /// Where the scene has an EarthEnding_NEW: a DarkMatterMap_NEW beside it, saying J6_4, and
+    /// J6_4 off step F6 so it is not said twice.
+    /// </summary>
+    static void WireDarkMatterMap(JourneySequence_NEW sequence)
+    {
+        EarthEnding_NEW ending = UnityEngine.Object.FindObjectOfType<EarthEnding_NEW>();
+        if (ending == null) return;
+
+        AudioClip clip = Load("J6_4");
+
+        DarkMatterMap_NEW map = ending.GetComponent<DarkMatterMap_NEW>();
+        if (map == null)
+        {
+            map = Undo.AddComponent<DarkMatterMap_NEW>(ending.gameObject);
+            _changes++;
+            Debug.Log("[JourneyVoiceOverBuilder_NEW] Added DarkMatterMap_NEW beside EarthEnding_NEW.", map);
+        }
+
+        SerializedObject mso = new SerializedObject(map);
+        SerializedProperty lineProp = mso.FindProperty("line");
+        if (lineProp.objectReferenceValue == null && clip != null)
+        {
+            lineProp.objectReferenceValue = clip;
+            mso.ApplyModifiedProperties();
+            _changes++;
+        }
+
+        if (sequence == null || clip == null) return;
+
+        SerializedObject sso = new SerializedObject(sequence);
+        SerializedProperty steps = sso.FindProperty("steps");
+        for (int i = 0; i < steps.arraySize; i++)
+        {
+            SerializedProperty step = steps.GetArrayElementAtIndex(i);
+            if (!string.Equals(step.FindPropertyRelative("id").stringValue, "F6", StringComparison.OrdinalIgnoreCase)) continue;
+
+            SerializedProperty calls = step.FindPropertyRelative("onEnter.m_PersistentCalls.m_Calls");
+            for (int c = calls.arraySize - 1; c >= 0; c--)
+            {
+                SerializedProperty arg = calls.GetArrayElementAtIndex(c).FindPropertyRelative("m_Arguments.m_ObjectArgument");
+                if (arg == null || arg.objectReferenceValue != clip) continue;
+
+                calls.DeleteArrayElementAtIndex(c);
+                _changes++;
+                Debug.Log("[JourneyVoiceOverBuilder_NEW] Took J6_4 off step F6; the dark matter map says it now.", sequence);
+            }
+        }
+        sso.ApplyModifiedProperties();
     }
 
     // -- Helpers --------------------------------------------------------------

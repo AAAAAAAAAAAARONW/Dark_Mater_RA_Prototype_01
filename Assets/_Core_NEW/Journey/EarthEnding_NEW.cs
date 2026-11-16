@@ -16,6 +16,10 @@ using UnityEngine.UI;
 /// THE VOICE. Closing is said from here, not from the Earth row of JourneyVoiceOver_NEW
 /// (which keeps J9), so it lands on the light going in rather than on the way down.
 ///
+/// THE MAP (15 Nov). With a DarkMatterMap_NEW beside this, once the spectrum has grown the map
+/// takes over: the bar lifts, its lines drop to the light's path and the dark matter fades in
+/// around the gas, over J6_4. Closing is then said after the map, not as the light goes in.
+///
 /// Replaces EarthCutscene_NEW's video, which is switched off. Put it on the Solar System's
 /// group root, beside EarthSummit_NEW.
 ///
@@ -56,6 +60,8 @@ public class EarthEnding_NEW : MonoBehaviour
     [SerializeField] AudioClip closing;
 
     [Header("Wiring (found if empty)")]
+    [Tooltip("The science beat after the spectrum grows. Found on this object; none = straight to Closing.")]
+    [SerializeField] DarkMatterMap_NEW map;
     [SerializeField] JourneyVoiceOver_NEW voiceOver;
     [SerializeField] SpectrumHUD_NEW spectrum;
 
@@ -76,7 +82,7 @@ public class EarthEnding_NEW : MonoBehaviour
 
     [SerializeField] bool debugLog = false;
 
-    enum Stage { Waiting, Inside, Outside, Growing, Done }
+    enum Stage { Waiting, Inside, Outside, Growing, Mapping, Done }
 
     float _afterClock = -1f, _voiceWait;
     Image _fade;
@@ -96,6 +102,7 @@ public class EarthEnding_NEW : MonoBehaviour
     void Awake()
     {
         _summit = GetComponent<EarthSummit_NEW>();
+        if (map == null) map = GetComponent<DarkMatterMap_NEW>();
         if (voiceOver == null) voiceOver = FindObjectOfType<JourneyVoiceOver_NEW>();
         if (spectrum == null) spectrum = FindObjectOfType<SpectrumHUD_NEW>();
     }
@@ -115,8 +122,8 @@ public class EarthEnding_NEW : MonoBehaviour
                 _stage = Stage.Inside;
                 _flashClock = 0f;
                 _summit.SetInsideLight(flash);
-                if (voiceOver != null && closing != null) voiceOver.Say(closing);
-                else if (closing == null) Debug.LogWarning("[EarthEnding_NEW] No Closing clip assigned; nothing is said.", this);
+                _closingLater = map != null && map.WillPlay;
+                if (!_closingLater) SayClosing();
                 if (debugLog) Debug.Log("[EarthEnding_NEW] The light is in.", this);
                 break;
 
@@ -137,13 +144,44 @@ public class EarthEnding_NEW : MonoBehaviour
                 _panel.anchorMin = Vector2.Lerp(_anchorMinFrom, _growMin, g);
                 _panel.anchorMax = Vector2.Lerp(_anchorMaxFrom, _growMax, g);
                 if (_black != null) _black.color = new Color(0f, 0f, 0f, backdrop * g);
-                if (g >= 1f) { _stage = Stage.Done; _afterClock = 0f; }
+                if (g >= 1f)
+                {
+                    if (_closingLater)
+                    {
+                        _stage = Stage.Mapping;
+                        map.Play(_panel, _root, spectrum.transform as RectTransform);
+                    }
+                    else { _stage = Stage.Done; _afterClock = 0f; }
+                }
+                break;
+
+            case Stage.Mapping:
+                if (!map.Finished) return;
+                SayClosing();
+                _stage = Stage.Done;
+                _afterClock = 0f;
                 break;
 
             case Stage.Done:
                 TickAfter();
                 break;
         }
+    }
+
+    bool _closingLater;
+
+    /// <summary>Nothing to map on: Closing now, if it was waiting for the map.</summary>
+    void NoMap()
+    {
+        if (!_closingLater) return;
+        _closingLater = false;
+        SayClosing();
+    }
+
+    void SayClosing()
+    {
+        if (voiceOver != null && closing != null) voiceOver.Say(closing);
+        else if (closing == null) Debug.LogWarning("[EarthEnding_NEW] No Closing clip assigned; nothing is said.", this);
     }
 
     // ── On to the next scene ────────────────────────────────────────────────
@@ -198,12 +236,13 @@ public class EarthEnding_NEW : MonoBehaviour
         if (spectrum == null || spectrum.transform.parent == null)
         {
             Debug.LogWarning("[EarthEnding_NEW] No SpectrumHUD_NEW to show.", this);
+            NoMap();
             return;
         }
 
         _panel = spectrum.transform.parent as RectTransform;
         Canvas canvas = _panel != null ? _panel.GetComponentInParent<Canvas>() : null;
-        if (_panel == null || canvas == null) return;
+        if (_panel == null || canvas == null) { NoMap(); return; }
         _root = canvas.rootCanvas.transform as RectTransform;
 
         // Out of its row, onto the canvas's root, keeping where it is.

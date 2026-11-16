@@ -120,6 +120,13 @@ Three lines over the 6 s replay and the 12 marked lines, about 29 s in all. J6_3
 
 The forest is named and explained at the end, when the light reaches the telescope and the barcode of lines fills the screen (Earth step 4d): J9, then **J9b** (the name: Lyman, alpha and forest, each explained), then **J6_4** (what the lines are worth), then Closing. Naming the forest where astronomers actually read it ties the name to the picture of the whole pattern. J6_4 keeps its ID and file, so it needs no re-record, only rewiring. J9 + J9b + J6_4 is about 38 s before Closing; step 4d has to hold the barcode that long.
 
+### The dark matter map, at the telescope (15 November)
+
+The end of the journey has one science beat, over J6_4: the spectrum lifts, each line drops a thread to the light's path drawn beneath it, a small cloud of gas appears where it lands, then a faint haze (the dark matter) fades in around the gas, densest where the lines crowd. `DarkMatterMap_NEW`, started by `EarthEnding_NEW` once the spectrum has grown; Closing follows it. A fuller explainer (the atom, the stretch, the formula) was tried in a storyboard and dropped as too much: the one idea the ending keeps is that the forest is a map of the dark matter along the path.
+
+- The lines are the bake's: the deepest dips in the arrival frame's Lyman-alpha transmission, on the bar as drawn after the arrival zoom. On that window (emitted 1000–1350 Å) they are gas at z ≈ 2.8–3.6, the first stretch of the journey, near the quasar. So the path shows the quasar under its own Lyman-alpha peak and the way toward Earth off the left edge ("← toward Earth"), not Earth itself; the line says "along your path", not "from home to the quasar".
+- Why J6_4 changed: "Maps of galaxies show only where stars shine" gave the forest's value without the picture. The new line says what the picture shows. Same ID and file, so re-recording replaces it in place.
+
 ## 4 · Science checks
 
 **Dates and numbers**
@@ -156,7 +163,8 @@ The forest is named and explained at the end, when the light reaches the telesco
 - **"Lyman, after Theodore Lyman, who first measured this line of hydrogen" (J9b).** Lyman found hydrogen's ultraviolet series at Harvard (1906 to 1914); Lyman-alpha is its first line, at 121.6 nm.
 - **"Alpha, because it is the strongest line in its family" (J9b).** Alpha marks the first line of the Lyman series (n = 2 → 1), which is also its strongest. "Strongest" is the version for visitors; "first" is the exact meaning of the letter.
 - **"Forest, because the lines crowd together like trees" (J9b).** The name describes how the spectrum looks: many narrow absorption lines packed blueward of the quasar's Lyman-alpha peak. Said plainly, so nobody guesses tree rings (§1).
-- **"Maps of galaxies show only where stars shine" (J6_4).** A simplification of the scientists' point: galaxy surveys trace light from stars in the densest regions, while the forest traces diffuse gas through more of the volume.
+- **"Gas gathers where dark matter is … your light has mapped the dark matter" (J6_4, 15 Nov).** The forest traces the diffuse gas, and on large scales that gas follows the dark matter (it is used to map the cosmic web, e.g. Lyman-alpha forest tomography). "Mapped along its way" is one sightline, a 1D map, which is what the picture draws. The haze's strands are drawn; only where it is dense comes from the bake.
+- **Superseded 15 Nov: "Maps of galaxies show only where stars shine" (J6_4).** A simplification of the scientists' point: galaxy surveys trace light from stars in the densest regions, while the forest traces diffuse gas through more of the volume.
 - **"Cut lines into your light" (J6_3).** After z ≈ 2.46 the drawn Lyα lines are not in the light that reaches Earth (LAF & Redshift, open questions). J6 says "cut lines into your light", not "in the light that reaches Earth". Keep it that way.
 - **"Each one marks a moment of your journey" (J9).** Each line comes from gas at a different distance along the path, so the lines are a record ordered in time.
 
@@ -202,7 +210,7 @@ The whole set is re-recorded in the female voice after the scientists' pass, so 
 | J3b | `J3b` | no "yellow" |
 | J5 | `J5_CosmicWeb2` | last generation failed |
 | J6_3 | `J6_3_Forest` | Lyman named; the forest's value moved out |
-| J6_4 | new | the forest's value |
+| J6_4 | `J6_4` | 15 Nov: rewritten for the dark matter map. **Re-record with `elevenlabs_vo.py --only J6_4`** (not `generate --go`) |
 | J9 | `J9_Earth` | tree rings cut |
 | J6_3 | `J6_3_Forest` | 6 Nov: shortened, the forest is named at the telescope instead |
 | J9b | new | 6 Nov: the forest's name, all three words explained |
@@ -215,7 +223,7 @@ Done: every tutorial beat has a VO slot (narration plus prompt). One player queu
 To do:
 
 - Swap D6 and D7 in the tutorial builder (redshift first).
-- Give the redshift demo a fourth slot for J6_4. **Superseded 6 November:** J6_4 moves to the telescope. Take it off `F6`, shorten `F6` to fit the shorter J6_3 (7 s), and wire J9 → J9b → J6_4 → Closing in step 4d.
+- Give the redshift demo a fourth slot for J6_4. **Superseded 6 November:** J6_4 moves to the telescope. **Done 15 November** for J6_4: the voice-over builder takes it off `F6` (F6 back to 10.3 s) and gives it to `DarkMatterMap_NEW`; Closing follows the map. J9b is still not recorded or wired.
 - Re-import the script in Unity (**Import Script**). The tutorial table still holds the v2 text for D4, D6, D8 ("a single atom"); nobody sees it (no subtitles), but its re-record flags depend on it.
 - The two cards in §5.
 
@@ -226,6 +234,12 @@ To do:
 3. **Prompts at all?** The `N_` lines are for discussion with the team (§3).
 
 ## 9 · Feedback log
+
+### 15 November · the ending's science beat
+
+| Note | What changed |
+| --- | --- |
+| Add a short scientific piece between the ending and the credits | Storyboarded as three beats (atom, stretch, map); judged too complex. Kept one: the lines drop to the gas along the path, and the dark matter appears around it (§3). J6_4 rewritten for it. |
 
 ### 6 November · lab meeting
 
