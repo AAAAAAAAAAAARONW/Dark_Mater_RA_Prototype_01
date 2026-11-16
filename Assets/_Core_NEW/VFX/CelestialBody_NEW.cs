@@ -151,6 +151,14 @@ public class CelestialBody_NEW : MonoBehaviour
     /// </summary>
     public Material SurfaceMaterial => _surface;
 
+    /// <summary>The close-up night map and where it lies (west, south, east, north, degrees), for EarthSummit_NEW's mountains.</summary>
+    public Texture RegionMap => regionMap;
+    public Vector4 RegionRect => regionRect;
+    public float RegionExposure => regionExposure;
+    public float CityGlow => cityGlow;
+    public Color GroundHaze => groundHaze;
+    public float GroundHazeKm => groundHazeKm;
+
     /// <summary>The mesh's radius, object space.</summary>
     public float MeshRadius => _meshRadius;
 

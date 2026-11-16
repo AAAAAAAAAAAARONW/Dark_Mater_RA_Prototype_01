@@ -92,10 +92,16 @@ public class EarthSummit_NEW : MonoBehaviour
     [SerializeField] Color domeColour = new Color(0.75f, 0.77f, 0.8f, 1f);
     [Tooltip("The city's glow round the dome's edges, so it stands out against the dark.")]
     [SerializeField] Color domeRim = new Color(0.35f, 0.22f, 0.14f, 1f);
-    [Tooltip("The dim red light inside the dome, seen through the slit.")]
-    [SerializeField] Color domeInside = new Color(0.22f, 0.035f, 0.025f, 1f);
+    [Tooltip("The faint light of the dome's inside walls, seen through the slit.")]
+    [SerializeField] Color domeInside = new Color(0.03f, 0.03f, 0.035f, 1f);
+    [Tooltip("The light inside the dome on the telescope: the sky's, from above, through the slit.")]
+    [SerializeField] Color insideLight = new Color(0.38f, 0.4f, 0.46f, 1f);
     [SerializeField] Color mountainColour = new Color(0.06f, 0.06f, 0.065f, 1f);
     [SerializeField] Color mountainRim = new Color(0.05f, 0.035f, 0.03f, 1f);
+
+    [Tooltip("The camera's height, km, below which Earth's coarse sphere and its air are put away " +
+             "and only the fine patch round the landing point is drawn.")]
+    [Min(1f)] [SerializeField] float hideSphereBelowKm = 100f;
 
     [Header("Light")]
     [SerializeField] Color moonlight = new Color(0.45f, 0.47f, 0.55f, 1f);
@@ -120,7 +126,7 @@ public class EarthSummit_NEW : MonoBehaviour
 
     EarthZoom_NEW _zoom;
     CinemachineBrain _brain;
-    bool _built, _ending, _entered, _cut;
+    bool _built, _ending, _entered, _cut, _sphereHidden;
     float _insideClock;
     CinemachineBlendDefinition _blendBefore;
     bool _blendSwapped;
@@ -136,12 +142,17 @@ public class EarthSummit_NEW : MonoBehaviour
     Quaternion _cutTo;
     Vector3 _photonScale;
     float _flatInner, _flatOuter;    // km round the dome that the mountains are levelled
+    Vector2 _here;                   // the frame's origin on the maps: latitude, longitude
+    Vector4 _rect;                   // where the close-up night map lies, degrees
+    bool _drape;
 
     // The observatory model, in its own metres (y up, z north): the floor of the pit, the
     // mirror at the foot of the tube once turned to the zenith, how far the dome's shell is
     // slid along its slit so the light's line, through the tube, clears the cap at the top.
     const string ModelName = "Observatory telescope", ModelTube = "pCylinder289", ModelShell = "group5", ModelScope = "group3";
     const float ModelGroundY = -4.58f, ModelMirrorY = -2.9f, ModelShellShift = 2.5f;
+
+    readonly List<Renderer> _scopeRenderers = new List<Renderer>();
 
     static GameObject _model;
     static bool _lookedForModel;
@@ -241,6 +252,25 @@ public class EarthSummit_NEW : MonoBehaviour
         float kmToWorld = _frame.lossyScale.x;
         foreach (Material m in _setMaterials) m.SetFloat("_KmToWorld", kmToWorld);
 
+        // Low enough that the patch of true sphere fills the view: the coarse sphere and its air
+        // go (see Build).
+        Camera low = GetReal3DView_NEW.ScreenCamera;
+        if (!_sphereHidden && low != null && _frame.InverseTransformPoint(low.transform.position).y < hideSphereBelowKm)
+        {
+            _sphereHidden = true;
+            _zoom.Body.SetAirVisible(false);
+            SetSurfaceVisible(false);
+        }
+
+        // The mountains' haze comes in as the ground's does: with the camera about 30 km down
+        // to 8 km over it (CelestialSurface_NEW's _GroundHazeFrom, as radius over height).
+        Camera eye = GetReal3DView_NEW.ScreenCamera;
+        if (_drape && eye != null)
+        {
+            float alt = Mathf.Max(_frame.InverseTransformPoint(eye.transform.position).y, 1e-3f);
+            _setMountain.SetFloat("_HazeOn", Edge(200f, 800f, EarthZoom_NEW.EarthRadiusKm / alt));
+        }
+
         if (_ending) Ending();
     }
 
@@ -271,6 +301,9 @@ public class EarthSummit_NEW : MonoBehaviour
             parts += go.name + " " + (r.enabled ? "on" : "OFF") + "/" + (r.isVisible ? "drawn" : "NOT DRAWN") + " L" + go.layer + "   ";
         }
         Vector3 vp = _dome != null ? cam.WorldToViewportPoint(_dome.position) : Vector3.zero;
+        int drawn = 0;
+        foreach (Renderer r in _scopeRenderers) if (r != null && r.isVisible) drawn++;
+        if (_scopeRenderers.Count > 0) parts += "telescope parts drawn " + drawn + "/" + _scopeRenderers.Count + "   ";
         parts += "dome on screen " + vp.x.ToString("0.00") + ", " + vp.y.ToString("0.00") + ", z " + vp.z.ToString("0.0") +
                  "   cull mask " + cam.cullingMask + "   drawing camera " + (Camera.current != null ? Camera.current.name : "-");
 
@@ -295,7 +328,7 @@ public class EarthSummit_NEW : MonoBehaviour
         _insideEmission.Clear();
         _frame = null;
         _vcam = null;
-        _built = _ending = _entered = _cut = false;
+        _built = _ending = _entered = _cut = _sphereHidden = false;
     }
 
     // ── Building ────────────────────────────────────────────────────────────
@@ -330,10 +363,11 @@ public class EarthSummit_NEW : MonoBehaviour
         Debug.Log("[EarthSummit_NEW] Building the summit at " + here.x.ToString("0.00") + ", " + here.y.ToString("0.00") +
                   "; the city " + (Vector3.Distance(cityWorld, ground) / kmNow).ToString("0") + " km away.", this);
 
-        // The finer patch of the true sphere, and the coarse one put away.
+        // The finer patch of the true sphere. The coarse one and its air are put away once the
+        // camera is low enough for the patch to fill the view (see Update): built now, the
+        // patch is a few hundred km across under a camera a thousand km up, and put away now
+        // the rest of Earth went with it (16 Nov: "a black square").
         BuildCap(earth, body, here);
-        body.SetAirVisible(false);
-        SetSurfaceVisible(false);
 
         // The frame of km, standing on the landing point.
         var frameGo = Make("Summit (km)");
@@ -348,6 +382,20 @@ public class EarthSummit_NEW : MonoBehaviour
         else if (!set.isSupported) Debug.LogError("[EarthSummit_NEW] SummitSet_NEW does not run here (a compile error?): the mountains and dome will not show.", this);
         _setMountain = Lit(set, mountainColour);
         _setMountain.SetColor("_Rim", mountainRim);
+        // The mountains wear the ground's own night, so from above they are the land round
+        // them and not a dark patch on it; hazed as the ground is.
+        _here = here;
+        _drape = body.RegionMap != null;
+        if (_drape)
+        {
+            _setMountain.SetTexture("_GroundMap", body.RegionMap);
+            _setMountain.SetFloat("_GroundOn", 1f);
+            _setMountain.SetFloat("_GroundExposure", body.RegionExposure);
+            _setMountain.SetFloat("_CityGlow", body.CityGlow);
+            _setMountain.SetColor("_HazeColor", body.GroundHaze);
+            _setMountain.SetFloat("_HazeKm", body.GroundHazeKm);
+            _rect = body.RegionRect;
+        }
         _setDome = Lit(set, domeColour);
         _setDome.SetColor("_Rim", domeRim);
 
@@ -576,15 +624,18 @@ public class EarthSummit_NEW : MonoBehaviour
         }
 
         Transform scope = FindDeep(model.transform, ModelScope);
-        Material metal = Inside(set, new Color(0.5f, 0.54f, 0.58f, 1f), new Color(0.02f, 0.006f, 0.005f, 1f));
+        Material metal = Inside(set, new Color(0.6f, 0.62f, 0.66f, 1f), new Color(0.015f, 0.015f, 0.018f, 1f));
         Material outside = Lit(set, domeColour);
         outside.SetColor("_Rim", domeRim);
-        outside.SetColor("_Emission", new Color(0.03f, 0.008f, 0.006f, 1f));
+        outside.SetColor("_Emission", new Color(0.02f, 0.02f, 0.025f, 1f));
+        _scopeRenderers.Clear();
 
         int count = 0;
         foreach (Renderer r in model.GetComponentsInChildren<Renderer>(true))
         {
-            Material m = scope != null && r.transform.IsChildOf(scope) ? metal : outside;
+            bool inScope = scope != null && r.transform.IsChildOf(scope);
+            if (inScope) _scopeRenderers.Add(r);
+            Material m = inScope ? metal : outside;
             var mats = new Material[Mathf.Max(1, r.sharedMaterials.Length)];
             for (int i = 0; i < mats.Length; i++) mats[i] = m;
             r.sharedMaterials = mats;
@@ -729,6 +780,7 @@ public class EarthSummit_NEW : MonoBehaviour
         Vector2 perp = new Vector2(-toward.y, toward.x);
 
         var vertices = new Vector3[(along + 1) * (across + 1)];
+        var uv = new Vector2[vertices.Length];
         for (int a = 0; a <= along; a++)
         for (int b = 0; b <= across; b++)
         {
@@ -736,9 +788,15 @@ public class EarthSummit_NEW : MonoBehaviour
             float t = Mathf.Lerp(-side, side, b / (float)across);
             Vector2 p = spot + toward * s + perp * t;
             float h = Mountains(p, spot, toward, cameraKm, dome, domeGround);
-            // The sides sink away, out of sight anyway.
-            h = Mathf.Lerp(h, -0.6f, Edge(side * 0.8f, side, Mathf.Abs(t)));
+            // The edges sink away under the ground, so it has no edge to see.
+            h = Mathf.Lerp(h, -0.6f, Mathf.Max(Edge(side * 0.8f, side, Mathf.Abs(t)), Edge(-back * 0.8f, -back, s)));
             vertices[a * (across + 1) + b] = new Vector3(p.x, h, p.y);
+            // Where it is on the close-up night map (the frame's km, east and north, to degrees).
+            if (_drape)
+            {
+                float lat = _here.x + p.y / 110.95f, lon = _here.y + p.x / (111.32f * Mathf.Cos(_here.x * Mathf.Deg2Rad));
+                uv[a * (across + 1) + b] = new Vector2((lon - _rect.x) / (_rect.z - _rect.x), (lat - _rect.y) / (_rect.w - _rect.y));
+            }
         }
 
         var triangles = new int[along * across * 6];
@@ -752,6 +810,7 @@ public class EarthSummit_NEW : MonoBehaviour
         }
 
         Mesh mesh = NewMesh("Summit mountains", vertices, triangles);
+        mesh.uv = uv;
         FixWinding(mesh, Vector3.up * 10f, Vector3.zero);
         mesh.RecalculateNormals();
         return mesh;
@@ -955,14 +1014,19 @@ public class EarthSummit_NEW : MonoBehaviour
             tri.AddRange(up ? new[] { centre, centre + 1 + i, centre + 2 + i } : new[] { centre, centre + 2 + i, centre + 1 + i });
     }
 
-    /// <summary>A material for inside the dome: no moon, no city, a dim red light all round, and a light of its own.</summary>
+    /// <summary>
+    /// A material for inside the dome: the night sky's light from above, through the slit, a
+    /// little all round, no city, and a light of its own. (16 Nov: a dim red light all round
+    /// turned the telescope a dark red into the dark; now it is grey metal, lit from above.)
+    /// </summary>
     Material Inside(Shader set, Color albedo, Color emission)
     {
         Material m = Lit(set, albedo);
-        m.SetColor("_MoonColor", Color.black);
+        m.SetVector("_MoonDir", _up);
+        m.SetColor("_MoonColor", insideLight);
         m.SetColor("_GlowColor", Color.black);
-        m.SetColor("_Rim", Color.black);
-        m.SetColor("_Ambient", new Color(0.32f, 0.07f, 0.05f, 1f));
+        m.SetColor("_Rim", new Color(0.04f, 0.045f, 0.05f, 1f));
+        m.SetColor("_Ambient", insideLight * 0.25f);
         m.SetColor("_Emission", emission);
         _insideLights.Add(m);
         _insideEmission.Add(emission);
