@@ -22,10 +22,11 @@ public static class DebugView_NEW
     public static bool Gizmos = true;
 
     /// <summary>
-    /// Every debug readout on screen. F1 (LayerDebugJump_NEW) and X (DebugToggleKey_NEW, in
-    /// every scene) flip it; a readout that does not ask this is one X cannot hide.
+    /// Every debug readout on screen. Hidden when the piece starts: F1 (LayerDebugJump_NEW) and
+    /// X (DebugToggleKey_NEW, in every scene) flip it; a readout that does not ask this is one
+    /// X cannot bring up or hide.
     /// </summary>
-    public static bool Overlay = true;
+    public static bool Overlay = false;
 
     /// <summary>Per-transition logging from the responders. Off by default; it is loud.</summary>
     public static bool Verbose = false;

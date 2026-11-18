@@ -199,10 +199,27 @@ public class DarkMatterToggleTest_NEW : MonoBehaviour
         _following = false;
     }
 
+    static float Smooth(float a, float b, float x)
+    {
+        float t = Mathf.Clamp01((x - a) / (b - a));
+        return t * t * t * (t * (t * 6f - 15f) + 10f);
+    }
+
+    /// <summary>
+    /// Not one even cross-fade, which read as a dissolve between two pictures. In two steps:
+    /// the web comes up through the first two thirds, a little brighter than it will stay (the
+    /// dark matter lights up, then settles), and the galaxies hold until it is half there and
+    /// go in the last half - so for a moment both are seen, the galaxies sitting on the
+    /// threads that hold them. Hiding it is the same, backwards: the galaxies are back before
+    /// the web has gone.
+    /// </summary>
     void Apply(float mix)
     {
         _mix = mix;
-        float k = mix * mix * (3f - 2f * mix);
+        float web = Smooth(0f, 0.68f, mix);
+        float lift = 1f + 0.3f * Mathf.Sin(Mathf.Clamp01((mix - 0.3f) / 0.7f) * Mathf.PI);
+        float k = web * lift;
+        float galaxies = 1f - Smooth(0.5f, 1f, mix);
 
         bool webOn = mix > 0.001f;
         foreach (GameObject w in _webs) if (w != null && w.activeSelf != webOn) w.SetActive(webOn);
@@ -212,7 +229,7 @@ public class DarkMatterToggleTest_NEW : MonoBehaviour
 
         bool galaxiesOn = mix < 0.999f;
         foreach (GameObject g in _galaxies) if (g != null && g.activeSelf != galaxiesOn) g.SetActive(galaxiesOn);
-        foreach (Material m in _galaxyMats) if (m != null) m.SetFloat(FadeId, 1f - k);
+        foreach (Material m in _galaxyMats) if (m != null) m.SetFloat(FadeId, galaxies);
     }
 
     bool InLayer()

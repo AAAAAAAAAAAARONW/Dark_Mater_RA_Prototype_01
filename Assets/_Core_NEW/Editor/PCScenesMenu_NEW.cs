@@ -17,6 +17,7 @@ using UnityEngine.SceneManagement;
 ///               renders, input is the pad's, the HUD is an ordinary overlay - the desk.
 ///   the flow    the tutorial hands off to PC_Journey and sends an idle visitor to PC_Cover;
 ///               the journey's ending goes on to PC_Credits.
+///   the HUD     the spectrum (LAF HUD) to the top row: a desk's screen has no row overhead.
 ///
 /// ANYTHING CHANGED BY HAND IN PC_Tutorial OR PC_Journey IS LOST: make changes in the Vizlab
 /// scenes and refresh. PC_Cover and PC_Credits are their own and are never touched here.
@@ -73,9 +74,38 @@ static class PCScenesMenu_NEW
             view.gameObject.SetActive(false);
             off++;
         }
+        int top = SpectrumToTheTop(scene);
         wire();
         EditorSceneManager.SaveScene(scene);
+        if (top > 0) Debug.Log("PC scenes: " + target + ", " + top + " HUD panel(s) moved to the top row.");
         Debug.Log("PC scenes: " + target + " from " + source + ", " + off + " getReal3D view(s) switched off.");
+    }
+
+    /// <summary>
+    /// On the wall the spectrum sits on row 2 of 7, the top row being over the viewer's head. A
+    /// desk's screen is all in view, so there it goes to the top: every panel that can be
+    /// stepped between rows (VizlabRowShifter_NEW - the LAF HUD) starts on row 1, against its
+    /// top edge.
+    /// </summary>
+    static int SpectrumToTheTop(Scene scene)
+    {
+        int n = 0;
+        foreach (VizlabRowShifter_NEW shifter in Resources.FindObjectsOfTypeAll<VizlabRowShifter_NEW>())
+        {
+            if (shifter.gameObject.scene != scene) continue;
+            var so = new SerializedObject(shifter);
+            so.FindProperty("startRow").intValue = 1;
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            VizlabRowAnchor_NEW anchor = shifter.GetComponent<VizlabRowAnchor_NEW>();
+            if (anchor == null) continue;
+            var ao = new SerializedObject(anchor);
+            ao.FindProperty("row").intValue = 1;
+            ao.FindProperty("vertical").enumValueIndex = (int)VizlabRowAnchor_NEW.Vertical.Top;
+            ao.ApplyModifiedPropertiesWithoutUndo();
+            n++;
+        }
+        return n;
     }
 
     /// <summary>A string field on every component of type T in the open scene.</summary>
