@@ -1,7 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// X on the keyboard hides every debug readout on screen, and X again brings them back.
+/// The piece plays with no debug readout on screen. X on the keyboard brings them all up, and
+/// X again hides them.
 ///
 /// It flips DebugView_NEW.Overlay, the one switch every readout already asks - the layer
 /// readout, the tutorial's beat panels, the voice-over rows, the wall test panel, the Summit
@@ -22,6 +23,10 @@ public class DebugToggleKey_NEW : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Install()
     {
+        // Every Play starts clean, whatever the editor's Debug View menu was left on: the
+        // readouts are for whoever presses X, not for whoever is watching.
+        DebugView_NEW.Overlay = false;
+
         if (FindObjectOfType<DebugToggleKey_NEW>() != null) return;
 
         var go = new GameObject("Debug Toggle (X)");

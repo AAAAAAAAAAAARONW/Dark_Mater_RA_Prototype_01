@@ -35,8 +35,9 @@ using UnityEngine.SceneManagement;
 ///   Earth        rising as Earth grows (EarthZoom_NEW.ZoomBegan), the crest as the light goes
 ///                in, a last one on the cut to the observatory and the spectrum
 ///
-/// The music sits under the voice (underVoice while a VoiceOver source plays). It stops for
-/// the cover and the credits, which have their own.
+/// The music sits under the voice (underVoice while a VoiceOver source plays). The cover
+/// plays the tutorial's music at rest, so the piece is already sounding when A is pressed and
+/// carries on unbroken; it stops for the credits, which have their own.
 ///
 /// NOTHING TO SET UP. It makes itself when the game starts and lives across scene loads, so
 /// the scenes - four of them, two made from the other two - need nothing added. It plays in
@@ -215,7 +216,8 @@ public class JourneyScore_NEW : MonoBehaviour
         _layers = FindObjectOfType<LayerState_NEW>();
         // The piece's own scenes only (PC_*, Vizlab_*): a development scene keeps whatever it has.
         bool ours = name.StartsWith("pc_") || name.StartsWith("vizlab_");
-        bool quiet = !ours || name.Contains("cover") || name.Contains("credit");
+        bool cover = ours && name.Contains("cover");
+        bool quiet = !ours || cover || name.Contains("credit");
 
         foreach (AudioSource a in FindObjectsOfType<AudioSource>())
             if (a.name == "VoiceOver") _voices.Add(a);
@@ -239,9 +241,16 @@ public class JourneyScore_NEW : MonoBehaviour
             if (silenceSceneBgm) SilenceSceneBgm();
             if (_layers.CurrentLayerId != null) SetPlace(_layers.CurrentLayerId, 4f);
         }
+        else if (cover)
+        {
+            // The cover: the tutorial's music already, at rest, so that pressing A carries
+            // straight on into it - the same bars keep playing across the load.
+            _silent = false;
+            SetPlace("Tutorial", 5f);
+        }
         else
         {
-            // The cover, the credits, anything else: out, all of it.
+            // The credits, anything else: out, all of it.
             _silent = true;
             SetPlace(null, 1.5f);
         }
