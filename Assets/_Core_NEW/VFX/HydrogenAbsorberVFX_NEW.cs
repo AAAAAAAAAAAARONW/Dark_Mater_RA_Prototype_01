@@ -16,8 +16,12 @@ using UnityEngine;
 /// reads as a silhouette on the sky and the quasar. Without a glow it is hard to see at 200
 /// metres; if so, raise opacity or the object's scale before adding light back.
 ///
-/// CHEAP. Four samples along the ray, two noise reads each (both sheets of
-/// QuasarNoise_NEW in one fetch): sixteen texture reads a pixel. Built before
+/// IT HAS VOLUME. Lit from the quasar's side (lightSource): the side towards it lighter, the
+/// far side and the heart darker, a dim pink rim where thin gas scatters the light on towards
+/// the eye, near lobes laid over far ones. All from the body's own shape: no extra reads.
+///
+/// CHEAP. Five samples along the ray, two noise reads each (both sheets of
+/// QuasarNoise_NEW in one fetch): twenty texture reads a pixel. Built before
 /// WorldSwitcher_NEW gathers renderers, so it fades with its world through _Color.
 /// </summary>
 [ExecuteAlways]
@@ -51,6 +55,21 @@ public class HydrogenAbsorberVFX_NEW : MonoBehaviour
     [SerializeField] Color gasColour = new Color(0.36f, 0.12f, 0.28f, 1f);
     [SerializeField] Color dustColour = new Color(0.05f, 0.015f, 0.03f, 1f);
 
+    [Header("Volume: lit from one side")]
+    [Tooltip("What lights it: the quasar. Empty: the tutorial's destination, else the scene's quasar, " +
+             "else from ahead and above. The side towards it is lighter, the far side and the heart darker.")]
+    [SerializeField] Transform lightSource;
+
+    [Tooltip("Light the thin gas scatters towards the eye: a dim rim on the edges facing the light. " +
+             "Keep every channel under 1 so it never blooms.")]
+    [SerializeField] Color rimColour = new Color(0.85f, 0.5f, 0.7f, 1f);
+
+    [Tooltip("How much of that rim. 0: the flat silhouette it used to be.")]
+    [Range(0f, 2f)] [SerializeField] float scatter = 0.8f;
+
+    [Tooltip("How dark the side away from the light and the cloud's heart are.")]
+    [Range(0f, 6f)] [SerializeField] float shadow = 2.5f;
+
     [Header("Seen from far away")]
     [Tooltip("Smallest size it is drawn at, as an angle (degrees, radius) from the camera. A cloud " +
              "of its true size is a speck until the last second of the approach, then fills the " +
@@ -69,6 +88,7 @@ public class HydrogenAbsorberVFX_NEW : MonoBehaviour
 
     const HideFlags Built = HideFlags.HideAndDontSave;
     static readonly int AppearId = Shader.PropertyToID("_Appear");
+    static readonly int LightDirId = Shader.PropertyToID("_TowardLight");
 
     GameObject _part;
     Material _material;
@@ -109,6 +129,23 @@ public class HydrogenAbsorberVFX_NEW : MonoBehaviour
             k = Mathf.Max(1f, need / Radius);
         }
         _part.transform.localScale = Vector3.one * k;
+
+        // Towards the light, in the cloud's own space: it moves as the cloud is passed.
+        Vector3 toLight = lightSource != null ? lightSource.position - transform.position : new Vector3(0.3f, 0.4f, 0.85f);
+        if (toLight.sqrMagnitude < 1e-6f) toLight = Vector3.forward;
+        _material.SetVector(LightDirId, transform.InverseTransformDirection(toLight.normalized));
+    }
+
+    /// <summary>The quasar, if nothing was wired: the tutorial's destination, else the scene's quasar.</summary>
+    void FindLight()
+    {
+        if (lightSource != null) return;
+
+        TutorialTravel_NEW travel = FindObjectOfType<TutorialTravel_NEW>();
+        if (travel != null && travel.Destination != null) { lightSource = travel.Destination; return; }
+
+        QuasarVFX_NEW quasar = FindObjectOfType<QuasarVFX_NEW>();
+        if (quasar != null) lightSource = quasar.transform;
     }
 
     void OnValidate()
@@ -151,6 +188,7 @@ public class HydrogenAbsorberVFX_NEW : MonoBehaviour
         mr.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
         mr.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
 
+        FindLight();
         Apply();
     }
 
@@ -184,6 +222,9 @@ public class HydrogenAbsorberVFX_NEW : MonoBehaviour
         _material.SetVector("_Resolve", resolve);
         _material.SetColor("_GasColor", gasColour);
         _material.SetColor("_DustColor", dustColour);
+        _material.SetColor("_RimColor", rimColour);
+        _material.SetFloat("_Scatter", scatter);
+        _material.SetFloat("_Shadow", shadow);
         _material.SetFloat(AppearId, _appear * _appear * (3f - 2f * _appear));
     }
 

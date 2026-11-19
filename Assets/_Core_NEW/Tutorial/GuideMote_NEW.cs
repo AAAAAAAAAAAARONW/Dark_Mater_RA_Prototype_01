@@ -78,12 +78,21 @@ public class GuideMote_NEW : MonoBehaviour
     [Tooltip("Fires once, on the first bloom. Audio and VFX go here.")]
     [SerializeField] UnityEvent onBloom = new UnityEvent();
 
+    [Header("Leaving")]
+    [Tooltip("Once caught, or once its beat is over (Dismiss), the mote stays this long, then " +
+             "shrinks away over the second number, in seconds.\n\n" +
+             "It rides with the light, so a mote that was never put away stayed in view for the " +
+             "rest of the tutorial: a white dot beside the light all the way out of the quasar.")]
+    [SerializeField] Vector2 leave = new Vector2(1.2f, 1.5f);
+
     Vector3 _startPosition;
     Vector3 _localDrift;
     float _ramp;
     float _rampVelocity;
     float _bloomElapsed = -1f;
     bool _bloomed;
+    float _leaveElapsed = -1f;      // seconds since it was caught or dismissed; under 0, staying
+    Renderer[] _renderers;
 
     /// <summary>True once the mote has been caught. Never resets during a run.</summary>
     public bool Bloomed { get { return _bloomed; } }
@@ -135,6 +144,8 @@ public class GuideMote_NEW : MonoBehaviour
         _rampVelocity = 0f;
         _bloomElapsed = -1f;
         _bloomed = false;
+        _leaveElapsed = -1f;
+        SetSeen(true);
 
         ApplyRamp();
     }
@@ -149,11 +160,48 @@ public class GuideMote_NEW : MonoBehaviour
 
         if (ripple != null) ripple.Play();
         onBloom.Invoke();
+        Dismiss();
+    }
+
+    /// <summary>
+    /// Its work is done: stay a moment, shrink away, and stop being drawn. The object stays
+    /// active, so a beat still holding it as a target reads a real position. ResetMote brings
+    /// it back.
+    /// </summary>
+    public void Dismiss()
+    {
+        if (_leaveElapsed < 0f) _leaveElapsed = 0f;
+    }
+
+    /// <summary>1 while it stays, down to 0 as it leaves.</summary>
+    float Presence()
+    {
+        if (_leaveElapsed < 0f) return 1f;
+        float t = Mathf.Clamp01((_leaveElapsed - leave.x) / Mathf.Max(0.01f, leave.y));
+        return 1f - t * t * (3f - 2f * t);
+    }
+
+    void SetSeen(bool seen)
+    {
+        if (_renderers == null) _renderers = GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < _renderers.Length; i++)
+            if (_renderers[i] != null && _renderers[i].enabled != seen) _renderers[i].enabled = seen;
+        if (moteLight != null && moteLight.enabled != seen) moteLight.enabled = seen;
     }
 
     void Update()
     {
         float dt = TutorialClock_NEW.DeltaTime;
+
+        if (_leaveElapsed >= 0f)
+        {
+            _leaveElapsed += dt;
+            if (Presence() <= 0f)
+            {
+                SetSeen(false);
+                return;
+            }
+        }
 
         Drift(dt);
         TickRamp(dt);
@@ -199,11 +247,12 @@ public class GuideMote_NEW : MonoBehaviour
 
     void ApplyRamp()
     {
-        float scale = Mathf.Lerp(restScale, caughtScale, _ramp) + BloomKick();
+        float presence = Presence();
+        float scale = (Mathf.Lerp(restScale, caughtScale, _ramp) + BloomKick()) * presence;
         transform.localScale = Vector3.one * scale;
 
         if (moteLight != null)
-            moteLight.intensity = Mathf.Lerp(restIntensity, caughtIntensity, _ramp);
+            moteLight.intensity = Mathf.Lerp(restIntensity, caughtIntensity, _ramp) * presence;
     }
 
     float BloomKick()

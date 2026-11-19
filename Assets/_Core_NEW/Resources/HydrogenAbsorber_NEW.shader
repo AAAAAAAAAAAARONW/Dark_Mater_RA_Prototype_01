@@ -7,12 +7,25 @@ Shader "Custom/HydrogenAbsorber_NEW"
     // and the quasar, and by the stars it dims.
     //
     // ANALYTIC. The sphere it is drawn on is only the bound. The ray is cut against that sphere
-    // in closed form and the gas is read at four points along the cut, each two reads of the
-    // shared noise sheet (QuasarNoise_NEW) — sixteen texture reads a pixel, where
+    // in closed form and the gas is read at five points along the cut, each two reads of the
+    // shared noise sheet (QuasarNoise_NEW) — twenty texture reads a pixel, where
     // NebulaCloud_NEW, which this sits beside and does not replace, takes ninety-six. That
     // matters when the camera is inside the cloud and it covers the screen, twice over in VR.
     // Drawn from the sphere's back faces, so it works from inside too; real geometry, so both
     // eyes see it in the right place.
+    //
+    // LATER: IT HAS VOLUME. It was one flat amount of gas a ray, in one colour: a stain on the
+    // sky, with no near side or far side. Three things give it depth, the way the cosmic web's
+    // gas has it (CosmicWebPyro_NEW), and none of them reads a texture:
+    //   lit from one side   The quasar is behind it (_TowardLight, from HydrogenAbsorberVFX_NEW).
+    //                       How much cloud lies between a point and that light is taken from
+    //                       the body's own shape, a step towards the light: the lit side is
+    //                       lighter, the far side and the heart darker.
+    //   silver lining       Thin gas between the eye and the light scatters it forward: the
+    //                       edges facing the quasar carry a dim pink rim (_RimColor), broken
+    //                       into billows by the noise already read. Dim: still no bloom.
+    //   near over far       The samples are laid over one another front to back, each with
+    //                       its own light, so a near lobe is seen against a far one.
     //
     // NOT ROUND. Three lumps strung along the object's x make a short streak; the big noise
     // warps them, and the edge is eaten by the noise so it tears into wisps.
@@ -32,6 +45,10 @@ Shader "Custom/HydrogenAbsorber_NEW"
         _Resolve ("Nearer than x the gas is left out, from y all there (of the radius)", Vector) = (0.05, 0.3, 0, 0)
         _GasColor ("Gas (dim magenta, keep it under 1)", Color) = (0.36, 0.12, 0.28, 1)
         _DustColor ("Dust", Color) = (0.05, 0.015, 0.03, 1)
+        _TowardLight ("Towards the light, in the object's space", Vector) = (0.3, 0.4, 0.85, 0)
+        _RimColor ("Light scattered by the thin gas (keep it under 1)", Color) = (0.85, 0.5, 0.7, 1)
+        _Scatter ("How much of it", Range(0, 2)) = 0.8
+        _Shadow ("How dark the side away from the light", Range(0, 6)) = 2.5
     }
 
     SubShader
@@ -53,7 +70,9 @@ Shader "Custom/HydrogenAbsorber_NEW"
             fixed4 _Color;
             float _Seed, _Opacity, _Softness, _DustAmount, _Flow, _Appear;
             float4 _Resolve;
-            fixed4 _GasColor, _DustColor;
+            fixed4 _GasColor, _DustColor, _RimColor;
+            float4 _TowardLight;
+            float _Scatter, _Shadow;
 
             struct appdata
             {
@@ -94,21 +113,34 @@ Shader "Custom/HydrogenAbsorber_NEW"
             }
 
             // The body: three lumps along the object's x (tipped by the seed), knocked off the
-            // line. 1 deep inside, 0 at the edge, below 0 outside; never past the bound.
-            float Body(float3 p)
+            // line. Where they are and how big is the same for every pixel, so it is worked out
+            // once a pixel (Lumps) and not once a sample.
+            struct Lumps { float3 c0, c1, c2; float3 r; };
+
+            Lumps MakeLumps()
             {
+                Lumps m;
                 float s0 = _Seed * 3.3;
                 float3 axis = normalize(float3(1.0, (Hash(s0 + 31.0) - 0.5) * 0.7, (Hash(s0 + 32.0) - 0.5) * 0.7));
-                float env = -1.0;
+                float3 c[3];
+                float r[3];
                 [unroll]
                 for (int l = 0; l < 3; l++)
                 {
                     float s = s0 + l * 11.7;
-                    float along = (l - 1.0) * 0.38;
-                    float3 off = (float3(Hash(s + 1.0), Hash(s + 2.0), Hash(s + 3.0)) - 0.5) * 0.3;
-                    float r = 0.3 + 0.15 * Hash(s + 4.0) + (l == 1 ? 0.1 : 0.0);
-                    env = max(env, 1.0 - length(p - axis * along - off) / r);
+                    c[l] = axis * ((l - 1.0) * 0.38) + (float3(Hash(s + 1.0), Hash(s + 2.0), Hash(s + 3.0)) - 0.5) * 0.3;
+                    r[l] = 0.3 + 0.15 * Hash(s + 4.0) + (l == 1 ? 0.1 : 0.0);
                 }
+                m.c0 = c[0]; m.c1 = c[1]; m.c2 = c[2];
+                m.r = float3(r[0], r[1], r[2]);
+                return m;
+            }
+
+            // 1 deep inside, 0 at the edge, below 0 outside; never past the bound.
+            float Body(Lumps m, float3 p)
+            {
+                float env = max(1.0 - length(p - m.c0) / m.r.x,
+                            max(1.0 - length(p - m.c1) / m.r.y, 1.0 - length(p - m.c2) / m.r.z));
                 return min(env, (0.95 - length(p)) * 3.0);
             }
 
@@ -127,11 +159,20 @@ Shader "Custom/HydrogenAbsorber_NEW"
                 if (tFar <= tNear) return 0;
 
                 float3 flow = float3(0.3, 0.1, -0.2) * _Time.y * _Flow + _Seed * 0.37;
-                const int Samples = 4;
+                const int Samples = 5;
                 float jitter = frac(sin(dot(i.pos.xy, float2(12.9898, 78.233))) * 43758.5453);
                 float dt = (tFar - tNear) / Samples;
-                float tau = 0.0;
-                float dustTau = 0.0;
+
+                Lumps lumps = MakeLumps();
+
+                // The light, and how much of it thin gas throws on towards the eye: most when
+                // the eye looks towards it, through the cloud's edge.
+                float3 L = normalize(_TowardLight.xyz + float3(0.0, 1e-4, 0.0));
+                float toward = saturate(dot(d, L));
+                float phase = 0.25 + 1.35 * toward * toward * toward;
+
+                float through = 1.0;        // how much still comes through from behind
+                float3 light = 0.0;         // what the gas itself sends
 
                 [unroll]
                 for (int k = 0; k < Samples; k++)
@@ -141,7 +182,8 @@ Shader "Custom/HydrogenAbsorber_NEW"
 
                     float4 n0 = Noise4(p * 0.7 + flow * 0.5 + 9.0);
                     float4 n1 = Noise4(p * 2.2 + flow + 3.1);
-                    float env = Body(p + (n0.gba - 0.5) * 0.6);
+                    float3 pw = p + (n0.gba - 0.5) * 0.6;
+                    float env = Body(lumps, pw);
                     float thin = saturate(1.0 - env);
 
                     // The thinner the body, the more of the noise is cut away: wisps at the edge.
@@ -152,15 +194,25 @@ Shader "Custom/HydrogenAbsorber_NEW"
 
                     // Near the camera the gas is left out, so from inside it is a tint, not a wall.
                     float seen = smoothstep(_Resolve.x, _Resolve.y, t);
-                    tau += gas * seen * dt;
-                    dustTau += dust * gas * seen * dt;
+                    float a = 1.0 - exp(-gas * (1.0 + dust * 2.0) * seen * dt * _Opacity);
+
+                    // How much cloud lies between here and the light: the body's own shape a
+                    // step towards it. No texture read.
+                    float deep = saturate(Body(lumps, pw + L * 0.3) * 1.4 + 0.2);
+                    float sun = exp(-_Shadow * deep * (0.4 + 0.6 * gas));
+                    float billow = 0.55 + 0.9 * n1.b;
+
+                    float3 own = lerp(_GasColor.rgb, _DustColor.rgb, saturate(dust * 1.5));
+                    float3 c = own * (0.7 + 0.6 * sun) + _RimColor.rgb * (_Scatter * phase * sun * billow) * (1.0 - 0.7 * saturate(dust));
+
+                    light += through * a * c;
+                    through *= 1.0 - a;
                 }
 
-                float alpha = 1.0 - exp(-(tau + dustTau * 2.0) * _Opacity);
-                float dustShare = saturate(dustTau / max(tau, 1e-4));
-                float3 colour = lerp(_GasColor.rgb, _DustColor.rgb, dustShare);
-                alpha *= _Color.a * _Appear;
-                return fixed4(colour * _Color.rgb * alpha, alpha);
+                // Never bright enough to bloom: it is cold gas, seen by what it hides.
+                float alpha = (1.0 - through) * _Color.a * _Appear;
+                light = min(light, 0.9) * _Color.rgb * _Color.a * _Appear;
+                return fixed4(light, alpha);
             }
             ENDCG
         }
