@@ -57,6 +57,10 @@ public class DarkMatterToggleTest_NEW : MonoBehaviour
              "under the web. Dark matter only ever adds.")]
     [SerializeField] bool galaxiesStay = true;
 
+    [Tooltip("Put dark matter away by itself as a dive in begins (into a galaxy), over the dive's first " +
+             "stretch: a haze magnified looks the same, and hides the sense of zooming in.")]
+    [SerializeField] bool hideForDives = true;
+
     [Tooltip("Seconds for the cross-fade.")]
     [Min(0.05f)]
     [SerializeField] float fadeSeconds = 1.5f;
@@ -88,6 +92,7 @@ public class DarkMatterToggleTest_NEW : MonoBehaviour
     readonly List<GameObject> _galaxies = new List<GameObject>();
     readonly List<Material> _galaxyMats = new List<Material>();
 
+    float _fadeOverride;  // seconds for the fade now running, when a dive asked for it; 0 = fadeSeconds
     bool _shown;          // dark matter (the web) asked for
     float _mix = -1f;     // 0 galaxies only … 1 web only, as drawn
     bool _following;
@@ -104,11 +109,28 @@ public class DarkMatterToggleTest_NEW : MonoBehaviour
     void OnEnable()
     {
         foreach (DarkMatterScaffold_NEW s in scaffolds) s.OnChanged += Follow;
+        LayerDive_NEW.DiveBegan += OnDiveBegan;
     }
 
     void OnDisable()
     {
         foreach (DarkMatterScaffold_NEW s in scaffolds) if (s != null) s.OnChanged -= Follow;
+        LayerDive_NEW.DiveBegan -= OnDiveBegan;
+    }
+
+    /// <summary>
+    /// A dive in has begun. If dark matter is showing it is put away, gently, over the dive's
+    /// first stretch. The web's gas is a haze with no edges: magnified, it looks the same, and
+    /// with it filling the frame the dive gave no sense of anything growing. Without it the
+    /// galaxies and stars are what is seen streaming apart, and they do. It stays hidden
+    /// afterwards; Y brings it back in the next web.
+    /// </summary>
+    void OnDiveBegan(LayerDive_NEW.Dive dive)
+    {
+        if (!hideForDives || dive == null || dive.direction != LayerDive_NEW.Direction.In || !_shown) return;
+
+        _fadeOverride = Mathf.Clamp(dive.diveSeconds * 0.45f, 0.8f, 2.5f);
+        SetShown(false);
     }
 
     // Start, not Awake: after PhotonLayering_NEW has swapped in its copies and
@@ -212,7 +234,9 @@ public class DarkMatterToggleTest_NEW : MonoBehaviour
 
         float target = _shown ? 1f : 0f;
         if (!Mathf.Approximately(_mix, target))
-            Apply(Mathf.MoveTowards(_mix, target, Time.deltaTime / fadeSeconds));
+            Apply(Mathf.MoveTowards(_mix, target, Time.deltaTime / (_fadeOverride > 0f ? _fadeOverride : fadeSeconds)));
+        else
+            _fadeOverride = 0f;
     }
 
     void HandleY()
