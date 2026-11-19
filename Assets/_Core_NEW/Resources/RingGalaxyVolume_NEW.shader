@@ -215,6 +215,8 @@ Shader "Custom/RingGalaxyVolume_NEW"
                 // A faint halo of old stars round it all.
                 light += _Halo.rgb * (0.015 * haze) * FlatBlob(float3(0.0, 0.0, 0.0), 0.0, float3(1.0, 0.45, 1.0));
 
+                // On the dive into it the glow comes up as the wave spreads (RGUnfold).
+                light *= RGSq(saturate(1.0 - _DiveUnfold * 1.15));
                 return fixed4(light * _Volume * _Color.rgb * _Color.a, 0.0);
             }
             ENDCG

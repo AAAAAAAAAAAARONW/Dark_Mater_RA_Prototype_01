@@ -311,6 +311,23 @@ public class LayerDive_NEW : MonoBehaviour
                  "object whose scale is the new world's radius (a galaxy VFX).")]
         public bool particle = false;
 
+        [Tooltip("Particle: the new world is not uncovered by the glow thinning but spreads out from " +
+                 "its own middle behind a wave of light, while it grows (shaders that read the global " +
+                 "_DiveUnfold: the ring galaxy's). The glow is only its nucleus, and goes as the wave " +
+                 "sets out. The wave starts unfoldFrom of the way through the dive.")]
+        public bool unfold = false;
+        [Range(0f, 1f)] public float unfoldFrom = 0.7f;
+
+        [Tooltip("Going in: the world being left has all dissolved by this far through the dive (it " +
+                 "starts at dissolveFrom). 1 = at the peak. Earlier, and it is gone before it has " +
+                 "been magnified far: a web's gas swept through the camera flashes its colours " +
+                 "across the whole frame.")]
+        [Range(0.05f, 1f)] public float dissolveBy = 1f;
+
+        [Tooltip("Going in: the world being left turns with the dive (spin). Off, only the crowd of " +
+                 "stars and the new world turn: a web that turned would bend the light's straight path.")]
+        public bool spinOldWorld = true;
+
         [Tooltip("Particle: how much wider than the new world inside it the glow is.")]
         [Range(0.5f, 3f)] public float particleCover = 1.3f;
 
@@ -674,6 +691,7 @@ public class LayerDive_NEW : MonoBehaviour
     static ParticleSystem.Particle[] _particleBuffer = Array.Empty<ParticleSystem.Particle>();
 
     static readonly int NoVeilId = Shader.PropertyToID("_DiveNoVeil");
+    static readonly int UnfoldId = Shader.PropertyToID("_DiveUnfold");
     static readonly int ColorId = Shader.PropertyToID("_Color");
     static readonly int AlphaId = Shader.PropertyToID("_Alpha");
     static readonly int StreakId = Shader.PropertyToID("_Streak");
@@ -1195,6 +1213,7 @@ public class LayerDive_NEW : MonoBehaviour
         // the web magnified past the camera, threads sweep through it many times a second and
         // that veil blinks on and off over the whole frame: the sky flickering. Off for a dive in.
         Shader.SetGlobalFloat(NoVeilId, dive.direction == Direction.In ? 1f : 0f);
+        Shader.SetGlobalFloat(UnfoldId, dive.direction == Direction.In && dive.continuous && dive.particle && dive.unfold ? 1f : 0f);
 
         BuildOverlay();
         BuildEffects();
@@ -1230,7 +1249,7 @@ public class LayerDive_NEW : MonoBehaviour
             {
                 anchor = _focus,
                 at = _focus,
-                turn = outward ? Quaternion.identity : Quaternion.AngleAxis(_dive.spin * p, Vector3.up),
+                turn = outward || !_dive.spinOldWorld ? Quaternion.identity : Quaternion.AngleAxis(_dive.spin * p, Vector3.up),
                 scale = Mathf.Pow(outward ? 1f / _dive.diveZoom : _dive.diveZoom, p)
             });
 
@@ -1240,7 +1259,7 @@ public class LayerDive_NEW : MonoBehaviour
         // The lens pushes in on the point at the dive's own rate.
         _fovPush = _dive.targetFieldOfView > 0f ? p : 0f;
 
-        float dissolve = Smooth(_dive.dissolveFrom, 1f, u);
+        float dissolve = Smooth(_dive.dissolveFrom, Mathf.Max(_dive.dissolveFrom + 0.01f, _dive.dissolveBy), u);
         float glow = Mathf.Lerp(1f, _dive.leaveGlow, Smooth(0f, 0.85f, u));
         if (worlds != null)
         {
@@ -1703,6 +1722,23 @@ public class LayerDive_NEW : MonoBehaviour
             // never under its own size. That world comes up inside the glow as it grows, and the
             // glow thins as it comes to fill the frame: the particle was a galaxy.
             float across = SubjectScreenSize(star);
+            if (_dive.unfold)
+            {
+                // The world is all there from before the wave sets out, but nothing of it shows
+                // until the wave reaches it: it spreads out from the nucleus, which is the glow.
+                float from = dive * _dive.unfoldFrom;
+                float until = Mathf.Max(from + 1f, total - 1.5f);
+                float spread = Smooth(from, until, t);
+                Shader.SetGlobalFloat(UnfoldId, 1f - spread);
+                if (worlds != null) worlds.SetGroupLook(_toId, Smooth(from - 0.4f, from, t));
+                SetLight(_dive, star, 0f, 1f - Smooth(0.1f, 0.6f, spread),
+                         Mathf.Max(_dive.starSize * Mathf.Lerp(1f, 1.8f, Smooth(0f, from, t)), 0.3f * _dive.particleCover * across));
+                SetSpikes(0f, 0f, 0f);
+                if (t >= dive) TickCrowdAfter(t - dive);
+                if (_dive.endFacingStar) TickSettle(t, total);
+                return;
+            }
+
             float shows = Smooth(_dive.particleReveal.x, _dive.particleReveal.y, across);
             if (worlds != null) worlds.SetGroupLook(_toId, Smooth(0f, 0.55f, shows));
             SetLight(_dive, star, 0f, 1f - Smooth(0.25f, 1f, shows), Mathf.Max(_dive.starSize, _dive.particleCover * across));
@@ -2074,6 +2110,7 @@ public class LayerDive_NEW : MonoBehaviour
         _leave = null;
         _enter = null;
         Shader.SetGlobalFloat(NoVeilId, 0f);
+        Shader.SetGlobalFloat(UnfoldId, 0f);
 
         CinemachineCore.CameraUpdatedEvent.RemoveListener(OnCameraUpdated);
         _fovMultiplier = 1f;

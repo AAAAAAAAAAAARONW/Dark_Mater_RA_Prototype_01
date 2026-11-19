@@ -33,6 +33,23 @@ float _CompTilt;  // how far the intruder's disc is turned about its long axis, 
 float4 _Ripple;   // x seconds for a ripple to spread out, y its strength, z twinkle, w a knot's life in seconds
 
 float RGSq(float x) { return x * x; }
+
+// THE DIVE INTO IT (LayerDive_NEW, Dive.unfold). The galaxy is not there all at once: it
+// spreads out from its nucleus behind a wave, the way the ripple that made the ring did.
+// _DiveUnfold is a global: 1 nothing of it yet, 0 all there — and 0 whenever nothing sets it.
+float _DiveUnfold;
+
+// At plane point p: x how much of the galaxy is there yet, y the wave's front passing (0 to 1).
+float2 RGUnfold(float2 p)
+{
+    float going = saturate(_DiveUnfold * 20.0);
+    float reach = (1.0 - _DiveUnfold) * 2.3;        // how far out the wave has got, of the radius
+    float w = 0.04 + 0.1 * reach;
+    float d = length(p - float2(-0.15, 0.07));     // from the nucleus (RGNucleus)
+    float there = lerp(1.0, 1.0 - smoothstep(reach - w, reach, d), going);
+    float front = exp(-RGSq((d - reach + w) / w)) * going * saturate((1.0 - _DiveUnfold) * 6.0);
+    return float2(there, front);
+}
 float RGHash(float n) { return frac(sin(n * 12.9898 + _Seed * 78.233) * 43758.5453); }
 
 // The old nucleus, off the ring's centre: the ripple spread from where the intruder hit.

@@ -45,6 +45,18 @@ public class DarkMatterToggleTest_NEW : MonoBehaviour
     [SerializeField] string[] starsStayUnder = { "EarlyCosmicWebLayer" };
     [SerializeField] string starsName = "Web Gas (stars)";
 
+    [Tooltip("Other children of the web that are light, not dark matter, and stay the same way: the " +
+             "glow at the clusters' hearts.")]
+    [SerializeField] string[] alsoStay = { "Web Gas (core glow)" };
+
+    [Tooltip("The same in every web, whatever it is under. Dark matter only ever adds: every point of " +
+             "light there without it is there with it, and none goes when it is hidden.")]
+    [SerializeField] bool starsStayEverywhere = true;
+
+    [Tooltip("The galaxy fields stay as they are when dark matter is shown, instead of fading out " +
+             "under the web. Dark matter only ever adds.")]
+    [SerializeField] bool galaxiesStay = true;
+
     [Tooltip("Seconds for the cross-fade.")]
     [Min(0.05f)]
     [SerializeField] float fadeSeconds = 1.5f;
@@ -127,7 +139,7 @@ public class DarkMatterToggleTest_NEW : MonoBehaviour
         {
             var stars = new List<Transform>();
             foreach (Transform t in web.GetComponentsInChildren<Transform>(true))
-                if (t != web.transform && t.name.StartsWith(starsName, StringComparison.OrdinalIgnoreCase)) stars.Add(t);
+                if (t != web.transform && Stays(t.name)) stars.Add(t);
             // Beside the web, in the same world: still faded with the layer, no longer with the web.
             foreach (Transform t in stars) t.SetParent(web.transform.parent, true);
         }
@@ -155,9 +167,20 @@ public class DarkMatterToggleTest_NEW : MonoBehaviour
         }
     }
 
+    bool Stays(string name)
+    {
+        if (name.StartsWith(starsName, StringComparison.OrdinalIgnoreCase)) return true;
+        if (alsoStay != null)
+            foreach (string n in alsoStay)
+                if (!string.IsNullOrEmpty(n) && name.StartsWith(n, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
     bool StarsStay(Transform web)
     {
-        if (string.IsNullOrEmpty(starsName) || starsStayUnder == null) return false;
+        if (string.IsNullOrEmpty(starsName)) return false;
+        if (starsStayEverywhere) return true;
+        if (starsStayUnder == null) return false;
         for (Transform t = web.parent; t != null; t = t.parent)
             foreach (string n in starsStayUnder)
                 if (!string.IsNullOrEmpty(n) && t.name == n) return true;
@@ -245,7 +268,7 @@ public class DarkMatterToggleTest_NEW : MonoBehaviour
         float web = Smooth(0f, 0.68f, mix);
         float lift = 1f + 0.3f * Mathf.Sin(Mathf.Clamp01((mix - 0.3f) / 0.7f) * Mathf.PI);
         float k = web * lift;
-        float galaxies = 1f - Smooth(0.5f, 1f, mix);
+        float galaxies = galaxiesStay ? 1f : 1f - Smooth(0.5f, 1f, mix);
 
         bool webOn = mix > 0.001f;
         foreach (GameObject w in _webs) if (w != null && w.activeSelf != webOn) w.SetActive(webOn);
@@ -253,7 +276,7 @@ public class DarkMatterToggleTest_NEW : MonoBehaviour
             for (int i = 0; i < p.copies.Length; i++)
                 if (p.copies[i] != null && p.copies[i] != p.original[i]) p.copies[i].SetFloat(DensityId, p.baseDensity[i] * k);
 
-        bool galaxiesOn = mix < 0.999f;
+        bool galaxiesOn = galaxiesStay || mix < 0.999f;
         foreach (GameObject g in _galaxies) if (g != null && g.activeSelf != galaxiesOn) g.SetActive(galaxiesOn);
         foreach (Material m in _galaxyMats) if (m != null) m.SetFloat(FadeId, galaxies);
     }

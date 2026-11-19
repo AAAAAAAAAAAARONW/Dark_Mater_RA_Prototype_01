@@ -210,6 +210,12 @@ Shader "Custom/RingGalaxyDisc_NEW"
                 premultiplied *= saturate(within);
                 alpha *= saturate(within);
 
+                // Spreading out from the nucleus behind a wave, on the dive into it (RGUnfold).
+                float2 unfold = RGUnfold(p);
+                premultiplied = premultiplied * unfold.x * (1.0 + 2.5 * unfold.y)
+                              + lerp(_Gas.rgb, _Clump.rgb, 0.4) * (unfold.y * 0.3 * _Brightness * saturate(within));
+                alpha *= unfold.x;
+
                 float edge = step(r, 1.95);
                 return fixed4(premultiplied * _Color.rgb * edge, alpha * _Color.a * edge);
             }

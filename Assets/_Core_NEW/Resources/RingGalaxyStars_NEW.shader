@@ -210,6 +210,10 @@ Shader "Custom/RingGalaxyStars_NEW"
                 // Every star twinkles but the knots' glowing gas.
                 if (kind > 1.5 || kind < 0.5) colour *= RGTwinkle(s0, s1, T);
 
+                // Lit as the wave reaches it, on the dive into the galaxy, and flaring as it passes.
+                float2 unfold = RGUnfold(position.xz);
+                colour *= unfold.x * (1.0 + 3.0 * unfold.y);
+
                 float scale = length(mul((float3x3)unity_ObjectToWorld, float3(1, 0, 0)));
                 float3 view = mul(UNITY_MATRIX_V, mul(unity_ObjectToWorld, float4(position, 1.0))).xyz;
                 float depth = -view.z;
