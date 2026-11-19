@@ -303,6 +303,21 @@ public class LayerDive_NEW : MonoBehaviour
                  "inside the old world, emergeOverride on the new world's star, and dollyZoom 1.")]
         public bool continuous = false;
 
+        [Tooltip("Continuous: the new world is first seen as one glowing particle of the old one — a " +
+                 "point of lightColor, starSize across, in view over the whole approach — and the dive " +
+                 "goes into it: the particle swells as the new world grows inside it, hidden by its " +
+                 "glow, and as it comes to fill the frame the glow thins and what it was is seen. " +
+                 "Never the new world itself standing in the old one. Needs emergeOverride on an " +
+                 "object whose scale is the new world's radius (a galaxy VFX).")]
+        public bool particle = false;
+
+        [Tooltip("Particle: how much wider than the new world inside it the glow is.")]
+        [Range(0.5f, 3f)] public float particleCover = 1.3f;
+
+        [Tooltip("Particle: how big the new world is on screen (its diameter, of the screen's height) " +
+                 "when it starts to show through the glow, and when the glow has gone.")]
+        public Vector2 particleReveal = new Vector2(0.06f, 0.45f);
+
         [Tooltip("Continuous: how much faster the new world grows after the peak than through the " +
                  "dive. 2.5 is the Solar System's: held at the point, then opening in a rush. 1 is " +
                  "one even growth from the gate to the end: something flown up to, not sprung.")]
@@ -658,6 +673,7 @@ public class LayerDive_NEW : MonoBehaviour
 
     static ParticleSystem.Particle[] _particleBuffer = Array.Empty<ParticleSystem.Particle>();
 
+    static readonly int NoVeilId = Shader.PropertyToID("_DiveNoVeil");
     static readonly int ColorId = Shader.PropertyToID("_Color");
     static readonly int AlphaId = Shader.PropertyToID("_Alpha");
     static readonly int StreakId = Shader.PropertyToID("_Streak");
@@ -880,6 +896,25 @@ public class LayerDive_NEW : MonoBehaviour
         _presence = 0f;
         _brighten = 0f;
         HideHalo();
+
+        if (dive.continuous && dive.particle)
+        {
+            // One particle of this world, ahead: what the dive will go into. The same point,
+            // at the same size, that the dive starts from.
+            EndPreview();
+            HideCrowd();
+            if (dive.approachDistance <= 0f || ahead > dive.approachDistance)
+            {
+                HideLight();
+                return;
+            }
+
+            float near = 1f - ahead / dive.approachDistance;
+            Vector3 point = FocusFor(dive, gate, state != null ? state.CurrentLayerId : null);
+            SetLight(dive, point, 0f, Smooth(0f, 0.3f, near), dive.starSize * Mathf.Lerp(0.6f, 1f, near));
+            SetSpikes(0f, 0f, 0f);
+            return;
+        }
 
         if (dive.continuous)
         {
@@ -1149,10 +1184,17 @@ public class LayerDive_NEW : MonoBehaviour
         if (Continuous)
         {
             BuildGrowth();
-            _subjectRadius = MeasureRadius(dive.emergeOverride);
+            _subjectRadius = dive.particle && dive.emergeOverride != null
+                ? Mathf.Abs(dive.emergeOverride.lossyScale.x)       // a galaxy VFX: its scale is its radius
+                : MeasureRadius(dive.emergeOverride);
             BuildOrbits(dive);
             _enterNow = dive.enterScale;
         }
+
+        // The web's gas closes round a camera that is inside a thread (CosmicWebPyro_NEW). With
+        // the web magnified past the camera, threads sweep through it many times a second and
+        // that veil blinks on and off over the whole frame: the sky flickering. Off for a dive in.
+        Shader.SetGlobalFloat(NoVeilId, dive.direction == Direction.In ? 1f : 0f);
 
         BuildOverlay();
         BuildEffects();
@@ -1634,7 +1676,7 @@ public class LayerDive_NEW : MonoBehaviour
         float turned = SpinAt(t, out float turns);
         Quaternion turn = TipTurn(_dive, Growth(t / total)) * Quaternion.AngleAxis(turned - turns, Vector3.up);
         Place(_enter, new Placement { anchor = _emergeFocus, at = Subject(), turn = turn, scale = _enterNow });
-        if (worlds != null) worlds.SetGroupLook(_toId, Mathf.Max(_lookAtBegin, Smooth(0.5f, 2f, t)));
+        if (worlds != null && !_dive.particle) worlds.SetGroupLook(_toId, Mathf.Max(_lookAtBegin, Smooth(0.5f, 2f, t)));
 
         // The lens pushes in over the dive and lands, holds while the new world grows into
         // place, and gives way to the zone camera's at the end. The camera turns towards the
@@ -1655,6 +1697,21 @@ public class LayerDive_NEW : MonoBehaviour
         // under it, it flares — brighter, the spikes longer — then fades into that star with
         // its spikes drawn back in.
         Vector3 star = Subject();
+        if (_dive.particle)
+        {
+            // The particle: a glow as wide as the world growing inside it, and a little wider,
+            // never under its own size. That world comes up inside the glow as it grows, and the
+            // glow thins as it comes to fill the frame: the particle was a galaxy.
+            float across = SubjectScreenSize(star);
+            float shows = Smooth(_dive.particleReveal.x, _dive.particleReveal.y, across);
+            if (worlds != null) worlds.SetGroupLook(_toId, Smooth(0f, 0.55f, shows));
+            SetLight(_dive, star, 0f, 1f - Smooth(0.25f, 1f, shows), Mathf.Max(_dive.starSize, _dive.particleCover * across));
+            SetSpikes(0f, 0f, 0f);
+            if (t >= dive) TickCrowdAfter(t - dive);
+            if (_dive.endFacingStar) TickSettle(t, total);
+            return;
+        }
+
         float handover = _subjectRadius > 0f
             ? Smooth(0.25f, 0.8f, SubjectScreenSize(star) / Mathf.Max(1e-4f, _dive.starSize))
             : Smooth(dive, total - release, t);
@@ -2016,6 +2073,7 @@ public class LayerDive_NEW : MonoBehaviour
         Restore(_enter);
         _leave = null;
         _enter = null;
+        Shader.SetGlobalFloat(NoVeilId, 0f);
 
         CinemachineCore.CameraUpdatedEvent.RemoveListener(OnCameraUpdated);
         _fovMultiplier = 1f;

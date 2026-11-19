@@ -99,6 +99,7 @@ public class HydrogenAbsorberVFX_NEW : MonoBehaviour
     Mesh _mesh;
     bool _dirty;
     float _appear;
+    float _firstDistance;
 
     /// <summary>The cloud's bound, in world units: the radius the gas never reaches past.</summary>
     public float Radius => transform.lossyScale.x;
@@ -106,6 +107,7 @@ public class HydrogenAbsorberVFX_NEW : MonoBehaviour
     void OnEnable()
     {
         _appear = Application.isPlaying && appearSeconds > 0f ? 0f : 1f;
+        _firstDistance = 0f;
         Build();
     }
 
@@ -129,7 +131,14 @@ public class HydrogenAbsorberVFX_NEW : MonoBehaviour
         if (cam != null && minAngularRadius > 0f && Radius > 1e-4f)
         {
             float distance = Vector3.Distance(cam.position, transform.position);
-            float need = distance * Mathf.Tan(minAngularRadius * Mathf.Deg2Rad);
+            // The floor grows as the cloud nears (with the square root of how much nearer it
+            // is than when first seen), from 0.6 of minAngularRadius. Held at one size, the
+            // cloud sat still in the frame for most of its approach and then swelled all at
+            // once, which read as it stopping and starting; now it is growing from the first
+            // frame, slowly, and its true size takes over without a step.
+            if (_firstDistance <= 0f) _firstDistance = distance;
+            float nearer = Mathf.Sqrt(Mathf.Max(1f, _firstDistance / Mathf.Max(distance, 1e-3f)));
+            float need = distance * Mathf.Tan(minAngularRadius * Mathf.Deg2Rad) * 0.6f * nearer;
             k = Mathf.Max(1f, need / Radius);
         }
         _part.transform.localScale = Vector3.one * k;

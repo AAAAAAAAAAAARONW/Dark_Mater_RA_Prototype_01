@@ -111,6 +111,11 @@ public class TutorialAtom_NEW : MonoBehaviour
              "last second feel like arrival.")]
     [SerializeField] AnimationCurve approachShape = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
+    [Tooltip("Close at an even rate through the first half of the approach, whatever the shape " +
+             "says, so the atom is already coming on when it is first seen instead of hanging " +
+             "ahead before it starts. The shape still gives the arrival.")]
+    [SerializeField] bool movingFromTheStart = true;
+
     [Header("Wiring")]
     [Tooltip("Leave empty to use the main camera. Only the glow reads this — it turns the " +
              "halo to face it.\n\n" +
@@ -293,6 +298,16 @@ public class TutorialAtom_NEW : MonoBehaviour
 
         float t = Progress;
         float shaped = approachShape != null ? approachShape.Evaluate(t) : t;
+
+        // Moving from the first frame. The authored shape eases in from rest, so the atom
+        // appeared, hung ahead for a moment doing nothing, and only then came on: a stall.
+        // Through the first half it now closes at an even rate, and hands over to the
+        // authored shape (which is ahead of even from half way) for the arrival.
+        if (movingFromTheStart)
+        {
+            float late = Mathf.Clamp01((t - 0.5f) / 0.5f);
+            shaped = Mathf.Lerp(t, Mathf.Max(t, shaped), late * late * (3f - 2f * late));
+        }
 
         Place(shaped);
         Draw(shaped);

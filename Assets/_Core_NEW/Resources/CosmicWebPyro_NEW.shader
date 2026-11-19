@@ -113,6 +113,7 @@ Shader "Custom/CosmicWebPyro_NEW"
             float4 _SoftMin, _SoftSize, _ThickMin, _ThickSize, _Drift, _Shape, _CameraFade, _CameraFadeInside, _Inside, _ClusterClear, _Ramp;
             float4 _ColorA, _ColorB, _ColorC, _ColorD;
             float4 _Knot0, _Knot1, _Knot2, _Knot3, _Knot4, _Knot5;
+            float _DiveNoVeil;      // global, set by LayerDive_NEW for a dive in: no veil round the camera
             float _InsideDensity, _NoiseScale, _Detail, _Erode, _Billow, _Glow, _Thickness, _Steps, _Depth, _StepsInside, _DepthInside, _Inflate;
             float _Opacity, _Emission, _Density, _Heat, _NearHeat;
 
@@ -198,7 +199,7 @@ Shader "Custom/CosmicWebPyro_NEW"
 
                 // From in the gas: the gas near the camera first, by steps hung off the camera.
                 float inside = Field(oCam);
-                inside = smoothstep(_Inside.x, _Inside.y, inside * inside) * (1.0 - smoothstep(_ClusterClear.x, _ClusterClear.y, Heart(oCam)));
+                inside = smoothstep(_Inside.x, _Inside.y, inside * inside) * (1.0 - smoothstep(_ClusterClear.x, _ClusterClear.y, Heart(oCam))) * (1.0 - _DiveNoVeil);
                 float2 fade = lerp(_CameraFade.xy, _CameraFadeInside.xy, inside);
                 if (inside > 0.001)
                 {
