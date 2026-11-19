@@ -37,6 +37,14 @@ public class DarkMatterToggleTest_NEW : MonoBehaviour
     [Tooltip("Objects with this name drawing Custom/GalaxyField_NEW are the galaxies.")]
     [SerializeField] string galaxiesName = "Galaxies";
 
+    [Tooltip("Under objects with these names, the web's own points of light (children of the web whose " +
+             "name starts with starsName) are galaxies too, and stay when dark matter is hidden: they are " +
+             "taken out from under the web, so they neither fade nor are switched off with it.\n\n" +
+             "The early web: hiding its dark matter took every point of light away with the gas, and the " +
+             "galaxy field left in their place there is too faint to stand in for them.")]
+    [SerializeField] string[] starsStayUnder = { "EarlyCosmicWebLayer" };
+    [SerializeField] string starsName = "Web Gas (stars)";
+
     [Tooltip("Seconds for the cross-fade.")]
     [Min(0.05f)]
     [SerializeField] float fadeSeconds = 1.5f;
@@ -115,6 +123,15 @@ public class DarkMatterToggleTest_NEW : MonoBehaviour
 
     void AddWeb(GameObject web)
     {
+        if (StarsStay(web.transform))
+        {
+            var stars = new List<Transform>();
+            foreach (Transform t in web.GetComponentsInChildren<Transform>(true))
+                if (t != web.transform && t.name.StartsWith(starsName, StringComparison.OrdinalIgnoreCase)) stars.Add(t);
+            // Beside the web, in the same world: still faded with the layer, no longer with the web.
+            foreach (Transform t in stars) t.SetParent(web.transform.parent, true);
+        }
+
         _webs.Add(web);
         foreach (Renderer r in web.GetComponentsInChildren<Renderer>(true))
         {
@@ -136,6 +153,15 @@ public class DarkMatterToggleTest_NEW : MonoBehaviour
             r.sharedMaterials = part.copies;
             _parts.Add(part);
         }
+    }
+
+    bool StarsStay(Transform web)
+    {
+        if (string.IsNullOrEmpty(starsName) || starsStayUnder == null) return false;
+        for (Transform t = web.parent; t != null; t = t.parent)
+            foreach (string n in starsStayUnder)
+                if (!string.IsNullOrEmpty(n) && t.name == n) return true;
+        return false;
     }
 
     void AddGalaxies(GameObject go)
