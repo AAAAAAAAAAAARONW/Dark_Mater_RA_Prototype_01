@@ -5588,7 +5588,7 @@ MonoBehaviour:
   maxPitch: 80
   followDistance: 2
   followHeight: 0.2
-  followTilt: 15
+  followTilt: 0
   recentreOnConfirm: 1
   resetXSpeed: 140
   resetYSpeed: 195
@@ -10023,7 +10023,7 @@ MonoBehaviour:
   maxPitch: 80
   followDistance: 2
   followHeight: 0.2
-  followTilt: 15
+  followTilt: 0
   recentreOnConfirm: 1
   resetXSpeed: 140
   resetYSpeed: 195

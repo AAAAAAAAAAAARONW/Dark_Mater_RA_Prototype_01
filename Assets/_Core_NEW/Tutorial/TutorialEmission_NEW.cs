@@ -272,6 +272,9 @@ public class TutorialEmission_NEW : MonoBehaviour
     /// speed and out along the jet on its far side, with a second flash as it comes out.
     /// The trail lights up. Wire to C3.onEnter.
     /// </summary>
+    /// <summary>True from Emit until the attract reset: the light is out and travelling.</summary>
+    public bool Emitted { get { return _phase == Phase.Tunnel || _phase == Phase.Settled; } }
+
     public void Emit()
     {
         _phase = Phase.Tunnel;

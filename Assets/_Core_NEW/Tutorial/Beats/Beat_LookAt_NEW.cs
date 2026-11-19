@@ -316,6 +316,12 @@ public class Beat_LookAt_NEW : TutorialBeat_NEW
         mote.Bloom();
     }
 
+    /// <summary>The beat is over, however it ended: its mote is put away (GuideMote_NEW.Dismiss).</summary>
+    protected override void OnBeatExit()
+    {
+        if (mote != null) mote.Dismiss();
+    }
+
     protected override bool GateSatisfied()
     {
         if (_gateForced) return true;
