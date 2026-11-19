@@ -144423,20 +144423,23 @@ MonoBehaviour:
     direction: 0
     focusPastGate: 31.148867
     focusOverride: {fileID: 0}
-    approachDistance: 90
+    approachDistance: 120
     diveSeconds: 4.5
     peakHoldSeconds: 0.25
     emergeSeconds: 5.5
-    diveZoom: 5
+    diveZoom: 8
     leaveGlow: 1.2
-    dissolveFrom: 0.35
-    enterScale: 0.05
+    dissolveFrom: 0.3
+    enterScale: 0.004
     emergeOverride: {fileID: 669121341}
     crossfade: 0
     continuous: 1
-    emergeRate: 1
+    particle: 1
+    particleCover: 1.3
+    particleReveal: {x: 0.06, y: 0.45}
+    emergeRate: 1.2
     tip: 0
-    starSize: 0.024
+    starSize: 0.03
     watch: 0.5
     watchRelease: 2
     starSpikes: 0
@@ -144444,8 +144447,8 @@ MonoBehaviour:
     endFacingStar: 1
     endStarHeight: 0.1
     endSettleSeconds: 3
-    lightColor: {r: 1, g: 0.88, b: 0.62, a: 1}
-    lightIntensity: 0.3
+    lightColor: {r: 1, g: 0.85, b: 0.45, a: 1}
+    lightIntensity: 1.1
     pointSize: 3
     gateSize: 8
     peakSize: 40
@@ -144453,12 +144456,12 @@ MonoBehaviour:
     whiteoutFrom: 0.7
     lightHold: 0
     resolve: 1
-    memberCount: 500
+    memberCount: 700
     crowdRadius: 10
     memberSize: 0.22
     resolveZoom: 40
     memberGrowth: 0.45
-    streak: 2
+    streak: 3
     spread: 40
     crowdFlatten: 0.3
     memberCore: 0.6
@@ -144474,7 +144477,7 @@ MonoBehaviour:
     lookBackDolly: 2
     ambientCrowd: 0
     approachCrowd: 0
-    diveCrowd: 0.45
+    diveCrowd: 0.6
     memberWarm: {r: 1, g: 0.82, b: 0.55, a: 1}
     memberCool: {r: 0.62, g: 0.75, b: 1, a: 1}
     coolShare: 0.3
@@ -144488,17 +144491,17 @@ MonoBehaviour:
     remnantSpikeAngle: 45
     remnantSpikeLength: 0.14
     remnantStreak: 0.3
-    spin: 30
-    bank: 0
+    spin: 40
+    bank: 2
     dollyZoom: 1
-    photonShrink: 0.6
-    peakVignette: 0.15
+    photonShrink: 0.5
+    peakVignette: 0.25
     diveSound: {fileID: 0}
     diveSoundVolume: 0.8
     fieldOfViewScale: 1
-    targetFieldOfView: 0
-    peakBloom: 1
-    peakChromaticAberration: 0
+    targetFieldOfView: 24
+    peakBloom: 1.2
+    peakChromaticAberration: 0.1
     peakLensDistortion: 0
   - toLayerId: CosmicWeb
     enabled: 1
@@ -144516,6 +144519,9 @@ MonoBehaviour:
     emergeOverride: {fileID: 0}
     crossfade: 0
     continuous: 0
+    particle: 0
+    particleCover: 1.3
+    particleReveal: {x: 0.06, y: 0.45}
     emergeRate: 2.5
     tip: 0
     starSize: 0.024
@@ -144598,6 +144604,9 @@ MonoBehaviour:
     emergeOverride: {fileID: 1233783612}
     crossfade: 0
     continuous: 1
+    particle: 0
+    particleCover: 1.3
+    particleReveal: {x: 0.06, y: 0.45}
     emergeRate: 2.5
     tip: 70
     starSize: 0.05
@@ -144680,6 +144689,9 @@ MonoBehaviour:
     emergeOverride: {fileID: 1137653274}
     crossfade: 0
     continuous: 1
+    particle: 0
+    particleCover: 1.3
+    particleReveal: {x: 0.06, y: 0.45}
     emergeRate: 2.5
     tip: 0
     starSize: 0.024
@@ -144762,6 +144774,9 @@ MonoBehaviour:
     emergeOverride: {fileID: 0}
     crossfade: 0
     continuous: 0
+    particle: 0
+    particleCover: 1.3
+    particleReveal: {x: 0.06, y: 0.45}
     emergeRate: 2.5
     tip: 0
     starSize: 0.024
