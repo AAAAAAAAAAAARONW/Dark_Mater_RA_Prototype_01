@@ -303,6 +303,16 @@ public class LayerDive_NEW : MonoBehaviour
                  "inside the old world, emergeOverride on the new world's star, and dollyZoom 1.")]
         public bool continuous = false;
 
+        [Tooltip("Continuous: how much faster the new world grows after the peak than through the " +
+                 "dive. 2.5 is the Solar System's: held at the point, then opening in a rush. 1 is " +
+                 "one even growth from the gate to the end: something flown up to, not sprung.")]
+        [Range(0.5f, 4f)] public float emergeRate = 2.5f;
+
+        [Tooltip("Continuous: the new world starts tipped over by this many degrees (about the axis " +
+                 "across the way the light is going) and swings level into its own place as it " +
+                 "grows: a disc seen from its edge that opens to its face. 0 = it only turns.")]
+        [Range(-120f, 120f)] public float tip = 0f;
+
         [Tooltip("The star's size on screen, as a fraction of the screen's height: about that of " +
                  "the old world's own stars, so it is one of them until the zoom leaves it alone.")]
         [Range(0.005f, 0.1f)] public float starSize = 0.024f;
@@ -674,6 +684,14 @@ public class LayerDive_NEW : MonoBehaviour
     Quaternion _crowdAim = Quaternion.identity;
     Scaled _leave;
     Scaled _enter;
+
+    // Continuous, over the approach: the next world shown where the dive will start it from, at
+    // the size it will start at, so it is seen ahead and flown up to. See TickPreview.
+    Scaled _preview;
+    string _previewId;
+    float _previewLook;
+    float _lookAtBegin;
+    Vector3 _previewEmerge;
     Camera _camera;
 
     GameObject _light;
@@ -815,6 +833,7 @@ public class LayerDive_NEW : MonoBehaviour
 
     void OnDisable()
     {
+        EndPreview();
         Abort();
         HideLight();
         HideCrowd();
@@ -847,11 +866,13 @@ public class LayerDive_NEW : MonoBehaviour
             HideLight();
             HideCrowd();
             HideHalo();
+            EndPreview();
             return;
         }
 
         if (dive.direction == Direction.Out)
         {
+            EndPreview();
             TickCluster(dive, gate, ahead, _presence);
             return;
         }
@@ -859,6 +880,17 @@ public class LayerDive_NEW : MonoBehaviour
         _presence = 0f;
         _brighten = 0f;
         HideHalo();
+
+        if (dive.continuous)
+        {
+            // Nothing stands in for the next world: it is there itself, small, ahead.
+            HideLight();
+            HideCrowd();
+            TickPreview(dive, gate, ahead);
+            return;
+        }
+
+        EndPreview();
 
         if (dive.approachDistance <= 0f || ahead > dive.approachDistance)
         {
@@ -872,6 +904,75 @@ public class LayerDive_NEW : MonoBehaviour
         Vector3 focus = FocusFor(dive, gate, state != null ? state.CurrentLayerId : null);
         SetLight(dive, focus, Mathf.Lerp(dive.pointSize, dive.gateSize, closeness), appear);
         SetCrowd(dive, focus, Quaternion.identity, 1f, dive.approachCrowd * appear, 0f);
+    }
+
+    /// <summary>
+    /// Heading for a continuous dive, over its approach: the next world itself, shown where the
+    /// dive will start it from and at the size it will start at (enterScale), fading in as the
+    /// photon closes. So it is in view, ahead, long before the gate — a small galaxy among the
+    /// web's threads that the light is flying up to — and the dive only goes on growing it:
+    /// nothing appears at the gate. Begin takes it over where it stands.
+    /// </summary>
+    void TickPreview(Dive dive, LayerGate_NEW gate, float ahead)
+    {
+        if (worlds == null || gate == null || dive.approachDistance <= 0f || ahead > dive.approachDistance)
+        {
+            EndPreview();
+            return;
+        }
+
+        if (_preview == null || _previewId != gate.LayerId)
+        {
+            EndPreview();
+            _preview = Capture(worlds.GroupRoot(gate.LayerId));
+            _previewId = gate.LayerId;
+            if (_preview == null) return;
+            // Measured now, while the world is still as built: its star moves with it after this.
+            _previewEmerge = dive.emergeOverride != null ? dive.emergeOverride.position : _preview.position;
+        }
+
+        Vector3 focus = FocusFor(dive, gate, state != null ? state.CurrentLayerId : null);
+        Vector3 emerge = _previewEmerge;
+        Vector3 at = focus + (emerge - focus) * dive.enterScale;
+        // Turned as the dive will have it at the gate: all of its spin still to come.
+        Quaternion turn = TipTurn(dive, 0f) * Quaternion.AngleAxis(-SpinTotal(dive), Vector3.up);
+        Place(_preview, new Placement { anchor = emerge, at = at, turn = turn, scale = dive.enterScale });
+
+        _previewLook = Smooth(0f, 0.35f, 1f - ahead / dive.approachDistance);
+        worlds.SetGroupLook(_previewId, _previewLook);
+    }
+
+    /// <summary>Continuous: how far, in degrees, the new world turns in all (as SpinAt works it out).</summary>
+    static float SpinTotal(Dive d)
+    {
+        float rest = Mathf.Max(1e-3f, d.peakHoldSeconds + d.emergeSeconds);
+        return d.spin + 0.5f * (d.spin * SteadyRate / Mathf.Max(1e-3f, d.diveSeconds)) * rest;
+    }
+
+    /// <summary>The approach is over or was never begun: the next world back as built, out of sight.</summary>
+    void EndPreview()
+    {
+        if (_preview == null) return;
+
+        Restore(_preview);
+        if (worlds != null && !string.IsNullOrEmpty(_previewId)) worlds.SetGroupLook(_previewId, 0f);
+        _preview = null;
+        _previewId = null;
+        _previewLook = 0f;
+    }
+
+    /// <summary>
+    /// Continuous: how far the new world is tipped over, <paramref name="grown"/> of the way
+    /// through its growth (0 at the gate, 1 landed): all of Dive.tip to begin with, none at the end.
+    /// </summary>
+    Quaternion TipTurn(Dive dive, float grown)
+    {
+        if (Mathf.Abs(dive.tip) < 0.01f) return Quaternion.identity;
+
+        Vector3 axis = Vector3.Cross(Vector3.up, TravelDirection());
+        if (axis.sqrMagnitude < 1e-6f) axis = Vector3.right;
+        float left = 1f - Mathf.Clamp01(grown);
+        return Quaternion.AngleAxis(dive.tip * left * left * (3f - 2f * left), axis.normalized);
     }
 
     /// <summary>
@@ -970,6 +1071,18 @@ public class LayerDive_NEW : MonoBehaviour
     {
         if (IsActive) Abort();
 
+        // The next world, if the approach was showing it: back as built for a moment, to be
+        // captured afresh below, and shown on from as much as it was showing.
+        _lookAtBegin = _preview != null && _previewId == to.layerId ? _previewLook : 0f;
+        if (_preview != null)
+        {
+            Restore(_preview);
+            if (_previewId != to.layerId && worlds != null) worlds.SetGroupLook(_previewId, 0f);
+            _preview = null;
+            _previewId = null;
+            _previewLook = 0f;
+        }
+
         _dive = dive;
         _fromId = from != null ? from.layerId : null;
         _toId = to.layerId;
@@ -1024,7 +1137,7 @@ public class LayerDive_NEW : MonoBehaviour
 
         // The next world stays out of sight until the peak — or, crossfading, until it starts
         // to show through the old one, already at the size it grows from, inside the light.
-        if (worlds != null) worlds.SetGroupLook(_toId, 0f);
+        if (worlds != null) worlds.SetGroupLook(_toId, Continuous ? _lookAtBegin : 0f);
         if (Crossfading) ScaleAround(_enter, _emergeFocus, _dive.enterScale);
 
         // Continuous, it starts as small as it gets, at the point, and grows on one clock
@@ -1519,9 +1632,9 @@ public class LayerDive_NEW : MonoBehaviour
         // its planets sweep round the star as it opens.
         _enterNow = Mathf.Pow(_dive.enterScale, 1f - Growth(t / total));
         float turned = SpinAt(t, out float turns);
-        Quaternion turn = Quaternion.AngleAxis(turned - turns, Vector3.up);
+        Quaternion turn = TipTurn(_dive, Growth(t / total)) * Quaternion.AngleAxis(turned - turns, Vector3.up);
         Place(_enter, new Placement { anchor = _emergeFocus, at = Subject(), turn = turn, scale = _enterNow });
-        if (worlds != null) worlds.SetGroupLook(_toId, Smooth(0.5f, 2f, t));
+        if (worlds != null) worlds.SetGroupLook(_toId, Mathf.Max(_lookAtBegin, Smooth(0.5f, 2f, t)));
 
         // The lens pushes in over the dive and lands, holds while the new world grows into
         // place, and gives way to the zone camera's at the end. The camera turns towards the
@@ -1850,7 +1963,7 @@ public class LayerDive_NEW : MonoBehaviour
         for (int i = 0; i <= GrowthSteps; i++)
         {
             float t = total * i / GrowthSteps;
-            float rate = t <= dive ? Smooth(0f, 1f, t) : 1f + (EmergeRate - 1f) * Smooth(dive, dive + 1.5f, t);
+            float rate = t <= dive ? Smooth(0f, 1f, t) : 1f + (_dive.emergeRate - 1f) * Smooth(dive, dive + 1.5f, t);
             rate *= 1f - Smooth(landFrom, total, t);
             _growth[i] = i == 0 ? 0f : _growth[i - 1] + 0.5f * (previous + rate);
             previous = rate;

@@ -144423,27 +144423,29 @@ MonoBehaviour:
     direction: 0
     focusPastGate: 31.148867
     focusOverride: {fileID: 0}
-    approachDistance: 0
-    diveSeconds: 4
+    approachDistance: 90
+    diveSeconds: 4.5
     peakHoldSeconds: 0.25
-    emergeSeconds: 5
-    diveZoom: 8
+    emergeSeconds: 5.5
+    diveZoom: 5
     leaveGlow: 1.2
-    dissolveFrom: 0.45
-    enterScale: 0.006
+    dissolveFrom: 0.35
+    enterScale: 0.05
     emergeOverride: {fileID: 669121341}
     crossfade: 0
     continuous: 1
+    emergeRate: 1
+    tip: 0
     starSize: 0.024
-    watch: 0.3
+    watch: 0.5
     watchRelease: 2
-    starSpikes: 0.45
+    starSpikes: 0
     orbits: 0
     endFacingStar: 1
     endStarHeight: 0.1
     endSettleSeconds: 3
     lightColor: {r: 1, g: 0.88, b: 0.62, a: 1}
-    lightIntensity: 0.9
+    lightIntensity: 0.3
     pointSize: 3
     gateSize: 8
     peakSize: 40
@@ -144451,12 +144453,12 @@ MonoBehaviour:
     whiteoutFrom: 0.7
     lightHold: 0
     resolve: 1
-    memberCount: 900
+    memberCount: 500
     crowdRadius: 10
     memberSize: 0.22
     resolveZoom: 40
     memberGrowth: 0.45
-    streak: 3
+    streak: 2
     spread: 40
     crowdFlatten: 0.3
     memberCore: 0.6
@@ -144472,7 +144474,7 @@ MonoBehaviour:
     lookBackDolly: 2
     ambientCrowd: 0
     approachCrowd: 0
-    diveCrowd: 0.8
+    diveCrowd: 0.45
     memberWarm: {r: 1, g: 0.82, b: 0.55, a: 1}
     memberCool: {r: 0.62, g: 0.75, b: 1, a: 1}
     coolShare: 0.3
@@ -144486,17 +144488,17 @@ MonoBehaviour:
     remnantSpikeAngle: 45
     remnantSpikeLength: 0.14
     remnantStreak: 0.3
-    spin: 70
-    bank: 3
+    spin: 30
+    bank: 0
     dollyZoom: 1
-    photonShrink: 0.5
-    peakVignette: 0.3
+    photonShrink: 0.6
+    peakVignette: 0.15
     diveSound: {fileID: 0}
     diveSoundVolume: 0.8
     fieldOfViewScale: 1
-    targetFieldOfView: 30
-    peakBloom: 1.2
-    peakChromaticAberration: 0.12
+    targetFieldOfView: 0
+    peakBloom: 1
+    peakChromaticAberration: 0
     peakLensDistortion: 0
   - toLayerId: CosmicWeb
     enabled: 1
@@ -144514,6 +144516,8 @@ MonoBehaviour:
     emergeOverride: {fileID: 0}
     crossfade: 0
     continuous: 0
+    emergeRate: 2.5
+    tip: 0
     starSize: 0.024
     watch: 0
     watchRelease: 2
@@ -144594,16 +144598,18 @@ MonoBehaviour:
     emergeOverride: {fileID: 1233783612}
     crossfade: 0
     continuous: 1
-    starSize: 0.03
+    emergeRate: 2.5
+    tip: 70
+    starSize: 0.05
     watch: 0.35
     watchRelease: 2.2
-    starSpikes: 0.7
+    starSpikes: 0
     orbits: 0
     endFacingStar: 1
     endStarHeight: 0.1
     endSettleSeconds: 3
-    lightColor: {r: 1, g: 0.88, b: 0.62, a: 1}
-    lightIntensity: 1
+    lightColor: {r: 1, g: 0.8, b: 0.52, a: 1}
+    lightIntensity: 1.2
     pointSize: 3
     gateSize: 8
     peakSize: 40
@@ -144611,12 +144617,12 @@ MonoBehaviour:
     whiteoutFrom: 0.7
     lightHold: 0
     resolve: 1
-    memberCount: 1400
+    memberCount: 1600
     crowdRadius: 12
     memberSize: 0.22
     resolveZoom: 40
     memberGrowth: 0.45
-    streak: 3
+    streak: 5
     spread: 40
     crowdFlatten: 0.18
     memberCore: 0.5
@@ -144637,7 +144643,7 @@ MonoBehaviour:
     memberCool: {r: 0.62, g: 0.75, b: 1, a: 1}
     coolShare: 0.45
     memberAccent: {r: 0.96, g: 0.69, b: 0.92, a: 1}
-    accentShare: 0.18
+    accentShare: 0.3
     collapse: 0
     collapseRadius: 0
     remnantColor: {r: 1.6, g: 1.55, b: 1.8, a: 1}
@@ -144646,17 +144652,17 @@ MonoBehaviour:
     remnantSpikeAngle: 45
     remnantSpikeLength: 0.14
     remnantStreak: 0.3
-    spin: -140
-    bank: 6
+    spin: 200
+    bank: 9
     dollyZoom: 1
     photonShrink: 0.5
-    peakVignette: 0.35
+    peakVignette: 0.4
     diveSound: {fileID: 0}
     diveSoundVolume: 0.8
     fieldOfViewScale: 1
     targetFieldOfView: 26
     peakBloom: 1.5
-    peakChromaticAberration: 0.2
+    peakChromaticAberration: 0.3
     peakLensDistortion: 0
   - toLayerId: SolarSystem
     enabled: 1
@@ -144674,6 +144680,8 @@ MonoBehaviour:
     emergeOverride: {fileID: 1137653274}
     crossfade: 0
     continuous: 1
+    emergeRate: 2.5
+    tip: 0
     starSize: 0.024
     watch: 0.5
     watchRelease: 2.2
@@ -144754,6 +144762,8 @@ MonoBehaviour:
     emergeOverride: {fileID: 0}
     crossfade: 0
     continuous: 0
+    emergeRate: 2.5
+    tip: 0
     starSize: 0.024
     watch: 0
     watchRelease: 2
