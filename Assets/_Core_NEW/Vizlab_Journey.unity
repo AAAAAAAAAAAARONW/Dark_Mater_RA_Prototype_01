@@ -144426,15 +144426,19 @@ MonoBehaviour:
     approachDistance: 120
     diveSeconds: 4.5
     peakHoldSeconds: 0.25
-    emergeSeconds: 5.5
-    diveZoom: 8
+    emergeSeconds: 6
+    diveZoom: 2.5
     leaveGlow: 1.2
-    dissolveFrom: 0.3
+    dissolveFrom: 0
     enterScale: 0.004
     emergeOverride: {fileID: 669121341}
     crossfade: 0
     continuous: 1
     particle: 1
+    unfold: 1
+    unfoldFrom: 0.7
+    dissolveBy: 0.55
+    spinOldWorld: 1
     particleCover: 1.3
     particleReveal: {x: 0.06, y: 0.45}
     emergeRate: 1.2
@@ -144456,12 +144460,12 @@ MonoBehaviour:
     whiteoutFrom: 0.7
     lightHold: 0
     resolve: 1
-    memberCount: 700
+    memberCount: 0
     crowdRadius: 10
     memberSize: 0.22
     resolveZoom: 40
     memberGrowth: 0.45
-    streak: 3
+    streak: 0
     spread: 40
     crowdFlatten: 0.3
     memberCore: 0.6
@@ -144477,7 +144481,7 @@ MonoBehaviour:
     lookBackDolly: 2
     ambientCrowd: 0
     approachCrowd: 0
-    diveCrowd: 0.6
+    diveCrowd: 0
     memberWarm: {r: 1, g: 0.82, b: 0.55, a: 1}
     memberCool: {r: 0.62, g: 0.75, b: 1, a: 1}
     coolShare: 0.3
@@ -144491,17 +144495,17 @@ MonoBehaviour:
     remnantSpikeAngle: 45
     remnantSpikeLength: 0.14
     remnantStreak: 0.3
-    spin: 40
-    bank: 2
+    spin: 0
+    bank: 0
     dollyZoom: 1
     photonShrink: 0.5
-    peakVignette: 0.25
+    peakVignette: 0.2
     diveSound: {fileID: 0}
     diveSoundVolume: 0.8
     fieldOfViewScale: 1
     targetFieldOfView: 24
-    peakBloom: 1.2
-    peakChromaticAberration: 0.1
+    peakBloom: 1.3
+    peakChromaticAberration: 0
     peakLensDistortion: 0
   - toLayerId: CosmicWeb
     enabled: 1
@@ -144520,6 +144524,10 @@ MonoBehaviour:
     crossfade: 0
     continuous: 0
     particle: 0
+    unfold: 0
+    unfoldFrom: 0.7
+    dissolveBy: 1
+    spinOldWorld: 1
     particleCover: 1.3
     particleReveal: {x: 0.06, y: 0.45}
     emergeRate: 2.5
@@ -144605,6 +144613,10 @@ MonoBehaviour:
     crossfade: 0
     continuous: 1
     particle: 0
+    unfold: 0
+    unfoldFrom: 0.7
+    dissolveBy: 1
+    spinOldWorld: 0
     particleCover: 1.3
     particleReveal: {x: 0.06, y: 0.45}
     emergeRate: 2.5
@@ -144662,7 +144674,7 @@ MonoBehaviour:
     remnantSpikeLength: 0.14
     remnantStreak: 0.3
     spin: 200
-    bank: 9
+    bank: 0
     dollyZoom: 1
     photonShrink: 0.5
     peakVignette: 0.4
@@ -144690,6 +144702,10 @@ MonoBehaviour:
     crossfade: 0
     continuous: 1
     particle: 0
+    unfold: 0
+    unfoldFrom: 0.7
+    dissolveBy: 1
+    spinOldWorld: 1
     particleCover: 1.3
     particleReveal: {x: 0.06, y: 0.45}
     emergeRate: 2.5
@@ -144775,6 +144791,10 @@ MonoBehaviour:
     crossfade: 0
     continuous: 0
     particle: 0
+    unfold: 0
+    unfoldFrom: 0.7
+    dissolveBy: 1
+    spinOldWorld: 1
     particleCover: 1.3
     particleReveal: {x: 0.06, y: 0.45}
     emergeRate: 2.5
