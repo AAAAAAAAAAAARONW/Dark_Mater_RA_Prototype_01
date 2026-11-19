@@ -380,6 +380,7 @@ public class NebulaResponder_NEW : LayerResponder_NEW
         // BY STAR, on the class. A shader without the star-by-star fade dims them together.
         bool crossfade = !SameStarField(from, goal) && CanCrossfadeStars();
         bool byStar = crossfade && CanFadeStarByStar();
+        bool dip = !SamePattern(from, goal);
 
         while (elapsed < d)
         {
@@ -387,7 +388,8 @@ public class NebulaResponder_NEW : LayerResponder_NEW
             float t = Mathf.Clamp01(elapsed / d);
             float e = t * t * (3f - 2f * t);
 
-            NebulaState now = Lerp(from, goal, e);
+            // The clouds' pattern cannot be blended (see Dip): through the dark instead.
+            NebulaState now = dip ? Dip(from, goal, e) : Lerp(from, goal, e);
             if (byStar)
             {
                 now.starScale = from.starScale;
@@ -416,6 +418,43 @@ public class NebulaResponder_NEW : LayerResponder_NEW
         WriteStarFades(1f, 1f);
         if (crossfade) WriteIncomingStars(goal, 0f);
         _tween = null;
+    }
+
+    /// <summary>The same clouds in the same places, moving the same way: only their colours and amount may differ.</summary>
+    static bool SamePattern(NebulaState a, NebulaState b) =>
+        Mathf.Approximately(a.scale, b.scale) && Mathf.Approximately(a.octaves, b.octaves) &&
+        Mathf.Approximately(a.persistence, b.persistence) && Mathf.Approximately(a.sharpness, b.sharpness) &&
+        Mathf.Approximately(a.speed, b.speed) && (a.animate >= 0.5f) == (b.animate >= 0.5f);
+
+    /// <summary>
+    /// From one sky to another whose clouds are a different pattern. The pattern's numbers
+    /// (scale, octaves, persistence, sharpness, speed) cannot be blended: a scale on its way
+    /// from 1 to 2 slides the whole pattern across the sky, and the clouds' drift is the time
+    /// times the speed, so a speed that changes a little minutes into the game throws the
+    /// drift a long way every frame. Blended, the sky boiled and flashed through its colours
+    /// for the whole blend. So the clouds are faded down into the sky's dark colour over the
+    /// first half, the pattern is changed while there is nothing of it to see, and the new
+    /// clouds come up out of the dark over the second half. The dark colour itself, and the
+    /// stars, blend straight through.
+    /// </summary>
+    static NebulaState Dip(NebulaState a, NebulaState b, float t)
+    {
+        NebulaState s = Lerp(a, b, t);
+        bool first = t < 0.5f;
+        NebulaState pattern = first ? a : b;
+        float k = first ? t * 2f : (1f - t) * 2f;       // 0 the clouds as they are, 1 all dark
+        k = k * k * (3f - 2f * k);
+
+        s.scale = pattern.scale;
+        s.octaves = pattern.octaves;
+        s.persistence = pattern.persistence;
+        s.sharpness = pattern.sharpness;
+        s.density = pattern.density;
+        s.speed = pattern.speed;
+        s.animate = pattern.animate;
+        s.mid = Color.Lerp(pattern.mid, s.dark, k);
+        s.bright = Color.Lerp(pattern.bright, s.dark, k);
+        return s;
     }
 
     static NebulaState Lerp(NebulaState a, NebulaState b, float t) => new NebulaState
