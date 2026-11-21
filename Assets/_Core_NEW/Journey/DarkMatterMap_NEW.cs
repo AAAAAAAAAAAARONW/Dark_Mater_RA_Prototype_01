@@ -73,7 +73,7 @@ public class DarkMatterMap_NEW : MonoBehaviour
     [Tooltip("Label size, as a fraction of the screen's height.")]
     [SerializeField] float labelSize = 0.024f;
     [SerializeField] string quasarLabel = "Quasar";
-    [SerializeField] string earthLabel = "← toward Earth";
+    [SerializeField] string earthLabel = "Earth";
     [SerializeField] string darkMatterLabel = "Dark matter";
 
     [Header("Timing (seconds from the start)")]

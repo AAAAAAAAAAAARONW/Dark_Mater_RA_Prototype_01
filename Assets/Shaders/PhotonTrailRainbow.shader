@@ -80,6 +80,27 @@ Shader "Custom/PhotonTrail"
         // wavelength units as the line texture). Range 0 (the default) outlines every line.
         _AbsorptionOutlineCenter   ("Absorption Outline Center",   Range(0, 1)) = 0.5
         _AbsorptionOutlineRange    ("Absorption Outline Range",    Range(0, 0.5)) = 0
+
+        // ── Look (TrailLook_NEW drives these in the journey; 0 everywhere else = unchanged) ──
+        // Tube: the cross-section lit like a round beam (brightness ~ sqrt(1 - x^2)) with a soft
+        // gaussian edge, instead of a flat band with a fade at its rim.
+        _Tube ("Tube Profile", Range(0, 1)) = 0
+        // Head cap edge: 0 = the old hard clip, 1 = a soft round end.
+        _HeadSoft ("Head Cap Softness", Range(0, 1)) = 0
+        // Flow: a faint brightness ripple anchored in the world and running back along the
+        // trail. _TrailLength and _FlowDistance are written every frame by TrailLook_NEW.
+        _FlowAmount     ("Flow Amount",               Range(0, 0.5)) = 0
+        _FlowWavelength ("Flow Wavelength (world)",   Float) = 5
+        _FlowSpeed      ("Flow Speed",                Float) = 2.2
+        _TrailLength    ("Trail Length (set by script)",  Float) = 1
+        _FlowDistance   ("Distance Flown (set by script)", Float) = 0
+
+        // Beam: the mesh is a round tube (TrailFacing_NEW) and uv.y, the spectrum coordinate, is
+        // worked out per vertex from the view: where this point of the tube sits, left to right,
+        // across the beam as seen on screen. 0 = the usual ribbon, uv.y from the mesh.
+        _Beam     ("Beam (set by script)", Float) = 0
+        _BeamSide ("Beam Side (set by script)", Float) = 1
+        [Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull", Float) = 0
     }
 
     SubShader
@@ -87,7 +108,7 @@ Shader "Custom/PhotonTrail"
         Tags { "Queue"="Transparent" "RenderType"="Transparent" "IgnoreProjector"="True" }
         Blend SrcAlpha One
         ZWrite Off
-        Cull Off
+        Cull [_Cull]
 
         // ── Pass 1: the absorbed wavelengths, painted black ──────────────────────────
         //
@@ -120,6 +141,24 @@ Shader "Custom/PhotonTrail"
 
             #include "UnityCG.cginc"
 
+            float _Beam;
+            float _BeamSide;
+
+            // Beam mode: the spectrum coordinate from the view. Across the tube as seen on screen
+            // is (trail direction x direction to the eye); this vertex's place on it is its
+            // normal along that, -1..1, so uv.y runs 0..1 from one side to the other.
+            float BeamV(float4 vertex, float3 normal, float4 tangent)
+            {
+                float3 wp    = mul(unity_ObjectToWorld, vertex).xyz;
+                float3 n     = UnityObjectToWorldNormal(normal);
+                float3 t     = UnityObjectToWorldDir(tangent.xyz);
+                float3 toEye = normalize(_WorldSpaceCameraPos - wp);
+                float3 side  = cross(t, toEye);
+                float  sl    = length(side);
+                side = sl > 1e-4 ? side / sl : float3(0, 1, 0);
+                return saturate(0.5 + 0.5 * _BeamSide * dot(n, side));
+            }
+
             float4    _MainTex_ST;
             float     _SpectrumOffset;
             float     _SpectrumScale;
@@ -138,12 +177,16 @@ Shader "Custom/PhotonTrail"
             float     _AbsorptionLineSpread;
             float     _AbsorptionLineHardness;
             float     _AbsorptionBlack;
+            float     _Tube;
+            float     _HeadSoft;
 
             struct appdataBlack
             {
-                float4 vertex : POSITION;
-                float2 uv     : TEXCOORD0;
-                float4 color  : COLOR;
+                float4 vertex  : POSITION;
+                float2 uv      : TEXCOORD0;
+                float4 color   : COLOR;
+                float3 normal  : NORMAL;
+                float4 tangent : TANGENT;
             };
 
             struct v2fBlack
@@ -158,6 +201,7 @@ Shader "Custom/PhotonTrail"
                 v2fBlack o;
                 o.pos   = UnityObjectToClipPos(v.vertex);
                 o.uv    = TRANSFORM_TEX(v.uv, _MainTex);
+                if (_Beam > 0.5) o.uv.y = BeamV(v.vertex, v.normal, v.tangent);
                 o.color = v.color;
                 return o;
             }
@@ -196,6 +240,10 @@ Shader "Custom/PhotonTrail"
                 float edgeFade = saturate(edgeY / max(_EdgeFadeWidth, 0.0001));
                 edgeFade = pow(edgeFade, _EdgeFadePower);
                 edgeFade = smoothstep(0, _EdgeSoftness * 0.2, edgeFade);
+                {
+                    float c = abs(uv.y - 0.5) * 2.0;
+                    edgeFade = lerp(edgeFade, exp(-pow(c, 2.4) * 2.4) * smoothstep(1.0, 0.85, c), _Tube);
+                }
 
                 float endFade = saturate((1.0 - uv.x) / max(_EndFadeWidth, 0.0001));
 
@@ -205,7 +253,7 @@ Shader "Custom/PhotonTrail"
                     float headLocal = saturate(1.0 - uv.x / max(_HeadWidth, 0.0001));
                     float centreY   = abs(uv.y - 0.5) * 2.0;
                     float dist      = sqrt(headLocal * headLocal + centreY * centreY);
-                    headClip = saturate((1.0 - dist) * 40.0);
+                    headClip = saturate((1.0 - dist) * lerp(40.0, 2.5, _HeadSoft * saturate(headLocal * 8.0)));   // soft only inside the cap
                 }
 
                 float alpha = absorp * edgeFade * endFade * headClip * i.color.a * _AbsorptionBlack;
@@ -224,6 +272,24 @@ Shader "Custom/PhotonTrail"
             #pragma target   3.0
 
             #include "UnityCG.cginc"
+
+            float _Beam;
+            float _BeamSide;
+
+            // Beam mode: the spectrum coordinate from the view. Across the tube as seen on screen
+            // is (trail direction x direction to the eye); this vertex's place on it is its
+            // normal along that, -1..1, so uv.y runs 0..1 from one side to the other.
+            float BeamV(float4 vertex, float3 normal, float4 tangent)
+            {
+                float3 wp    = mul(unity_ObjectToWorld, vertex).xyz;
+                float3 n     = UnityObjectToWorldNormal(normal);
+                float3 t     = UnityObjectToWorldDir(tangent.xyz);
+                float3 toEye = normalize(_WorldSpaceCameraPos - wp);
+                float3 side  = cross(t, toEye);
+                float  sl    = length(side);
+                side = sl > 1e-4 ? side / sl : float3(0, 1, 0);
+                return saturate(0.5 + 0.5 * _BeamSide * dot(n, side));
+            }
 
             sampler2D _MainTex;
             float4    _MainTex_ST;
@@ -272,12 +338,24 @@ Shader "Custom/PhotonTrail"
             float4 _AbsorptionOutlineColor;
             float  _AbsorptionOutlineCenter;
             float  _AbsorptionOutlineRange;
+            float  _Tube;
+            float  _HeadSoft;
+            float  _FlowAmount;
+            float  _FlowWavelength;
+            float  _FlowSpeed;
+            float  _TrailLength;
+            float  _FlowDistance;
+
+            // The tube's edge: a gaussian, taken to exactly zero at the rim.
+            float TubeEdge(float c) { return exp(-pow(c, 2.4) * 2.4) * smoothstep(1.0, 0.85, c); }
 
             struct appdata
             {
-                float4 vertex : POSITION;
-                float2 uv     : TEXCOORD0;
-                float4 color  : COLOR;
+                float4 vertex  : POSITION;
+                float2 uv      : TEXCOORD0;
+                float4 color   : COLOR;
+                float3 normal  : NORMAL;
+                float4 tangent : TANGENT;
             };
 
             struct v2f
@@ -310,6 +388,7 @@ Shader "Custom/PhotonTrail"
                 v2f o;
                 o.pos   = UnityObjectToClipPos(v.vertex);
                 o.uv    = TRANSFORM_TEX(v.uv, _MainTex);
+                if (_Beam > 0.5) o.uv.y = BeamV(v.vertex, v.normal, v.tangent);
                 o.color = v.color;
                 return o;
             }
@@ -361,6 +440,7 @@ Shader "Custom/PhotonTrail"
                 float edgeFade = saturate(edgeY / max(_EdgeFadeWidth, 0.0001));
                 edgeFade = pow(edgeFade, _EdgeFadePower);
                 edgeFade = smoothstep(0, _EdgeSoftness * 0.2, edgeFade);
+                edgeFade = lerp(edgeFade, TubeEdge(centreY), _Tube);
 
                 // ── 5. Tail fade along LENGTH (uv.x) ─────────────────────
                 float endFade = saturate((1.0 - uv.x) / max(_EndFadeWidth, 0.0001));
@@ -387,7 +467,7 @@ Shader "Custom/PhotonTrail"
                     float dist = sqrt(headLocal * headLocal + centreY * centreY);
 
                     // Clip pixels outside the circle — sharp but anti-aliased edge
-                    headClip = saturate((1.0 - dist) * 40.0);
+                    headClip = saturate((1.0 - dist) * lerp(40.0, 2.5, _HeadSoft * saturate(headLocal * 8.0)));   // soft only inside the cap
 
                     // Bright white glow inside the cap
                     headGlow = headLocal * _HeadBrightness * headClip;
@@ -516,8 +596,24 @@ Shader "Custom/PhotonTrail"
                 col.rgb += _AbsorptionOutlineColor.rgb * outline;
                 col.a    = max(col.a, saturate(outline));
 
+                // Tube: lit like a round beam, brightest down the middle.
+                col.rgb *= lerp(1.0, 0.45 + 0.55 * sqrt(saturate(1.0 - centreY * centreY)), _Tube);   // never brighter than before, only darker towards the rim
+
+                // Flow: a ripple fixed to where the light has been (distance flown minus how far
+                // back along the trail this pixel is), drifting back. Multiplies, so an absorbed
+                // wavelength stays as dark as it was.
+                float flowAlpha = 1.0;
+                if (_FlowAmount > 0.0001)
+                {
+                    float s = _FlowDistance - uv.x * _TrailLength;
+                    float r = sin(s * 6.28318 / max(_FlowWavelength, 0.01) + _Time.y * _FlowSpeed);
+                    col.rgb  *= 1.0 + _FlowAmount * r;
+                    flowAlpha = 1.0 - 0.545 * _FlowAmount * (1.0 - r);
+                }
+
                 // headClip cuts the rectangle corners into a semicircle shape
                 float alpha = col.a
+                            * flowAlpha
                             * edgeFade
                             * endFade
                             * headAlpha

@@ -5,7 +5,7 @@ using UnityEngine;
 /// Gives every planet and moon in the open scene's SolarSystem group a CelestialBody_NEW set to
 /// its kind — relief and sunlight from where the Sun is for all of them; oceans, city lights,
 /// clouds and a thin air for Earth; thick air for Venus, thin dusty air for Mars; flowing bands
-/// and limb darkening for the giants.
+/// and limb darkening for the giants. The Sun gets SunLook_NEW, if it has not got it.
 ///
 /// Bodies are found by name. Ones that already have the component are set to their kind's look
 /// again (one undoable step). The extra shells an earlier pass put under Earth — a sphere
@@ -79,12 +79,43 @@ static class JourneySolarMenu_NEW
             }
         }
 
+        report.Append("\n  Sun: ").Append(AddSun(group));
+
         Undo.CollapseUndoOperations(undo);
         Debug.Log("Journey NEW: polished " + done + " bodies in '" + group.name + "'." + report + "\nSave the scene to keep it.", group);
     }
 
     [MenuItem(MenuPath, true)]
     static bool PolishValidate() => !Application.isPlaying;
+
+    // The Sun alone, leaving the planets' looks as they are.
+    const string SunMenuPath = "Tools/Journey NEW/Sun Look (open scene)";
+
+    [MenuItem(SunMenuPath)]
+    static void SunLook()
+    {
+        WorldSwitcher_NEW worlds = Object.FindObjectOfType<WorldSwitcher_NEW>();
+        Transform group = worlds != null ? worlds.GroupRoot("SolarSystem") : null;
+        if (group == null)
+        {
+            Debug.LogWarning("Journey NEW: no WorldSwitcher_NEW with a 'SolarSystem' group in the open scene.");
+            return;
+        }
+        Debug.Log("Journey NEW: Sun: " + AddSun(group) + ". Save the scene to keep it.", group);
+    }
+
+    [MenuItem(SunMenuPath, true)]
+    static bool SunLookValidate() => !Application.isPlaying;
+
+    static string AddSun(Transform group)
+    {
+        Transform sun = Find(group, "Sun");
+        if (sun == null || sun.GetComponent<MeshFilter>() == null || sun.GetComponent<Renderer>() == null)
+            return "not found as a sphere in the group, skipped";
+        if (sun.GetComponent<SunLook_NEW>() != null) return "SunLook_NEW already on, left as it is";
+        Undo.AddComponent<SunLook_NEW>(sun.gameObject);
+        return "SunLook_NEW added";
+    }
 
     static Transform Find(Transform root, string name)
     {

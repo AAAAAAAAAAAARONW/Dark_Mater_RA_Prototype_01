@@ -103,6 +103,7 @@ Shader "Custom/CelestialSurface_NEW"
         _CloudTerminator ("Clouds at the terminator", Color) = (1.0, 0.55, 0.3, 1)
         _LimbDarkening ("Limb darkening (giants)", Range(0, 1)) = 0
         _BandFlow ("Band flow, map widths a second (giants)", Float) = 0
+        [HDR] _BackLight ("Backlit limb (air scattering forward)", Color) = (0, 0, 0, 1)
     }
 
     SubShader
@@ -121,7 +122,7 @@ Shader "Custom/CelestialSurface_NEW"
             sampler2D _MainTex;
             float4 _MainTex_ST, _MainTex_TexelSize;
             fixed4 _Color;
-            float4 _SunPosition, _Night, _Terminator, _Haze, _City, _Fill;
+            float4 _SunPosition, _Night, _Terminator, _Haze, _City, _Fill, _BackLight;
             float _Exposure, _Bump, _Regolith, _TerminatorAmount, _HazeAmount, _Ocean, _CityAmount;
             float _CloudShadow, _LimbDarkening, _BandFlow, _CloudAmount, _CloudBrightness;
             float4 _CloudTerminator;
@@ -320,6 +321,16 @@ Shader "Custom/CelestialSurface_NEW"
 
                 // Giants: darker towards the limb.
                 lit *= lerp(1.0, pow(max(mu, 0.02), 0.45), _LimbDarkening);
+
+                // Backlit: with the Sun behind the planet, its air scatters sunlight forward
+                // round the limb, a thin bright edge on the side towards the Sun — how the
+                // giants look from beyond them. Nothing for a world without air (_BackLight black).
+                // (21 Nov: it was the sixth power of 1 - mu, a pixel wide at the journey's
+                // distances and never seen. Now it is a crescent a sixth of the radius deep.)
+                float behind = smoothstep(-0.2, 0.9, dot(l, -v));
+                float edge = pow(1.0 - mu, 2.5);
+                float sunward = smoothstep(-0.6, 0.4, dot(nSmooth, l));
+                lit += _BackLight.rgb * 2.0 * edge * behind * sunward;
 
                 // Down on the ground, the city's haze with distance.
                 float hazeOn = smoothstep(_GroundHazeFrom.x, _GroundHazeFrom.y, i.close);

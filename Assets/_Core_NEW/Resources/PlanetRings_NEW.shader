@@ -6,6 +6,7 @@ Shader "Journey/Planet Rings"
         _Color ("Transition fade",Color)=(1,1,1,1)
         _SunDirection ("Direction to Sun (object space)",Vector)=(1,0,0,0)
         _PlanetRadius ("Planet radius in ring space",Float)=0.704225
+        _BackScatter ("Backlit glow (the dust scattering forward)",Range(0,4))=1.5
     }
     SubShader
     {
@@ -23,7 +24,7 @@ Shader "Journey/Planet Rings"
             #include "UnityCG.cginc"
             sampler2D _MainTex;
             float4 _Color,_SunDirection;
-            float _PlanetRadius;
+            float _PlanetRadius,_BackScatter;
             struct v2f { float4 pos:SV_POSITION; float2 uv:TEXCOORD0; float3 local:TEXCOORD1; };
             v2f vert(appdata_base v)
             {
@@ -38,7 +39,14 @@ Shader "Journey/Planet Rings"
                 float shadow=(1-smoothstep(_PlanetRadius*0.93,_PlanetRadius*1.08,distanceToRay))*step(along,0);
                 float illumination=(0.28+0.72*sqrt(abs(l.y)))*(1-shadow*0.86);
                 float alpha=tex.a*0.88;
-                return float4(tex.rgb*float3(1.05,0.95,0.8)*illumination*alpha*_Color.rgb,alpha*_Color.a);
+                // Backlit: with the Sun beyond the rings, their fine dust scatters its light
+                // forward and they glow; most in the thin parts, which are mostly dust, least
+                // in the dense ones, which block it.
+                float3 eye=mul(unity_WorldToObject,float4(_WorldSpaceCameraPos,1)).xyz;
+                float forward=pow(saturate(dot(normalize(i.local-eye),l)),3.0);
+                float thin=saturate(1.0-alpha*0.9);
+                float3 glow=float3(1.0,0.9,0.75)*forward*thin*_BackScatter*(1-shadow);
+                return float4((tex.rgb*float3(1.05,0.95,0.8)*illumination+glow)*alpha*_Color.rgb,alpha*_Color.a);
             }
             ENDCG
         }

@@ -12,6 +12,11 @@ Shader "Custom/SummitSet_NEW"
     // land and city lights as the ground round them, not a dark patch over it (16 Nov: "a
     // black square"); the moon on their slopes still shapes them, seen from the side.
     //
+    // Colour by vertex (_VertexColors on): the albedo times twice the vertex colour, so grey
+    // 0.5 leaves it as it is - the Las Campanas ground's gravel and road, the enclosure's parts.
+    // A grain of its own (_Grain, _GrainScale a unit of the mesh's own space): rock on the
+    // ground, weathering on the walls, so nothing is a flat colour up close.
+    //
     // Distances are in km (_KmToWorld, set every frame: the world grows round them on the
     // way down), so the haze is the same at any scale. In Resources so a build has it.
 
@@ -33,6 +38,10 @@ Shader "Custom/SummitSet_NEW"
         _HazeKm ("Haze distance, km", Float) = 25
         _HazeOn ("How much of the haze, 0 to 1 (set every frame)", Float) = 1
         _KmToWorld ("World units a km (set every frame)", Float) = 1
+        _VertexColors ("Times twice the vertex colour", Float) = 0
+        _MoonOnNight ("The moon on the rock under the ground's night too", Float) = 0
+        _Grain ("Grain, how much", Range(0, 1)) = 0
+        _GrainScale ("Grain, cycles a unit of the mesh", Float) = 1
     }
 
     SubShader
@@ -48,6 +57,7 @@ Shader "Custom/SummitSet_NEW"
 
             float4 _Albedo, _MoonDir, _MoonColor, _GlowDir, _GlowColor, _Ambient, _HazeColor, _Rim, _Emission;
             float _HazeKm, _HazeOn, _KmToWorld, _GroundOn, _GroundExposure, _CityGlow;
+            float _VertexColors, _Grain, _GrainScale, _MoonOnNight;
             sampler2D _GroundMap;
 
             struct v2f
@@ -56,32 +66,61 @@ Shader "Custom/SummitSet_NEW"
                 float3 normal : TEXCOORD0;
                 float3 toCam  : TEXCOORD1;   // from the point to the camera, world
                 float2 uv     : TEXCOORD2;
+                float3 local  : TEXCOORD3;   // the mesh's own space, for the grain
+                fixed4 colour : COLOR;
             };
 
-            v2f vert(appdata_base v)
+            v2f vert(appdata_full v)
             {
                 v2f o;
                 o.uv = v.texcoord.xy;
+                o.local = v.vertex.xyz;
+                o.colour = v.color;
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.normal = UnityObjectToWorldNormal(v.normal);
                 o.toCam = _WorldSpaceCameraPos - mul(unity_ObjectToWorld, v.vertex).xyz;
                 return o;
             }
 
+            float Hash(float3 p)
+            {
+                p = frac(p * 0.3183099 + 0.1);
+                p *= 17.0;
+                return frac(p.x * p.y * p.z * (p.x + p.y + p.z));
+            }
+
+            // Value noise, 0 to 1.
+            float Noise(float3 p)
+            {
+                float3 i = floor(p), f = frac(p);
+                f = f * f * (3.0 - 2.0 * f);
+                return lerp(lerp(lerp(Hash(i), Hash(i + float3(1, 0, 0)), f.x), lerp(Hash(i + float3(0, 1, 0)), Hash(i + float3(1, 1, 0)), f.x), f.y),
+                            lerp(lerp(Hash(i + float3(0, 0, 1)), Hash(i + float3(1, 0, 1)), f.x), lerp(Hash(i + float3(0, 1, 1)), Hash(i + float3(1, 1, 1)), f.x), f.y), f.z);
+            }
+
             fixed4 frag(v2f i) : SV_Target
             {
                 float3 n = normalize(i.normal);
+                float3 albedo = _Albedo.rgb;
+                if (_VertexColors > 0.5) albedo *= i.colour.rgb * 2.0;
+                if (_Grain > 0.0)
+                {
+                    float3 q = i.local * _GrainScale;
+                    float g = Noise(q) * 0.6 + Noise(q * 3.7 + 11.0) * 0.4;
+                    g = lerp(g, 0.5, saturate(length(fwidth(q)) * 1.5 - 0.5));
+                    albedo *= 1.0 + _Grain * (g - 0.5) * 2.0;
+                }
                 float moon = saturate(dot(n, normalize(_MoonDir.xyz)));
                 // The glow comes from a whole sky's width below the horizon: wrapped, soft.
                 float glow = saturate(dot(n, normalize(_GlowDir.xyz)) * 0.6 + 0.4);
-                float3 lit = _Albedo.rgb * (_Ambient.rgb + _MoonColor.rgb * moon + _GlowColor.rgb * glow * glow);
+                float3 lit = albedo * (_Ambient.rgb + _MoonColor.rgb * moon + _GlowColor.rgb * glow * glow);
                 if (_GroundOn > 0.5)
                 {
                     // The ground's own night, the moon on the slope shaping it.
                     float3 ground = tex2D(_GroundMap, i.uv).rgb * _GroundExposure;
                     float bright = smoothstep(0.15, 0.6, dot(ground, float3(0.299, 0.587, 0.114)));
                     ground *= 1.0 + bright * (_CityGlow - 1.0);
-                    lit = ground * (0.55 + 0.9 * moon) + _Albedo.rgb * _Ambient.rgb;
+                    lit = ground * (0.55 + 0.9 * moon) + albedo * (_Ambient.rgb + _MoonOnNight * _MoonColor.rgb * moon);
                 }
                 float3 v = normalize(i.toCam);
                 lit += _Rim.rgb * pow(1.0 - saturate(dot(n, v)), 3.0) + _Emission.rgb;

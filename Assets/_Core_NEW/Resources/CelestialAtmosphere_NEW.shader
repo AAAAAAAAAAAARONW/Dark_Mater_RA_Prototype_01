@@ -46,6 +46,7 @@ Shader "Custom/CelestialAtmosphere_NEW"
         [HDR] _Scatter ("Scattering colour (Rayleigh: blue)", Color) = (0.3, 0.6, 1.5, 1)
         [HDR] _Sunset ("Through a long path (the terminator)", Color) = (1.1, 0.45, 0.18, 1)
         _Strength ("Strength", Range(0, 4)) = 1
+        _Forward ("Forward scattering by haze (backlit glow)", Range(0, 2)) = 0
     }
 
     SubShader
@@ -65,7 +66,7 @@ Shader "Custom/CelestialAtmosphere_NEW"
 
             fixed4 _Color;
             float4 _SunPosition, _Centre, _Radii, _Scatter, _Sunset;
-            float _ScaleHeight, _Strength;
+            float _ScaleHeight, _Strength, _Forward;
 
             struct v2f
             {
@@ -122,6 +123,10 @@ Shader "Custom/CelestialAtmosphere_NEW"
                 float h = max((ra - rg) * _ScaleHeight, 1e-5);
                 float cosTheta = dot(d, normalize(_SunPosition.xyz - o));
                 float phase = 0.75 * (1.0 + cosTheta * cosTheta);
+                // Haze scatters forward (Henyey-Greenstein, g = 0.6): looking towards the Sun
+                // past the planet, the air at its limb lights up. _Forward 0 leaves Rayleigh alone.
+                float hg = 0.64 / pow(max(1.36 - 1.2 * cosTheta, 1e-3), 1.5);
+                phase += _Forward * hg;
 
                 const int Samples = 8;
                 float dt = (t1 - t0) / Samples;

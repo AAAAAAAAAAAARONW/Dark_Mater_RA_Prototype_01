@@ -353093,7 +353093,7 @@ MonoBehaviour:
   gasSize: {x: 0.014, y: 0.034}
   labelSize: 0.024
   quasarLabel: Quasar
-  earthLabel: "\u2190 toward Earth"
+  earthLabel: Earth
   darkMatterLabel: Dark matter
   moveSeconds: 1.5
   pathAt: 0.6

@@ -58,7 +58,9 @@
 
 **实时终点场景的成本预算**（第 4 步）：不比现在的 cosmic web 贵。不开实时阴影，不用体积效果，不加后处理以外的全屏 pass。夜景大部分是黑的：山脊是低模剪影，圆顶几千个三角形，天空用现有的星空，城市灯光是贴图。在编辑器里看帧时间，超出预算就砍。
 
-**终点（11 月 3 日定）：Mount Wilson 的 100 英寸 Hooker 望远镜。** 你说是"Carnegie 自己的望远镜"，具体哪台不确定，先按它做；LARC / Carnegie 那边说是别的再改（山和圆顶本来就是低模剪影）。当时的几个候选：
+**终点改了（11 月 21 日）：Las Campanas 的 Magellan 6.5 米望远镜（LCO 的模型）。** 跑 Tools > Journey NEW > Las Campanas > Move the Ending to Las Campanas，存场景。光从外罩顶上的开口直下，镜头切进外罩里，看光走一遍真实光路（主镜 → 副镜 → 三镜 → 沿高度轴到仪器），到了仪器再切到外面、出光谱。地形是阿塔卡马的干旱山脊，旁边是另一台 Magellan（Baade），天上是南天银河和大小麦哲伦云。Back to Mount Wilson 可以改回去。还没有：智利的高清夜光图（现在只有全球那张）、真正的仪器模型。
+
+**原来的终点（11 月 3 日定）：Mount Wilson 的 100 英寸 Hooker 望远镜。** 你说是"Carnegie 自己的望远镜"，具体哪台不确定，先按它做；LARC / Carnegie 那边说是别的再改（山和圆顶本来就是低模剪影）。当时的几个候选：
 - Pasadena 市区的 Carnegie Observatories 是总部，没有在用的大望远镜
 - 城北山上的 **Mount Wilson** 是 Carnegie 建的：Hubble 在那里的 100 英寸 Hooker 望远镜上测出了星系红移和宇宙膨胀，可以和红移那条线连起来，夜里俯瞰的就是洛杉矶的灯光
 - Carnegie 现在做研究用的望远镜（Magellan）在智利的 Las Campanas
@@ -68,7 +70,7 @@
 
 **你的要求：** 结尾和 credits 之间加一段很短的科学解释，只讲一件事：这一路的线 map 出了暗物质。用现在 prebake 的线。
 
-**画面**（`DarkMatterMap_NEW`，在 `SolarSystem` 上 `Earth Ending_NEW` 旁边）：光谱长到屏幕中间以后，往上挪；下面画一条光走过的路，右端是 quasar（就在它自己的 Lyα 峰正下方），左端写"← toward Earth"。从最靠 quasar 的那条开始（光最先碰到的），每条线往下落一根细线，落到路上出现一小团暗淡的品红色气体；最后一层淡淡的雾（暗物质）在气体周围显出来，线越密的地方越浓。说 J6_4，说完接 Closing，再淡出到 credits（墙上 `Next Scene Path` 是空的，就停在这一幅）。
+**画面**（`DarkMatterMap_NEW`，在 `SolarSystem` 上 `Earth Ending_NEW` 旁边）：光谱长到屏幕中间以后，往上挪；下面画一条光走过的路，右端是 quasar（就在它自己的 Lyα 峰正下方），左端写"Earth"。从最靠 quasar 的那条开始（光最先碰到的），每条线往下落一根细线，落到路上出现一小团暗淡的品红色气体；最后一层淡淡的雾（暗物质）在气体周围显出来，线越密的地方越浓。说 J6_4，说完接 Closing，再淡出到 credits（墙上 `Next Scene Path` 是空的，就停在这一幅）。
 
 - 线是 bake 里的：到达画面（arrival 放大以后）Lyα 透过率里最深的那些凹陷（最多 36 条，`Max Lines`、`Min Depth`），所以每根细线都从屏幕上看得到的那条线出发。这个窗口里是 z ≈ 2.8–3.6 的气体，也就是靠近 quasar 的那一段路，所以路的左端不是地球。
 - 雾的浓淡来自同一条透过率（平滑过的），雾里的丝是画的。

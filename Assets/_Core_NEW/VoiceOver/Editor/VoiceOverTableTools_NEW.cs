@@ -174,6 +174,7 @@ public static class VoiceOverTableTools_NEW
     static readonly Regex CueRe = new Regex(@"\bCue\s*(\d+(?:\.\d+)?)\s*s\b", RegexOptions.IgnoreCase);
     static readonly Regex SecondsRe = new Regex(@"(\d+(?:\.\d+)?)\s*s\b");
     static readonly Regex RepeatRe = new Regex(@"^([A-E]\d{1,2})_\d+$");
+    static readonly Regex LeadingTagRe = new Regex(@"^(?:\[[^\]]*\]\s*)+");
 
     /// <summary>
     /// Read the tutorial half of the script (the rows under "## Part 1") into the table.
@@ -306,7 +307,8 @@ public static class VoiceOverTableTools_NEW
             for (int i = 0; i < cells.Length; i++) cells[i] = cells[i].Trim();
 
             string lineId = cells[0].Trim('*', '`');
-            string text = cells[2];
+            // A leading ElevenLabs delivery tag ("[warmly] Welcome...") is for the voice only.
+            string text = LeadingTagRe.Replace(cells[2], "");
             if (lineId == "ID" || !IdRe.IsMatch(lineId) || text.Length == 0) continue;
 
             bool nudge = lineId.StartsWith("N_");

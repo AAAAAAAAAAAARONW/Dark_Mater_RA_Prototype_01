@@ -570,7 +570,12 @@ public static class InputScheme_NEW
     /// <summary>B, pressed this frame. Pause.</summary>
     public static bool PauseDown()
     {
-        if (FromGetReal3D) return Gr3dButtonDown(Gr3dPauseButton);
+        if (FromGetReal3D)
+        {
+            if (Gr3dButtonDown(Gr3dPauseButton)) return true;
+            // See ToggleDown: Jump has no unity_button, so off the wall it is read here too.
+            if (MasterOnlyDevicesUnsafe) return false;
+        }
 
         if (Input.GetKeyDown(PauseKey)) return true;
 
@@ -582,7 +587,17 @@ public static class InputScheme_NEW
     /// <summary>Y, pressed this frame. Shows or hides dark matter.</summary>
     public static bool ToggleDown()
     {
-        if (FromGetReal3D) return Gr3dButtonDown(Gr3dToggleButton);
+        if (FromGetReal3D)
+        {
+            if (Gr3dButtonDown(Gr3dToggleButton)) return true;
+            // getReal3D reads a button's key= and button= through its native controller
+            // reader, and off the wall that fails to start ("TrackdHelper: ControllerReader
+            // init failed" in the log): only a unity_button gets through. WandButton and
+            // ChangeWand have one; Reset and Jump have none (it would be Fire2, shared with
+            // pause), so in Vizlab_Journey in the editor Y and P did nothing. One copy has
+            // nobody to disagree with, so read the keyboard and the pad here as at the desk.
+            if (MasterOnlyDevicesUnsafe) return false;
+        }
 
         if (Input.GetKeyDown(ToggleKey)) return true;
 

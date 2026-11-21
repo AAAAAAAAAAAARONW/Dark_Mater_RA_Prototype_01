@@ -30,6 +30,12 @@ Shader "Custom/SummitSky_NEW"
         _GlowHeight ("City glow height (sine of elevation)", Range(0.01, 0.4)) = 0.07
         [HDR] _MilkyWay ("Milky Way", Color) = (0.22, 0.21, 0.19, 1)
         _StarBrightness ("Stars", Range(0, 4)) = 1.2
+        // The Magellanic Clouds, for a southern sky: direction (world) and radius (radians) in w.
+        _LMC ("Large Magellanic Cloud", Vector) = (0, 1, 0, 0.075)
+        _SMC ("Small Magellanic Cloud", Vector) = (0, 1, 0, 0.05)
+        _Clouds ("Magellanic Clouds, times the Milky Way", Range(0, 2)) = 0
+        // Airglow: a faint band, green, low over the horizon, in streaks.
+        [HDR] _Airglow ("Airglow", Color) = (0, 0, 0, 1)
     }
 
     SubShader
@@ -50,6 +56,15 @@ Shader "Custom/SummitSky_NEW"
             float4 _Up, _ToCity, _GalPole, _GalA, _GalB;
             float4 _Zenith, _Horizon, _Ground, _Glow, _MilkyWay;
             float _Reveal, _GlowHeight, _StarBrightness;
+            float4 _LMC, _SMC, _Airglow;
+            float _Clouds;
+
+            // A soft round cloud of stars about c.xyz, c.w radians across its middle.
+            float Cloud(float3 d, float4 c)
+            {
+                float q = 1.0 - dot(d, c.xyz);
+                return exp(-q / (c.w * c.w * 0.5));
+            }
 
             struct v2f
             {
@@ -83,6 +98,8 @@ Shader "Custom/SummitSky_NEW"
                 float off = length(d - at);
                 float disc = saturate(1.0 - off / (pixel * 1.3));
                 float bright = 0.12 + 2.5 * pow(h.y, 8.0);
+                // A slow twinkle, each star at its own rate.
+                bright *= 0.82 + 0.18 * sin(_Time.y * (1.5 + 3.0 * h.z) + h.x * 60.0);
                 // Blue-white to yellow-white.
                 float3 tint = lerp(float3(0.75, 0.85, 1.0), float3(1.0, 0.88, 0.7), h.z);
                 return tint * bright * disc * disc;
@@ -99,6 +116,9 @@ Shader "Custom/SummitSky_NEW"
                 // The sky's own colour, and the city's glow along the horizon.
                 float3 sky = lerp(_Horizon.rgb, _Zenith.rgb, smoothstep(0.0, 0.5, e));
                 sky += _Glow.rgb * exp(-max(e, 0.0) / _GlowHeight) * (0.25 + 0.75 * pow(toCity, 2.5));
+                // Airglow: a band some ten degrees up, in faint streaks, over the whole horizon.
+                float glowBand = exp(-pow((e - 0.16) / 0.1, 2.0)) * smoothstep(0.0, 0.04, e);
+                sky += _Airglow.rgb * glowBand * (0.55 + 0.9 * Triplanar(float3(level.x * 2.0, e * 9.0, level.z * 2.0)).r) * _Reveal;
                 sky = lerp(sky, _Ground.rgb, smoothstep(0.0, -0.06, e));
 
                 // How much of the sky shows through: none at the horizon, the city's side least.
@@ -116,6 +136,14 @@ Shader "Custom/SummitSky_NEW"
                 float lane = exp(-pow((b - 0.01) / 0.03, 2.0)) * smoothstep(0.42, 0.6, Triplanar(d * 11.0 + 1.7).b);
                 float mw = (band * (0.25 + 0.75 * clumps) + core * 1.1 * (0.4 + 0.6 * clumps)) * grain * (1.0 - 0.85 * lane);
                 sky += _MilkyWay.rgb * mw * clear;
+
+                // The Magellanic Clouds: two fuzzy patches off the band, the Large one brighter.
+                if (_Clouds > 0.0)
+                {
+                    float knots = 0.5 + 0.8 * saturate(Triplanar(d * 23.0).g * 1.3 - 0.15);
+                    float clouds = (Cloud(d, _LMC) + 0.6 * Cloud(d, _SMC)) * knots * grain;
+                    sky += _MilkyWay.rgb * _Clouds * clouds * clear;
+                }
 
                 // Stars: a sparse bright layer, and a fine one thickest along the band.
                 float pixel = max(length(fwidth(d)), 1e-5);

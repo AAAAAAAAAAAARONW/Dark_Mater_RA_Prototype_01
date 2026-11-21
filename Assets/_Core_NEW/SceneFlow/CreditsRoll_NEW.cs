@@ -116,6 +116,10 @@ public class CreditsRoll_NEW : MonoBehaviour
 
     [TextArea(1, 3)] [SerializeField] string closingLine = "";
 
+    [Tooltip("Small, under the closing line: what was used by permission and whose it is. One per line.")]
+    [TextArea(1, 4)] [SerializeField] string acknowledgements =
+        "Magellan telescope model courtesy of Las Campanas Observatory (LCO)";
+
     [Header("Last words")]
     [Tooltip("After the end card, in its place, a line at a time: where the piece was made, and on out. Empty = none.")]
     [TextArea(6, 24)] [SerializeField] string address =
@@ -1402,8 +1406,16 @@ public class CreditsRoll_NEW : MonoBehaviour
             _supportRows.Add(row);
         }
         TextMeshProUGUI closing = Text(body, "Closing", closingLine, 24f, accentColour, _bodyFont, TextAlignmentOptions.BottomLeft);
-        Stretch(closing.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0.12f));
+        Stretch(closing.rectTransform, new Vector2(0f, 0.045f), new Vector2(1f, 0.165f));
         closing.enableWordWrapping = false;
+
+        // Under it, small: the models used by permission, with their makers' names (LCO asks
+        // that its authorship of the Magellan model be shown wherever it is used).
+        TextMeshProUGUI thanks = Text(body, "Acknowledgements", acknowledgements ?? "", 15f, nameColour, _bodyFont,
+                                      TextAlignmentOptions.BottomLeft);
+        Stretch(thanks.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0.04f));
+        thanks.enableWordWrapping = false;
+        thanks.alpha = 0.75f;
 
         // The last words, where the end card was: a line at a time, each on its own row about the
         // column's middle (TickAddress).

@@ -33,9 +33,9 @@ python elevenlabs_vo.py install               # 听完后拷进 Assets/VoiceOver
 
 ## 语气 tag
 
-`delivery.json` 给每句加一个语气 tag，比如 `[softly]`、`[in awe]`。`"*"` 是默认值，单句写了就用单句的（`E2_Before_A` → `E2_Before` → `*`，写 `""` 表示这句不加）。
+语气 tag 直接写在剧本每句台词的开头，比如 `| A1 | … | [warmly] Welcome to … |`（2026-11-21 起）。剧本里没写 tag 的句子才用 `delivery.json`：`"*"` 是默认值，也可以按 ID 单独写（`E2_Before_A` → `E2_Before` → `*`，写 `""` 表示这句不加）。
 
-- tag 只发给 ElevenLabs：剧本里没有，Unity 里也看不到
+- tag 只发给 ElevenLabs：Unity 导入剧本时会去掉句首的 tag，表里看不到
 - 只有 `eleven_v3` 模型认 tag。换成别的模型时脚本会自动不加 tag，因为旧模型可能把方括号念出来
 - 改一句的 tag，只重新生成那一句
 - 先单句试：`python elevenlabs_vo.py test "Behind you, the quasar is already a single point of light." --as C4`（会带上 C4 的 tag）。也可以直接把 tag 写进引号里试

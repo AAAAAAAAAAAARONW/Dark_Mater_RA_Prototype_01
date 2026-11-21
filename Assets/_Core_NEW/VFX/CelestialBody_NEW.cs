@@ -122,6 +122,9 @@ public class CelestialBody_NEW : MonoBehaviour
     [ColorUsage(false, true)] [SerializeField] Color scattering = new Color(0.3f, 0.6f, 1.5f, 1f);
     [ColorUsage(false, true)] [SerializeField] Color sunset = new Color(1.1f, 0.45f, 0.18f, 1f);
     [Range(0f, 4f)] [SerializeField] float airStrength = 0.7f;
+    [Tooltip("Seen with the Sun behind it, the air scatters sunlight forward round the limb: a " +
+             "thin bright edge on the Sun's side, in the sunset colour. Only with air, and not on Earth, whose night side the arrival is tuned on. 0 = off.")]
+    [Range(0f, 4f)] [SerializeField] float backlight = 1.2f;
 
     const HideFlags Built = HideFlags.HideAndDontSave;
 
@@ -440,6 +443,7 @@ public class CelestialBody_NEW : MonoBehaviour
         _surface.SetFloat("_CloudSpin", cloudDrift);
         _surface.SetFloat("_LimbDarkening", limbDarkening);
         _surface.SetFloat("_BandFlow", bandFlow);
+        _surface.SetColor("_BackLight", atmosphere && kind != Kind.Earth ? sunset * backlight : Color.black);
         _surface.SetFloat("_CloudAmount", clouds ? 1f : 0f);
         _surface.SetFloat("_CloudBrightness", cloudBrightness);
         _surface.SetColor("_CloudTerminator", terminatorColour);
@@ -450,6 +454,7 @@ public class CelestialBody_NEW : MonoBehaviour
             _air.SetColor("_Scatter", scattering);
             _air.SetColor("_Sunset", sunset);
             _air.SetFloat("_Strength", airStrength);
+            _air.SetFloat("_Forward", kind != Kind.Earth ? backlight * 0.25f : 0f);
         }
     }
 }

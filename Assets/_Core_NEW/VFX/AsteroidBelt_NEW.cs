@@ -141,9 +141,16 @@ public class AsteroidBelt_NEW : MonoBehaviour
     [Tooltip("How bright each speck is at its middle.")]
     [Range(0f, 1f)] [SerializeField] float speckStrength = 0.25f;
 
+    [Tooltip("How much of a speck is left when it is seen fully edge on. Seen from inside the " +
+             "belt's plane the specks along each line of sight pile up into bright smudges; " +
+             "this thins them there. 1 = as before.")]
+    [Range(0f, 1f)] [SerializeField] float edgeOnDust = 0.12f;
+
     [SerializeField] bool debugLog = false;
 
     static readonly int SunId = Shader.PropertyToID("_SunPosition");
+    static readonly int BeltUpId = Shader.PropertyToID("_BeltUp");
+    static readonly int EdgeOnId = Shader.PropertyToID("_EdgeOn");
 
     ParticleSystem _system, _dust;
     Material _material, _dustMaterial;
@@ -191,6 +198,11 @@ public class AsteroidBelt_NEW : MonoBehaviour
     void LateUpdate()
     {
         if (_material != null && sun != null) _material.SetVector(SunId, sun.position);
+        if (_dustMaterial != null)
+        {
+            _dustMaterial.SetVector(BeltUpId, transform.up);
+            _dustMaterial.SetFloat(EdgeOnId, edgeOnDust);
+        }
     }
 
     void OnDestroy()

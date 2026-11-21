@@ -66,6 +66,7 @@ class Line:
         self.variant = variant      # "" or "A" / "B"
         self.text = text
         self.role = role
+        self.tag = ""               # delivery tag written at the start of the line, if any
         self.file = None            # file name it will be written as
 
     @property
@@ -110,8 +111,16 @@ def parse_script(path):
         if line_id == "ID" or not ID_RE.match(line_id) or not body:
             continue
 
-        lines.append(Line(part, line_id, "", body, "nudge" if line_id.startswith("N_") else "narration"))
+        m = TAG_RE.match(body)
+        tag = m.group(0).strip() if m else ""
+        body = body[m.end():] if m else body
+        line = Line(part, line_id, "", body, "nudge" if line_id.startswith("N_") else "narration")
+        line.tag = tag
+        lines.append(line)
     return lines
+
+
+TAG_RE = re.compile(r"^(?:\[[^\]]*\]\s*)+")   # "[warmly] Welcome..." -> tag "[warmly]"
 
 
 # -- File names ---------------------------------------------------------------------------
@@ -171,7 +180,10 @@ def tags_supported(cfg):
 
 
 def tag_for(line, delivery):
-    """The most specific entry wins: E2_Before_A, then E2_Before, then "*". "" means none."""
+    """A tag written in the script wins. Then delivery.json, most specific first:
+    E2_Before_A, then E2_Before, then "*". "" means none."""
+    if getattr(line, "tag", ""):
+        return line.tag
     for k in (line.key, line.id, "*"):
         if k in delivery:
             return delivery[k].strip()

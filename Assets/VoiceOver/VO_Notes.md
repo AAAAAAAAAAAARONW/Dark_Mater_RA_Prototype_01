@@ -23,6 +23,7 @@ Both tools read `VO_Script_v7.md`: Unity's **Import Script** (`VoiceOverTableToo
 - Every line is a row of a four-column table: `| ID | When | Line | ≈ |`. Headings, prose and header rows are ignored, so sections and notes between tables are free.
 - **ID** is the line id and the start of its file name. `N_` makes it a button prompt (a nudge in Unity). The Unity beat is the id without `N_` (`N_A1` → beat A1, `N_Pause` → the pause, `Ending` → the ending).
 - **When** is free text. `Cue 0.5 s` in it sets the beat's narration delay in Unity, on a beat that is new to the table.
+- **Line** starts with its ElevenLabs delivery tag, e.g. `[warmly] Welcome to …`. The generator sends the tag; Unity's Import Script strips it. A line with no tag falls back to `Tools~/delivery.json` (default `[calmly]`).
 - **≈** is the read time in seconds.
 - Change markers like `[v6]` are stripped if they turn up, but the script no longer uses them: changes are logged here instead.
 
@@ -114,17 +115,21 @@ J4b plays straight after J4. The journey stays slow while it is said, then speed
 
 ### Redshift demo (second cosmic web, z ≈ 0.8)
 
-Three lines over the 6 s replay and the 12 marked lines, about 29 s in all. J6_3 only says that the clouds have cut lines, each stretched differently; it no longer names the forest (6 November).
+Three lines over the 6 s replay and the 12 marked lines, about 40 s in all. **21 November:** J6_3 names the forest again, here, over the whole pattern: Lyman, who he was, and why "forest". "Alpha" is not explained (it would add about 4 s). J6_3 grows from 7 s to about 18 s, so the second cosmic web has to hold the pattern on screen that much longer.
 
-### The forest, at the telescope (6 November)
+### The forest, at the telescope (6 November, superseded 21 November)
 
-The forest is named and explained at the end, when the light reaches the telescope and the barcode of lines fills the screen (Earth step 4d): J9, then **J9b** (the name: Lyman, alpha and forest, each explained), then **J6_4** (what the lines are worth), then Closing. Naming the forest where astronomers actually read it ties the name to the picture of the whole pattern. J6_4 keeps its ID and file, so it needs no re-record, only rewiring. J9 + J9b + J6_4 is about 38 s before Closing; step 4d has to hold the barcode that long.
+On 6 November the forest's name moved to the end as J9b (Lyman, alpha and forest). On 21 November it moved back into J6_3, and J9b was cut; it had never been recorded or wired. The telescope now plays J9, then the map with **J6_4**, then Closing.
+
+### Arrival: the Magellan Telescopes (21 November)
+
+The light ends at the twin 6.5 m Magellan Telescopes (Baade and Clay), Carnegie's telescopes at Las Campanas Observatory, about 2,400 m up in Chile's Atacama Desert (29.01° S, 70.69° W). J9 names the place. The scene matches since 21 Nov: Tools > Journey NEW > Las Campanas > Move the Ending to Las Campanas puts the arrival on the Magellan telescope (LCO's model), and the light runs through its optics to the instrument.
 
 ### The dark matter map, at the telescope (15 November)
 
 The end of the journey has one science beat, over J6_4: the spectrum lifts, each line drops a thread to the light's path drawn beneath it, a small cloud of gas appears where it lands, then a faint haze (the dark matter) fades in around the gas, densest where the lines crowd. `DarkMatterMap_NEW`, started by `EarthEnding_NEW` once the spectrum has grown; Closing follows it. A fuller explainer (the atom, the stretch, the formula) was tried in a storyboard and dropped as too much: the one idea the ending keeps is that the forest is a map of the dark matter along the path.
 
-- The lines are the bake's: the deepest dips in the arrival frame's Lyman-alpha transmission, on the bar as drawn after the arrival zoom. On that window (emitted 1000–1350 Å) they are gas at z ≈ 2.8–3.6, the first stretch of the journey, near the quasar. So the path shows the quasar under its own Lyman-alpha peak and the way toward Earth off the left edge ("← toward Earth"), not Earth itself; the line says "along your path", not "from home to the quasar".
+- The lines are the bake's: the deepest dips in the arrival frame's Lyman-alpha transmission, on the bar as drawn after the arrival zoom. On that window (emitted 1000–1350 Å) they are gas at z ≈ 2.8–3.6, the first stretch of the journey, near the quasar. So the path shows the quasar under its own Lyman-alpha peak and the way toward Earth off the left edge (labelled just "Earth", though Earth itself is far beyond); the line says "along your path", not "from home to the quasar".
 - Why J6_4 changed: "Maps of galaxies show only where stars shine" gave the forest's value without the picture. The new line says what the picture shows. Same ID and file, so re-recording replaces it in place.
 
 ## 4 · Science checks
@@ -160,9 +165,10 @@ The end of the journey has one science beat, over J6_4: the spectrum lifts, each
 
 **The forest**
 
-- **"Lyman, after Theodore Lyman, who first measured this line of hydrogen" (J9b).** Lyman found hydrogen's ultraviolet series at Harvard (1906 to 1914); Lyman-alpha is its first line, at 121.6 nm.
-- **"Alpha, because it is the strongest line in its family" (J9b).** Alpha marks the first line of the Lyman series (n = 2 → 1), which is also its strongest. "Strongest" is the version for visitors; "first" is the exact meaning of the letter.
-- **"Forest, because the lines crowd together like trees" (J9b).** The name describes how the spectrum looks: many narrow absorption lines packed blueward of the quasar's Lyman-alpha peak. Said plainly, so nobody guesses tree rings (§1).
+- **"After Theodore Lyman, the physicist who first measured this line of hydrogen" (J6_3).** Lyman found hydrogen's ultraviolet series at Harvard (1906 to 1914); Lyman-alpha is its first line, at 121.6 nm.
+- **"Alpha" (not said since 21 November).** Alpha marks the first line of the Lyman series (n = 2 → 1), which is also its strongest. If it comes back: "Alpha, because it is the strongest line in its family."
+- **"A forest, because so many lines crowd together, like trees" (J6_3).** The name describes how the spectrum looks: many narrow absorption lines packed blueward of the quasar's Lyman-alpha peak. Said plainly, so nobody guesses tree rings (§1).
+- **"High in the mountains of Chile … Las Campanas … the Magellan Telescopes" (J9).** Las Campanas is at about 2,400 m in the Atacama; the two Magellan telescopes are 6.5 m each. Their MIKE spectrograph records high-resolution quasar spectra, the Lyman-alpha forest among them.
 - **"Gas gathers where dark matter is … your light has mapped the dark matter" (J6_4, 15 Nov).** The forest traces the diffuse gas, and on large scales that gas follows the dark matter (it is used to map the cosmic web, e.g. Lyman-alpha forest tomography). "Mapped along its way" is one sightline, a 1D map, which is what the picture draws. The haze's strands are drawn; only where it is dense comes from the bake.
 - **Superseded 15 Nov: "Maps of galaxies show only where stars shine" (J6_4).** A simplification of the scientists' point: galaxy surveys trace light from stars in the densest regions, while the forest traces diffuse gas through more of the volume.
 - **"Cut lines into your light" (J6_3).** After z ≈ 2.46 the drawn Lyα lines are not in the light that reaches Earth (LAF & Redshift, open questions). J6 says "cut lines into your light", not "in the light that reaches Earth". Keep it that way.
@@ -213,8 +219,11 @@ The whole set is re-recorded in the female voice after the scientists' pass, so 
 | J6_4 | `J6_4` | 15 Nov: rewritten for the dark matter map. **Re-record with `elevenlabs_vo.py --only J6_4`** (not `generate --go`) |
 | J9 | `J9_Earth` | tree rings cut |
 | J6_3 | `J6_3_Forest` | 6 Nov: shortened, the forest is named at the telescope instead |
-| J9b | new | 6 Nov: the forest's name, all three words explained |
+| J9b | — | 6 Nov: the forest's name. **Cut 21 Nov** (never recorded) |
 | Closing | `Closing` | observations, simulations, theory; around the world |
+| J6_3 | `J6_3_Forest` | 21 Nov: the forest's name and "forest" explained, back here. **Re-record** |
+| J9 | `J9_Earth` | 21 Nov: arrives at the Magellan Telescopes, Las Campanas, Chile. **Re-record** |
+| (all) | — | 21 Nov: every line has its own delivery tag, written at the start of the line in the script. The 32 lines whose tag changed are regenerated with the next `generate` |
 
 ## 7 · Status in Unity
 
@@ -223,7 +232,7 @@ Done: every tutorial beat has a VO slot (narration plus prompt). One player queu
 To do:
 
 - Swap D6 and D7 in the tutorial builder (redshift first).
-- Give the redshift demo a fourth slot for J6_4. **Superseded 6 November:** J6_4 moves to the telescope. **Done 15 November** for J6_4: the voice-over builder takes it off `F6` (F6 back to 10.3 s) and gives it to `DarkMatterMap_NEW`; Closing follows the map. J9b is still not recorded or wired.
+- Give the redshift demo a fourth slot for J6_4. **Superseded 6 November:** J6_4 moves to the telescope. **Done 15 November** for J6_4: the voice-over builder takes it off `F6` (F6 back to 10.3 s) and gives it to `DarkMatterMap_NEW`; Closing follows the map. J9b was cut on 21 November.
 - Re-import the script in Unity (**Import Script**). The tutorial table still holds the v2 text for D4, D6, D8 ("a single atom"); nobody sees it (no subtitles), but its re-record flags depend on it.
 - The two cards in §5.
 
@@ -234,6 +243,14 @@ To do:
 3. **Prompts at all?** The `N_` lines are for discussion with the team (§3).
 
 ## 9 · Feedback log
+
+### 21 November · forest back in J6_3, Chile arrival, tags
+
+| Note | What changed |
+| --- | --- |
+| J6_3: name the Lyman-alpha forest and explain "forest" | J6_3 names it, says who Lyman was and why "forest". J9b cut (§3). |
+| The arrival is the Magellan Telescopes at Las Campanas, Chile | J9 rewritten (§3). The scene's endpoint still has to move. |
+| A delivery tag on every line for ElevenLabs, in the script so it can be pasted as is | Each line starts with its tag. `elevenlabs_vo.py` reads it from there; Unity's Import Script strips it (§2). |
 
 ### 15 November · the ending's science beat
 
