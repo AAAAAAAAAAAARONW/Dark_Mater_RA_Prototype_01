@@ -22,6 +22,7 @@ Shader "Custom/PhotonTrailHalo_NEW"
         _Hollow    ("Trail share of width (set by script)", Range(0, 1)) = 0.38
         _Inside    ("Left over the trail", Range(0, 1)) = 0.25
         _Beam      ("Beam (set by script)", Float) = 1
+        _HeadFade  ("Head fade, share of length (set by script)", Float) = 0
         [Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull", Float) = 2
     }
     SubShader
@@ -43,6 +44,7 @@ Shader "Custom/PhotonTrailHalo_NEW"
             float  _Hollow;
             float  _Inside;
             float  _Beam;
+            float  _HeadFade;
 
             struct appdata { float4 vertex : POSITION; float2 uv : TEXCOORD0; float4 color : COLOR; float3 normal : NORMAL; };
             struct v2f     { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; float4 color : COLOR; float c : TEXCOORD1; };
@@ -71,6 +73,7 @@ Shader "Custom/PhotonTrailHalo_NEW"
                 float g     = exp(-c * c * 3.0) * smoothstep(1.0, 0.7, c);
                 float off   = lerp(_Inside, 1.0, smoothstep(_Hollow * 0.6, _Hollow * 1.05, c));
                 float tail  = pow(saturate(1.0 - i.uv.x), 1.3);
+                tail *= _HeadFade > 0.0001 ? smoothstep(0.0, _HeadFade, i.uv.x) : 1.0;   // soft at the head
                 float alpha = g * off * tail * i.color.a * _Intensity;
                 return fixed4(_Color.rgb, saturate(alpha));
             }

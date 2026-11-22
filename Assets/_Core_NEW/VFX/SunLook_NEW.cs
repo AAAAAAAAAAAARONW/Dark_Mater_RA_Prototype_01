@@ -2,9 +2,9 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// The Sun, drawn after NASA's SDO pictures of it in extreme ultraviolet — an orange disc
+/// The Sun, drawn after NASA's SDO pictures of it in extreme ultraviolet — a red disc
 /// mottled by the chromosphere's network, crossed by dark filaments, with bright active
-/// regions; a fuzzy edge of spicules and a few loops standing on the limb; a soft orange glow
+/// regions; a fuzzy edge of spicules and a few loops standing on the limb; a faint red glow
 /// — but softer and less busy than the pictures. Resources/SunSurface_NEW.shader draws the
 /// disc, SunGlow_NEW what is round it.
 ///
@@ -24,6 +24,10 @@ using UnityEngine;
 /// The regions are worked out here, in world space, and handed to both shaders, so the
 /// patches on the disc and the loops at the limb are the same regions.
 ///
+/// Its colours are one ramp, measured from NASA's picture (Resources/SunRamp_NEW.cginc): the
+/// disc mostly red, orange and amber only in its brightest tenth, never white; the glow faint
+/// and dark red. Brightness is what the settings here move; colour follows from it.
+///
 /// 21 Nov: it was SunWhiteLight_NEW, the Sun as a filtered telescope shows it — white, limb
 /// darkened, granulated, spotted. Too bright in the journey, and the spots read as grey
 /// bubbles; the settings were renamed with the change of look, so the new defaults apply.
@@ -35,13 +39,14 @@ using UnityEngine;
 public class SunLook_NEW : MonoBehaviour
 {
     [Header("Disc")]
-    [SerializeField] Color coolGas = new Color(0.42f, 0.1f, 0.02f, 1f);
-    [SerializeField] Color hotGas = new Color(1f, 0.6f, 0.18f, 1f);
     [Range(0.3f, 2f)] [SerializeField] float brightness = 1f;
     [Tooltip("A slow flow dragging the surface about, so it moves like gas.")]
     [Range(0f, 1f)] [SerializeField] float flow = 0.5f;
     [Tooltip("The chromosphere's mottling: bright along the edges of convection cells.")]
     [Range(0f, 1f)] [SerializeField] float network = 0.8f;
+    [Tooltip("How far the disc's brightness spreads from its median. At 2.1 its darkest and " +
+             "brightest tenths fall where NASA's picture's do.")]
+    [Range(0.5f, 3f)] [SerializeField] float contrast = 2.1f;
     [Tooltip("Cells across the Sun's radius.")]
     [Range(4f, 60f)] [SerializeField] float cellScale = 14f;
     [Tooltip("Thin dark threads across the disc.")]
@@ -53,16 +58,11 @@ public class SunLook_NEW : MonoBehaviour
     [Range(0f, 4f)] [SerializeField] float regionGlow = 1.2f;
     [Tooltip("Even across the disc, brighter towards the edge, as in the ultraviolet.")]
     [Range(0f, 2f)] [SerializeField] float limbBrightening = 0.9f;
-    [Tooltip("The colour the disc goes towards the limb.")]
-    [SerializeField] Color limbColour = new Color(1f, 0.42f, 0.1f, 1f);
-    [Tooltip("Redder towards the middle of the disc, as in NASA's simulations; the active regions keep their colour.")]
-    [Range(0f, 1f)] [SerializeField] float centreRed = 0.6f;
     [Tooltip("How fast the Sun turns, radians a second, carrying the active regions - and their " +
              "loops - round. The real Sun: 0.0000027.")]
     [SerializeField] float turnSpeed = 0.01f;
 
     [Header("Round it")]
-    [SerializeField] Color glowColour = new Color(1f, 0.42f, 0.12f, 1f);
     [Range(0f, 2f)] [SerializeField] float glow = 0.6f;
     [Tooltip("How far the glow reaches, in the Sun's radii.")]
     [Range(2f, 12f)] [SerializeField] float glowExtent = 5f;
@@ -274,20 +274,16 @@ public class SunLook_NEW : MonoBehaviour
     void Apply()
     {
         if (_disc == null) return;
-        _disc.SetColor("_Cool", coolGas);
-        _disc.SetColor("_Hot", hotGas);
         _disc.SetFloat("_Brightness", brightness);
         _disc.SetFloat("_Flow", flow);
         _disc.SetFloat("_Network", network);
+        _disc.SetFloat("_Contrast", contrast);
         _disc.SetFloat("_CellScale", cellScale);
         _disc.SetFloat("_Filaments", filaments);
         _disc.SetFloat("_Active", activeRegions);
         _disc.SetFloat("_ActiveGlow", regionGlow);
         _disc.SetFloat("_LimbBright", limbBrightening);
-        _disc.SetColor("_RimColour", limbColour);
-        _disc.SetFloat("_CentreRed", centreRed);
 
-        _glow.SetColor("_Tint", glowColour);
         _glow.SetFloat("_Strength", glow);
         _glow.SetFloat("_Spicules", spicules);
         _glow.SetFloat("_Loops", limbLoops);

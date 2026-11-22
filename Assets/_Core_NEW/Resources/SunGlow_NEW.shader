@@ -14,6 +14,12 @@ Shader "Custom/SunGlow_NEW"
     //                side and down the other; they sway and swell a little; and they flare up
     //                with their region.
     //
+    // COLOUR. All three add up one brightness, turned into colour by SunRamp_NEW.cginc, the
+    // ramp measured from NASA's picture, as the disc is. In that picture there is next to no
+    // glow: a hair off the limb it is already #060100. So the glow is faint and dark red; the
+    // fringe a dim red; only the loops reach orange, and amber when their region flares.
+    // (21 Nov: it was a bright orange glow of its own colour, which the bloom turned white.)
+    //
     // The regions come from SunLook_NEW in world space (_Regions) and are put on the limb here,
     // for whichever camera is drawing — every wall of a multi-camera display sees its own.
     //
@@ -25,7 +31,6 @@ Shader "Custom/SunGlow_NEW"
     Properties
     {
         _Color ("Fade (all four channels, as WorldSwitcher_NEW sets it)", Color) = (1, 1, 1, 1)
-        _Tint ("Glow colour", Color) = (1, 0.42, 0.12, 1)
         _Strength ("Glow", Range(0, 2)) = 0.6
         _Spicules ("Fuzzy edge", Range(0, 2)) = 0.7
         _Loops ("Loops on the limb", Range(0, 2)) = 0.8
@@ -48,10 +53,11 @@ Shader "Custom/SunGlow_NEW"
             #pragma fragment frag
             #pragma target 3.0
             #include "UnityCG.cginc"
+            #include "SunRamp_NEW.cginc"
 
             #define REGIONS 6
 
-            fixed4 _Color, _Tint;
+            fixed4 _Color;
             float _Strength, _Spicules, _Loops, _LoopFlow, _MeshRadius, _Extent;
             float4 _Regions[REGIONS];       // xyz: direction from the centre, world space; w: size
             float _RegionFlare[REGIONS];    // 0 to 1
@@ -99,15 +105,15 @@ Shader "Custom/SunGlow_NEW"
 
                 // Glow, swelling a little while a region flares.
                 float streamers = 0.6 + 0.4 * sin(a * 7.0 + sin(a * 3.0 + t * 0.03) * 2.0);
-                float glow = exp(-d * 9.2) * 0.9 + exp(-d * 2.3) * 0.35 * streamers + exp(-d * 0.73) * 0.12;
-                float3 c = _Tint.rgb * glow * _Strength * (1.0 + 0.6 * saturate(flares));
+                float glow = exp(-d * 14.0) * 0.35 + exp(-d * 3.0) * 0.08 * streamers + exp(-d * 0.8) * 0.03;
+                float brightness = glow * _Strength * (1.0 + 0.6 * saturate(flares));
 
                 float outside = step(1.0, r);
 
                 // Spicules: a fringe whose height flickers along the limb.
                 float height = 0.012 + 0.03 * Noise(u * 420.0 + t * 0.6) * Noise(u * 90.0 - t * 0.2);
                 float fringe = 1.0 - smoothstep(0.0, height, d);
-                c += _Tint.rgb * 1.1 * fringe * _Spicules * outside;
+                brightness += 0.65 * fringe * _Spicules * outside;
 
                 // Loops, three to a region, where the region is on the limb.
                 float loops = 0.0;
@@ -145,10 +151,11 @@ Shader "Custom/SunGlow_NEW"
                         loops += exp(-band * band) * saturate(knots) * bright;
                     }
                 }
-                c += float3(1.0, 0.55, 0.2) * loops * _Loops * 1.4 * outside;
+                brightness += loops * _Loops * outside;
 
                 // To nothing at the quad's edge.
-                c *= 1.0 - smoothstep(_Extent * 0.75, _Extent, r);
+                brightness *= 1.0 - smoothstep(_Extent * 0.75, _Extent, r);
+                float3 c = SunRamp(brightness);
                 return fixed4(c * _Color.rgb * _Color.a, 0);
             }
             ENDCG

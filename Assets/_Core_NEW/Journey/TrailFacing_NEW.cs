@@ -65,14 +65,18 @@ public class TrailFacing_NEW : MonoBehaviour
     [SerializeField] bool flip;
 
     [Tooltip("A round beam (a tube) instead of a flat ribbon facing the camera.")]
-    [SerializeField] bool beam = true;
+    [SerializeField] bool beam = false;
 
-    [Tooltip("Vertices around the beam. 12 reads as round at the sizes the trail is seen at.")]
-    [Range(6, 24)] [SerializeField] int radialSegments = 12;
+    [Tooltip("Ribbon width, in trail widths. The soft beam fades to nothing over its outer fifth each side.")]
+    [Range(0.5f, 2f)] [SerializeField] float ribbonWidth = 1.15f;
+
+    [Tooltip("Vertices around the beam. 16 reads as round at the sizes the trail is seen at.")]
+    [Range(6, 24)] [SerializeField] int radialSegments = 16;
 
     static readonly int BeamId = Shader.PropertyToID("_Beam");
     static readonly int BeamSideId = Shader.PropertyToID("_BeamSide");
     static readonly int CullId = Shader.PropertyToID("_Cull");
+    static readonly int BeamHeadFadeId = Shader.PropertyToID("_BeamHeadFade");
 
     TrailRenderer _trail;
     PlayerRig_NEW _player;
@@ -130,6 +134,8 @@ public class TrailFacing_NEW : MonoBehaviour
 
     static void Install()
     {
+        // Vizlab_Journey only: the other journey scenes (PC_Journey, Test_Journey...) keep the trail as it was.
+        if (SceneManager.GetActiveScene().name != "Vizlab_Journey") return;
         PlayerRig_NEW player = FindObjectOfType<PlayerRig_NEW>();
         if (player == null) return;
         PhotonSpectrumTrail spectrum = player.GetComponentInChildren<PhotonSpectrumTrail>(true);
@@ -233,7 +239,7 @@ public class TrailFacing_NEW : MonoBehaviour
         }
 
         SetBeamOnMaterial(beam);
-        Build(_mesh, 1f);
+        Build(_mesh, beam ? 1f : ribbonWidth);
         _renderer.sharedMaterials = _trail.sharedMaterials;
         _trail.GetPropertyBlock(_block);
         _renderer.SetPropertyBlock(_block);
@@ -402,6 +408,9 @@ public class TrailFacing_NEW : MonoBehaviour
         mat.SetFloat(BeamId, on ? 1f : 0f);
         mat.SetFloat(BeamSideId, flip ? -1f : 1f);
         mat.SetFloat(CullId, on ? (float)UnityEngine.Rendering.CullMode.Back : (float)UnityEngine.Rendering.CullMode.Off);
+        // The tip fades in over three quarters of the beam's width, so it is soft, not a polygon.
+        float headWidth = _w.Count > 0 ? _w[0] : _trail.widthMultiplier;
+        mat.SetFloat(BeamHeadFadeId, on ? Mathf.Clamp01(0.75f * headWidth / Mathf.Max(Length, 1e-4f)) : 0f);
     }
 
     /// <summary>

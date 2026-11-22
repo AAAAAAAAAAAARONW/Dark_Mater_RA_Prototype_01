@@ -99,8 +99,26 @@ Shader "Custom/PhotonTrail"
         // worked out per vertex from the view: where this point of the tube sits, left to right,
         // across the beam as seen on screen. 0 = the usual ribbon, uv.y from the mesh.
         _Beam     ("Beam (set by script)", Float) = 0
+        // Beam brightness. The beam does not use the ribbon's emission, centre glow or UV/IR
+        // edge glow: tuned for a flat band, they piled up into a white blob down the middle
+        // and a wide violet stripe. It is the spectrum, times how thick the light is.
+        _BeamBrightness ("Beam Brightness", Range(0, 4)) = 1.0
+        // Share of the trail's length (from the head) over which the beam fades in, so its
+        // tip is soft rather than a hard polygon. Set by TrailFacing_NEW from the width.
+        _BeamHeadFade ("Beam Head Fade (set by script)", Float) = 0
         _BeamSide ("Beam Side (set by script)", Float) = 1
         [Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull", Float) = 0
+
+        // Soft beam (Vizlab_Journey, TrailLook_NEW): a soft rainbow-like light on a camera-facing
+        // ribbon. Colours from _SoftPalette (CIE-based, laid on the same wavelength axis as the
+        // spectrum texture, brightness in alpha), blurred a little across; no rim (it fades to
+        // nothing at both edges); slow drifts of brightness along the flight; narrows into the
+        // head over _SoftConverge world units; fades out close to the camera. 0 = unchanged.
+        _Soft           ("Soft Beam (set by script)", Float) = 0
+        _SoftPalette    ("Soft Beam Palette (set by script)", 2D) = "black" {}
+        _SoftBrightness ("Soft Beam Brightness", Range(0, 4)) = 1.5
+        _SoftConverge   ("Soft Beam Converge (set by script)", Float) = 1.5
+        _SoftDistance   ("Soft Beam Distance (set by script)", Float) = 0
     }
 
     SubShader
@@ -143,6 +161,7 @@ Shader "Custom/PhotonTrail"
 
             float _Beam;
             float _BeamSide;
+            float _Soft;
 
             // Beam mode: the spectrum coordinate from the view. Across the tube as seen on screen
             // is (trail direction x direction to the eye); this vertex's place on it is its
@@ -208,7 +227,7 @@ Shader "Custom/PhotonTrail"
 
             fixed4 fragBlack(v2fBlack i) : SV_Target
             {
-                if (_AbsorptionBlack <= 0.0001 || _UseAbsorptionLine < 0.5) return fixed4(0, 0, 0, 0);
+                if (_Soft > 0.5 || _AbsorptionBlack <= 0.0001 || _UseAbsorptionLine < 0.5) return fixed4(0, 0, 0, 0);
 
                 float2 uv = i.uv;
                 float specT = frac(((1.0 - uv.y) + _SpectrumOffset) * _SpectrumScale);
@@ -243,6 +262,11 @@ Shader "Custom/PhotonTrail"
                 {
                     float c = abs(uv.y - 0.5) * 2.0;
                     edgeFade = lerp(edgeFade, exp(-pow(c, 2.4) * 2.4) * smoothstep(1.0, 0.85, c), _Tube);
+                    if (_Beam > 0.5)
+                    {
+                        float thick = sqrt(saturate(1.0 - c * c));
+                        edgeFade = thick * smoothstep(0.0, 0.35, thick);
+                    }
                 }
 
                 float endFade = saturate((1.0 - uv.x) / max(_EndFadeWidth, 0.0001));
@@ -275,6 +299,7 @@ Shader "Custom/PhotonTrail"
 
             float _Beam;
             float _BeamSide;
+            float _Soft;
 
             // Beam mode: the spectrum coordinate from the view. Across the tube as seen on screen
             // is (trail direction x direction to the eye); this vertex's place on it is its
@@ -345,6 +370,12 @@ Shader "Custom/PhotonTrail"
             float  _FlowSpeed;
             float  _TrailLength;
             float  _FlowDistance;
+            float  _BeamBrightness;
+            sampler2D _SoftPalette;
+            float  _SoftBrightness;
+            float  _SoftConverge;
+            float  _SoftDistance;
+            float  _BeamHeadFade;
 
             // The tube's edge: a gaussian, taken to exactly zero at the rim.
             float TubeEdge(float c) { return exp(-pow(c, 2.4) * 2.4) * smoothstep(1.0, 0.85, c); }
@@ -360,9 +391,10 @@ Shader "Custom/PhotonTrail"
 
             struct v2f
             {
-                float4 pos    : SV_POSITION;
-                float2 uv     : TEXCOORD0;
-                float4 color  : COLOR;
+                float4 pos     : SV_POSITION;
+                float2 uv      : TEXCOORD0;
+                float4 color   : COLOR;
+                float  camDist : TEXCOORD1;
             };
 
             float hash(float2 p)
@@ -390,11 +422,55 @@ Shader "Custom/PhotonTrail"
                 o.uv    = TRANSFORM_TEX(v.uv, _MainTex);
                 if (_Beam > 0.5) o.uv.y = BeamV(v.vertex, v.normal, v.tangent);
                 o.color = v.color;
+                o.camDist = distance(_WorldSpaceCameraPos, mul(unity_ObjectToWorld, v.vertex).xyz);
                 return o;
+            }
+
+            // The spectrum-texture coordinate for place t across the ribbon (mirroring included).
+            float SpecT(float t) { return frac(((1.0 - t) + _SpectrumOffset) * _SpectrumScale); }
+
+            fixed4 SoftBeam(v2f i)
+            {
+                float2 uv = i.uv;
+                float fromHead = uv.x * _TrailLength;
+                float spread = max(sqrt(saturate(fromHead / max(_SoftConverge, 0.001))), 0.03);
+                float v = (uv.y - 0.5) / spread + 0.5;                       // place across the light
+                if (v <= 0.0 || v >= 1.0) return fixed4(0, 0, 0, 0);
+
+                // Colour, blurred a little across so neighbouring colours melt into each other.
+                float3 col = 0; float wsum = 0;
+                for (int k = -3; k <= 3; k++)
+                {
+                    float w = exp(-(k * k) / 4.5);
+                    float4 p = tex2Dlod(_SoftPalette, float4(SpecT(saturate(v + k * 0.012)), 0.5, 0, 0));
+                    col += p.rgb * p.a * w; wsum += w;
+                }
+                col /= wsum;
+
+                // Absorbed wavelengths give no light: soft dark gaps, as on the bar.
+                float ab = 0;
+                if (_UseAbsorptionLine > 0.5)
+                {
+                    float st = SpecT(v), d = max(_AbsorptionLineSpread * 0.5, 0.002);
+                    ab = max(tex2Dlod(_AbsorptionLineTex, float4(st, 0.5, 0, 0)).r,
+                             0.6 * max(tex2Dlod(_AbsorptionLineTex, float4(st - d, 0.5, 0, 0)).r,
+                                       tex2Dlod(_AbsorptionLineTex, float4(st + d, 0.5, 0, 0)).r));
+                    ab = lerp(ab, smoothstep(0.06, 0.22, ab), _AbsorptionLineHardness);
+                    ab = saturate(ab * _AbsorptionLineStrength);
+                }
+
+                float edge  = smoothstep(0.0, 0.2, v) * smoothstep(1.0, 0.8, v);   // no rim
+                float c     = abs(uv.y - 0.5) * 2.0;
+                float body  = lerp(0.65, 1.0, sqrt(saturate(1.0 - c * c)));        // a round beam
+                float s     = _SoftDistance - fromHead;                            // fixed in the world
+                float drift = 0.78 + 0.22 * sin(s * 0.31416 + _Time.y * 0.35) * sin(s * 0.10472 - _Time.y * 0.21 + 1.3);
+                float fade  = pow(saturate(i.color.a), 1.1) * smoothstep(0.3, 1.4, i.camDist);
+                return fixed4(col * (1.0 - ab) * edge * body * drift * fade * _SoftBrightness, 1.0);
             }
 
             fixed4 frag(v2f i) : SV_Target
             {
+                if (_Soft > 0.5) return SoftBeam(i);
                 float2 uv = i.uv;
                 // Unity TrailRenderer UV convention:
                 //   uv.x = along the LENGTH  (0 = head, 1 = tail)
@@ -603,12 +679,30 @@ Shader "Custom/PhotonTrail"
                 // back along the trail this pixel is), drifting back. Multiplies, so an absorbed
                 // wavelength stays as dark as it was.
                 float flowAlpha = 1.0;
+                float flowMul   = 1.0;
                 if (_FlowAmount > 0.0001)
                 {
                     float s = _FlowDistance - uv.x * _TrailLength;
                     float r = sin(s * 6.28318 / max(_FlowWavelength, 0.01) + _Time.y * _FlowSpeed);
-                    col.rgb  *= 1.0 + _FlowAmount * r;
+                    flowMul   = 1.0 + _FlowAmount * r;
+                    col.rgb  *= flowMul;
                     flowAlpha = 1.0 - 0.545 * _FlowAmount * (1.0 - r);
+                }
+
+                // Beam: the spectrum at this pixel's place across the beam, times how much light
+                // the sight line passes through there (a round tube seen side on: sqrt(1 - x^2),
+                // x being the place across). Absorbed wavelengths give nothing. Nothing else.
+                if (_Beam > 0.5)
+                {
+                    float  thick = sqrt(saturate(1.0 - centreY * centreY));
+                    float3 bc    = specColor.rgb * i.color.rgb * (1.0 - absorp) * _BeamBrightness;
+                    bc += hue * visMask * _VisibleHighlight * 0.6 * (1.0 - absorp);
+                    bc += _AbsorptionOutlineColor.rgb * outline;
+                    bc *= flowMul;
+                    float tip = _BeamHeadFade > 0.0001 ? smoothstep(0.0, _BeamHeadFade, uv.x) : 1.0;
+                    // baseColor.a carries the spectrum texture's alpha: UV and IR are dim by design.
+                    float ba = thick * smoothstep(0.0, 0.35, thick) * baseColor.a * endFade * flowAlpha * tip;
+                    return fixed4(bc, saturate(max(ba, saturate(outline) * thick)));
                 }
 
                 // headClip cuts the rectangle corners into a semicircle shape

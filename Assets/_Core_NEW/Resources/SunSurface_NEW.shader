@@ -18,13 +18,14 @@ Shader "Custom/SunSurface_NEW"
     //                  (21 Nov: it was limb darkening, the white-light rule; it put a bright
     //                  spot in the middle, as if the Sun were a ball lit from the front.)
     //
-    // 21 Nov, later: redder in the middle (_CentreRed), as in NASA's simulations — the disc
-    // deep red-orange, going orange and yellow only towards the limb and in the active regions;
-    // the edge a warm orange rather than white under the bloom (_RimColour). The network finer
-    // and softer (it read as crazed glaze), the filaments thinner and fewer (one read as a worm).
-    //
-    // Colours run from _Cool (the darkest gas) to _Hot; only the active regions and flares go
-    // past 1, so the bloom picks out those and leaves the disc its texture.
+    // COLOUR. Everything here works out one brightness, and SunRamp_NEW.cginc turns it into a
+    // colour, the ramp measured from NASA's picture: near-black red in the darkest lanes, red
+    // at the median, orange and amber only in the brightest tenth; never white. The brightness
+    // is spread as the picture's is (a tenth under 0.35, half under 0.7, a tenth over 0.95).
+    // Only the active regions and flares go past 1, along the amber, for the bloom.
+    // (21 Nov, later still: it was a blend from a dark to a bright colour with too much green
+    // and blue in it — orange-brown in the middle tones and white under the bloom — and a
+    // redder middle laid on top. The network finer and softer, the filaments thinner.)
     //
     // Opaque, so planets crossing it hide it properly; the glow, the fuzzy edge and the loops
     // round it are SunGlow_NEW. _Color fades it as WorldSwitcher_NEW fades a world.
@@ -33,18 +34,15 @@ Shader "Custom/SunSurface_NEW"
     Properties
     {
         _Color ("Fade (all four channels, as WorldSwitcher_NEW sets it)", Color) = (1, 1, 1, 1)
-        _Cool ("Darkest gas", Color) = (0.42, 0.1, 0.02, 1)
-        _Hot ("Brightest gas", Color) = (1, 0.6, 0.18, 1)
         _Brightness ("Brightness", Range(0.3, 2)) = 1
         _Network ("Network mottling", Range(0, 1)) = 0.8
+        _Contrast ("Contrast", Range(0.5, 3)) = 2.1
         _CellScale ("Cells across the radius", Range(4, 60)) = 14
         _Flow ("Surface flow", Range(0, 1)) = 0.5
         _Filaments ("Dark filaments", Range(0, 1)) = 0.6
         _Active ("Active regions", Range(0, 1)) = 1
         _ActiveGlow ("Active regions' glow (over 1, for the bloom)", Range(0, 4)) = 1.2
         _LimbBright ("Brighter towards the limb", Range(0, 2)) = 0.9
-        _RimColour ("Colour towards the limb", Color) = (1, 0.42, 0.1, 1)
-        _CentreRed ("Redder towards the middle", Range(0, 1)) = 0.6
         _Turn ("How far the Sun has turned, radians (set by script)", Float) = 0
     }
 
@@ -59,11 +57,12 @@ Shader "Custom/SunSurface_NEW"
             #pragma fragment frag
             #pragma target 3.0
             #include "UnityCG.cginc"
+            #include "SunRamp_NEW.cginc"
 
             #define REGIONS 6
 
-            fixed4 _Color, _Cool, _Hot, _RimColour;
-            float _CentreRed;
+            fixed4 _Color;
+            float _Contrast;
             float _Brightness, _Network, _CellScale, _Flow, _Filaments, _Active, _ActiveGlow, _LimbBright, _Turn;
             float4 _Regions[REGIONS];       // xyz: direction from the centre, world space; w: size
             float _RegionFlare[REGIONS];    // 0 to 1
@@ -183,24 +182,23 @@ Shader "Custom/SunSurface_NEW"
                 }
                 active = saturate(active) * _Active;
 
-                float heat = 0.22 + 0.42 * lerp(0.5, net, _Network) + 0.36 * warmth;
-                heat *= 1.0 - 0.6 * filament * _Filaments;
-                heat = saturate(heat + active * (0.35 + 0.5 * net));
+                // The brightness: the network's lanes dark, its edges bright, the broad warmth
+                // over it, the filaments cut out of it.
+                // Spread about a median of 0.72 by _Contrast; at 2.1 the tenths fall where
+                // the picture's do (0.33 to 0.97).
+                float brightness = 0.72 + _Contrast * (0.55 * lerp(0.5, net, _Network) + 0.3 * warmth - 0.48);
+                brightness *= 1.0 - 0.7 * filament * _Filaments;
 
-                float3 c = lerp(_Cool.rgb, _Hot.rgb, heat);
+                // Active regions brighten to amber, their knots past 1 for the bloom; a flare, more.
+                brightness += active * (0.25 + 0.45 * net);
+                brightness += active * net * _ActiveGlow * 0.4;
+                brightness += flare * (0.6 + 0.4 * net) * 3.0;
 
-                // The active regions' knots go over 1, for the bloom; a flare, more.
-                c += _Hot.rgb * active * net * _ActiveGlow;
-                c += float3(1.0, 0.85, 0.6) * flare * (0.6 + 0.4 * net) * 3.0;
+                // A little brighter towards the limb, as in the picture (a fifth, by 0.9 of the radius).
+                brightness *= lerp(0.88, 1.0, mu);
+                brightness += _LimbBright * 0.35 * pow(1.0 - mu, 2.5) * (0.7 + 0.3 * net);
 
-                // Redder towards the middle, but for the active regions.
-                c *= lerp(float3(1, 1, 1), float3(1.0, 0.5, 0.32), _CentreRed * pow(mu, 1.2) * (1.0 - 0.7 * active));
-
-                // Brighter towards the limb, in a warm orange.
-                c *= lerp(0.85, 1.0, mu);
-                c += _RimColour.rgb * _LimbBright * pow(1.0 - mu, 2.5) * (0.7 + 0.3 * net);
-
-                c *= _Brightness;
+                float3 c = SunRamp(brightness * _Brightness);
                 return fixed4(c * _Color.rgb * _Color.a, 1.0);
             }
             ENDCG

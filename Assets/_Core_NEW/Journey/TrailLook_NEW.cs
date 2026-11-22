@@ -31,8 +31,16 @@ using UnityEngine.SceneManagement;
 [DefaultExecutionOrder(1100)]
 public class TrailLook_NEW : MonoBehaviour
 {
+    [Header("Soft beam (PhotonTrailRainbow _Soft)")]
+    [Tooltip("The soft rainbow-like beam: CIE colours on the journey's wavelength axis, no rim, narrowing into the head.")]
+    [SerializeField] bool soft = true;
+    [Tooltip("World distance, in trail widths, over which the light narrows into the head.")]
+    [Range(0.2f, 5f)] [SerializeField] float converge = 1.5f;
+    [Tooltip("Head light size as a share of the screen height (the same however close the camera is).")]
+    [Range(0.005f, 0.2f)] [SerializeField] float headScreenSize = 0.045f;
+
     [Header("A · Halo")]
-    [SerializeField] bool halo = true;
+    [SerializeField] bool halo = false;
     [Tooltip("Halo width, in trail widths.")]
     [Range(1.2f, 5f)] [SerializeField] float haloWidth = 2.6f;
     [Range(0f, 2f)] [SerializeField] float haloIntensity = 0.3f;
@@ -41,10 +49,10 @@ public class TrailLook_NEW : MonoBehaviour
     [Header("B · Head")]
     [SerializeField] bool head = true;
     [Tooltip("Diameter of the head glow, in trail widths.")]
-    [Range(0.5f, 6f)] [SerializeField] float headSize = 2.0f;
-    [Range(0f, 3f)] [SerializeField] float headIntensity = 0.6f;
+    [Range(0.5f, 6f)] [SerializeField] float headSize = 1.2f;
+    [Range(0f, 3f)] [SerializeField] float headIntensity = 0.9f;
     [Tooltip("The faint glow trailing back from the head along the ribbon.")]
-    [Range(0f, 1f)] [SerializeField] float tailGlowIntensity = 0.22f;
+    [Range(0f, 1f)] [SerializeField] float tailGlowIntensity = 0f;
     [SerializeField] Color headColor = new Color(0.67f, 0.84f, 1f, 1f);
     [Tooltip("Ribbon width at the tail, as a share of its width at the head.")]
     [Range(0.2f, 1f)] [SerializeField] float tailWidth = 0.6f;
@@ -76,6 +84,15 @@ public class TrailLook_NEW : MonoBehaviour
     static readonly int CoreFalloffId = Shader.PropertyToID("_CoreFalloff");
     static readonly int BeamId = Shader.PropertyToID("_Beam");
     static readonly int CullId = Shader.PropertyToID("_Cull");
+    static readonly int HeadFadeId = Shader.PropertyToID("_HeadFade");
+    static readonly int SoftId = Shader.PropertyToID("_Soft");
+    static readonly int SoftPaletteId = Shader.PropertyToID("_SoftPalette");
+    static readonly int SoftConvergeId = Shader.PropertyToID("_SoftConverge");
+    static readonly int SoftDistanceId = Shader.PropertyToID("_SoftDistance");
+
+    BakedSpectrumSource_NEW _source;
+    Texture2D _palette;
+    float _flown60;
 
     TrailRenderer _trail;
     TrailFacing_NEW _ribbon;
@@ -109,6 +126,8 @@ public class TrailLook_NEW : MonoBehaviour
 
     static void Install()
     {
+        // Vizlab_Journey only: the other journey scenes (PC_Journey, Test_Journey...) keep the trail as it was.
+        if (SceneManager.GetActiveScene().name != "Vizlab_Journey") return;
         PlayerRig_NEW player = FindObjectOfType<PlayerRig_NEW>();
         if (player == null) return;
         PhotonSpectrumTrail spectrum = player.GetComponentInChildren<PhotonSpectrumTrail>(true);
@@ -194,7 +213,9 @@ public class TrailLook_NEW : MonoBehaviour
         Vector3 headPos = transform.position;
         float step = (headPos - _lastHead).magnitude;
         _lastHead = headPos;
-        _flown = Mathf.Repeat(_flown + step, flowWavelength);   // only the phase matters; keeps the shader's sin precise
+        _flown = Mathf.Repeat(_flown + step, flowWavelength);
+        _flown60 = Mathf.Repeat(_flown60 + step, 60f);      // the soft beam's drifts repeat every 60 units
+        if (soft && _palette == null) BuildPalette();   // only the phase matters; keeps the shader's sin precise
 
         // TrailFacing_NEW (earlier in LateUpdate) has gathered this frame's ribbon.
         int n = _ribbon != null && _ribbon.isActiveAndEnabled ? _ribbon.Count : 0;
@@ -223,6 +244,14 @@ public class TrailLook_NEW : MonoBehaviour
             mat.SetFloat(TrailLengthId, length);
             mat.SetFloat(FlowDistanceId, _flown);
             mat.SetFloat(HeadSoftId, head ? 1f : 0f);
+            bool softOn = soft && _palette != null;
+            mat.SetFloat(SoftId, softOn ? 1f : 0f);
+            if (softOn)
+            {
+                mat.SetTexture(SoftPaletteId, _palette);
+                mat.SetFloat(SoftConvergeId, converge * width);
+                mat.SetFloat(SoftDistanceId, _flown60);
+            }
             // After PhotonSpectrumTrail's Update, which writes its own share-of-length value.
             // A beam is rounded by its own geometry (TrailFacing_NEW), so the shader's cap is put out of the way.
             if (head) mat.SetFloat(HeadWidthId, _ribbon != null && _ribbon.Beam ? 0.001f : Mathf.Clamp(capLength * width / length, 0.001f, 0.5f));
@@ -239,6 +268,7 @@ public class TrailLook_NEW : MonoBehaviour
                 bool beam = _ribbon.Beam;
                 _haloMat.SetFloat(BeamId, beam ? 1f : 0f);
                 _haloMat.SetFloat(CullId, beam ? (float)UnityEngine.Rendering.CullMode.Back : (float)UnityEngine.Rendering.CullMode.Off);
+                _haloMat.SetFloat(HeadFadeId, Mathf.Clamp01(0.5f * haloWidth * width / Mathf.Max(length, 1e-4f)));
                 _haloMat.SetColor(ColorId, haloColor);
                 _haloMat.SetFloat(IntensityId, haloIntensity);
                 _haloMat.SetFloat(HollowId, 1f / haloWidth);
@@ -256,7 +286,10 @@ public class TrailLook_NEW : MonoBehaviour
             {
                 Vector3 camF = cam.transform.forward;
                 Vector3 parentScale = transform.lossyScale;
-                float d = width * headSize;
+                // Soft beam: a small point of light, the same size on screen however near.
+                float d = soft
+                    ? Vector3.Distance(cam.transform.position, headPos) * 2f * Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad) * headScreenSize
+                    : width * headSize;
 
                 _core.position = headPos;
                 _core.rotation = cam.transform.rotation;
@@ -277,6 +310,54 @@ public class TrailLook_NEW : MonoBehaviour
             }
         }
     }
+
+    /// <summary>
+    /// The soft beam's colours, on the same axis as the spectrum texture (BakedSpectrumSource_NEW
+    /// TrailLambda): UV icy blue to violet, visible from the CIE 1931 matching functions (Wyman,
+    /// Sloan & Shirley 2013 fit), IR ember red. Brightness in alpha. As in the Photon Soft Beam page.
+    /// </summary>
+    void BuildPalette()
+    {
+        if (_source == null) _source = FindObjectOfType<BakedSpectrumSource_NEW>();
+        if (_source == null || double.IsNaN(_source.TrailLambda(0.5f))) return;
+        const int W = 512;
+        _palette = new Texture2D(W, 1, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear, name = "Soft beam palette" };
+        var px = new Color[W];
+        Color uvHi = new Color(0.62f, 0.86f, 1f), uvLo = new Color(0.58f, 0.46f, 1f), irA = new Color(0.95f, 0.22f, 0.10f), irB = new Color(0.55f, 0.05f, 0.04f);
+        for (int x = 0; x < W; x++)
+        {
+            float t = (x + 0.5f) / W;
+            double lam = _source.TrailLambda(t);
+            Color c; float br;
+            if (lam < 3900) { c = Color.Lerp(uvHi, uvLo, Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(Mathf.Log(1300f), Mathf.Log(4000f), Mathf.Log((float)lam)))); br = 0.7f; }
+            else if (lam < 4200) { float k = (float)(lam - 3900) / 300f; c = Color.Lerp(uvLo, Cie(420f), k); br = 0.7f + 0.55f * k; }
+            else if (lam <= 6900) { c = Cie((float)lam / 10f); br = 1.25f; }
+            else if (lam < 7200) { float k = (float)(lam - 6900) / 300f; c = Color.Lerp(Cie(690f), irA, k); br = 1.25f - 0.4f * k; }
+            else { c = Color.Lerp(irA, irB, Mathf.InverseLerp(7200f, 9000f, (float)lam)); br = 0.85f; }
+            br *= Mathf.SmoothStep(0f, 1f, t / 0.1f);                     // far-UV margin
+            br *= 1f - 0.75f * Mathf.SmoothStep(0f, 1f, (t - 0.93f) / 0.07f);
+            c.a = Mathf.Clamp01(br / 1.25f);                              // shader: rgb * a; brightness 1.25 at most
+            px[x] = c;
+        }
+        _palette.SetPixels(px);
+        _palette.Apply(false);
+    }
+
+    static float G(float x, float mu, float s1, float s2) { float d = (x - mu) / (x < mu ? s1 : s2); return Mathf.Exp(-0.5f * d * d); }
+
+    /// <summary>Visible colour at nm from the CIE 1931 2° functions, out-of-gamut lifted with white, max channel 1, sRGB.</summary>
+    static Color Cie(float nm)
+    {
+        float X = 1.056f * G(nm, 599.8f, 37.9f, 31.0f) + 0.362f * G(nm, 442.0f, 16.0f, 26.7f) - 0.065f * G(nm, 501.1f, 20.4f, 26.2f);
+        float Y = 0.821f * G(nm, 568.8f, 46.9f, 40.5f) + 0.286f * G(nm, 530.9f, 16.3f, 31.1f);
+        float Z = 1.217f * G(nm, 437.0f, 11.8f, 36.0f) + 0.681f * G(nm, 459.0f, 26.0f, 13.8f);
+        float r = 3.2406f * X - 1.5372f * Y - 0.4986f * Z, g = -0.9689f * X + 1.8758f * Y + 0.0415f * Z, b = 0.0557f * X - 0.2040f * Y + 1.0570f * Z;
+        float m = Mathf.Min(r, Mathf.Min(g, b)); if (m < 0f) { r -= m; g -= m; b -= m; }
+        float M = Mathf.Max(1e-6f, Mathf.Max(r, Mathf.Max(g, b)));
+        return new Color(Enc(r / M), Enc(g / M), Enc(b / M), 1f);
+    }
+
+    static float Enc(float c) { return c <= 0.0031308f ? 12.92f * c : 1.055f * Mathf.Pow(c, 1f / 2.4f) - 0.055f; }
 
     static Vector3 Divide(Vector3 a, Vector3 b)
     {
@@ -311,6 +392,7 @@ public class TrailLook_NEW : MonoBehaviour
         if (_coreMat != null) Destroy(_coreMat);
         if (_tailMat != null) Destroy(_tailMat);
         if (_quad != null) Destroy(_quad);
+        if (_palette != null) Destroy(_palette);
         if (_haloMesh != null) Destroy(_haloMesh);
     }
 }

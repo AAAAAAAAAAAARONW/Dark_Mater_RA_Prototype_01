@@ -1232,6 +1232,13 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
         return _segLn[4];
     }
 
+    /// <summary>
+    /// The wavelength (Å) at place t (0–1) across the trail's spectrum texture, on the axis this
+    /// source lays the trail out on. NaN until the bake is loaded. TrailLook_NEW colours its own
+    /// soft-beam palette with it, so the colours sit on the same wavelengths as the lines.
+    /// </summary>
+    public double TrailLambda(float t) { return _data != null ? Math.Exp(TrailLn(t)) : double.NaN; }
+
     /// <summary>True if the ribbon's wavelengths run the other way across it.</summary>
     public bool TrailMirrored { get { return trailMirrored; } }
 
