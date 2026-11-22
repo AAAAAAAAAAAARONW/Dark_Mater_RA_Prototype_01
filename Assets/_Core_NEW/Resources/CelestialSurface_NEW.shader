@@ -263,6 +263,9 @@ Shader "Custom/CelestialSurface_NEW"
                 // The fill: brightest face on, falling off towards the limb; on the night side
                 // most, but on the day side too, a little.
                 float fill = (0.45 + 0.55 * mu) * (1.0 - 0.45 * day);
+                // In front of the Sun the fill goes: a planet crossing it is a black disc with
+                // its air lit round the edge, as in a transit, not a grey cut-out (22 Nov).
+                fill *= lerp(1.0, 0.12, smoothstep(0.9, 0.995, dot(l, -v)));
                 float3 dark = (_Night.rgb + _Fill.rgb * fill) * albedo;
 
                 // The night from the map, where there is one: on the night side it is the
@@ -327,7 +330,9 @@ Shader "Custom/CelestialSurface_NEW"
                 // giants look from beyond them. Nothing for a world without air (_BackLight black).
                 // (21 Nov: it was the sixth power of 1 - mu, a pixel wide at the journey's
                 // distances and never seen. Now it is a crescent a sixth of the radius deep.)
-                float behind = smoothstep(-0.2, 0.9, dot(l, -v));
+                // (22 Nov: from -0.2, so a planet lit from the side, as the journey mostly sees
+                // them, had next to none; now a side-lit one has a clear crescent of it.)
+                float behind = smoothstep(-0.55, 0.85, dot(l, -v));
                 float edge = pow(1.0 - mu, 2.5);
                 float sunward = smoothstep(-0.6, 0.4, dot(nSmooth, l));
                 lit += _BackLight.rgb * 2.0 * edge * behind * sunward;

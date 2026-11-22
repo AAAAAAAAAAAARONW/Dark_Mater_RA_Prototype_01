@@ -23,6 +23,8 @@ Shader "Custom/PhotonTrailHalo_NEW"
         _Inside    ("Left over the trail", Range(0, 1)) = 0.25
         _Beam      ("Beam (set by script)", Float) = 1
         _HeadFade  ("Head fade, share of length (set by script)", Float) = 0
+        // Soft beam: no hollow, a gaussian all the way across, fading close to the camera.
+        _Soft      ("Soft (set by script)", Float) = 0
         [Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull", Float) = 2
     }
     SubShader
@@ -45,9 +47,10 @@ Shader "Custom/PhotonTrailHalo_NEW"
             float  _Inside;
             float  _Beam;
             float  _HeadFade;
+            float  _Soft;
 
             struct appdata { float4 vertex : POSITION; float2 uv : TEXCOORD0; float4 color : COLOR; float3 normal : NORMAL; };
-            struct v2f     { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; float4 color : COLOR; float c : TEXCOORD1; };
+            struct v2f     { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; float4 color : COLOR; float c : TEXCOORD1; float camDist : TEXCOORD2; };
 
             v2f vert(appdata v)
             {
@@ -64,6 +67,7 @@ Shader "Custom/PhotonTrailHalo_NEW"
                     o.c = sqrt(saturate(1.0 - ndv * ndv));
                 }
                 else o.c = abs(v.uv.y - 0.5) * 2.0;
+                o.camDist = distance(_WorldSpaceCameraPos, mul(unity_ObjectToWorld, v.vertex).xyz);
                 return o;
             }
 
@@ -71,7 +75,8 @@ Shader "Custom/PhotonTrailHalo_NEW"
             {
                 float c     = saturate(i.c);
                 float g     = exp(-c * c * 3.0) * smoothstep(1.0, 0.7, c);
-                float off   = lerp(_Inside, 1.0, smoothstep(_Hollow * 0.6, _Hollow * 1.05, c));
+                float off   = _Soft > 0.5 ? smoothstep(0.3, 2.0, i.camDist)
+                                          : lerp(_Inside, 1.0, smoothstep(_Hollow * 0.6, _Hollow * 1.05, c));
                 float tail  = pow(saturate(1.0 - i.uv.x), 1.3);
                 tail *= _HeadFade > 0.0001 ? smoothstep(0.0, _HeadFade, i.uv.x) : 1.0;   // soft at the head
                 float alpha = g * off * tail * i.color.a * _Intensity;

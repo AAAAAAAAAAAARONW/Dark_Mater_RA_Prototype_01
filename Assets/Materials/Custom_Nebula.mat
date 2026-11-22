@@ -22,6 +22,7 @@ Material:
     m_Floats:
     - _Animate: 1
     - _Density: 0.6
+    - _MilkyWay: 0
     - _Octaves: 5
     - _Persistence: 0.2
     - _Scale: 1
@@ -44,3 +45,5 @@ Material:
     - _ColorDark: {r: 0.08, g: 0.02, b: 0.18, a: 1}
     - _ColorMid: {r: 0.3, g: 0.15, b: 0.5, a: 1}
     - _ColorStar: {r: 0.9871661, g: 1, b: 0.6132076, a: 1}
+    - _MilkyWayColor: {r: 0.16, g: 0.15, b: 0.14, a: 1}
+    - _MilkyWayPole: {r: 0, g: 0.5, b: 0.866, a: 0}

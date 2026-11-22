@@ -116,4 +116,79 @@ public static class LasCampanasMenu_NEW
         EditorSceneManager.MarkSceneDirty(summit.gameObject.scene);
         return true;
     }
+
+    // ── Textures ────────────────────────────────────────────────────────────
+
+    const string Textures = "Assets/_Core_NEW/Assets/Texture/";
+
+    // (EarthSummit_NEW field, path): colours, then their normal maps.
+    static readonly string[,] Colours =
+    {
+        { "gravel", Textures + "rocky_gravel_4k.blend/textures/rocky_gravel_diff_4k.jpg" },
+        { "rockFace", Textures + "rock_face_4k.blend/textures/rock_face_diff_4k.jpg" },
+        { "steel", Textures + "Metal038_1K-PNG/Metal038_1K-PNG_Color.png" },
+    };
+    static readonly string[,] Normals =
+    {
+        { "gravelNormal", Textures + "rocky_gravel_4k.blend/textures/rocky_gravel_nor_gl_4k.exr" },
+        { "rockFaceNormal", Textures + "rock_face_4k.blend/textures/rock_face_nor_gl_4k.exr" },
+        { "steelNormal", Textures + "Metal038_1K-PNG/Metal038_1K-PNG_NormalGL.png" },
+    };
+
+    /// <summary>
+    /// Tools > Journey NEW > Las Campanas > Set Up Textures: the gravel, rock face and steel in
+    /// Assets/_Core_NEW/Assets/Texture imported as the summit wants them (colours as colour,
+    /// the OpenGL normal maps as normal maps, all at most 2048 and repeating), and set on the
+    /// open scene's EarthSummit_NEW. Save the scene to keep it.
+    /// </summary>
+    [MenuItem(Root + "Set Up Textures")]
+    static void SetUpTextures()
+    {
+        var summit = Object.FindObjectOfType<EarthSummit_NEW>();
+        var so = summit != null ? new SerializedObject(summit) : null;
+        int done = 0;
+        for (int i = 0; i < Colours.GetLength(0); i++) done += SetUp(so, Colours[i, 0], Colours[i, 1], false) ? 1 : 0;
+        for (int i = 0; i < Normals.GetLength(0); i++) done += SetUp(so, Normals[i, 0], Normals[i, 1], true) ? 1 : 0;
+        if (so != null)
+        {
+            so.ApplyModifiedProperties();
+            EditorSceneManager.MarkSceneDirty(summit.gameObject.scene);
+        }
+        Debug.Log("Journey NEW: " + done + " of 6 summit textures set up" +
+                  (summit != null ? " and set on EarthSummit_NEW. Save the scene to keep it." : "; no EarthSummit_NEW in the open scene to set them on."));
+    }
+
+    static bool SetUp(SerializedObject summit, string field, string path, bool normal)
+    {
+        var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+        if (importer == null)
+        {
+            Debug.LogWarning("Journey NEW: no texture at " + path + ".");
+            return false;
+        }
+        bool changed = false;
+        TextureImporterType type = normal ? TextureImporterType.NormalMap : TextureImporterType.Default;
+        if (importer.textureType != type) { importer.textureType = type; changed = true; }
+        if (importer.sRGBTexture == normal) { importer.sRGBTexture = !normal; changed = true; }
+        if (importer.maxTextureSize != 2048) { importer.maxTextureSize = 2048; changed = true; }
+        if (importer.wrapMode != TextureWrapMode.Repeat) { importer.wrapMode = TextureWrapMode.Repeat; changed = true; }
+        if (!importer.mipmapEnabled) { importer.mipmapEnabled = true; changed = true; }
+        if (importer.anisoLevel < 4) { importer.anisoLevel = 4; changed = true; }
+        if (importer.textureCompression != TextureImporterCompression.Compressed)
+        {
+            importer.textureCompression = TextureImporterCompression.Compressed;
+            changed = true;
+        }
+        if (changed) importer.SaveAndReimport();
+
+        if (summit != null)
+        {
+            SerializedProperty prop = summit.FindProperty(field);
+            if (prop != null) prop.objectReferenceValue = AssetDatabase.LoadAssetAtPath<Texture>(path);
+        }
+        return true;
+    }
+
+    [MenuItem(Root + "Set Up Textures", true)]
+    static bool CanSetUp() => !EditorApplication.isPlaying;
 }

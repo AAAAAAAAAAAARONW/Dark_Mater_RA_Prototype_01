@@ -47,8 +47,13 @@ public class JourneyTrackerHUD_NEW : MonoBehaviour
     [Tooltip("Remaining distance, in the green tab at the bottom right.")]
     [SerializeField] TMP_Text distanceText;
 
-    [Header("Stations (one per tracker phase, Quasar first)")]
+    [Header("Stations (one per tracker phase from First Phase on)")]
     [SerializeField] StationArt[] stations = new StationArt[7];
+
+    [Tooltip("The tracker phase the first station stands for. 1 = Cosmic Web: the travel " +
+             "tracker art has six ticks and starts after the quasar. While the journey is " +
+             "still in an earlier phase every node is ahead and the line has not started.")]
+    [SerializeField] int firstPhase = 0;
 
     [Header("Background layout (fractions of JourneyTracker_BG.png, from its top-left)")]
     [Tooltip("x of the first tick's centre. 284.5 / 5605.")]
@@ -63,8 +68,9 @@ public class JourneyTrackerHUD_NEW : MonoBehaviour
     [Tooltip("Gradient line thickness. The drawn line is 12 / 605.")]
     [SerializeField] float lineThickness = 0.02314f;
 
-    [Tooltip("Width of the background image in pixels, to scale the node and arrow images " +
-             "the same as the background.")]
+    [Tooltip("The background width, in pixels, that the node and arrow images were drawn " +
+             "against (5605, the first tracker background), so they keep their size on the bar " +
+             "whatever resolution the background itself is exported at.")]
     [SerializeField] float backgroundPixelWidth = 5605f;
 
     [Tooltip("Where in a node image its circle's centre is, as a pivot (0,0 = bottom-left). " +
@@ -181,7 +187,7 @@ public class JourneyTrackerHUD_NEW : MonoBehaviour
         _nodes = new Image[StationCount];
         for (int i = 0; i < StationCount; i++)
         {
-            var go = new GameObject("Node_" + (UniverseJourneyTracker.JourneyPhase)i,
+            var go = new GameObject("Node_" + (UniverseJourneyTracker.JourneyPhase)(i + firstPhase),
                                     typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
             go.layer = trackArea.gameObject.layer;
             go.transform.SetParent(trackArea, false);
@@ -248,7 +254,7 @@ public class JourneyTrackerHUD_NEW : MonoBehaviour
 
     void UpdateNodes()
     {
-        int current = (int)tracker.CurrentPhase;
+        int current = (int)tracker.CurrentPhase - firstPhase;
         float pulse = 1f + Mathf.Sin(Time.time * pulseSpeed) * pulseAmount;
 
         for (int i = 0; i < StationCount; i++)
@@ -296,8 +302,10 @@ public class JourneyTrackerHUD_NEW : MonoBehaviour
     void UpdateLine(bool snap)
     {
         int last = Mathf.Max(0, StationCount - 1);
-        int current = (int)tracker.CurrentPhase;
-        float target = current >= last ? last : current + Mathf.Clamp01(tracker.PhaseProgress);
+        int current = (int)tracker.CurrentPhase - firstPhase;
+        float target = current < 0 ? 0f
+                     : current >= last ? last
+                     : current + Mathf.Clamp01(tracker.PhaseProgress);
 
         _head = snap || _head < 0f || headFollowSpeed <= 0f
             ? target

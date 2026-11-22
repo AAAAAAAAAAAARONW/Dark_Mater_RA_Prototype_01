@@ -177,15 +177,16 @@ MonoBehaviour:
   secondaryToFocus: 11
   tertiaryCentre: {x: 0, y: 0, z: 0}
   focus: {x: 0, y: 0, z: 4.9}
-  rays: 18
+  rays: 12
   innerRadius: 0.45
   outerRadius: 0.9
   startAbove: 20
   speed: 7
-  tail: 6
+  tail: 4
   hold: 2.5
-  width: 0.05
-  colour: {r: 1.45, g: 1.5, b: 1.65, a: 1}
+  holdWhole: 0
+  width: 0.03
+  colour: {r: 1.05, g: 1.1, b: 1.25, a: 1}
   occluded: 0.3
   disperse: 1
   fanRays: 28

@@ -139,7 +139,7 @@ The end of the journey has one science beat, over J6_4: the spectrum lifts, each
 - **"Less than two billion years after the Big Bang" (A2, J0).** z = 3.62 → 1.74 Gyr after the Big Bang (Planck 2018). Correct.
 - **"One small region of the early universe" (A2).** The age is the same everywhere at a given moment; what we see is one place. (A first try, "in this corner … two billion years have passed", wrongly implied the age differs from place to place.)
 - **"Nearly five times" (J6_2).** 1 + z = 4.62. Correct.
-- **"Five times heavier than ordinary matter" (dark matter moment).** Dark matter to ordinary matter ≈ 5.3 : 1 (Planck 2018). Correct.
+- **"Five times more of it than ordinary matter" (dark matter moment).** Dark matter to ordinary matter ≈ 5.3 : 1 by mass (Planck 2018). Not "five times heavier": that was heard as each particle being heavier (22 Nov).
 - **"Eight minutes" (J8).** Sun–Earth light travel time is 8 min 20 s. Correct.
 - **"Half its present age" at seven billion years ago (J5).** 13.8 − 7 = 6.8 Gyr. Close enough for the read. Moved from J4 to J5 in v4, because the galaxy and the second cosmic web were both at seven billion years ago, so the same date would have been said twice.
 - **"Making stars faster every year" (J0).** At z ≈ 3.6 the universe's star-formation rate is still rising; it peaks around z ≈ 1.9 (Madau & Dickinson 2014). Correct.
@@ -159,9 +159,9 @@ The end of the journey has one science beat, over J6_4: the spectrum lifts, each
 
 - **"The largest structure in the universe" (J3).** The cosmic web is the largest known structure. Its filaments are typically tens of megaparsecs long, a hundred million light-years and more, so "hundreds of millions of light-years" holds for its threads.
 - **"Far too little gas here to pull itself into threads like these" (J3_DMoff_Before).** Ordinary matter is about one sixth of all matter, and until recombination it was held smooth by radiation. On its own it could not have collapsed into the web in the time available; dark matter's gravity had a head start, and the gas fell into it. A fair simplification.
-- **"Drawn so you can see it" (both versions).** Dark matter gives off no light. The haze on screen is a drawing, and the lines say so.
-- **"These threads are hydrogen gas" (J3b).** By mass, a filament is mostly dark matter. Its ordinary matter is gas, about three quarters hydrogen, plus the galaxies strung along it. Galaxy clusters sit at the nodes where filaments meet, not along the threads. Almost all of that hydrogen is ionized; the tiny neutral fraction (around one atom in 10⁴ to 10⁵ at z ≈ 2 to 3) is still enough to make the Lyman-alpha forest.
-- **"No stars light them" (J3b).** The gas in intergalactic filaments is mostly far from any galaxy, so it is not lit by stars; it is seen only by what it absorbs. A fair simplification. (The art draws it glowing; that is a picture, like the dark matter haze.)
+- **"Drawn so you can see it" (both versions).** Dark matter gives off no light. The haze on screen is a drawing, and the lines say so. Version B only says it from 22 Nov (J3_DMoff_After).
+- **"The gas in these threads is mostly hydrogen" (J3b, 22 Nov; was "These threads are hydrogen gas", which contradicted the dark matter lines).** By mass, a filament is mostly dark matter. Its ordinary matter is gas, about three quarters hydrogen, plus the galaxies strung along it. Galaxy clusters sit at the nodes where filaments meet, not along the threads. Almost all of that hydrogen is ionized; the tiny neutral fraction (around one atom in 10⁴ to 10⁵ at z ≈ 2 to 3) is still enough to make the Lyman-alpha forest.
+- **"No stars light it" (J3b).** The gas in intergalactic filaments is mostly far from any galaxy, so it is not lit by stars; it is seen only by what it absorbs. A fair simplification. (The art draws it glowing; that is a picture, like the dark matter haze.)
 
 **The forest**
 
@@ -172,7 +172,11 @@ The end of the journey has one science beat, over J6_4: the spectrum lifts, each
 - **"Gas gathers where dark matter is … your light has mapped the dark matter" (J6_4, 15 Nov).** The forest traces the diffuse gas, and on large scales that gas follows the dark matter (it is used to map the cosmic web, e.g. Lyman-alpha forest tomography). "Mapped along its way" is one sightline, a 1D map, which is what the picture draws. The haze's strands are drawn; only where it is dense comes from the bake.
 - **Superseded 15 Nov: "Maps of galaxies show only where stars shine" (J6_4).** A simplification of the scientists' point: galaxy surveys trace light from stars in the densest regions, while the forest traces diffuse gas through more of the volume.
 - **"Cut lines into your light" (J6_3).** After z ≈ 2.46 the drawn Lyα lines are not in the light that reaches Earth (LAF & Redshift, open questions). J6 says "cut lines into your light", not "in the light that reaches Earth". Keep it that way.
-- **"Each one marks a moment of your journey" (J9).** Each line comes from gas at a different distance along the path, so the lines are a record ordered in time.
+- **"Each one marks a moment of your journey, written billions of years ago" (J9).** Each line comes from gas at a different distance along the path, so the lines are a record ordered in time. Not "twelve billion years of cosmic history" (22 Nov): from the ground the atmosphere blocks everything bluer than about 320 nm, so Lyman-alpha lines from z below about 1.6 (about 9.6 Gyr ago) can only be seen from space; and below z ≈ 2.46 the lines fall under the quasar's Lyman limit, where they blend with other lines or are wiped out. What Magellan reads is the early part of the trip.
+- **"One of the twin Magellan Telescopes collects your light" (J9).** The beam goes into one telescope, and the scene follows one telescope's optics.
+- **"These lines travel with you … every cloud of gas you pass through" (D9, 22 Nov).** Was "stay with you forever … everything you pass through": only gas leaves lines (not stars, not dark matter), and lines can later be blended or wiped out.
+- **"Your light has traced the dark matter" (J6_4, 22 Nov; was "mapped").** One sightline is a 1D record; real maps combine many sightlines with simulations.
+- **Still open: "Thousands of hydrogen clouds" (J6_3).** True if very faint lines count; hundreds if only clear ones. Ask the scientists.
 
 ## 5 · On-screen text to fix
 
@@ -199,6 +203,8 @@ The milestone text "infant star clusters" (Milky Way) means star clusters, not g
 
 ## 6 · To re-record
 
+**Done 22 November 2026:** the whole set (48 lines, the 21–22 Nov script with tags) was regenerated outside `elevenlabs_vo.py` (`vo_out_v8`, files named by bare ID) and copied over the existing files, so every GUID and scene wire is kept. The tutorial tables' text for C4, D5, D9 was updated to match. `Tools~/ledger.json` does not know this set: **never run `generate --go` without `--only`**, or it regenerates everything over it. Clips that got longer: J9 17.6 s, J6_3 18.6 s (F5 + F6 hold 18.3 s), J6_4 11.9 s, J3_DMoff_After 15.2 s.
+
 **Done 3 November 2026:** the whole v7 set is recorded and installed (every row below). D6 and D7's files were renamed to match their content (`D6_Redshift`, `D7_Clouds`; GUIDs kept). The table is kept as the record of why each line changed.
 
 The whole set is re-recorded in the female voice after the scientists' pass, so these can wait for that. Re-records keep their current file names, so clips already wired in Unity are replaced without rewiring. New lines get their ID as the file name, which is where `install` and the builders look.
@@ -221,6 +227,9 @@ The whole set is re-recorded in the female voice after the scientists' pass, so 
 | J6_3 | `J6_3_Forest` | 6 Nov: shortened, the forest is named at the telescope instead |
 | J9b | — | 6 Nov: the forest's name. **Cut 21 Nov** (never recorded) |
 | Closing | `Closing` | observations, simulations, theory; around the world |
+| Closing | `Closing` | 22 Nov: second sentence now "With telescopes, simulations and theory together, every beam of light adds a little more to the map of the universe." **Re-record** |
+| C4, D5, D9 | `C4_LookBack`, `D5_Contact`, `D9_UVIRFold` | 22 Nov fact check. **Re-record**; tutorial lines also need Import Script in Unity |
+| J0, J3_DMoff_After, J3_DMon_Before, J3b, J9, J6_4 | same files | 22 Nov fact check. **Re-record** |
 | J6_3 | `J6_3_Forest` | 21 Nov: the forest's name and "forest" explained, back here. **Re-record** |
 | J9 | `J9_Earth` | 21 Nov: arrives at the Magellan Telescopes, Las Campanas, Chile. **Re-record** |
 | (all) | — | 21 Nov: every line has its own delivery tag, written at the start of the line in the script. The 32 lines whose tag changed are regenerated with the next `generate` |
@@ -243,6 +252,23 @@ To do:
 3. **Prompts at all?** The `N_` lines are for discussion with the team (§3).
 
 ## 9 · Feedback log
+
+### 22 November · fact check
+
+| Line | Was | Now | Why |
+| --- | --- | --- | --- |
+| J9 | "…the Magellan Telescopes collect your light … twelve billion years of cosmic history" | "…one of the twin Magellan Telescopes collects your light … written billions of years ago" | One telescope; the ground only reads lines from the early trip (§4) |
+| J0 | "The universe here is…" | "At this moment, the universe is…" | "Here" implied the age differs by place (same fix as A2) |
+| J3_DMoff_After, J3_DMon_Before | "five times heavier than ordinary matter" | "five times more of it than ordinary matter" | Heard as heavier particles |
+| J3_DMoff_After | "This is dark matter, invisible scaffolding…" | "This is dark matter, drawn so you can see it: the invisible scaffolding…" | Version B now says it is a drawing, like A |
+| J3b | "These threads are hydrogen gas" | "The gas in these threads is mostly hydrogen" | Threads are mostly dark matter by mass |
+| D9 | "stay with you forever … everything you pass through" | "travel with you … every cloud of gas you pass through" | Only gas leaves lines |
+| D5 | "That color is gone" | "That part of the light is gone" | Lyman-alpha is ultraviolet, not a color |
+| C4 | "Nothing in the universe moves faster than you" | "Nothing can travel through space faster than you" | Distant galaxies recede faster than light |
+| J6_4 | "mapped the dark matter" | "traced the dark matter" | One sightline, not a map |
+| Closing | "Observations, simulations and theory together turn your light into the story of where we came from, and where we are going." | "With telescopes, simulations and theory together, every beam of light adds a little more to the map of the universe." | Abstract and a cliché; "where we are going" overclaimed. Keeps the scientists' three methods |
+
+Kept: J4b "a hundred thousand years" ("like this one" hedges it), "cloud" (the scientists' word). Open: J6_3 "thousands" (§4).
 
 ### 21 November · forest back in J6_3, Chile arrival, tags
 

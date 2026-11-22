@@ -92,6 +92,9 @@ public class NebulaResponder_NEW : LayerResponder_NEW
     static readonly int StarFade2Id = Shader.PropertyToID("_StarFade2");
     static readonly int AnimateId = Shader.PropertyToID("_Animate");
     static readonly int SpeedId = Shader.PropertyToID("_Speed");
+    static readonly int MilkyWayId = Shader.PropertyToID("_MilkyWay");
+    static readonly int MilkyWayPoleId = Shader.PropertyToID("_MilkyWayPole");
+    static readonly int MilkyWayColorId = Shader.PropertyToID("_MilkyWayColor");
 
     struct NebulaState
     {
@@ -100,6 +103,9 @@ public class NebulaResponder_NEW : LayerResponder_NEW
         public float starScale, starThreshold, starBrightness;
         public float starTwinkle, starTwinkleSpeed, starTwinkleAmount;
         public float animate, speed;
+        public float milkyWay;
+        public Vector3 milkyWayPole;
+        public Color milkyWayColor;
     }
 
     protected override void Awake()
@@ -263,6 +269,9 @@ public class NebulaResponder_NEW : LayerResponder_NEW
         starTwinkleAmount = p.starTwinkleAmount,
         animate = p.animate,
         speed = p.speed,
+        milkyWay = p.milkyWay,
+        milkyWayPole = p.milkyWayPole,
+        milkyWayColor = p.milkyWayColor,
     };
 
     static NebulaState Read(Material m) => new NebulaState
@@ -284,6 +293,9 @@ public class NebulaResponder_NEW : LayerResponder_NEW
         starTwinkleAmount = m.HasProperty(StarTwinkleAmountId) ? m.GetFloat(StarTwinkleAmountId) : 0.5f,
         animate = m.HasProperty(AnimateId) ? m.GetFloat(AnimateId) : 1f,
         speed = m.HasProperty(SpeedId) ? m.GetFloat(SpeedId) : 0.05f,
+        milkyWay = m.HasProperty(MilkyWayId) ? m.GetFloat(MilkyWayId) : 0f,
+        milkyWayPole = m.HasProperty(MilkyWayPoleId) ? (Vector3)m.GetVector(MilkyWayPoleId) : new Vector3(0f, 0.5f, 0.866f),
+        milkyWayColor = m.HasProperty(MilkyWayColorId) ? m.GetColor(MilkyWayColorId) : new Color(0.16f, 0.15f, 0.14f, 1f),
     };
 
     void Write(NebulaState s)
@@ -310,6 +322,9 @@ public class NebulaResponder_NEW : LayerResponder_NEW
             if (m.HasProperty(StarTwinkleAmountId)) m.SetFloat(StarTwinkleAmountId, s.starTwinkleAmount);
             if (m.HasProperty(AnimateId)) m.SetFloat(AnimateId, s.animate >= 0.5f ? 1f : 0f);
             if (m.HasProperty(SpeedId)) m.SetFloat(SpeedId, s.speed);
+            if (m.HasProperty(MilkyWayId)) m.SetFloat(MilkyWayId, s.milkyWay);
+            if (m.HasProperty(MilkyWayPoleId)) m.SetVector(MilkyWayPoleId, s.milkyWayPole);
+            if (m.HasProperty(MilkyWayColorId)) m.SetColor(MilkyWayColorId, s.milkyWayColor);
         }
 
         _current = s;
@@ -476,5 +491,9 @@ public class NebulaResponder_NEW : LayerResponder_NEW
         starTwinkleAmount = Mathf.Lerp(a.starTwinkleAmount, b.starTwinkleAmount, t),
         animate = Mathf.Lerp(a.animate, b.animate, t),
         speed = Mathf.Lerp(a.speed, b.speed, t),
+        // The band fades in and out where it is going to be, not swinging across the sky.
+        milkyWay = Mathf.Lerp(a.milkyWay, b.milkyWay, t),
+        milkyWayPole = b.milkyWay > 0f ? b.milkyWayPole : a.milkyWayPole,
+        milkyWayColor = Color.Lerp(a.milkyWayColor, b.milkyWayColor, t),
     };
 }

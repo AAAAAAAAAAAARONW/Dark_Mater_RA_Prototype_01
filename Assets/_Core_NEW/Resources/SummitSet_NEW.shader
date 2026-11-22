@@ -17,6 +17,12 @@ Shader "Custom/SummitSet_NEW"
     // A grain of its own (_Grain, _GrainScale a unit of the mesh's own space): rock on the
     // ground, weathering on the walls, so nothing is a flat colour up close.
     //
+    // Textures of its own (_DetailOn, 22 Nov): a colour and a normal map laid on in the mesh's own
+    // space from three sides (triplanar), at _DetailScale repeats a unit and again at
+    // _DetailFar of that, so neither tiling shows; on slopes steeper than _SlopeFrom a second
+    // pair (_Slope). The colour multiplies the albedo (times _DetailGain, so a texture of
+    // middling brightness leaves it about as it was), the normal shapes the moon on it.
+    //
     // Distances are in km (_KmToWorld, set every frame: the world grows round them on the
     // way down), so the haze is the same at any scale. In Resources so a build has it.
 
@@ -42,6 +48,23 @@ Shader "Custom/SummitSet_NEW"
         _MoonOnNight ("The moon on the rock under the ground's night too", Float) = 0
         _Grain ("Grain, how much", Range(0, 1)) = 0
         _GrainScale ("Grain, cycles a unit of the mesh", Float) = 1
+        [NoScaleOffset] _Detail ("Detail colour", 2D) = "gray" {}
+        [NoScaleOffset] [Normal] _DetailNormal ("Detail normal", 2D) = "bump" {}
+        [NoScaleOffset] _Slope ("Steep slopes: colour", 2D) = "gray" {}
+        [NoScaleOffset] [Normal] _SlopeNormal ("Steep slopes: normal", 2D) = "bump" {}
+        _DetailOn ("Detail textures", Float) = 0
+        _SlopeOn ("Slope textures", Float) = 0
+        _DetailScale ("Detail, repeats a unit of the mesh", Float) = 1
+        _DetailFar ("Detail, a second larger repeat, times the first", Float) = 0.12
+        _DetailGain ("Detail colour, times", Float) = 2
+        _DetailStrength ("Detail colour, how much", Range(0, 1)) = 1
+        _SlopeScale ("Slope textures, times the detail's repeat", Float) = 0.5
+        _SlopeGain ("Slope colour, times", Float) = 2
+        _SlopeFrom ("Steep below this much up", Range(0, 1)) = 0.82
+        _BumpStrength ("Normal maps, how much", Range(0, 2)) = 1
+        _MacroOn ("Broad patches of the slope texture everywhere", Float) = 0
+        _MacroScale ("Their repeat, times the detail's", Float) = 0.04
+        _MacroMix ("How much of them", Range(0, 1)) = 0.45
     }
 
     SubShader
@@ -58,7 +81,9 @@ Shader "Custom/SummitSet_NEW"
             float4 _Albedo, _MoonDir, _MoonColor, _GlowDir, _GlowColor, _Ambient, _HazeColor, _Rim, _Emission;
             float _HazeKm, _HazeOn, _KmToWorld, _GroundOn, _GroundExposure, _CityGlow;
             float _VertexColors, _Grain, _GrainScale, _MoonOnNight;
-            sampler2D _GroundMap;
+            sampler2D _GroundMap, _Detail, _DetailNormal, _Slope, _SlopeNormal;
+            float _DetailOn, _SlopeOn, _DetailScale, _DetailFar, _DetailGain, _DetailStrength;
+            float _SlopeScale, _SlopeGain, _SlopeFrom, _BumpStrength, _MacroOn, _MacroScale, _MacroMix;
 
             struct v2f
             {
@@ -67,6 +92,7 @@ Shader "Custom/SummitSet_NEW"
                 float3 toCam  : TEXCOORD1;   // from the point to the camera, world
                 float2 uv     : TEXCOORD2;
                 float3 local  : TEXCOORD3;   // the mesh's own space, for the grain
+                float3 localN : TEXCOORD4;   // the mesh's own normal, for the textures
                 fixed4 colour : COLOR;
             };
 
@@ -75,6 +101,7 @@ Shader "Custom/SummitSet_NEW"
                 v2f o;
                 o.uv = v.texcoord.xy;
                 o.local = v.vertex.xyz;
+                o.localN = v.normal;
                 o.colour = v.color;
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.normal = UnityObjectToWorldNormal(v.normal);
@@ -98,10 +125,54 @@ Shader "Custom/SummitSet_NEW"
                             lerp(lerp(Hash(i + float3(0, 0, 1)), Hash(i + float3(1, 0, 1)), f.x), lerp(Hash(i + float3(0, 1, 1)), Hash(i + float3(1, 1, 1)), f.x), f.y), f.z);
             }
 
+            // A texture from three sides, weighted by the normal.
+            float3 Tri(sampler2D t, float3 p, float3 w)
+            {
+                return tex2D(t, p.zy).rgb * w.x + tex2D(t, p.xz).rgb * w.y + tex2D(t, p.xy).rgb * w.z;
+            }
+
+            // A normal map from three sides, blended onto the mesh's normal (UDN), own space.
+            float3 TriNormal(sampler2D t, float3 p, float3 w, float3 on)
+            {
+                float3 x = UnpackNormal(tex2D(t, p.zy)), y = UnpackNormal(tex2D(t, p.xz)), z = UnpackNormal(tex2D(t, p.xy));
+                x = float3(x.xy * _BumpStrength + on.zy, on.x);
+                y = float3(y.xy * _BumpStrength + on.xz, on.y);
+                z = float3(z.xy * _BumpStrength + on.xy, on.z);
+                return normalize(x.zyx * w.x + y.xzy * w.y + z.xyz * w.z);
+            }
+
             fixed4 frag(v2f i) : SV_Target
             {
                 float3 n = normalize(i.normal);
                 float3 albedo = _Albedo.rgb;
+                float detailLight = 1.0;
+                if (_DetailOn > 0.5)
+                {
+                    float3 on = normalize(i.localN);
+                    float3 w = pow(abs(on), 4.0);
+                    w /= w.x + w.y + w.z;
+                    float3 p = i.local * _DetailScale;
+                    float3 c = (Tri(_Detail, p, w) * 0.6 + Tri(_Detail, p * _DetailFar + 0.37, w) * 0.4) * _DetailGain;
+                    float3 bent = TriNormal(_DetailNormal, p, w, on);
+                    if (_MacroOn > 0.5)
+                    {
+                        // Rock in broad patches, where a slow noise says so.
+                        float3 pm = p * _MacroScale;
+                        float patch = smoothstep(0.35, 0.75, Tri(_Slope, pm * 0.37 + 1.9, w).g);
+                        c = lerp(c, Tri(_Slope, pm, w) * _SlopeGain, _MacroMix * (0.4 + 0.6 * patch));
+                    }
+                    if (_SlopeOn > 0.5)
+                    {
+                        float steep = smoothstep(_SlopeFrom, _SlopeFrom - 0.18, on.y);
+                        float3 ps = p * _SlopeScale;
+                        c = lerp(c, Tri(_Slope, ps, w) * _SlopeGain, steep);
+                        bent = normalize(lerp(bent, TriNormal(_SlopeNormal, ps, w, on), steep));
+                    }
+                    c = lerp(1.0, c, _DetailStrength);
+                    albedo *= c;
+                    detailLight = dot(c, float3(0.299, 0.587, 0.114));
+                    n = normalize(UnityObjectToWorldNormal(bent));
+                }
                 if (_VertexColors > 0.5) albedo *= i.colour.rgb * 2.0;
                 if (_Grain > 0.0)
                 {
@@ -117,7 +188,7 @@ Shader "Custom/SummitSet_NEW"
                 if (_GroundOn > 0.5)
                 {
                     // The ground's own night, the moon on the slope shaping it.
-                    float3 ground = tex2D(_GroundMap, i.uv).rgb * _GroundExposure;
+                    float3 ground = tex2D(_GroundMap, i.uv).rgb * _GroundExposure * detailLight;
                     float bright = smoothstep(0.15, 0.6, dot(ground, float3(0.299, 0.587, 0.114)));
                     ground *= 1.0 + bright * (_CityGlow - 1.0);
                     lit = ground * (0.55 + 0.9 * moon) + albedo * (_Ambient.rgb + _MoonOnNight * _MoonColor.rgb * moon);

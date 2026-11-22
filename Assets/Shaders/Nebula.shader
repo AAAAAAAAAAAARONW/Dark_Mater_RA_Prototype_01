@@ -54,6 +54,12 @@ Shader "Custom/Nebula"
         [Header(Animation)]
         _Animate ("Animate", Float) = 1
         _Speed ("Speed", Range(0, 0.5)) = 0.05
+
+        // A faint Milky Way across the sky (22 Nov, for the Solar System): 0 none. The band
+        // runs round the sky square to _MilkyWayPole (world), brighter towards its centre.
+        _MilkyWay ("Milky Way", Range(0, 1)) = 0
+        _MilkyWayPole ("Milky Way pole (world)", Vector) = (0, 0.5, 0.866, 0)
+        _MilkyWayColor ("Milky Way colour", Color) = (0.16, 0.15, 0.14, 1)
     }
     SubShader
     {
@@ -73,6 +79,8 @@ Shader "Custom/Nebula"
             float _StarScale, _StarThreshold, _StarBrightness;
             float _StarTwinkle, _StarTwinkleSpeed, _StarTwinkleAmount;
             float _StarScale2, _StarThreshold2, _StarBrightness2;
+            float _MilkyWay;
+            float4 _MilkyWayPole, _MilkyWayColor;
             float _StarFade, _StarFade2;
             float _ShowStars;
             float _Animate, _Speed;
@@ -215,6 +223,24 @@ Shader "Custom/Nebula"
                     if (_StarBrightness2 > 0.0)
                         star += stars(dir, _StarScale2, _StarThreshold2, _StarBrightness2, _StarFade2);
                     col.rgb += _ColorStar.rgb * star;
+                }
+
+                // The Milky Way: a soft band, clumped and split by a dark lane, brighter towards
+                // its centre, with a fine field of faint stars thickest along it.
+                if (_MilkyWay > 0.0)
+                {
+                    float3 pole = normalize(_MilkyWayPole.xyz);
+                    float b = dot(dir, pole);
+                    float3 inBand = normalize(dir - pole * b + 1e-5);
+                    float3 centre = normalize(cross(pole, float3(0.13, 0.91, 0.39)));
+                    float core = exp(-(1.0 - dot(inBand, centre)) / 0.35);
+                    float band = exp(-b * b / (0.13 * 0.13 * (1.0 + 1.5 * core)));
+                    float clumps = saturate((fbm(dir * 5.0 + 3.1, 0.55) - 0.35) * 2.2);
+                    float lane = exp(-pow((b - 0.012) / 0.028, 2.0)) * smoothstep(0.45, 0.65, valueNoise3D(dir * 11.0 + 1.7));
+                    float mw = band * (0.3 + 0.7 * clumps) * (1.0 - 0.7 * lane) * (0.55 + 0.9 * core);
+                    col.rgb += _MilkyWayColor.rgb * mw * _MilkyWay;
+                    float faint = step(lerp(0.997, 0.975, band), valueNoise3D(dir * 190.0 + 7.7));
+                    col.rgb += _ColorStar.rgb * faint * band * 0.5 * _MilkyWay;
                 }
 
                 return col;

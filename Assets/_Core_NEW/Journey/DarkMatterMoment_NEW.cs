@@ -368,7 +368,7 @@ public class DarkMatterMoment_NEW : MonoBehaviour
         FlightRecorder_NEW.Point(Lane, "hint");
         if (hint == null) return;
 
-        hint.Show(InputScheme_NEW.ToggleGlyph() + "  ·  " + Current.hint);
+        hint.ShowArt(InputScheme_NEW.ToggleGlyph() + "  ·  " + Current.hint);
     }
 
     void CancelNudge()

@@ -47,6 +47,9 @@ public class SunLook_NEW : MonoBehaviour
     [Tooltip("How far the disc's brightness spreads from its median. At 2.1 its darkest and " +
              "brightest tenths fall where NASA's picture's do.")]
     [Range(0.5f, 3f)] [SerializeField] float contrast = 2.1f;
+    [Tooltip("How uneven the mottling is: 0 the same all over; 1 faint over the quiet Sun, clumped and busy " +
+             "in patches along the activity belts, dark coronal holes towards the poles.")]
+    [Range(0f, 1f)] [SerializeField] float patchiness = 0.8f;
     [Tooltip("Cells across the Sun's radius.")]
     [Range(4f, 60f)] [SerializeField] float cellScale = 14f;
     [Tooltip("Thin dark threads across the disc.")]
@@ -73,6 +76,18 @@ public class SunLook_NEW : MonoBehaviour
     [Tooltip("Bright knots running along the loops.")]
     [Range(0f, 2f)] [SerializeField] float loopFlow = 1f;
 
+    [Header("As a camera sees it")]
+    [Tooltip("The middle of the disc a little overexposed, its texture still showing through.")]
+    [Range(0f, 2f)] [SerializeField] float coreGlare = 0.15f;
+    [Tooltip("A soft, whiter glare round the limb: the lens's, over the Sun's own dark red glow.")]
+    [Range(0f, 2f)] [SerializeField] float limbGlare = 0.35f;
+    [Tooltip("Diffraction spikes: four long, four short, thin.")]
+    [Range(0f, 2f)] [SerializeField] float spikes = 0.55f;
+    [Tooltip("How far the spikes reach, in the Sun's radii.")]
+    [Range(1f, 12f)] [SerializeField] float spikeLength = 6f;
+    [Tooltip("Degrees the spikes are turned from upright.")]
+    [Range(0f, 90f)] [SerializeField] float spikeAngle = 20f;
+
     [Header("Flares")]
     [Tooltip("How often regions flare by themselves: 0 never; 1 every 6 to 20 seconds; less, less often.")]
     [Range(0f, 1f)] [SerializeField] float activity = 0.6f;
@@ -85,7 +100,7 @@ public class SunLook_NEW : MonoBehaviour
 
     readonly List<GameObject> _parts = new List<GameObject>();
     readonly List<Material> _materials = new List<Material>();
-    Material _disc, _glow;
+    Material _disc, _glow, _glare;
     Renderer _original;
     float _meshRadius = 0.5f;
     bool _dirty;
@@ -218,6 +233,7 @@ public class SunLook_NEW : MonoBehaviour
 
         Shader discShader = Resources.Load<Shader>("SunSurface_NEW");
         Shader glowShader = Resources.Load<Shader>("SunGlow_NEW");
+        Shader glareShader = Resources.Load<Shader>("SunGlare_NEW");
         if (discShader == null || glowShader == null)
         {
             Debug.LogWarning("[SunLook_NEW] Its shaders (Resources/SunSurface_NEW, SunGlow_NEW) are missing; leaving the original.", this);
@@ -229,6 +245,7 @@ public class SunLook_NEW : MonoBehaviour
 
         _disc = Part("Disc", sphere, discShader, 2000);
         _glow = Part("Glow", Quad(), glowShader, 3000);
+        if (glareShader != null) _glare = Part("Glare", Quad(), glareShader, 3010);
 
         _original.forceRenderingOff = true;
         Apply();
@@ -278,6 +295,7 @@ public class SunLook_NEW : MonoBehaviour
         _disc.SetFloat("_Flow", flow);
         _disc.SetFloat("_Network", network);
         _disc.SetFloat("_Contrast", contrast);
+        _disc.SetFloat("_Patchy", patchiness);
         _disc.SetFloat("_CellScale", cellScale);
         _disc.SetFloat("_Filaments", filaments);
         _disc.SetFloat("_Active", activeRegions);
@@ -290,6 +308,17 @@ public class SunLook_NEW : MonoBehaviour
         _glow.SetFloat("_LoopFlow", loopFlow);
         _glow.SetFloat("_MeshRadius", _meshRadius);
         _glow.SetFloat("_Extent", glowExtent);
+
+        if (_glare != null)
+        {
+            _glare.SetFloat("_Core", coreGlare);
+            _glare.SetFloat("_Glare", limbGlare);
+            _glare.SetFloat("_Spikes", spikes);
+            _glare.SetFloat("_SpikeLength", spikeLength);
+            _glare.SetFloat("_SpikeAngle", spikeAngle * Mathf.Deg2Rad);
+            _glare.SetFloat("_MeshRadius", _meshRadius);
+            _glare.SetFloat("_Extent", Mathf.Min(12f, Mathf.Max(spikeLength, 4f) + 0.5f));
+        }
     }
 
     void Clear()
@@ -299,7 +328,7 @@ public class SunLook_NEW : MonoBehaviour
         foreach (Material m in _materials) Kill(m);
         _parts.Clear();
         _materials.Clear();
-        _disc = _glow = null;
+        _disc = _glow = _glare = null;
     }
 
     static void Kill(Object o)

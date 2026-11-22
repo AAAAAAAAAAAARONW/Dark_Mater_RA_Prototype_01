@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Turns the journey HUD into the horizontal art tracker along the bottom of the screen:
-/// JourneyTracker_BG.png behind it, JourneyTrackerHUD_NEW driving three-state node
+/// JourneyTracker_BG_V2.png (the TRAVEL TRACKER panel, seven ticks) behind it, JourneyTrackerHUD_NEW driving three-state node
 /// images, the gradient line and JourneyTracker_Arrow.png, and the remaining distance
 /// in the green tab.
 ///
@@ -24,14 +24,35 @@ using UnityEngine.UI;
 public static class JourneyTrackerArtSetup_NEW
 {
     const string ArtFolder = "Assets/_Core_NEW/UI/";
-    const string BackgroundPath = ArtFolder + "JourneyTracker_BG.png";
+    const string BackgroundPath = ArtFolder + "JourneyTracker_BG_V2.png";
     const string ArrowPath = ArtFolder + "JourneyTracker_Arrow.png";
 
-    /// <summary>The art name of each tracker phase, Quasar first. Cosmic Web twice.</summary>
+    /// <summary>
+    /// The art name of each station, one per tick and one per UniverseJourneyTracker phase,
+    /// Quasar first, so each node lights as the journey's own transitions cross into it.
+    /// Cosmic Web twice.
+    /// </summary>
     static readonly string[] StationArt =
     {
         "Quasar", "CosmicWeb", "Galaxy", "CosmicWeb", "MilkyWay", "SolarSystem", "Earth"
     };
+
+    /// <summary>The tracker phase the first station stands for (Quasar).</summary>
+    const int FirstPhase = 0;
+
+    // Measured on JourneyTracker_BG_V2.png (2000 x 208): seven ticks centred at x 123.5
+    // and every 293.33 after, the line 5 px thick centred at y 97 from the top.
+    const float FirstTickX = 123.5f / 2000f;
+    const float TickSpacing = 1760f / 6f / 2000f;
+    const float LineY = 97f / 208f;
+    const float LineThickness = 5f / 208f;
+
+    /// <summary>
+    /// The background width the node and arrow art was drawn against (the first
+    /// background, 5605 px). The new one is exported smaller, so its own pixel width would
+    /// blow the nodes up 2.8 times.
+    /// </summary>
+    const float NodeArtReferenceWidth = 5605f;
 
     /// <summary>The tracker's width on the 1920 x 1080 reference canvas.</summary>
     const float HudWidth = 1600f;
@@ -39,10 +60,10 @@ public static class JourneyTrackerArtSetup_NEW
     /// <summary>Gap between the tracker and the bottom of the screen.</summary>
     const float BottomMargin = 12f;
 
-    // The green tab at the bottom right of JourneyTracker_BG.png (5605 x 605), inside its
-    // slant: x 4500 to 5500, y 465 to 600 from the top.
-    static readonly Vector2 TabMin = new Vector2(4500f / 5605f, 1f - 600f / 605f);
-    static readonly Vector2 TabMax = new Vector2(5500f / 5605f, 1f - 465f / 605f);
+    // The green tab at the bottom right of JourneyTracker_BG_V2.png (2000 x 208), inside
+    // its slant: x 1615 to 1960, y 168 to 204 from the top.
+    static readonly Vector2 TabMin = new Vector2(1615f / 2000f, 1f - 204f / 208f);
+    static readonly Vector2 TabMax = new Vector2(1960f / 2000f, 1f - 168f / 208f);
 
     static readonly Color TabTextColour = new Color(0.06f, 0.06f, 0.06f, 1f);
 
@@ -170,7 +191,12 @@ public static class JourneyTrackerArtSetup_NEW
         so.FindProperty("arrowImage").objectReferenceValue = arrowImage;
         so.FindProperty("distanceText").objectReferenceValue = distance;
         so.FindProperty("hudPanel").objectReferenceValue = hud;
-        so.FindProperty("backgroundPixelWidth").floatValue = background.rect.width;
+        so.FindProperty("backgroundPixelWidth").floatValue = NodeArtReferenceWidth;
+        so.FindProperty("firstPhase").intValue = FirstPhase;
+        so.FindProperty("firstTickX").floatValue = FirstTickX;
+        so.FindProperty("tickSpacing").floatValue = TickSpacing;
+        so.FindProperty("lineY").floatValue = LineY;
+        so.FindProperty("lineThickness").floatValue = LineThickness;
 
         SerializedProperty list = so.FindProperty("stations");
         list.arraySize = stations.Length;

@@ -125,17 +125,34 @@ Shader "Custom/SummitSky_NEW"
                 float clear = smoothstep(0.0, 0.22, e) * (1.0 - 0.5 * pow(toCity, 3.0) * exp(-max(e, 0.0) / 0.25));
                 clear *= _Reveal;
 
-                // The Milky Way.
+                // The Milky Way (22 Nov, redone: the first had blotches and dark veins). A smooth
+                // band, wider towards the centre, with the bulge there; brighter star clouds in it,
+                // from noise of several octaves, smooth, not the texture's cells; the Great Rift's
+                // dark dust a little off its middle, ragged, strongest towards the centre, and
+                // fainter dust in filaments; blue-white along the arms, gold at the core, the
+                // dust reddening what it does not hide; a few pink knots of glowing gas.
                 float b = dot(d, _GalPole.xyz);
                 float l = atan2(dot(d, _GalB.xyz), dot(d, _GalA.xyz));
-                // Fine-grained: big soft noise alone read as clouds (first try in Unity, 3 Nov).
-                float band = exp(-b * b / (0.12 * 0.12));
-                float core = exp(-l * l / (0.45 * 0.45)) * exp(-b * b / (0.15 * 0.15));
-                float clumps = saturate((Triplanar(d * 7.0).r * 0.6 + Triplanar(d * 16.0).g * 0.4 - 0.38) * 2.4);
-                float grain = 0.4 + 1.2 * Triplanar(d * 40.0).a;
-                float lane = exp(-pow((b - 0.01) / 0.03, 2.0)) * smoothstep(0.42, 0.6, Triplanar(d * 11.0 + 1.7).b);
-                float mw = (band * (0.25 + 0.75 * clumps) + core * 1.1 * (0.4 + 0.6 * clumps)) * grain * (1.0 - 0.85 * lane);
-                sky += _MilkyWay.rgb * mw * clear;
+                float nearCore = exp(-l * l / (0.9 * 0.9));
+                float width = 0.085 + 0.075 * nearCore;
+                float band = exp(-b * b / (2.0 * width * width));
+                float bulge = exp(-(l * l) / (2.0 * 0.28 * 0.28) - (b * b) / (2.0 * 0.15 * 0.15));
+                float f1 = Triplanar(d * 2.3).r, f2 = Triplanar(d * 5.1 + 3.7).g, f3 = Triplanar(d * 11.3 + 7.1).b, f4 = Triplanar(d * 23.0 + 1.3).a;
+                float fbm = f1 * 0.5 + f2 * 0.27 + f3 * 0.15 + f4 * 0.08;
+                float starClouds = smoothstep(0.3, 0.72, fbm);
+                float glowMW = band * (0.3 + 0.95 * starClouds) + bulge * 1.7 * (0.7 + 0.5 * starClouds);
+                float riftAt = 0.012 + 0.03 * (f2 - 0.5);
+                float rift = exp(-pow((b - riftAt) / (0.026 + 0.02 * nearCore), 2.0)) * smoothstep(0.3, 0.65, f3 * 0.7 + f1 * 0.5) * smoothstep(2.0, 0.7, abs(l));
+                float filaments = smoothstep(0.58, 0.82, Triplanar(d * 8.0 + 11.0).r * 0.6 + f4 * 0.4) * band;
+                float dust = saturate(rift * 0.85 + filaments * 0.4);
+                float grain = 0.8 + 0.4 * f4 + 0.35 * (Triplanar(d * 60.0).a - 0.5);
+                float mw = glowMW * (1.0 - dust) * grain;
+                float3 tint = lerp(float3(0.78, 0.86, 1.0), float3(1.1, 0.9, 0.64), saturate(nearCore * 0.55 + bulge));
+                tint = lerp(tint, tint * float3(1.06, 0.84, 0.68), dust * 0.6);
+                float light = dot(_MilkyWay.rgb, float3(0.3, 0.59, 0.11)) * 1.25;
+                sky += tint * light * mw * clear;
+                float knot = smoothstep(0.8, 0.93, Triplanar(d * 17.0 + 4.4).g) * band * (1.0 - dust);
+                sky += float3(0.9, 0.33, 0.45) * light * 0.55 * knot * clear;
 
                 // The Magellanic Clouds: two fuzzy patches off the band, the Large one brighter.
                 if (_Clouds > 0.0)

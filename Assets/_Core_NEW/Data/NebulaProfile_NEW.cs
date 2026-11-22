@@ -55,6 +55,17 @@ public class NebulaProfile_NEW : ScriptableObject
              "the swap happens under the top-down cover where the player cannot see it.")]
     public float blendDuration = 0f;
 
+    [Header("Milky Way")]
+    [Tooltip("A faint band of the galaxy across the sky, as it is seen from inside it - from the Solar " +
+             "System. 0 = none (every layer outside the galaxy).")]
+    [Range(0f, 1f)] public float milkyWay = 0f;
+
+    [Tooltip("The band's pole, world space: the band runs round the sky square to it. Turn it so the " +
+             "band crosses the picture.")]
+    public Vector3 milkyWayPole = new Vector3(0f, 0.5f, 0.866f);
+
+    public Color milkyWayColor = new Color(0.16f, 0.15f, 0.14f, 1f);
+
     void OnValidate()
     {
         // Same clamps the original LayerDefinitionTest applied.

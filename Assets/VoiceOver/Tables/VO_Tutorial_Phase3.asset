@@ -123,11 +123,11 @@ MonoBehaviour:
       takes:
       - language: en
         variant: 
-        text: 'The gas has absorbed one wavelength of your light. That color is gone, and the black line marks where it was.'
+        text: 'The gas has absorbed one wavelength of your light. That part of the light is gone, and the black line marks where it was.'
         clip: {fileID: 8300000, guid: 2bb7887434a1e744fb773d84002f5c03, type: 3}
         estimatedSeconds: 9
         status: 2
-        recordedText: 'The gas has absorbed one wavelength of your light. That color is gone, and the black line marks where it was.'
+        recordedText: 'The gas has absorbed one wavelength of your light. That part of the light is gone, and the black line marks where it was.'
       cues: []
   - beatId: D6
     settings:
@@ -215,11 +215,11 @@ MonoBehaviour:
       takes:
       - language: en
         variant: 
-        text: 'These lines stay with you forever: a barcode of everything you pass through.'
+        text: 'These lines travel with you: a barcode of every cloud of gas you pass through.'
         clip: {fileID: 8300000, guid: eb7685486fcaf784c8b185d1ca7699c6, type: 3}
         estimatedSeconds: 6
         status: 2
-        recordedText: 'These lines stay with you forever: a barcode of everything you pass through.'
+        recordedText: 'These lines travel with you: a barcode of every cloud of gas you pass through.'
       cues: []
   - beatId: D10
     settings:

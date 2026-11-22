@@ -20,6 +20,11 @@ using UnityEngine.UI;
 /// the camera is never locked — which is why the dim stops short of black.
 ///
 /// Fades on real time: the world clock is stopped for exactly as long as this is up.
+///
+/// The journey uses the same card. With no TutorialPause_NEW in the scene it follows
+/// JourneyPause_NEW instead, so B shows the same thing on both sides of the handover.
+/// On the wall the card is a narrow black band across the middle with the drawn PAUSED in
+/// it, not a dim over the whole picture (Tools > Vizlab NEW > Pause Band > Apply).
 /// </summary>
 [DisallowMultipleComponent]
 [HierarchyBadge_NEW("PAUSE CARD", "#33B3B3")]
@@ -73,7 +78,7 @@ public class TutorialPauseCard_NEW : MonoBehaviour
 
     void Update()
     {
-        bool paused = pause != null && pause.IsPaused;
+        bool paused = pause != null ? pause.IsPaused : JourneyPause_NEW.IsPaused;
 
         _alpha = Mathf.MoveTowards(_alpha, paused ? 1f : 0f,
                                    fadeSeconds > 0f ? Time.unscaledDeltaTime / fadeSeconds : 1f);

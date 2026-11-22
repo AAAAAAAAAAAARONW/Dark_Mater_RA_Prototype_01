@@ -15,6 +15,15 @@ using UnityEngine.Events;
 /// tertiary, and all to one point at the focus. Where the folded leg passes the tertiary the
 /// rays are taken across its plane at the axis's height, which is near enough at this size.
 ///
+/// ONE BUNDLE (22 Nov, look Beam, the default). The light comes in as one bundle the width of
+/// the primary, not as rays: a soft column down onto the mirror, which turns it into a cone
+/// narrowing up to the secondary; that sends a narrower cone down to the tertiary, and the
+/// tertiary a last one out to the focus. Mirrors only reflect, they do not split the light: it
+/// stays one bundle, only narrowing, all the way in. Drawn as those cones' surfaces
+/// (Resources/MagellanBeam_NEW), lit over beamTail metres that run along them at speed, so the
+/// light is seen to run through once and be gone into the focus. Look Rays draws the separate
+/// rays instead, as before.
+///
 /// The numbers are in the tube's own space (its pivot on the elevation axis, +Y along the
 /// optical axis), measured from LCO's model and set by Tools > Journey NEW > Magellan > Build
 /// Telescope from STL. The rays are children of the tube, so they tilt with it.
@@ -58,9 +67,23 @@ public class MagellanLightPath_NEW : MonoBehaviour
     [SerializeField] Vector3 tertiaryCentre = Vector3.zero;
     [SerializeField] Vector3 focus = new Vector3(0f, 0f, 4.9f);
 
+    public enum Look { Beam, Rays }
+
     [Header("Light")]
+    [Tooltip("Beam: one bundle of light, narrowing as the mirrors bring it in. Rays: separate rays.")]
+    [SerializeField] Look look = Look.Beam;
+    [Tooltip("Beam: how much of the light's way is lit at once, metres.")]
+    [Min(1f)] [SerializeField] float beamTail = 14f;
+    [Tooltip("Beam: how soft its front is, metres.")]
+    [Min(0.05f)] [SerializeField] float beamSoft = 1.5f;
+    [Tooltip("Beam: brighter where it is seen edge-on, so it reads as a volume.")]
+    [Range(0f, 3f)] [SerializeField] float beamRim = 1.2f;
+    [Tooltip("Beam: its brightness, times Colour.")]
+    [Min(0f)] [SerializeField] float beamBrightness = 0.3f;
+    [Tooltip("Beam: its width onto the primary, a fraction of the mirror's.")]
+    [Range(0.3f, 1f)] [SerializeField] float beamRadius = 0.95f;
     [Tooltip("How many rays.")]
-    [Range(3, 64)] [SerializeField] int rays = 18;
+    [Range(3, 64)] [SerializeField] int rays = 12;
     [Tooltip("Where on the primary they land, as fractions of its radius: alternate rays on the inner and outer ring.")]
     [Range(0.15f, 1f)] [SerializeField] float innerRadius = 0.45f;
     [Range(0.15f, 1f)] [SerializeField] float outerRadius = 0.9f;
@@ -69,13 +92,16 @@ public class MagellanLightPath_NEW : MonoBehaviour
     [Tooltip("Metres a second the light goes. The whole path is about 40 m.")]
     [Min(0.5f)] [SerializeField] float speed = 7f;
     [Tooltip("How long a ray's tail is, metres.")]
-    [Min(0.1f)] [SerializeField] float tail = 6f;
-    [Tooltip("Once at the focus, the rays stay drawn whole for this many seconds, then fade.")]
+    [Min(0.1f)] [SerializeField] float tail = 4f;
+    [Tooltip("Once at the focus: the colours in the instrument hold this many seconds, then fade.")]
     [Min(0f)] [SerializeField] float hold = 2.5f;
+    [Tooltip("Once at the focus, draw every ray's whole path at once, a picture of the optics. Off (22 Nov): " +
+             "the light runs in, its tail following it into the focus, and is gone.")]
+    [SerializeField] bool holdWhole = false;
     [Tooltip("Metres, at the telescope's own size: it grows and shrinks with the tube.")]
-    [Min(0.01f)] [SerializeField] float width = 0.05f;
+    [Min(0.01f)] [SerializeField] float width = 0.03f;
     [Tooltip("White: mirrors bend every colour alike. A touch blue, starlight's.")]
-    [ColorUsage(false, true)] [SerializeField] Color colour = new Color(1.45f, 1.5f, 1.65f, 1f);
+    [ColorUsage(false, true)] [SerializeField] Color colour = new Color(1.05f, 1.1f, 1.25f, 1f);
     [Tooltip("Drawn behind the telescope's parts at this brightness, so the path through the tower reads.")]
     [Range(0f, 1f)] [SerializeField] float occluded = 0.3f;
 
@@ -151,7 +177,9 @@ public class MagellanLightPath_NEW : MonoBehaviour
     readonly List<Ray> _rays = new List<Ray>();
     readonly List<LineRenderer> _fan = new List<LineRenderer>();
     readonly List<Vector3> _scratch = new List<Vector3>();
-    Material _material, _fanMaterial;
+    Material _material, _fanMaterial, _beamMaterial;
+    MeshRenderer _beam;
+    float[] _beamAt;   // the beam's way, metres: start, primary, secondary, tertiary, focus
     float _fanClock;
     MaterialPropertyBlock _block;
     bool _playing;
@@ -174,6 +202,8 @@ public class MagellanLightPath_NEW : MonoBehaviour
     {
         if (_material != null) Destroy(_material);
         if (_fanMaterial != null) Destroy(_fanMaterial);
+        if (_beamMaterial != null) Destroy(_beamMaterial);
+        if (_beam != null) Destroy(_beam.GetComponent<MeshFilter>().sharedMesh);
     }
 
     [ContextMenu("Play")]
@@ -183,6 +213,7 @@ public class MagellanLightPath_NEW : MonoBehaviour
         Build();
         _clock = _fanClock = 0f;
         for (int i = 0; i < 4; i++) { _flash[i] = 0f; _reached[i] = false; }
+        if (_beam != null) _beam.enabled = true;
         _playing = true;
     }
 
@@ -192,6 +223,7 @@ public class MagellanLightPath_NEW : MonoBehaviour
         _playing = false;
         foreach (Ray r in _rays) if (r.line != null) r.line.positionCount = 0;
         foreach (LineRenderer l in _fan) if (l != null) l.positionCount = 0;
+        if (_beam != null) _beam.enabled = false;
         for (int i = 0; i < 4; i++) _flash[i] = 0f;
         ApplyFlashes();
     }
@@ -203,7 +235,20 @@ public class MagellanLightPath_NEW : MonoBehaviour
 
         float lightEnd = 0f, head = _clock * speed;
         foreach (Ray r in _rays) lightEnd = Mathf.Max(lightEnd, r.at[r.at.Length - 1]);
+        if (_beam != null) lightEnd = Mathf.Max(lightEnd, _beamAt[4]);
         float arrive = lightEnd / speed;
+
+        if (_beam != null)
+        {
+            _beamMaterial.SetFloat("_Head", head);
+            for (int k = 0; k < 4; k++)
+                if (!_reached[k] && head >= _beamAt[k + 1])
+                {
+                    _reached[k] = true;
+                    _flash[k] = 1f;
+                    if (k == 3) onReachedInstrument.Invoke();
+                }
+        }
         float fade = 1f - Mathf.Clamp01((_clock - arrive - hold) / 1f);
 
         foreach (Ray r in _rays)
@@ -212,8 +257,8 @@ public class MagellanLightPath_NEW : MonoBehaviour
             // Until the focus, a tail of light running down the path; once there, the whole
             // path lit, so the converging cones stand as a picture of the optics, then fading.
             float to = Mathf.Min(head, end);
-            float from = head >= end ? 0f : Mathf.Max(0f, head - tail);
-            Draw(r, from, to, head >= end ? fade : 1f);
+            float from = holdWhole && head >= end ? 0f : Mathf.Max(0f, head - tail);
+            Draw(r, from, to, holdWhole && head >= end ? fade : 1f);
 
             for (int k = 0; k < 4; k++)
                 if (!_reached[k] && head >= r.at[k + 1])
@@ -294,6 +339,104 @@ public class MagellanLightPath_NEW : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// The bundle of light, in the tube's space (see ONE BUNDLE): its surfaces - a column onto
+    /// the primary, cones to the secondary, the tertiary and the focus - each vertex with how far
+    /// along the light's way it is. Made once; its material set each Play.
+    /// </summary>
+    void BuildBeam()
+    {
+        if (look != Look.Beam)
+        {
+            if (_beam != null) { Destroy(_beam.gameObject); _beam = null; }
+            return;
+        }
+        if (_beamMaterial == null)
+        {
+            Shader shader = Shader.Find("Custom/MagellanBeam_NEW");
+            _beamMaterial = new Material(shader != null ? shader : _material.shader) { name = "Magellan beam (runtime)" };
+        }
+        _beamMaterial.SetColor("_Color", colour * beamBrightness);
+        _beamMaterial.SetFloat("_Tail", beamTail);
+        _beamMaterial.SetFloat("_Soft", beamSoft);
+        _beamMaterial.SetFloat("_Rim", beamRim);
+        _beamMaterial.SetFloat("_Occluded", occluded);
+        _beamMaterial.SetFloat("_Head", 0f);
+
+        // The bundle's edge: onto the primary as wide as it, then each mirror's cone, as the
+        // optics give them (the secondary short of the prime focus, the tertiary short of the
+        // f/11 focus, unfolded).
+        float rimY = RimY, r0 = primaryRadius * beamRadius;
+        float primeY = primaryVertexY + focalLength, unfoldedY = secondaryVertexY - secondaryToFocus;
+        float rS = r0 * (primeY - secondaryVertexY) / (primeY - rimY);
+        float rT = rS * (tertiaryCentre.y - unfoldedY) / (secondaryVertexY - unfoldedY);
+        Vector3 top = new Vector3(0f, rimY + startAbove, 0f), onPrimary = new Vector3(0f, rimY, 0f);
+        Vector3 onSecondary = new Vector3(0f, secondaryVertexY, 0f);
+        Vector3 out_ = (focus - tertiaryCentre).normalized;
+
+        _beamAt = new float[5];
+        _beamAt[1] = startAbove;
+        _beamAt[2] = _beamAt[1] + (secondaryVertexY - rimY);
+        _beamAt[3] = _beamAt[2] + (secondaryVertexY - tertiaryCentre.y);
+        _beamAt[4] = _beamAt[3] + Vector3.Distance(tertiaryCentre, focus);
+
+        var v = new List<Vector3>();
+        var n = new List<Vector3>();
+        var uv = new List<Vector2>();
+        var tri = new List<int>();
+        Cone(v, n, uv, tri, top, onPrimary, Vector3.up, r0, r0, _beamAt[0], _beamAt[1]);
+        Cone(v, n, uv, tri, onPrimary, onSecondary, Vector3.up, r0, rS, _beamAt[1], _beamAt[2]);
+        Cone(v, n, uv, tri, onSecondary, tertiaryCentre, Vector3.up, rS, rT, _beamAt[2], _beamAt[3]);
+        Cone(v, n, uv, tri, tertiaryCentre, focus, out_, rT, 0.02f, _beamAt[3], _beamAt[4]);
+
+        if (_beam == null)
+        {
+            var go = new GameObject("Beam");
+            go.layer = tube.gameObject.layer;
+            go.transform.SetParent(tube, false);
+            go.AddComponent<MeshFilter>();
+            _beam = go.AddComponent<MeshRenderer>();
+            _beam.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            _beam.receiveShadows = false;
+            _beam.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+            _beam.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+        }
+        var filter = _beam.GetComponent<MeshFilter>();
+        Mesh mesh = filter.sharedMesh;
+        if (mesh == null) { mesh = new Mesh { name = "Magellan beam" }; filter.sharedMesh = mesh; }
+        mesh.Clear();
+        mesh.SetVertices(v);
+        mesh.SetNormals(n);
+        mesh.SetUVs(0, uv);
+        mesh.SetTriangles(tri, 0);
+        mesh.RecalculateBounds();
+        _beam.sharedMaterial = _beamMaterial;
+        _beam.enabled = false;
+    }
+
+    /// <summary>A cone's side from a (radius ra) to b (radius rb), round the given axis; uv.x from da to db.</summary>
+    static void Cone(List<Vector3> v, List<Vector3> n, List<Vector2> uv, List<int> tri,
+                     Vector3 a, Vector3 b, Vector3 axis, float ra, float rb, float da, float db)
+    {
+        const int sides = 48;
+        Vector3 u = Vector3.Cross(axis, Mathf.Abs(axis.y) < 0.9f ? Vector3.up : Vector3.right).normalized;
+        Vector3 w = Vector3.Cross(axis, u);
+        int start = v.Count;
+        for (int i = 0; i <= sides; i++)
+        {
+            float t = i * Mathf.PI * 2f / sides;
+            Vector3 d = u * Mathf.Cos(t) + w * Mathf.Sin(t);
+            v.Add(a + d * ra); n.Add(d); uv.Add(new Vector2(da, 0f));
+            v.Add(b + d * rb); n.Add(d); uv.Add(new Vector2(db, 0f));
+        }
+        for (int i = 0; i < sides; i++)
+        {
+            int k = start + i * 2;
+            tri.Add(k); tri.Add(k + 2); tri.Add(k + 1);
+            tri.Add(k + 1); tri.Add(k + 2); tri.Add(k + 3);
+        }
+    }
+
     /// <summary>A visible wavelength's colour, nanometres, roughly as the eye sees it.</summary>
     static Color Wavelength(float nm)
     {
@@ -349,24 +492,26 @@ public class MagellanLightPath_NEW : MonoBehaviour
         }
         _material.SetColor("_Color", colour);
         _material.SetFloat("_Occluded", occluded);
+        int count = look == Look.Rays ? rays : 0;
+        BuildBeam();
 
-        while (_rays.Count > rays)
+        while (_rays.Count > count)
         {
             Ray last = _rays[_rays.Count - 1];
             if (last.line != null) Destroy(last.line.gameObject);
             _rays.RemoveAt(_rays.Count - 1);
         }
-        while (_rays.Count < rays) _rays.Add(new Ray());
+        while (_rays.Count < count) _rays.Add(new Ray());
 
         Vector3 primeFocus = new Vector3(0f, primaryVertexY + focalLength, 0f);
         // The f/11 focus as if the tertiary were not there: straight on down the axis.
         Vector3 unfolded = new Vector3(0f, secondaryVertexY - secondaryToFocus, 0f);
         float rimY = primaryVertexY + primaryRadius * primaryRadius / (4f * focalLength);
 
-        for (int i = 0; i < rays; i++)
+        for (int i = 0; i < count; i++)
         {
             Ray r = _rays[i];
-            float angle = (i + 0.5f) / rays * Mathf.PI * 2f;
+            float angle = (i + 0.5f) / count * Mathf.PI * 2f;
             float radius = primaryRadius * (i % 2 == 0 ? outerRadius : innerRadius);
             var across = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * radius;
 

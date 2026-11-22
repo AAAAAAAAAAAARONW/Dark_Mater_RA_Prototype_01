@@ -35,16 +35,19 @@ public class TrailLook_NEW : MonoBehaviour
     [Tooltip("The soft rainbow-like beam: CIE colours on the journey's wavelength axis, no rim, narrowing into the head.")]
     [SerializeField] bool soft = true;
     [Tooltip("World distance, in trail widths, over which the light narrows into the head.")]
-    [Range(0.2f, 5f)] [SerializeField] float converge = 1.5f;
+    [Range(0.2f, 5f)] [SerializeField] float converge = 3.0f;
+    [Tooltip("World distance, in trail widths, over which the white light at the head comes apart into colours.")]
+    [Range(0.2f, 15f)] [SerializeField] float disperse = 5f;
     [Tooltip("Head light size as a share of the screen height (the same however close the camera is).")]
-    [Range(0.005f, 0.2f)] [SerializeField] float headScreenSize = 0.045f;
+    [Range(0f, 0.2f)] [SerializeField] float headScreenSize = 0f;
 
     [Header("A · Halo")]
-    [SerializeField] bool halo = false;
+    [SerializeField] bool halo = true;
     [Tooltip("Halo width, in trail widths.")]
-    [Range(1.2f, 5f)] [SerializeField] float haloWidth = 2.6f;
-    [Range(0f, 2f)] [SerializeField] float haloIntensity = 0.3f;
-    [SerializeField] Color haloColor = new Color(0.69f, 0.84f, 1f, 1f);
+    [Range(1.2f, 5f)] [SerializeField] float haloWidth = 3f;
+    [Tooltip("With the soft beam: a faint glow spreading round the whole light, no edge, no hollow.")]
+    [Range(0f, 2f)] [SerializeField] float haloIntensity = 0.12f;
+    [SerializeField] Color haloColor = new Color(0.86f, 0.9f, 1f, 1f);
 
     [Header("B · Head")]
     [SerializeField] bool head = true;
@@ -89,6 +92,29 @@ public class TrailLook_NEW : MonoBehaviour
     static readonly int SoftPaletteId = Shader.PropertyToID("_SoftPalette");
     static readonly int SoftConvergeId = Shader.PropertyToID("_SoftConverge");
     static readonly int SoftDistanceId = Shader.PropertyToID("_SoftDistance");
+    static readonly int SoftFluxId = Shader.PropertyToID("_SoftFlux");
+    static readonly int SoftMarginId = Shader.PropertyToID("_SoftMargin");
+    static readonly int SoftDisperseId = Shader.PropertyToID("_SoftDisperse");
+    static readonly int HaloSoftId = Shader.PropertyToID("_Soft");
+    static readonly int SoftUseSpecTexId = Shader.PropertyToID("_SoftUseSpecTex");
+    static readonly int SoftTeachId = Shader.PropertyToID("_SoftTeach");
+    static readonly int SoftFluxAmountId = Shader.PropertyToID("_SoftFluxAmount");
+
+    // PC_Tutorial: the look only. Colours from the spectrum texture the tutorial paints, its
+    // teaching effects drawn by the soft beam, no flux — nothing of the tutorial's spectrum is read
+    // or changed beyond what it already writes to the trail.
+    bool _tutorial;
+
+    [Header("Tutorial (PC_Tutorial) only")]
+    [Tooltip("White at the head in the tutorial, where the camera rides close behind the light and the head fills the view.")]
+    [Range(0f, 1f)] [SerializeField] float tutorialWhite = 0.45f;
+    [Tooltip("How much of the width that white covers in the tutorial (0 = down the middle only).")]
+    [Range(0f, 1f)] [SerializeField] float tutorialWhiteCover = 0.3f;
+    static readonly int SoftWhiteId = Shader.PropertyToID("_SoftWhite");
+    static readonly int SoftWhiteCoverId = Shader.PropertyToID("_SoftWhiteCover");
+
+    Texture2D _fluxTex;
+    Color32[] _fluxPx;
 
     BakedSpectrumSource_NEW _source;
     Texture2D _palette;
@@ -126,11 +152,7 @@ public class TrailLook_NEW : MonoBehaviour
 
     static void Install()
     {
-        // Vizlab_Journey only: the other journey scenes (PC_Journey, Test_Journey...) keep the trail as it was.
-        if (SceneManager.GetActiveScene().name != "Vizlab_Journey") return;
-        PlayerRig_NEW player = FindObjectOfType<PlayerRig_NEW>();
-        if (player == null) return;
-        PhotonSpectrumTrail spectrum = player.GetComponentInChildren<PhotonSpectrumTrail>(true);
+        PhotonSpectrumTrail spectrum = TrailFacing_NEW.FindTrail();
         if (spectrum == null || spectrum.GetComponent<TrailLook_NEW>() != null) return;
         spectrum.gameObject.AddComponent<TrailLook_NEW>();
     }
@@ -142,6 +164,7 @@ public class TrailLook_NEW : MonoBehaviour
         _ribbon = GetComponent<TrailFacing_NEW>();
         if (_ribbon == null) _ribbon = gameObject.AddComponent<TrailFacing_NEW>();
         _player = GetComponentInParent<PlayerRig_NEW>();
+        _tutorial = TrailFacing_NEW.IsTutorialScene;
         if (_trail == null) { enabled = false; return; }
 
         _ownCurve = _trail.widthCurve;
@@ -215,7 +238,7 @@ public class TrailLook_NEW : MonoBehaviour
         _lastHead = headPos;
         _flown = Mathf.Repeat(_flown + step, flowWavelength);
         _flown60 = Mathf.Repeat(_flown60 + step, 60f);      // the soft beam's drifts repeat every 60 units
-        if (soft && _palette == null) BuildPalette();   // only the phase matters; keeps the shader's sin precise
+        if (soft && _palette == null && !_tutorial) BuildPalette();   // only the phase matters; keeps the shader's sin precise
 
         // TrailFacing_NEW (earlier in LateUpdate) has gathered this frame's ribbon.
         int n = _ribbon != null && _ribbon.isActiveAndEnabled ? _ribbon.Count : 0;
@@ -244,13 +267,27 @@ public class TrailLook_NEW : MonoBehaviour
             mat.SetFloat(TrailLengthId, length);
             mat.SetFloat(FlowDistanceId, _flown);
             mat.SetFloat(HeadSoftId, head ? 1f : 0f);
-            bool softOn = soft && _palette != null;
+            bool softOn = soft && (_palette != null || _tutorial);
             mat.SetFloat(SoftId, softOn ? 1f : 0f);
             if (softOn)
             {
-                mat.SetTexture(SoftPaletteId, _palette);
+                mat.SetFloat(SoftUseSpecTexId, _tutorial ? 1f : 0f);
+                mat.SetFloat(SoftTeachId, _tutorial ? 1f : 0f);
+                if (_tutorial)
+                {
+                    mat.SetFloat(SoftFluxAmountId, 0f);
+                    mat.SetFloat(SoftWhiteId, tutorialWhite);
+                    mat.SetFloat(SoftWhiteCoverId, tutorialWhiteCover);
+                }
+                else mat.SetTexture(SoftPaletteId, _palette);
                 mat.SetFloat(SoftConvergeId, converge * width);
                 mat.SetFloat(SoftDistanceId, _flown60);
+                mat.SetFloat(SoftDisperseId, disperse * width);
+                if (!_tutorial && UpdateFlux())
+                {
+                    mat.SetTexture(SoftFluxId, _fluxTex);
+                    mat.SetFloat(SoftMarginId, _source.TrailMargin);
+                }
             }
             // After PhotonSpectrumTrail's Update, which writes its own share-of-length value.
             // A beam is rounded by its own geometry (TrailFacing_NEW), so the shader's cap is put out of the way.
@@ -268,7 +305,11 @@ public class TrailLook_NEW : MonoBehaviour
                 bool beam = _ribbon.Beam;
                 _haloMat.SetFloat(BeamId, beam ? 1f : 0f);
                 _haloMat.SetFloat(CullId, beam ? (float)UnityEngine.Rendering.CullMode.Back : (float)UnityEngine.Rendering.CullMode.Off);
-                _haloMat.SetFloat(HeadFadeId, Mathf.Clamp01(0.5f * haloWidth * width / Mathf.Max(length, 1e-4f)));
+                bool softHalo = soft && (_palette != null || _tutorial);
+                _haloMat.SetFloat(HaloSoftId, softHalo ? 1f : 0f);
+                // Soft: the glow gathers in with the light over the same distance, so nothing pokes out ahead.
+                float headFade = softHalo ? converge * width : 0.5f * haloWidth * width;
+                _haloMat.SetFloat(HeadFadeId, Mathf.Clamp01(headFade / Mathf.Max(length, 1e-4f)));
                 _haloMat.SetColor(ColorId, haloColor);
                 _haloMat.SetFloat(IntensityId, haloIntensity);
                 _haloMat.SetFloat(HollowId, 1f / haloWidth);
@@ -280,7 +321,7 @@ public class TrailLook_NEW : MonoBehaviour
         {
             Camera cam = Camera.main;
             bool on = head && visible && cam != null;
-            _coreRenderer.enabled = on;
+            _coreRenderer.enabled = on && (!soft || headScreenSize > 0f);
             _tailRenderer.enabled = on && tailGlowIntensity > 0f;
             if (on)
             {
@@ -323,17 +364,19 @@ public class TrailLook_NEW : MonoBehaviour
         const int W = 512;
         _palette = new Texture2D(W, 1, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear, name = "Soft beam palette" };
         var px = new Color[W];
-        Color uvHi = new Color(0.62f, 0.86f, 1f), uvLo = new Color(0.58f, 0.46f, 1f), irA = new Color(0.95f, 0.22f, 0.10f), irB = new Color(0.55f, 0.05f, 0.04f);
+        // As in the Photon Beam Tuner: UV deep violet beside the visible band, fading to a dim cold
+        // blue towards the far UV (dimmer than the rainbow, so the white head and the colours read).
+        Color uvFar = new Color(0.40f, 0.62f, 0.95f), uvNear = new Color(0.52f, 0.40f, 1f), irA = new Color(0.95f, 0.22f, 0.10f), irB = new Color(0.55f, 0.05f, 0.04f);
         for (int x = 0; x < W; x++)
         {
             float t = (x + 0.5f) / W;
             double lam = _source.TrailLambda(t);
             Color c; float br;
-            if (lam < 3900) { c = Color.Lerp(uvHi, uvLo, Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(Mathf.Log(1300f), Mathf.Log(4000f), Mathf.Log((float)lam)))); br = 0.7f; }
-            else if (lam < 4200) { float k = (float)(lam - 3900) / 300f; c = Color.Lerp(uvLo, Cie(420f), k); br = 0.7f + 0.55f * k; }
+            if (lam < 3900) { float k = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(Mathf.Log(1300f), Mathf.Log(3900f), Mathf.Log((float)lam))); c = Color.Lerp(uvFar, uvNear, k); br = 0.55f + 0.2f * k; }
+            else if (lam < 4200) { float k = (float)(lam - 3900) / 300f; c = Color.Lerp(uvNear, Cie(420f), k); br = 0.75f + 0.5f * k; }
             else if (lam <= 6900) { c = Cie((float)lam / 10f); br = 1.25f; }
             else if (lam < 7200) { float k = (float)(lam - 6900) / 300f; c = Color.Lerp(Cie(690f), irA, k); br = 1.25f - 0.4f * k; }
-            else { c = Color.Lerp(irA, irB, Mathf.InverseLerp(7200f, 9000f, (float)lam)); br = 0.85f; }
+            else { c = Color.Lerp(irA, irB, Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(7200f, 9000f, (float)lam))); br = 0.85f; }
             br *= Mathf.SmoothStep(0f, 1f, t / 0.1f);                     // far-UV margin
             br *= 1f - 0.75f * Mathf.SmoothStep(0f, 1f, (t - 0.93f) / 0.07f);
             c.a = Mathf.Clamp01(br / 1.25f);                              // shader: rgb * a; brightness 1.25 at most
@@ -341,6 +384,35 @@ public class TrailLook_NEW : MonoBehaviour
         }
         _palette.SetPixels(px);
         _palette.Apply(false);
+    }
+
+    /// <summary>
+    /// The quasar's flux right now (what the HUD draws), normalised and softened (power 0.6, so
+    /// the emission lines lift the beam without everything else going dark), into a 1-pixel-high
+    /// texture on the bar's axis. False until the source has flux to give.
+    /// </summary>
+    bool UpdateFlux()
+    {
+        if (_source == null) _source = FindObjectOfType<BakedSpectrumSource_NEW>();
+        float[] flux = _source != null ? _source.CurrentFlux : null;
+        if (flux == null || flux.Length < 2) return false;
+        if (_fluxTex == null || _fluxTex.width != flux.Length)
+        {
+            if (_fluxTex != null) Destroy(_fluxTex);
+            _fluxTex = new Texture2D(flux.Length, 1, TextureFormat.RGBA32, false, true)
+                { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear, name = "Soft beam flux" };
+            _fluxPx = new Color32[flux.Length];
+        }
+        float max = 1e-6f;
+        for (int i = 0; i < flux.Length; i++) if (flux[i] > max) max = flux[i];
+        for (int i = 0; i < flux.Length; i++)
+        {
+            byte b = (byte)(255f * Mathf.Pow(Mathf.Clamp01(flux[i] / max), 0.6f));
+            _fluxPx[i] = new Color32(b, b, b, 255);
+        }
+        _fluxTex.SetPixels32(_fluxPx);
+        _fluxTex.Apply(false);
+        return true;
     }
 
     static float G(float x, float mu, float s1, float s2) { float d = (x - mu) / (x < mu ? s1 : s2); return Mathf.Exp(-0.5f * d * d); }
@@ -393,6 +465,7 @@ public class TrailLook_NEW : MonoBehaviour
         if (_tailMat != null) Destroy(_tailMat);
         if (_quad != null) Destroy(_quad);
         if (_palette != null) Destroy(_palette);
+        if (_fluxTex != null) Destroy(_fluxTex);
         if (_haloMesh != null) Destroy(_haloMesh);
     }
 }

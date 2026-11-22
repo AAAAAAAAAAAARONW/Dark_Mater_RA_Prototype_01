@@ -68,7 +68,13 @@ public class TrailFacing_NEW : MonoBehaviour
     [SerializeField] bool beam = false;
 
     [Tooltip("Ribbon width, in trail widths. The soft beam fades to nothing over its outer fifth each side.")]
-    [Range(0.5f, 2f)] [SerializeField] float ribbonWidth = 1.15f;
+    [Range(0.5f, 2f)] [SerializeField] float ribbonWidth = 1.0f;
+
+    [Tooltip("How far either way along the trail, in trail widths, the direction of travel is averaged over. Small jogs in the recorded points shorter than this no longer twist the ribbon.")]
+    [Range(0.05f, 3f)] [SerializeField] float tangentWindow = 0.6f;
+
+    [Tooltip("The ribbon widens towards the tail by this share of its width (the light dissipating). Pairs with the soft beam's _SoftTail.")]
+    [Range(0f, 1.5f)] [SerializeField] float tailSpread = 0.3f;
 
     [Tooltip("Vertices around the beam. 16 reads as round at the sizes the trail is seen at.")]
     [Range(6, 24)] [SerializeField] int radialSegments = 16;
@@ -89,7 +95,15 @@ public class TrailFacing_NEW : MonoBehaviour
     Mesh _scratch;
 
     Vector3 _facing;
-    Vector3 _eye, _eyeOffset;
+    Vector3 _eye, _eyeOffset, _eyeUp;
+    bool _upFlip;      // camera below the light: its up gives the other side; kept from the last clear view
+
+    [Tooltip("Keep the spectrum's two sides on the same sides of the screen whichever way the camera looks: " +
+             "seen from in front, the light's left is the screen's right, and the colours swapped over. On in " +
+             "PC_Tutorial (whose camera turns right round); the journey mirrors its spectrum for this itself (AbsorberHighlight_NEW).")]
+    [SerializeField] bool keepScreenSide = false;
+    int _screenRef;    // which way the head's side pointed on screen when first seen clearly: +1 right, -1 left
+    bool _screenFlip;
     bool _hasEye;
     Vector3 _lastHead;
     bool _checked, _ready;
@@ -134,13 +148,36 @@ public class TrailFacing_NEW : MonoBehaviour
 
     static void Install()
     {
-        // Vizlab_Journey only: the other journey scenes (PC_Journey, Test_Journey...) keep the trail as it was.
-        if (SceneManager.GetActiveScene().name != "Vizlab_Journey") return;
-        PlayerRig_NEW player = FindObjectOfType<PlayerRig_NEW>();
-        if (player == null) return;
-        PhotonSpectrumTrail spectrum = player.GetComponentInChildren<PhotonSpectrumTrail>(true);
+        PhotonSpectrumTrail spectrum = FindTrail();
         if (spectrum == null || spectrum.GetComponent<TrailFacing_NEW>() != null) return;
         spectrum.gameObject.AddComponent<TrailFacing_NEW>();
+    }
+
+    /// <summary>True in the tutorial scene that gets the new trail look (PC_Tutorial).</summary>
+    public static bool IsTutorialScene => SceneManager.GetActiveScene().name == "PC_Tutorial";
+
+    /// <summary>
+    /// The light's trail in a scene that gets the new look: Vizlab_Journey and PC_Journey (under
+    /// the PlayerRig_NEW) and PC_Tutorial (wherever it is; it starts switched off). Every other
+    /// scene (Test_Journey, Vizlab_tut...) keeps the trail as it was: null.
+    /// </summary>
+    public static PhotonSpectrumTrail FindTrail()
+    {
+        string scene = SceneManager.GetActiveScene().name;
+        if (scene == "Vizlab_Journey" || scene == "PC_Journey")
+        {
+            PlayerRig_NEW player = FindObjectOfType<PlayerRig_NEW>();
+            return player != null ? player.GetComponentInChildren<PhotonSpectrumTrail>(true) : null;
+        }
+        if (scene == "PC_Tutorial")
+        {
+            foreach (GameObject root in SceneManager.GetActiveScene().GetRootGameObjects())
+            {
+                PhotonSpectrumTrail t = root.GetComponentInChildren<PhotonSpectrumTrail>(true);
+                if (t != null) return t;
+            }
+        }
+        return null;
     }
 
     void Start()
@@ -153,6 +190,7 @@ public class TrailFacing_NEW : MonoBehaviour
         if (_widthCurve == null) _widthCurve = _trail.widthCurve;
         _gradient = _trail.colorGradient;
         _block = new MaterialPropertyBlock();
+        keepScreenSide |= IsTutorialScene;
         _mesh = NewMesh("Trail ribbon (stable)");
         _renderer = MakeRenderer("Trail Ribbon (stable)", _mesh);
         _lastHead = transform.position;
@@ -223,6 +261,9 @@ public class TrailFacing_NEW : MonoBehaviour
         if (!_hasEye) { _eyeOffset = offset; _hasEye = true; }
         else _eyeOffset = Vector3.Lerp(_eyeOffset, offset, 1f - Mathf.Exp(-Time.deltaTime / facingSeconds));
         _eye = head + _eyeOffset;
+        // The camera's own up, eased the same way: what the ribbon turns by when it is seen end on.
+        _eyeUp = _eyeUp == Vector3.zero ? cam.transform.up
+               : Vector3.Slerp(_eyeUp, cam.transform.up, 1f - Mathf.Exp(-Time.deltaTime / facingSeconds));
 
         Vector3 target = Sideways(_eyeOffset, travel);
         if (_facing == Vector3.zero) _facing = target != Vector3.zero ? target : Perpendicular(travel);
@@ -237,6 +278,8 @@ public class TrailFacing_NEW : MonoBehaviour
             _checked = true;
             _trail.forceRenderingOff = true;
         }
+
+        if (keepScreenSide) KeepScreenSide(cam);
 
         SetBeamOnMaterial(beam);
         Build(_mesh, beam ? 1f : ribbonWidth);
@@ -285,15 +328,43 @@ public class TrailFacing_NEW : MonoBehaviour
         float sign = flip ? -1f : 1f;
         Vector3 last = Vector3.zero;
         int n = _p.Count;
+
+        // The direction of travel at each point is taken over a stretch of the trail, not from
+        // its two neighbours. The points are 0.05 apart, so a jog of a few millimetres (the
+        // light placed at the start, a brush with a collider) turned a whole step sideways, the
+        // ribbon twisted round with it, and the light showed a fold just behind its head.
+        float window = tangentWindow * (_w.Count > 0 && _w[0] > 1e-4f ? _w[0] : 1f);
+        int ahead = 0, behind = 0;
         for (int i = 0; i < n; i++)
         {
-            Vector3 along = _p[Mathf.Max(0, i - 1)] - _p[Mathf.Min(n - 1, i + 1)];
+            float here = _u[i] * Length;
+            while (ahead < i && here - _u[ahead] * Length > window) ahead++;
+            if (behind < i) behind = i;
+            while (behind < n - 1 && _u[behind + 1] * Length - here <= window) behind++;
+            Vector3 along = _p[ahead] - _p[behind];
+            if (along.sqrMagnitude < 1e-12f) along = _p[Mathf.Max(0, i - 1)] - _p[Mathf.Min(n - 1, i + 1)];
             float al = along.magnitude;
             _tan.Add(al > 1e-9f ? along / al : (_tan.Count > 0 ? _tan[_tan.Count - 1] : Vector3.forward));
             Vector3 toEye = _eye - _p[i];
             Vector3 s = Vector3.Cross(along, toEye);
             float m = s.magnitude;
-            if (m > 0.02f * along.magnitude * toEye.magnitude && m > 1e-9f) s = s * (sign / m);
+            // Seen nearly end on (the tutorial's camera rides right behind the light), the side
+            // from (along x to-eye) swings wildly for the smallest move of the camera. There it
+            // turns instead by the camera's own up — the side it would have with the camera a
+            // little above, which is the same side, so nothing flips — blending over 9° to 30°.
+            float sinView = m / Mathf.Max(1e-9f, along.magnitude * toEye.magnitude);
+            Vector3 byUp = Vector3.Cross(along, _eyeUp);
+            float upM = byUp.magnitude;
+            if (upM > 1e-6f * along.magnitude && sinView < 0.5f)
+            {
+                Vector3 sView = m > 1e-9f ? s / m : Vector3.zero;
+                if (sView != Vector3.zero && sinView > 0.05f) _upFlip = Vector3.Dot(sView, byUp) < 0f;
+                if (_upFlip) byUp = -byUp;
+                float w = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.15f, 0.5f, sinView));
+                s = Vector3.Lerp(byUp / upM, sView, w);
+                m = s.magnitude;
+            }
+            if (m > 0.02f * along.magnitude * toEye.magnitude && m > 1e-9f || (sinView < 0.5f && m > 1e-6f)) s = s * (sign / m);
             else if (last != Vector3.zero) s = last;
             else
             {
@@ -303,6 +374,26 @@ public class TrailFacing_NEW : MonoBehaviour
             _side.Add(s);
             last = s;
         }
+    }
+
+    /// <summary>
+    /// Turns the whole ribbon round when the head's side points the other way on screen from how it
+    /// was first seen, so the colours never swap sides as the camera looks back. With a margin
+    /// either way, so a view from straight above does not flicker between the two.
+    /// </summary>
+    void KeepScreenSide(Camera cam)
+    {
+        int k = Mathf.Min(_side.Count, 8);
+        if (k == 0) return;
+        Vector3 head = Vector3.zero;
+        for (int i = 0; i < k; i++) head += _side[i];
+        float d = Vector3.Dot(head.normalized, cam.transform.right);
+        if (_screenRef == 0) { if (Mathf.Abs(d) > 0.3f) _screenRef = d > 0f ? 1 : -1; return; }
+        float along = d * _screenRef;
+        if (!_screenFlip && along < -0.15f) _screenFlip = true;
+        else if (_screenFlip && along > 0.15f) _screenFlip = false;
+        if (_screenFlip)
+            for (int i = 0; i < _side.Count; i++) _side[i] = -_side[i];
     }
 
     /// <summary>
@@ -317,7 +408,7 @@ public class TrailFacing_NEW : MonoBehaviour
         if (_side.Count != n || _w.Count != n) { mesh.Clear(); return; }   // nothing gathered this frame
         for (int i = 0; i < n; i++)
         {
-            Vector3 half = _side[i] * (_w[i] * widthScale * 0.5f);
+            Vector3 half = _side[i] * (_w[i] * widthScale * 0.5f * (1f + tailSpread * _u[i]));
             _verts.Add(transform.InverseTransformPoint(_p[i] - half));
             _verts.Add(transform.InverseTransformPoint(_p[i] + half));
             _uvs.Add(new Vector2(_u[i], 0f));

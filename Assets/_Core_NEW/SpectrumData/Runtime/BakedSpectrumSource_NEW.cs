@@ -1239,6 +1239,15 @@ public class BakedSpectrumSource_NEW : MonoBehaviour
     /// </summary>
     public double TrailLambda(float t) { return _data != null ? Math.Exp(TrailLn(t)) : double.NaN; }
 
+    /// <summary>
+    /// The quasar's flux right now on the bar's axis (LambdaMin to LambdaMax, log), as the HUD
+    /// draws it — null until the bake is loaded. Read only; TrailLook_NEW lights the soft beam with it.
+    /// </summary>
+    public float[] CurrentFlux { get { return _flux; } }
+
+    /// <summary>The far-UV margin the trail's spectrum texture keeps before the bar's axis starts.</summary>
+    public float TrailMargin { get { return trailEdgeMargin; } }
+
     /// <summary>True if the ribbon's wavelengths run the other way across it.</summary>
     public bool TrailMirrored { get { return trailMirrored; } }
 

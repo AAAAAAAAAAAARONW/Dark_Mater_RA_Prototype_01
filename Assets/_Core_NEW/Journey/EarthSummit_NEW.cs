@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using Cinemachine;
 using UnityEngine;
@@ -53,11 +54,14 @@ using UnityEngine;
 /// a dry, rolling ridge of reddish rock, the enclosure made here as the real one stands - a
 /// white drum on a ring of braced steel legs, the box that turns on it open down the front and
 /// across the top - and its twin beside it, as Baade and Clay stand. The light comes straight
-/// down through the open top; as it goes in the picture cuts to inside the enclosure and the
-/// light runs through the optics (MagellanLightPath_NEW): onto the primary, up to the
-/// secondary, down to the tertiary and out along the elevation axis to the instrument. Once it
-/// is there, afterInstrument later, the cut to the observatory from outside, as before. The
-/// sky is the southern one: the galaxy's centre high and the Magellanic Clouds.
+/// down through the open top. Its way in is three shots (22 Nov): once the camera is out of
+/// the clouds (below outsideBelowKm) the picture cuts to the ground, low, the enclosures under
+/// the southern sky, and the light is watched falling into the open top; afterArrival later,
+/// to inside the enclosure, where it runs once through the optics (MagellanLightPath_NEW):
+/// onto the primary, up to the secondary, down to the tertiary, out along the elevation axis
+/// to the instrument, and there spreads into its colours. afterInstrument later, back out to
+/// the ground (endOutside) for the spectrum. The sky is the southern one: the galaxy's centre
+/// and the band across the picture, the Magellanic Clouds.
 /// Tools > Journey NEW > Las Campanas > Move the Ending to Las Campanas sets it all up.
 ///
 /// Put it on the Solar System's group root, beside EarthZoom_NEW. Everything it makes is
@@ -162,37 +166,77 @@ public class EarthSummit_NEW : MonoBehaviour
     [Tooltip("The dim red light inside the enclosure, on its walls.")]
     [SerializeField] Color insideRed = new Color(0.07f, 0.01f, 0.008f, 1f);
 
-    [Tooltip("Seconds the view inside holds once the light has reached the instrument, before the cut outside.")]
-    [Min(0f)] [SerializeField] float afterInstrument = 1.5f;
+    [Header("Las Campanas: textures")]
+    [Tooltip("The ground: gravel. Set by Tools > Journey NEW > Las Campanas > Set Up Textures.")]
+    [SerializeField] Texture gravel;
+    [SerializeField] Texture gravelNormal;
+    [Tooltip("Steep slopes: bare rock.")]
+    [SerializeField] Texture rockFace;
+    [SerializeField] Texture rockFaceNormal;
+    [Tooltip("The enclosures' painted steel: its grain under the white paint.")]
+    [SerializeField] Texture steel;
+    [SerializeField] Texture steelNormal;
+    [Tooltip("Metres the gravel repeats over, near; it repeats again about eight times larger.")]
+    [Range(0.5f, 20f)] [SerializeField] float gravelMetres = 3f;
+    [Tooltip("Metres the steel's grain repeats over on the enclosures.")]
+    [Range(0.5f, 20f)] [SerializeField] float steelMetres = 2.5f;
+
+    [Header("Las Campanas: watching from the ground")]
+    [Tooltip("Without the veil of air: once the camera falling with the light is below this, km, the picture " +
+             "cuts to the ground, and the light is watched falling into the enclosure. 0 = never: straight " +
+             "inside. With the veil the cut is at its floor (veilHoldKm), behind whole cloud.")]
+    [Min(0f)] [SerializeField] float outsideBelowKm = 6f;
+
+    [Tooltip("With the veil of air: seconds the cloud takes to clear on the ground, after the cut to it at the cloud's floor.")]
+    [Min(0.1f)] [SerializeField] float veilOutSeconds = 2.2f;
+
+    [Tooltip("The light's size as it falls in, a fraction of its own, so it reads from the ground (the slot is 9 m wide).")]
+    [Range(0.01f, 1f)] [SerializeField] float fallingLightSize = 0.2f;
+
+    [Tooltip("Degrees the camera is turned from the way to the city (La Serena's glow): positive turns it right, " +
+             "so the glow sits on the left of the picture.")]
+    [Range(-60f, 60f)] [SerializeField] float outsideYaw = 15f;
+
+    [Tooltip("Degrees the camera looks above the horizon: well up, so the sky is most of the picture.")]
+    [Range(-10f, 45f)] [SerializeField] float outsidePitch = 18f;
+
+    [Tooltip("The camera's vertical field of view on the ground, degrees: wide, for the sky.")]
+    [Range(30f, 100f)] [SerializeField] float outsideFov = 70f;
+
+    [Tooltip("Degrees from the way to the city the enclosure stands, from the camera: positive is right.")]
+    [Range(-60f, 60f)] [SerializeField] float outsideDomeYaw = 25f;
+
+    [Tooltip("How far the camera stands from the enclosure, km.")]
+    [Range(0.08f, 1f)] [SerializeField] float outsideDomeKm = 0.3f;
+
+    [Tooltip("The camera's height over the ground, metres.")]
+    [Range(2f, 80f)] [SerializeField] float outsideLiftMetres = 20f;
+
+    [Tooltip("How far the camera creeps in towards the enclosure while on the ground, as a fraction of the way.")]
+    [Range(0f, 0.2f)] [SerializeField] float outsidePush = 0.04f;
+
+    [Tooltip("Seconds the creep takes, eased out, from the first cut to the ground.")]
+    [Min(1f)] [SerializeField] float outsidePushSeconds = 30f;
+
+    [Header("Las Campanas: inside")]
+    [Tooltip("Seconds on the ground after the light has gone in, before the cut inside.")]
+    [Min(0f)] [SerializeField] float afterArrival = 0.8f;
 
     [Tooltip("Where the camera stands inside the enclosure while the light runs through the optics, and what " +
              "it looks at: metres, in the enclosure's frame (y up from the ground, its open front +z, the " +
-             "telescope's floor 13.5 up, its elevation axis along x).")]
-    [SerializeField] Vector3 insideCamera = new Vector3(-8f, 28f, -7.5f);
-    [SerializeField] Vector3 insideLookAt = new Vector3(1.5f, 19.5f, 0f);
+             "telescope's floor 13.5 up, its elevation axis along x, the instrument at +x). From the front, " +
+             "so the whole path shows: down, up, down, and out to the side.")]
+    [SerializeField] Vector3 insideAt = new Vector3(-1.5f, 21.5f, 8.6f);
+    [SerializeField] Vector3 insideLook = new Vector3(1.2f, 21f, 0f);
 
-    [Header("Las Campanas: the last shot")]
-    [Tooltip("Degrees the camera is turned from the way to the city (La Serena's glow): positive turns it right, " +
-             "so the glow sits on the left of the picture.")]
-    [Range(-60f, 60f)] [SerializeField] float finalViewYaw = 18f;
+    [Tooltip("The camera's vertical field of view inside, degrees.")]
+    [Range(30f, 100f)] [SerializeField] float insideFov = 75f;
 
-    [Tooltip("Degrees the camera looks above the horizon: up, so the enclosure stands against the Milky Way.")]
-    [Range(-10f, 30f)] [SerializeField] float finalViewPitch = 8f;
+    [Tooltip("Seconds inside once the light has reached the instrument, before the spectrum.")]
+    [Min(0f)] [SerializeField] float afterInstrument = 2f;
 
-    [Tooltip("Degrees from the way to the city the enclosure stands, from the camera: positive is right.")]
-    [Range(-60f, 60f)] [SerializeField] float finalDomeYaw = 30f;
-
-    [Tooltip("How far the camera stands from the enclosure, km.")]
-    [Range(0.08f, 1f)] [SerializeField] float finalDomeKm = 0.2f;
-
-    [Tooltip("The camera's height over the ground, metres: low, looking up at the enclosure.")]
-    [Range(2f, 80f)] [SerializeField] float finalLiftMetres = 25f;
-
-    [Tooltip("How far the camera creeps in towards the enclosure over the shot, as a fraction of the way.")]
-    [Range(0f, 0.2f)] [SerializeField] float finalPush = 0.05f;
-
-    [Tooltip("Seconds the creep takes, eased out.")]
-    [Min(1f)] [SerializeField] float finalPushSeconds = 18f;
+    [Tooltip("Back out to the ground for the spectrum. Off: the spectrum comes up over the inside.")]
+    [SerializeField] bool endOutside = true;
 
     [Tooltip("The southern Milky Way: brighter than the one over Los Angeles' glow.")]
     [ColorUsage(false, true)] [SerializeField] Color southernMilkyWay = new Color(0.3f, 0.285f, 0.26f, 1f);
@@ -304,7 +348,12 @@ public class EarthSummit_NEW : MonoBehaviour
     float _reachedClock, _cutClock;
     Vector2 _twinAt;
     bool _hasTwin;
-    Vector3 _standFrom, _standTo;   // the frame: the last shot's creep in
+    Quaternion _frameTurn;          // the frame's turn in Earth's
+    bool _mountainsReady;
+    Vector3 _standFrom, _standTo;   // the frame: the ground shots' creep in
+    CinemachineVirtualCamera _outsideVcam;
+    bool _watching, _inside;
+    float _watchStart;
     Transform _veil;
     Material _veilMaterial;
     readonly List<Material> _insideLights = new List<Material>();
@@ -322,7 +371,7 @@ public class EarthSummit_NEW : MonoBehaviour
     public Vector3 Up => _up;
 
     /// <summary>Which way the camera ends up looking, level, world space.</summary>
-    public Vector3 ViewLevel => Rotate(_toCity, LasCampanas ? finalViewYaw : viewYaw);
+    public Vector3 ViewLevel => Rotate(_toCity, LasCampanas ? outsideYaw : viewYaw);
 
     /// <summary>World units a km, now.</summary>
     public float KmToWorld => _frame != null ? _frame.lossyScale.x : 1f;
@@ -378,9 +427,10 @@ public class EarthSummit_NEW : MonoBehaviour
         {
             if (!_zoom.SummitStarted) return;
             _built = true;
-            Build();
+            StartCoroutine(Build());
         }
         if (_frame == null) return;
+        PlaceFrame();
 
         float kmToWorld = _frame.lossyScale.x;
         foreach (Material m in _setMaterials) m.SetFloat("_KmToWorld", kmToWorld);
@@ -390,7 +440,7 @@ public class EarthSummit_NEW : MonoBehaviour
         // Low enough that the patch of true sphere fills the view: the coarse sphere and its air
         // go (see Build).
         Camera low = GetReal3DView_NEW.ScreenCamera;
-        if (!_sphereHidden && low != null && _frame.InverseTransformPoint(low.transform.position).y < hideSphereBelowKm)
+        if (!_sphereHidden && _mountainsReady && low != null && _frame.InverseTransformPoint(low.transform.position).y < hideSphereBelowKm)
         {
             _sphereHidden = true;
             _zoom.Body.SetAirVisible(false);
@@ -411,12 +461,24 @@ public class EarthSummit_NEW : MonoBehaviour
     }
 
     /// <summary>The veil of air, round the drawing camera, as thick as its height says (see INTO THE AIR).</summary>
+    /// <summary>The frame of km on the ground under the arrival, from the arrival itself (see Build).</summary>
+    void PlaceFrame()
+    {
+        _frame.position = _zoom.GroundPoint;
+        _frame.rotation = _zoom.Earth.rotation * _frameTurn;
+        _frame.localScale = Vector3.one * _zoom.KmToWorld;
+    }
+
     void Veil()
     {
         if (_veil == null) return;
         Camera eye = GetReal3DView_NEW.ScreenCamera;
         float alt = eye != null ? _frame.InverseTransformPoint(eye.transform.position).y : 0f;
         float thick = veilStrength * (1f - Edge(veilFullKm, veilStartKm, alt)) * Edge(veilClearKm, veilHoldKm, alt);
+        // Las Campanas (22 Nov): closing to whole cloud as the camera nears the cloud's floor,
+        // where the picture cuts to the ground behind it; there it clears, over veilOutSeconds.
+        if (_path != null && !_watching) thick = Mathf.Max(thick, Edge(veilHoldKm * 2f, veilHoldKm, alt));
+        if (_watching) thick = 1f - Edge(0f, veilOutSeconds, Time.time - _watchStart);
         bool on = eye != null && thick > 0.002f;
         _veil.gameObject.SetActive(on);
         if (!on) return;
@@ -490,6 +552,7 @@ public class EarthSummit_NEW : MonoBehaviour
 
     void OnDisable()
     {
+        StopAllCoroutines();
         if (_skySwapped) { RenderSettings.skybox = _skyBefore; _skySwapped = false; }
         ShowPhoton();
         foreach (Renderer r in _systemParts) if (r != null) r.enabled = true;
@@ -505,6 +568,8 @@ public class EarthSummit_NEW : MonoBehaviour
         _frame = null;
         _vcam = null;
         _insideVcam = null;
+        _outsideVcam = null;
+        _watching = _inside = false;
         _path = null;
         _beacon = null;
         _road.Clear();
@@ -516,15 +581,22 @@ public class EarthSummit_NEW : MonoBehaviour
 
     // ── Building ────────────────────────────────────────────────────────────
 
-    void Build()
+    /// <summary>
+    /// Builds the summit over a few frames (22 Nov: all in one, it stalled the picture as the
+    /// close-up map came in): the ground and the frame, then the mountains, then the
+    /// observatory, then the sky and the rest. Each stage's time is logged.
+    /// </summary>
+    IEnumerator Build()
     {
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        string stages = "";
         CelestialBody_NEW body = _zoom.Body;
         Transform earth = _zoom.Earth;
         Camera cam = GetReal3DView_NEW.ScreenCamera;
         if (body == null || body.SurfaceMaterial == null || earth == null || cam == null)
         {
             Debug.LogWarning("[EarthSummit_NEW] No Earth surface or no camera to build the summit for.", this);
-            return;
+            yield break;
         }
 
         // The frame at the landing point. North is towards Earth's pole, as the maps have it.
@@ -555,10 +627,14 @@ public class EarthSummit_NEW : MonoBehaviour
         // The frame of km, standing on the landing point.
         var frameGo = Make("Summit (km)");
         _frame = frameGo.transform;
-        _frame.SetParent(earth, false);
-        _frame.position = ground;
-        _frame.rotation = Quaternion.LookRotation(_north, _up);
-        _frame.localScale = Vector3.one * (body.MeshRadius / EarthZoom_NEW.EarthRadiusKm);
+        // Not hung on Earth (22 Nov): while Earth grows its centre is some 190,000 units off, and
+        // everything placed through it came out a few hundredths of a unit off each frame - the
+        // ground and the enclosures shook against the camera. Placed instead every frame from the
+        // arrival, a small number, as the light and the camera are (PlaceFrame).
+        _frameTurn = Quaternion.Inverse(earth.rotation) * Quaternion.LookRotation(_north, _up);
+        PlaceFrame();
+        // The veil of air now, so it is there from the top of the fall.
+        BuildVeil();
 
         Shader set = Resources.Load<Shader>("SummitSet_NEW");
         if (set == null) Debug.LogError("[EarthSummit_NEW] Resources/SummitSet_NEW.shader is missing: no mountains or dome.", this);
@@ -575,6 +651,22 @@ public class EarthSummit_NEW : MonoBehaviour
             _setMountain.SetFloat("_MoonOnNight", 1f);
             _setMountain.SetFloat("_Grain", 0.45f);
             _setMountain.SetFloat("_GrainScale", 140f);   // the mesh is in km: rock about 7 m across
+            // Gravel on the level, rock face on the steep (the mesh is in km); and rock in broad
+            // patches everywhere, tens of metres across, so the ground is not one colour from afar.
+            if (Detail(_setMountain, gravel, gravelNormal, 1000f / gravelMetres, 2.3f, 0.9f))
+            {
+                _setMountain.SetFloat("_DetailFar", 0.12f);
+                _setMountain.SetFloat("_BumpStrength", 1.4f);
+                _setMountain.SetFloat("_MacroOn", rockFace != null ? 1f : 0f);
+                if (rockFace != null)
+                {
+                    _setMountain.SetTexture("_Slope", rockFace);
+                    if (rockFaceNormal != null) _setMountain.SetTexture("_SlopeNormal", rockFaceNormal);
+                    _setMountain.SetFloat("_SlopeOn", 1f);
+                    _setMountain.SetFloat("_SlopeScale", 0.35f);
+                    _setMountain.SetFloat("_SlopeGain", 2.2f);
+                }
+            }
         }
         // The mountains wear the ground's own night, so from above they are the land round
         // them and not a dark patch on it; hazed as the ground is.
@@ -604,7 +696,7 @@ public class EarthSummit_NEW : MonoBehaviour
         Vector3 arriveKm = _frame.InverseTransformPoint(_zoom.ArrivalPoint);
         Vector2 domeAt = new Vector2(arriveKm.x, arriveKm.z);
         float domeGround = arriveKm.y - (ArrivalHeightKm - summitKm);
-        Vector2 spot = domeAt - Rotate(toward, LasCampanas ? finalDomeYaw : domeYaw) * (LasCampanas ? finalDomeKm : domeKm);
+        Vector2 spot = domeAt - Rotate(toward, LasCampanas ? outsideDomeYaw : domeYaw) * (LasCampanas ? outsideDomeKm : domeKm);
         _stand = new Vector3(spot.x, standKm, spot.y);
 
         bool model = UseModel;
@@ -615,14 +707,23 @@ public class EarthSummit_NEW : MonoBehaviour
         if (LasCampanas) PlanRoad(domeAt, spot);
         if (LasCampanas)
         {
-            // The last shot from low down: finalLiftMetres over the ground where the camera stands.
+            // The ground shots from low down: outsideLiftMetres over the ground where the camera stands.
             float groundKm = Atacama(spot, spot, toward, 99f, domeAt, domeGround);
-            standKm = groundKm + finalLiftMetres * 0.001f;
+            standKm = groundKm + outsideLiftMetres * 0.001f;
             _stand = new Vector3(spot.x, standKm, spot.y);
         }
         _standFrom = _stand;
-        _standTo = Vector3.Lerp(_stand, new Vector3(domeAt.x, _stand.y, domeAt.y), LasCampanas ? finalPush : 0f);
-        Part("Mountains", BuildMountains(spot, toward, standKm, domeAt, domeGround), _setMountain, _frame);
+        _standTo = Vector3.Lerp(_stand, new Vector3(domeAt.x, _stand.y, domeAt.y), LasCampanas ? outsidePush : 0f);
+        stages += "ground and frame " + clock.ElapsedMilliseconds + " ms";
+        yield return null;
+        clock.Restart();
+        Mesh mountains = null;
+        yield return StartCoroutine(BuildMountains(spot, toward, standKm, domeAt, domeGround, m => mountains = m));
+        Part("Mountains", mountains, _setMountain, _frame);
+        _mountainsReady = true;
+        stages += ", mountains " + clock.ElapsedMilliseconds + " ms";
+        yield return null;
+        clock.Restart();
 
         // The slit opens three-quarters towards the camera, so it shows.
         Vector2 faces = Rotate((spot - domeAt).normalized, 50f);
@@ -645,19 +746,25 @@ public class EarthSummit_NEW : MonoBehaviour
             BuildDome(dome);
         }
 
+        stages += ", observatory " + clock.ElapsedMilliseconds + " ms";
+        yield return null;
+        clock.Restart();
+
         // The view from outside, cut to after the light goes in.
-        float yaw = LasCampanas ? finalViewYaw : viewYaw, pitch = LasCampanas ? finalViewPitch : viewPitch;
+        float yaw = LasCampanas ? outsideYaw : viewYaw, pitch = LasCampanas ? outsidePitch : viewPitch;
         Vector3 level = Rotate(_toCity, yaw);
         _cutTo = Quaternion.LookRotation(level * Mathf.Cos(pitch * Mathf.Deg2Rad) + _up * Mathf.Sin(pitch * Mathf.Deg2Rad), _up);
 
         // The sky, while the camera still looks at the ground; the air to fall through.
         BuildSky();
-        BuildVeil();
 
         // The rest of the Solar System, left behind by EarthZoom_NEW when it took Earth out:
         // no planet belongs in this sky.
         foreach (Renderer r in GetComponentsInChildren<Renderer>(false))
             if (r.enabled) { r.enabled = false; _systemParts.Add(r); }
+
+        stages += ", sky and the rest " + clock.ElapsedMilliseconds + " ms";
+        Debug.Log("[EarthSummit_NEW] Built over four frames: " + stages + ".", this);
 
         // The light, to be narrowed into the tube and then hidden in it.
         PlayerRig_NEW photon = _zoom.Photon;
@@ -723,11 +830,13 @@ public class EarthSummit_NEW : MonoBehaviour
         // band rising from it up over the sky to the left, as the summer Milky Way stands, and
         // across the picture the camera ends on. Las Campanas: the southern winter sky, the
         // centre high to the right and the band arching up over the enclosure.
+        // (22 Nov) Placed by the ground camera: the centre a quarter of the way in from the
+        // right, a third up; the band rising from it up and across to the left.
         Vector3 centre = LasCampanas
-            ? (Rotate(_toCity, 35f) * Mathf.Cos(40f * Mathf.Deg2Rad) + _up * Mathf.Sin(40f * Mathf.Deg2Rad)).normalized
+            ? (Rotate(_toCity, outsideYaw + 25f) * Mathf.Cos(30f * Mathf.Deg2Rad) + _up * Mathf.Sin(30f * Mathf.Deg2Rad)).normalized
             : (Rotate(_toCity, 12f) * Mathf.Cos(10f * Mathf.Deg2Rad) + _up * Mathf.Sin(10f * Mathf.Deg2Rad)).normalized;
         Vector3 along = LasCampanas
-            ? (Rotate(_toCity, -60f) * Mathf.Cos(70f * Mathf.Deg2Rad) + _up * Mathf.Sin(70f * Mathf.Deg2Rad)).normalized
+            ? (Rotate(_toCity, outsideYaw - 40f) * Mathf.Cos(40f * Mathf.Deg2Rad) + _up * Mathf.Sin(40f * Mathf.Deg2Rad)).normalized
             : (Rotate(_toCity, -45f) * Mathf.Cos(55f * Mathf.Deg2Rad) + _up * Mathf.Sin(55f * Mathf.Deg2Rad)).normalized;
         Vector3 galPole = Vector3.Cross(centre, along).normalized;
         _sky.SetFloat("_Clouds", 0f);
@@ -752,6 +861,19 @@ public class EarthSummit_NEW : MonoBehaviour
         _skySwapped = true;
     }
 
+    /// <summary>Lays a texture and its normal map on a SummitSet_NEW material; false if there is no texture.</summary>
+    static bool Detail(Material m, Texture colour, Texture normal, float repeatsPerUnit, float gain, float strength)
+    {
+        if (m == null || colour == null) return false;
+        m.SetTexture("_Detail", colour);
+        if (normal != null) m.SetTexture("_DetailNormal", normal);
+        m.SetFloat("_DetailOn", 1f);
+        m.SetFloat("_DetailScale", repeatsPerUnit);
+        m.SetFloat("_DetailGain", gain);
+        m.SetFloat("_DetailStrength", strength);
+        return true;
+    }
+
     /// <summary>A direction from galactic longitude and latitude, degrees, the centre and pole given.</summary>
     static Vector3 Galactic(float l, float b, Vector3 centre, Vector3 pole)
     {
@@ -772,21 +894,39 @@ public class EarthSummit_NEW : MonoBehaviour
         PlayerRig_NEW photon = _zoom.Photon;
         float last = _zoom.FinalProgress;
 
+        // On the ground (Las Campanas): creeping in, eased out, from the first cut to it.
+        if (_outsideVcam != null)
+        {
+            float creep = 1f - Mathf.Pow(1f - Mathf.Clamp01((Time.time - _watchStart) / outsidePushSeconds), 2f);
+            _outsideVcam.transform.localPosition = Vector3.Lerp(_standFrom, _standTo, creep);
+        }
+
         if (!_entered)
         {
-            float size = Mathf.Lerp(1f, lightShrink, Edge(0f, 0.8f, last));
+            float size = Mathf.Lerp(1f, LasCampanas ? fallingLightSize : lightShrink, Edge(0f, 0.8f, last));
             photon.transform.localScale = _photonScale * size;
             for (int i = 0; i < _trails.Count; i++)
                 if (_trails[i] != null) _trails[i].widthMultiplier = _trailWidths[i] * size;
 
-            if (_sky != null) _sky.SetFloat("_Reveal", last);
+            // The stars come up with the fall; on the ground (Las Campanas) they are all there at once.
+            if (_sky != null) _sky.SetFloat("_Reveal", _watching ? 1f : last);
+
+            // Out of the clouds: to the ground, to watch the light fall in.
+            if (_path != null && !_watching && outsideBelowKm > 0f)
+            {
+                Camera eye = GetReal3DView_NEW.ScreenCamera;
+                // With the veil: at the cloud's floor, behind whole cloud (see Veil).
+                float below = entryVeil && _veil != null ? veilHoldKm : outsideBelowKm;
+                if (eye != null && _frame.InverseTransformPoint(eye.transform.position).y < below) WatchFromOutside();
+            }
 
             if (_zoom.Arrived)
             {
                 _entered = true;
                 _insideClock = 0f;
                 HidePhoton();
-                if (_path != null) InsideShot();
+                // Never on the ground (no cut to it, or no light path): straight inside.
+                if (_path != null && !_watching) InsideShot();
             }
             return;
         }
@@ -795,20 +935,20 @@ public class EarthSummit_NEW : MonoBehaviour
         bool ready;
         if (_path != null)
         {
+            if (!_inside && _insideClock >= afterArrival) InsideShot();
             // Inside, until the light has reached the instrument and afterInstrument more; never
             // longer than half a minute, whatever happens to the light.
-            if (_path.Reached) _reachedClock += Time.deltaTime;
-            ready = _reachedClock >= afterInstrument || _insideClock > 30f;
+            if (_inside && _path.Reached) _reachedClock += Time.deltaTime;
+            ready = _inside && (_reachedClock >= afterInstrument || _insideClock > 30f);
         }
         else ready = _insideClock >= holdInside;
 
         if (!_cut && ready) Cut();
-        else if (_cut && _vcam != null)
+        else if (_cut)
         {
-            // Las Campanas: creeping in towards the enclosure, eased out, over the shot.
-            float creep = 1f - Mathf.Pow(1f - Mathf.Clamp01((_insideClock - _cutClock) / finalPushSeconds), 2f);
-            _vcam.transform.position = _frame.TransformPoint(Vector3.Lerp(_standFrom, _standTo, creep));
-            // The brain's own blend back, once the cut has been taken.
+            // Held on its stand as the world settles (the ground camera creeps, above).
+            if (_vcam != null && _vcam != _outsideVcam) _vcam.transform.position = _frame.TransformPoint(_stand);
+            // The brain's own blend back, once the last cut has been taken.
             if (_blendSwapped && _insideClock >= _cutClock + 0.5f) { _brain.m_DefaultBlend = _blendBefore; _blendSwapped = false; }
         }
     }
@@ -818,9 +958,39 @@ public class EarthSummit_NEW : MonoBehaviour
     {
         _cut = true;
         _cutClock = _insideClock;
-        _vcam = NewVcam("VCam_Summit", _frame.TransformPoint(_stand), _cutTo, -1f);
+        if (_path != null)
+        {
+            // Las Campanas: back out to the ground (endOutside), the light inside put away so it
+            // cannot show through the walls; or stay inside, the spectrum over it.
+            if (!endOutside || _outsideVcam == null) return;
+            _path.Stop();
+            if (_insideVcam != null) _insideVcam.gameObject.SetActive(false);
+            _vcam = _outsideVcam;
+            CutTo(_vcam, 90);
+            return;
+        }
+        _vcam = NewVcam("VCam_Summit", _frame.TransformPoint(_stand), _cutTo, -1f, 0f);
         CutTo(_vcam, 90);
         if (_insideVcam != null) _insideVcam.gameObject.SetActive(false);
+        if (_sky != null) _sky.SetFloat("_Reveal", 1f);
+    }
+
+    /// <summary>
+    /// Las Campanas, out of the clouds: the cut to the ground, low, the enclosures under the
+    /// southern sky, to watch the light fall in through the open top.
+    /// </summary>
+    void WatchFromOutside()
+    {
+        _watching = true;
+        _watchStart = Time.time;
+        _outsideVcam = NewVcam("VCam_Ground", _frame.TransformPoint(_stand), _cutTo, -1f, outsideFov);
+        // Hung in the frame, as the enclosures are (22 Nov): while the world still grows, Earth's
+        // centre is some 190,000 units off, and placed through it each frame the camera and the
+        // enclosures were rounded differently and shook against each other. In the same frame
+        // they are rounded alike.
+        _outsideVcam.transform.SetParent(_frame, true);
+        _outsideVcam.transform.localPosition = _stand;
+        CutTo(_outsideVcam, 90);
         if (_sky != null) _sky.SetFloat("_Reveal", 1f);
     }
 
@@ -830,19 +1000,21 @@ public class EarthSummit_NEW : MonoBehaviour
     /// </summary>
     void InsideShot()
     {
-        Vector3 at = _dome.TransformPoint(insideCamera);
-        Vector3 look = _dome.TransformPoint(insideLookAt) - at;
+        _inside = true;
+        Vector3 at = _dome.TransformPoint(insideAt);
+        Vector3 look = _dome.TransformPoint(insideLook) - at;
         // Near enough for the inside: a third of a metre, at the enclosure's size.
         float near = 0.3f * _dome.lossyScale.x;
-        _insideVcam = NewVcam("VCam_Inside", at, Quaternion.LookRotation(look, _up), near);
+        _insideVcam = NewVcam("VCam_Inside", at, Quaternion.LookRotation(look, _up), near, insideFov);
+        _insideVcam.transform.SetParent(_dome, true);
         CutTo(_insideVcam, 91);
         if (_sky != null) _sky.SetFloat("_Reveal", 1f);
         _reachedClock = 0f;
         _path.Play();
     }
 
-    /// <summary>A virtual camera here with the drawing camera's lens; near, if positive, its own near clip.</summary>
-    CinemachineVirtualCamera NewVcam(string name, Vector3 position, Quaternion rotation, float near)
+    /// <summary>A virtual camera here with the drawing camera's lens; near and fov, if positive, its own.</summary>
+    CinemachineVirtualCamera NewVcam(string name, Vector3 position, Quaternion rotation, float near, float fov)
     {
         Camera cam = GetReal3DView_NEW.ScreenCamera;
         var go = Make(name);
@@ -851,7 +1023,7 @@ public class EarthSummit_NEW : MonoBehaviour
         if (cam != null)
         {
             LensSettings lens = vcam.m_Lens;
-            lens.FieldOfView = cam.fieldOfView;
+            lens.FieldOfView = fov > 0f ? fov : cam.fieldOfView;
             lens.NearClipPlane = near > 0f ? Mathf.Min(near, cam.nearClipPlane) : cam.nearClipPlane;
             lens.FarClipPlane = cam.farClipPlane;
             vcam.m_Lens = lens;
@@ -957,10 +1129,18 @@ public class EarthSummit_NEW : MonoBehaviour
         _setDome.SetFloat("_VertexColors", 1f);
         _setDome.SetFloat("_Grain", 0.12f);
         _setDome.SetFloat("_GrainScale", 0.7f);
+        // The steel's grain under the white paint, faint (the mesh is in metres).
+        if (Detail(_setDome, steel, steelNormal, 1f / steelMetres, 2.3f, 0.35f))
+        {
+            _setDome.SetFloat("_DetailFar", 0.2f);
+            _setDome.SetFloat("_BumpStrength", 0.5f);
+        }
         Material trim = Lit(set, new Color(0.05f, 0.05f, 0.055f, 1f));
         Material floorMat = Inside(set, new Color(0.2f, 0.2f, 0.21f, 1f), new Color(0.004f, 0.004f, 0.005f, 1f));
         // The inside walls in the dim red of an observatory at night: they flash as the light goes in.
-        Material lining = Inside(set, new Color(0.22f, 0.22f, 0.24f, 1f), insideRed);
+        // The inside walls grey, as they are, lit by the sky through the slot and the red work
+        // lamps (see Inside); only a breath of red light of their own.
+        Material lining = Inside(set, new Color(0.3f, 0.3f, 0.32f, 1f), LasCampanas ? insideRed * 0.2f : insideRed);
         Material lamp = Lit(set, Color.black);
         lamp.SetColor("_Rim", Color.black);
         lamp.SetColor("_Emission", lampColour);
@@ -969,6 +1149,21 @@ public class EarthSummit_NEW : MonoBehaviour
 
         foreach (Transform where in new[] { holder })
             PlaceEnclosure(where, e, trim, floorMat, lining, lamp);
+
+        // The red work lamps: small, low on the inside walls of the room, round from the
+        // instrument's side; what red there is comes from them.
+        var wv = new List<Vector3>();
+        var wt = new List<int>();
+        foreach (int k in new[] { 2, 3, 5, 6 })
+        {
+            Vector3 n = FaceDir(k), side = new Vector3(n.z, 0f, -n.x);
+            OBox(wv, wt, n * (12.7f * Mathf.Cos(22.5f * Mathf.Deg2Rad) - 0.25f) + Vector3.up * (EnclosureFloor + 2.4f),
+                 side, Vector3.up, n, new Vector3(0.5f, 0.28f, 0.2f));
+        }
+        Material red = Lit(set, Color.black);
+        red.SetColor("_Rim", Color.black);
+        red.SetColor("_Emission", new Color(2.2f, 0.18f, 0.1f, 1f));
+        Part("Work lamps", FlatMesh("Magellan work lamps", wv, wt, null), red, holder);
 
         // The telescope, as LCO's model stands: its own materials swapped for the inside's light.
         GameObject scope = Instantiate(magellan, holder, false);
@@ -979,9 +1174,14 @@ public class EarthSummit_NEW : MonoBehaviour
         scope.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
         scope.transform.localScale = Vector3.one;
 
-        Material metal = Inside(set, new Color(0.62f, 0.64f, 0.67f, 1f), new Color(0.008f, 0.008f, 0.01f, 1f));
+        Material metal = Inside(set, new Color(0.7f, 0.71f, 0.72f, 1f), new Color(0.004f, 0.004f, 0.005f, 1f));
         Material plinth = Inside(set, new Color(0.14f, 0.14f, 0.15f, 1f), Color.black);
-        Material mirror = Inside(set, new Color(0.05f, 0.06f, 0.07f, 1f), Color.black);
+        // The mirrors' aluminium: dark straight on, the night sky in it; bright at a slant.
+        Material mirror = Inside(set, new Color(0.09f, 0.1f, 0.12f, 1f), new Color(0.006f, 0.008f, 0.014f, 1f));
+        // Painted steel with its grain, not a flat grey; the mirrors' glass catching the sky at an angle.
+        if (Detail(metal, steel, steelNormal, 1f / 1.5f, 2.3f, 0.55f)) metal.SetFloat("_BumpStrength", 0.8f);
+        Detail(plinth, steel, steelNormal, 1f / 2f, 2.3f, 0.6f);
+        mirror.SetColor("_Rim", new Color(0.3f, 0.34f, 0.42f, 1f));
         Material box = Inside(set, new Color(0.12f, 0.13f, 0.15f, 1f), Color.black);
         _scopeRenderers.Clear();
         foreach (Renderer r in scope.GetComponentsInChildren<Renderer>(true))
@@ -1046,24 +1246,32 @@ public class EarthSummit_NEW : MonoBehaviour
     struct Enclosure { public Mesh shell, drum, trims, floor, lining, lamps, beacon; }
 
     /// <summary>
-    /// The Magellan enclosure, metres, +z its open front: sixteen steel legs braced in X under a
-    /// white drum 22 m across, with louvres and a door; a skirt; and on it the box that turns,
-    /// 26 m across and 24 deep, open down the front and across the top in a slot 9 m wide, its
-    /// panels seamed, the telescope's floor at EnclosureFloor and its top at EnclosureTop. Flat
-    /// faces, the parts told apart by vertex colour (0.5 = the white as it is); the drum smooth.
-    /// A lamp over the door, a red beacon on the roof, the inside walls lined in red.
+    /// The Magellan enclosure as photographs of it show it (22 Nov), metres, +z its open front:
+    /// sixteen white steel legs braced in X under a walkway deck with railings; on the deck the
+    /// fixed lower building, an octagon with a bank of louvres on each face and a door, a low
+    /// annex beside it; a ledge; then the upper octagon that turns, big louvres on its faces, its
+    /// front face open above a sill; and its sloping octagonal hood, the slot 9 m wide across the
+    /// top. The telescope's floor at EnclosureFloor, the top at EnclosureTop. Flat faces, the
+    /// parts told apart by vertex colour (0.5 = the white as it is); the inside lined in red.
     /// </summary>
     Enclosure BuildEnclosure()
     {
         var e = new Enclosure();
+        Color legs = Grey(0.47f), braces = Grey(0.44f), walls = Grey(0.5f), deck = Grey(0.4f), ledge = Grey(0.46f),
+              hood = Grey(0.48f), annex = Grey(0.49f), rails = Grey(0.47f);
+        const float legR = 10.6f, legTop = 4f, deckTop = 4.4f, deckR = 14f;
+        const float lowR = 11.5f, lowTop = 12.9f;               // the fixed lower octagon
+        const float upR = 13f, hoodFrom = 24f, hoodR = 9.5f;    // the turning upper octagon, its hood
+        const float slot = 4.5f, sill = 3.5f, slotBack = -4.5f, skin = 0.3f;
+        float y0 = EnclosureFloor, y1 = EnclosureTop;
+        float cos = Mathf.Cos(22.5f * Mathf.Deg2Rad);
+        int doorFace = ((Mathf.RoundToInt(Mathf.Atan2(DoorNormal.x, DoorNormal.z) * Mathf.Rad2Deg / 45f) % 8) + 8) % 8;
+
+        // ---- The fixed part: legs, deck and railings, the lower octagon, the ledge, the annex.
         var v = new List<Vector3>();
         var tri = new List<int>();
         var col = new List<Color>();
-        Color legs = Grey(0.46f), braces = Grey(0.42f), walls = Grey(0.5f), roofTop = Grey(0.44f), skirt = Grey(0.45f), sillC = Grey(0.47f);
-
-        // The legs, braced in X, and a ring beam over them.
         const int legCount = 16;
-        const float legR = 10.6f, legTop = 4f;
         for (int i = 0; i < legCount; i++)
         {
             float a = i * Mathf.PI * 2f / legCount, b = (i + 1) * Mathf.PI * 2f / legCount;
@@ -1074,89 +1282,180 @@ public class EarthSummit_NEW : MonoBehaviour
             Beam(v, tri, q + Vector3.up * 0.3f, p + Vector3.up * (legTop - 0.2f), 0.22f);
             Paint(col, v, braces);
         }
-
-        // The box: walls round a room 19 m by 18, the slot down the front and across the top.
-        float y0 = EnclosureFloor, y1 = EnclosureTop, h = y1 - y0, mid = (y0 + y1) * 0.5f;
-        const float halfW = 13f, halfD = 12f, roomW = 9.5f, roomD = 9f, slot = 4.5f, roof = 3f, sill = 3.5f, roofBack = -4.5f;
-        Box(v, tri, new Vector3(-(halfW + roomW) * 0.5f, mid, 0f), new Vector3(halfW - roomW, h, 2f * halfD));       // side walls
-        Box(v, tri, new Vector3((halfW + roomW) * 0.5f, mid, 0f), new Vector3(halfW - roomW, h, 2f * halfD));
-        Box(v, tri, new Vector3(0f, mid, -(halfD + roomD) * 0.5f), new Vector3(2f * roomW, h, halfD - roomD));       // back wall
-        Box(v, tri, new Vector3(-(roomW + slot) * 0.5f, mid, (halfD + roomD) * 0.5f), new Vector3(roomW - slot, h, halfD - roomD)); // front, beside the slot
-        Box(v, tri, new Vector3((roomW + slot) * 0.5f, mid, (halfD + roomD) * 0.5f), new Vector3(roomW - slot, h, halfD - roomD));
+        OctPrism(v, tri, deckR, legTop, deckTop, -1, true, true);
+        Paint(col, v, deck);
+        for (int k = 0; k < 8; k++)
+        {
+            Vector3 a = Oct(deckR - 0.2f, k - 1), b = Oct(deckR - 0.2f, k);
+            for (int post = 0; post < 3; post++)
+            {
+                Vector3 p = Vector3.Lerp(a, b, post / 3f);
+                Beam(v, tri, p + Vector3.up * deckTop, p + Vector3.up * (deckTop + 1.1f), 0.08f);
+            }
+            Beam(v, tri, a + Vector3.up * (deckTop + 1.05f), b + Vector3.up * (deckTop + 1.05f), 0.07f);
+            Beam(v, tri, a + Vector3.up * (deckTop + 0.55f), b + Vector3.up * (deckTop + 0.55f), 0.05f);
+        }
+        Paint(col, v, rails);
+        OctPrism(v, tri, lowR, deckTop, lowTop, -1, false, false);
         Paint(col, v, walls);
-        Box(v, tri, new Vector3(0f, y0 + sill * 0.5f, (halfD + roomD) * 0.5f), new Vector3(2f * slot, sill, halfD - roomD));   // the sill under the slot
-        Paint(col, v, sillC);
-        Box(v, tri, new Vector3(-(roomW + slot) * 0.5f, y1 - roof * 0.5f, 0f), new Vector3(roomW - slot, roof, 2f * roomD));   // roof, beside the slot
-        Box(v, tri, new Vector3((roomW + slot) * 0.5f, y1 - roof * 0.5f, 0f), new Vector3(roomW - slot, roof, 2f * roomD));
-        Box(v, tri, new Vector3(0f, y1 - roof * 0.5f, (-roomD + roofBack) * 0.5f), new Vector3(2f * slot, roof, roofBack + roomD)); // behind the slot
-        Paint(col, v, roofTop);
-        // The skirt between drum and box.
-        OBox(v, tri, new Vector3(0f, y0 - 0.3f, 0f), Vector3.right, Vector3.up, Vector3.forward, new Vector3(2f * halfW - 1f, 0.6f, 2f * halfD - 1f));
-        Paint(col, v, skirt);
+        OctPrism(v, tri, 12.4f, lowTop, y0, -1, true, true);
+        Paint(col, v, ledge);
+        OBox(v, tri, new Vector3(-16f, 3.6f, -2f), Vector3.right, Vector3.up, Vector3.forward, new Vector3(8f, 7.2f, 11f));
+        Paint(col, v, annex);
+        e.drum = FlatMesh("Magellan lower building", v, tri, col);
+
+        // ---- The part that turns: the upper octagon, front open above the sill, and the hood.
+        v = new List<Vector3>();
+        tri = new List<int>();
+        col = new List<Color>();
+        OctSides(v, tri, upR, y0, upR, hoodFrom, 0, false);
+        OctFace(v, tri, upR, upR, 0, y0, y0 + sill, false);
+        Paint(col, v, walls);
+        OctSides(v, tri, upR, hoodFrom, hoodR, y1, 0, false);
+        foreach (List<Vector2> piece in SlotCap(hoodR, slot, slotBack)) Fan(v, tri, piece, y1, Vector3.up);
+        Paint(col, v, hood);
         e.shell = FlatMesh("Magellan enclosure", v, tri, col);
 
-        // The drum, smooth, its underside and the skirt's edge.
-        var dv = new List<Vector3>();
-        var dt = new List<int>();
-        Band(dv, dt, 11f, legTop, EnclosureFloor - 0.6f, 64);
-        Disc(dv, dt, legTop, 11f, false);
-        e.drum = NewMesh("Magellan drum", dv.ToArray(), dt.ToArray());
-        e.drum.RecalculateNormals();
-        var dc = new Color[dv.Count];
-        for (int i = 0; i < dc.Length; i++) dc[i] = Grey(0.5f);
-        e.drum.colors = dc;
-
-        // Louvres on the drum, in five banks; the door, facing the camera's side; the box's
-        // panel seams, its corner trims and the dark band along its foot.
+        // ---- Louvres, the door, and the seams along the edges.
         var tv = new List<Vector3>();
         var tt = new List<int>();
-        for (int bank = 0; bank < 5; bank++)
+        for (int k = 0; k < 8; k++)
         {
-            float a = (bank + 0.5f) * Mathf.PI * 2f / 5f + 0.4f;
-            Vector3 n = new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a)), side = new Vector3(n.z, 0f, -n.x);
-            for (int slat = 0; slat < 7; slat++)
-                OBox(tv, tt, n * 11.12f + Vector3.up * (7f + slat * 0.45f), side, Vector3.up, n, new Vector3(3.6f, 0.26f, 0.22f));
+            if (k != doorFace) Louvres(tv, tt, lowR * cos, k, 4.6f, deckTop + 2f, lowTop - 1.8f, 0.45f);
+            if (k != 0) Louvres(tv, tt, upR * cos, k, 6.2f, y0 + 3f, hoodFrom - 3f, 0.5f);
+            Vector3 n = FaceDir(k), side = new Vector3(n.z, 0f, -n.x);
+            float upWidth = 2f * upR * Mathf.Sin(22.5f * Mathf.Deg2Rad);
+            if (k != 0) OBox(tv, tt, n * (upR * cos + 0.04f) + Vector3.up * hoodFrom, side, Vector3.up, n, new Vector3(upWidth, 0.18f, 0.08f));
         }
-        Vector3 doorN = DoorNormal, doorSide = new Vector3(doorN.z, 0f, -doorN.x);
-        OBox(tv, tt, doorN * 11.05f + Vector3.up * (legTop + 1.6f), doorSide, Vector3.up, doorN, new Vector3(2.6f, 3.2f, 0.25f));
-        for (float y = y0 + 3.5f; y < y1 - 1f; y += 3.8f)
-        {
-            OBox(tv, tt, new Vector3(-halfW - 0.03f, y, 0f), Vector3.right, Vector3.up, Vector3.forward, new Vector3(0.08f, 0.1f, 2f * halfD));
-            OBox(tv, tt, new Vector3(halfW + 0.03f, y, 0f), Vector3.right, Vector3.up, Vector3.forward, new Vector3(0.08f, 0.1f, 2f * halfD));
-            OBox(tv, tt, new Vector3(0f, y, -halfD - 0.03f), Vector3.right, Vector3.up, Vector3.forward, new Vector3(2f * halfW, 0.1f, 0.08f));
-            float wing = halfW - slot;
-            OBox(tv, tt, new Vector3(-(halfW + slot) * 0.5f, y, halfD + 0.03f), Vector3.right, Vector3.up, Vector3.forward, new Vector3(wing, 0.1f, 0.08f));
-            OBox(tv, tt, new Vector3((halfW + slot) * 0.5f, y, halfD + 0.03f), Vector3.right, Vector3.up, Vector3.forward, new Vector3(wing, 0.1f, 0.08f));
-        }
-        Box(tv, tt, new Vector3(0f, y0 + 0.35f, halfD + 0.05f), new Vector3(2f * halfW, 0.5f, 0.1f));
+        Vector3 doorN = FaceDir(doorFace), doorSide = new Vector3(doorN.z, 0f, -doorN.x);
+        OBox(tv, tt, doorN * (lowR * cos + 0.05f) + Vector3.up * (deckTop + 1.5f), doorSide, Vector3.up, doorN, new Vector3(2.2f, 3f, 0.2f));
         e.trims = FlatMesh("Magellan trims", tv, tt, null);
 
-        // The room's floor.
+        // ---- The floor, and the inside walls, hood and roof, just in from the outside.
         var fv = new List<Vector3>();
         var ft = new List<int>();
-        Box(fv, ft, new Vector3(0f, y0 + 0.1f, 0f), new Vector3(2f * roomW, 0.2f, 2f * roomD));
+        Fan(fv, ft, OctPoly(upR - skin), y0 + 0.1f, Vector3.up);
         e.floor = FlatMesh("Magellan floor", fv, ft, null);
 
-        // The inside walls, just in from the room's walls and roof.
         var lv = new List<Vector3>();
         var lt = new List<int>();
-        Box(lv, lt, new Vector3(-roomW + 0.05f, mid, 0f), new Vector3(0.1f, h - 0.2f, 2f * roomD));
-        Box(lv, lt, new Vector3(roomW - 0.05f, mid, 0f), new Vector3(0.1f, h - 0.2f, 2f * roomD));
-        Box(lv, lt, new Vector3(0f, mid, -roomD + 0.05f), new Vector3(2f * roomW, h - 0.2f, 0.1f));
-        Box(lv, lt, new Vector3(-(roomW + slot) * 0.5f, y1 - roof - 0.05f, 0f), new Vector3(roomW - slot, 0.1f, 2f * roomD));
-        Box(lv, lt, new Vector3((roomW + slot) * 0.5f, y1 - roof - 0.05f, 0f), new Vector3(roomW - slot, 0.1f, 2f * roomD));
+        OctSides(lv, lt, upR - skin, y0, upR - skin, hoodFrom, 0, true);
+        OctFace(lv, lt, upR - skin, upR - skin, 0, y0, y0 + sill, true);
+        OctSides(lv, lt, upR - skin, hoodFrom, hoodR - skin, y1 - skin, 0, true);
+        foreach (List<Vector2> piece in SlotCap(hoodR - skin, slot, slotBack)) Fan(lv, lt, piece, y1 - skin, Vector3.down);
         e.lining = FlatMesh("Magellan inside walls", lv, lt, null);
 
-        // A lamp over the door; the beacon on the roof's front corner.
+        // ---- A lamp over the door; the red beacon on the roof.
         var mv = new List<Vector3>();
         var mt = new List<int>();
-        OBox(mv, mt, doorN * 11.3f + Vector3.up * (legTop + 3.6f), doorSide, Vector3.up, doorN, new Vector3(0.9f, 0.35f, 0.5f));
+        OBox(mv, mt, doorN * (lowR * cos + 0.35f) + Vector3.up * (deckTop + 3.5f), doorSide, Vector3.up, doorN, new Vector3(0.9f, 0.35f, 0.5f));
         e.lamps = FlatMesh("Magellan lamps", mv, mt, null);
         var bv = new List<Vector3>();
         var bt = new List<int>();
-        Box(bv, bt, new Vector3(-halfW + 0.6f, y1 + 0.5f, halfD - 0.6f), Vector3.one * 0.9f);
+        Box(bv, bt, new Vector3(-6f, y1 + 0.5f, -6f), Vector3.one * 0.9f);
         e.beacon = FlatMesh("Magellan beacon", bv, bt, null);
         return e;
+    }
+
+    // ── Octagons, for the enclosure: face 0 faces +z, corner k at 22.5 + 45k degrees ──
+
+    static Vector3 Oct(float r, int k)
+    {
+        float a = (22.5f + 45f * k) * Mathf.Deg2Rad;
+        return new Vector3(Mathf.Sin(a) * r, 0f, Mathf.Cos(a) * r);
+    }
+
+    static Vector3 FaceDir(int k)
+    {
+        float a = 45f * k * Mathf.Deg2Rad;
+        return new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a));
+    }
+
+    static List<Vector2> OctPoly(float r)
+    {
+        var p = new List<Vector2>();
+        for (int k = 0; k < 8; k++) { Vector3 q = Oct(r, k); p.Add(new Vector2(q.x, q.z)); }
+        return p;
+    }
+
+    /// <summary>Four corners in order round them, wound to face the given way.</summary>
+    static void Quad(List<Vector3> v, List<int> tri, Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector3 facing)
+    {
+        int i = v.Count;
+        v.Add(a); v.Add(b); v.Add(c); v.Add(d);
+        if (Vector3.Dot(Vector3.Cross(b - a, c - a), facing) >= 0f) tri.AddRange(new[] { i, i + 1, i + 2, i, i + 2, i + 3 });
+        else tri.AddRange(new[] { i, i + 2, i + 1, i, i + 3, i + 2 });
+    }
+
+    /// <summary>One face of an octagonal frustum, r0 at y0 to r1 at y1, facing out (or in).</summary>
+    static void OctFace(List<Vector3> v, List<int> tri, float r0, float r1, int k, float y0, float y1, bool inward)
+    {
+        Vector3 n = FaceDir(k);
+        Quad(v, tri, Oct(r0, k - 1) + Vector3.up * y0, Oct(r0, k) + Vector3.up * y0,
+             Oct(r1, k) + Vector3.up * y1, Oct(r1, k - 1) + Vector3.up * y1, inward ? -n : n);
+    }
+
+    /// <summary>The faces of an octagonal frustum, r0 at y0 to r1 at y1, all but face skip.</summary>
+    static void OctSides(List<Vector3> v, List<int> tri, float r0, float y0, float r1, float y1, int skip, bool inward)
+    {
+        for (int k = 0; k < 8; k++)
+            if (k != skip) OctFace(v, tri, r0, r1, k, y0, y1, inward);
+    }
+
+    /// <summary>An octagonal prism, r from y0 to y1, all but face skip, with its top and bottom if asked.</summary>
+    static void OctPrism(List<Vector3> v, List<int> tri, float r, float y0, float y1, int skip, bool top, bool bottom)
+    {
+        OctSides(v, tri, r, y0, r, y1, skip, false);
+        if (top) Fan(v, tri, OctPoly(r), y1, Vector3.up);
+        if (bottom) Fan(v, tri, OctPoly(r), y0, Vector3.down);
+    }
+
+    /// <summary>A flat convex polygon at height y (x, z), wound to face the given way.</summary>
+    static void Fan(List<Vector3> v, List<int> tri, List<Vector2> poly, float y, Vector3 facing)
+    {
+        if (poly.Count < 3) return;
+        int b = v.Count;
+        foreach (Vector2 p in poly) v.Add(new Vector3(p.x, y, p.y));
+        for (int i = 1; i + 1 < poly.Count; i++)
+        {
+            Vector3 a = v[b], c = v[b + i], d = v[b + i + 1];
+            if (Vector3.Dot(Vector3.Cross(c - a, d - a), facing) >= 0f) tri.AddRange(new[] { b, b + i, b + i + 1 });
+            else tri.AddRange(new[] { b, b + i + 1, b + i });
+        }
+    }
+
+    /// <summary>The part of a convex polygon where dot(n, p) is at most c.</summary>
+    static List<Vector2> Clip(List<Vector2> poly, Vector2 n, float c)
+    {
+        var o = new List<Vector2>();
+        for (int i = 0; i < poly.Count; i++)
+        {
+            Vector2 p = poly[i], q = poly[(i + 1) % poly.Count];
+            float dp = Vector2.Dot(n, p) - c, dq = Vector2.Dot(n, q) - c;
+            if (dp <= 0f) o.Add(p);
+            if ((dp <= 0f) != (dq <= 0f)) o.Add(Vector2.Lerp(p, q, dp / (dp - dq)));
+        }
+        return o;
+    }
+
+    /// <summary>The hood's roof, an octagon r across, less the slot: |x| under slot from slotBack to the front.</summary>
+    static List<List<Vector2>> SlotCap(float r, float slot, float slotBack)
+    {
+        List<Vector2> oct = OctPoly(r);
+        return new List<List<Vector2>>
+        {
+            Clip(oct, new Vector2(1f, 0f), -slot),
+            Clip(oct, new Vector2(-1f, 0f), -slot),
+            Clip(Clip(Clip(oct, new Vector2(1f, 0f), slot), new Vector2(-1f, 0f), slot), new Vector2(0f, 1f), slotBack),
+        };
+    }
+
+    /// <summary>A bank of louvres on face k of an octagon this far to its faces: slats width wide from one height to another.</summary>
+    static void Louvres(List<Vector3> v, List<int> tri, float apothem, int k, float width, float from, float to, float step)
+    {
+        Vector3 n = FaceDir(k), side = new Vector3(n.z, 0f, -n.x);
+        for (float y = from; y <= to; y += step)
+            OBox(v, tri, n * (apothem + 0.1f) + Vector3.up * y, side, Vector3.up, n, new Vector3(width, step * 0.55f, 0.18f));
     }
 
     // The drum's door: towards the front, round to the camera's side.
@@ -1250,7 +1549,9 @@ public class EarthSummit_NEW : MonoBehaviour
         if (_hasTwin) near = Mathf.Min(near, (p - _twinAt).magnitude);
         float pad = 1f - Edge(_flatInner * 1.25f, _flatInner * 1.25f + 0.012f, near);
         float roadHalf = 0.005f * magellanScale;
-        float road = (1f - Edge(roadHalf, roadHalf + 0.004f, RoadDistance(p))) * (1f - Edge(0.4f, 0.5f, (p - dome).magnitude));
+        // The road only near it: measuring to every bend of it for every vertex was most of the cost.
+        float fromDome = (p - dome).magnitude;
+        float road = fromDome < 0.5f ? (1f - Edge(roadHalf, roadHalf + 0.004f, RoadDistance(p))) * (1f - Edge(0.4f, 0.5f, fromDome)) : 0f;
         c = Color.Lerp(c, new Color(0.78f, 0.74f, 0.68f), Mathf.Max(pad, road * 0.85f));
         c.a = 1f;
         return c;
@@ -1428,6 +1729,13 @@ public class EarthSummit_NEW : MonoBehaviour
         float r = (p - dome).magnitude;
         h += hills * 0.55f * Edge(0.4f, 2.5f, r) + bumps * 0.16f * Edge(0.2f, 1.2f, r) + rocks * 0.03f;
 
+        // Close in, the ridge's rubble: bumps a few metres high and tens across (22 Nov: the
+        // ground read as smooth as a dune).
+        float rubble = Edge(2f, 0.4f, r);
+        if (rubble > 0f)
+            h += ((Mathf.PerlinNoise(p.x * 18f + 1.3f, p.y * 18f + 7.1f) - 0.5f) * 0.008f +
+                  (Mathf.PerlinNoise(p.x * 55f + 4.2f, p.y * 55f + 0.6f) - 0.5f) * 0.0025f) * rubble;
+
         // Lower towards the coast; the foothills of the Andes rising behind, ridge behind ridge.
         h -= 0.35f * Edge(1.5f, 8f, s);
         for (int i = 0; i < 3; i++)
@@ -1450,8 +1758,13 @@ public class EarthSummit_NEW : MonoBehaviour
         return h;
     }
 
-    Mesh BuildMountains(Vector2 spot, Vector2 toward, float cameraKm, Vector2 dome, float domeGround)
+    /// <summary>
+    /// The mountains' mesh, a few milliseconds' worth of rows a frame (22 Nov: some 95,000
+    /// vertices round the enclosures took 800 ms in one), handed to done when it is made.
+    /// </summary>
+    IEnumerator BuildMountains(Vector2 spot, Vector2 toward, float cameraKm, Vector2 dome, float domeGround, System.Action<Mesh> done)
     {
+        var budget = System.Diagnostics.Stopwatch.StartNew();
         const int along = 140, across = 180;
         const float back = 14f, ahead = 9f, side = 28f;
         Vector2 perp = new Vector2(-toward.y, toward.x);
@@ -1470,6 +1783,8 @@ public class EarthSummit_NEW : MonoBehaviour
         var uv = new Vector2[vertices.Length];
         var colours = LasCampanas ? new Color[vertices.Length] : null;
         for (int a = 0; a <= nAlong; a++)
+        {
+        if (budget.ElapsedMilliseconds > 4) { yield return null; budget.Restart(); }
         for (int b = 0; b <= nAcross; b++)
         {
             float s = rows != null ? rows[a] : Mathf.Lerp(-back, ahead, a / (float)along);
@@ -1487,6 +1802,7 @@ public class EarthSummit_NEW : MonoBehaviour
                 uv[a * (nAcross + 1) + b] = new Vector2((lon - _rect.x) / (_rect.z - _rect.x), (lat - _rect.y) / (_rect.w - _rect.y));
             }
         }
+        }
 
         var triangles = new int[nAlong * nAcross * 6];
         int k = 0;
@@ -1503,7 +1819,7 @@ public class EarthSummit_NEW : MonoBehaviour
         if (colours != null) mesh.colors = colours;
         FixWinding(mesh, Vector3.up * 10f, Vector3.zero);
         mesh.RecalculateNormals();
-        return mesh;
+        done(mesh);
     }
 
     // ── The dome ────────────────────────────────────────────────────────────
@@ -1717,6 +2033,19 @@ public class EarthSummit_NEW : MonoBehaviour
         m.SetColor("_GlowColor", Color.black);
         m.SetColor("_Rim", new Color(0.04f, 0.045f, 0.05f, 1f));
         m.SetColor("_Ambient", insideLight * 0.25f);
+        if (LasCampanas && _dome != null)
+        {
+            // (22 Nov) The sky's light falls in through the slot, from above and in front, so the
+            // telescope has a lit side and a shadowed one; and the dim red of the work lamps low
+            // on the walls comes from the side away from the instrument - a little of it, as
+            // observatories keep red lamps (they spare the eyes' dark adaptation), not walls aglow.
+            m.SetVector("_MoonDir", _dome.TransformDirection(new Vector3(0.15f, 0.85f, 0.5f)).normalized);
+            m.SetColor("_MoonColor", insideLight * 0.85f);
+            m.SetVector("_GlowDir", _dome.TransformDirection(new Vector3(-0.8f, -0.1f, -0.6f)).normalized);
+            m.SetColor("_GlowColor", insideRed * 2.2f);
+            m.SetColor("_Ambient", insideLight * 0.12f);
+            m.SetColor("_Rim", new Color(0.05f, 0.055f, 0.065f, 1f));
+        }
         m.SetColor("_Emission", emission);
         _insideLights.Add(m);
         _insideEmission.Add(emission);

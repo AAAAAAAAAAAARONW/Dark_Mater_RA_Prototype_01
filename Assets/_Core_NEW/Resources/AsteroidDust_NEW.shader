@@ -59,7 +59,9 @@ Shader "Journey NEW/Asteroid Dust"
                 float3 world = mul(unity_ObjectToWorld, v.vertex).xyz;
                 float3 look = normalize(world - _WorldSpaceCameraPos);
                 float grazing = abs(dot(look, normalize(_BeltUp.xyz)));
-                o.seen = lerp(_EdgeOn, 1.0, smoothstep(0.03, 0.4, grazing));
+                // (22 Nov: a quarter of _EdgeOn left, faded over a wider band of angles; a third
+                // of the way edge on still read as a smudge along the light's path.)
+                o.seen = lerp(_EdgeOn * 0.25, 1.0, smoothstep(0.06, 0.6, grazing));
                 return o;
             }
 

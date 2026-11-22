@@ -122,11 +122,11 @@ MonoBehaviour:
       takes:
       - language: en
         variant: 
-        text: 'Behind you, the quasar is already shrinking: a bright point at the heart of a faint galaxy. Nothing in the universe moves faster than you.'
+        text: 'Behind you, the quasar is already shrinking: a bright point at the heart of a faint galaxy. Nothing can travel through space faster than you.'
         clip: {fileID: 8300000, guid: 821ce0b649c224c4ba469d4b4ac2f0af, type: 3}
         estimatedSeconds: 11
         status: 2
-        recordedText: 'Behind you, the quasar is already shrinking: a bright point at the heart of a faint galaxy. Nothing in the universe moves faster than you.'
+        recordedText: 'Behind you, the quasar is already shrinking: a bright point at the heart of a faint galaxy. Nothing can travel through space faster than you.'
       cues: []
   - beatId: C5
     settings:

@@ -36,6 +36,10 @@ public class JourneyPause_NEW : MonoBehaviour
     [Tooltip("The hint while paused. {0} is the letter printed on the pad for pause.")]
     [SerializeField] string resumeHintFormat = "{0}  TO  RESUME";
 
+    [Tooltip("Put the resume words on the hint line. Off when a pause card shows the drawn " +
+             "PRESS B - RESUME instead, so it is not said twice.")]
+    [SerializeField] bool showHintWhilePaused = true;
+
     [Tooltip("Pause every AudioSource with the clock, so the voice-over stays in step.")]
     [SerializeField] bool pauseAudio = true;
 
@@ -48,6 +52,7 @@ public class JourneyPause_NEW : MonoBehaviour
 
     float _timeScaleBefore = 1f;
     bool _hintWasShown;
+    bool _hintWasArt;
     string _hintTextBefore;
 
     static JourneyPause_NEW _paused;
@@ -68,10 +73,11 @@ public class JourneyPause_NEW : MonoBehaviour
         Time.timeScale = 0f;
         if (pauseAudio) AudioListener.pause = true;
 
-        if (hint != null)
+        if (hint != null && showHintWhilePaused)
         {
             _hintWasShown = hint.IsShown;
             _hintTextBefore = hint.Text;
+            _hintWasArt = hint.ShowingArt;
             hint.Show(string.Format(resumeHintFormat, InputScheme_NEW.PauseGlyph()));
         }
 
@@ -99,9 +105,10 @@ public class JourneyPause_NEW : MonoBehaviour
         Time.timeScale = _timeScaleBefore > 0f ? _timeScaleBefore : 1f;
         if (pauseAudio) AudioListener.pause = false;
 
-        if (hint != null)
+        if (hint != null && showHintWhilePaused)
         {
-            if (_hintWasShown) hint.Show(_hintTextBefore);
+            if (_hintWasShown && _hintWasArt) hint.ShowArt(_hintTextBefore);
+            else if (_hintWasShown) hint.Show(_hintTextBefore);
             else hint.Hide();
         }
     }

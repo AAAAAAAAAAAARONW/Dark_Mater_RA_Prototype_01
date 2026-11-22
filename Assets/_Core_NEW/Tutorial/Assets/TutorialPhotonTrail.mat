@@ -27,6 +27,14 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _SoftFlux:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SoftPalette:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _SpectrumTex:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -42,20 +50,55 @@ Material:
     - _AbsorptionOutlineRange: 0
     - _AbsorptionOutlineStrength: 1
     - _AbsorptionOutlineWidth: 0
+    - _Beam: 0
+    - _BeamBrightness: 1
+    - _BeamHeadFade: 0
+    - _BeamSide: 1
+    - _Cull: 0
     - _EdgeFadePower: 2
     - _EdgeFadeWidth: 0.15
     - _EdgeSoftness: 1.3
     - _EmissionSoftness: 1.4
     - _EmissionStrength: 2.2
     - _EndFadeWidth: 0.12
+    - _FlowAmount: 0
+    - _FlowDistance: 0
+    - _FlowSpeed: 2.2
+    - _FlowWavelength: 5
     - _GlowFalloff: 5.29
     - _GlowIntensity: 1.31
     - _HeadBrightness: 1
+    - _HeadSoft: 0
     - _HeadWidth: 0.0015
     - _IRGlowStrength: 1.2
     - _ShowHead: 1
+    - _Soft: 0
+    - _SoftBleed: 0.5
+    - _SoftBrightness: 1.9
+    - _SoftConverge: 1.5
+    - _SoftDisperse: 5
+    - _SoftDistance: 0
+    - _SoftEdge: 0.19
+    - _SoftFluxAmount: 1
+    - _SoftGas: 0.04
+    - _SoftGasScale: 0.3
+    - _SoftGasSpeed: 0.4
+    - _SoftHeadBright: 0.75
+    - _SoftHeadFade: 0
+    - _SoftMargin: 0.1
+    - _SoftRound: 0
+    - _SoftSaturation: 1.3
+    - _SoftTail: 0.3
+    - _SoftTeach: 0
+    - _SoftUseSpecTex: 0
+    - _SoftWarm: 0.3
+    - _SoftWhite: 1
+    - _SoftWhiteCover: 1
+    - _SoftWisp: 0.5
     - _SpectrumOffset: 0
     - _SpectrumScale: 1
+    - _TrailLength: 1
+    - _Tube: 0
     - _UVGlowStrength: 1.8
     - _UseAbsorptionLine: 1
     - _UseSpectrum: 1

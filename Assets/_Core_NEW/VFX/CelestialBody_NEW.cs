@@ -126,6 +126,18 @@ public class CelestialBody_NEW : MonoBehaviour
              "thin bright edge on the Sun's side, in the sunset colour. Only with air, and not on Earth, whose night side the arrival is tuned on. 0 = off.")]
     [Range(0f, 4f)] [SerializeField] float backlight = 1.2f;
 
+    [Header("Art light (not on Earth)")]
+    [Tooltip("How far the light falls as an illustration's would rather than from where the Sun is: 0 the " +
+             "Sun alone; 1 a key light from the Sun's side of the planet as seen, swung keyTowardCamera " +
+             "towards the camera, so the planet shows half to most of its lit face - Jupiter's bands, " +
+             "Saturn's rings - wherever the Sun is. Not on Earth: its night side is the arrival.")]
+    [Range(0f, 1f)] [SerializeField] float artKey = 1f;
+    [Tooltip("Degrees the key light swings from the side towards the camera: 0 half lit, 40 about four-fifths, 90 full.")]
+    [Range(0f, 90f)] [SerializeField] float keyTowardCamera = 30f;
+    [Tooltip("The surface's exposure under the art light, times its own: seen more lit than by the Sun, a planet " +
+             "is dimmed so it does not glare.")]
+    [Range(0.2f, 1f)] [SerializeField] float keyExposure = 0.55f;
+
     const HideFlags Built = HideFlags.HideAndDontSave;
 
     readonly List<GameObject> _parts = new List<GameObject>();
@@ -137,6 +149,11 @@ public class CelestialBody_NEW : MonoBehaviour
     bool _rebuild, _dirty;
 
     static readonly int SunId = Shader.PropertyToID("_SunPosition");
+    static readonly int RingSunId = Shader.PropertyToID("_SunDirection");
+    // The rings under this planet (Journey/Planet Rings): lit from the same light as it.
+    readonly List<Renderer> _rings = new List<Renderer>();
+    MaterialPropertyBlock _ringBlock;
+    bool _ringsFound;
     static readonly int CentreId = Shader.PropertyToID("_Centre");
     static readonly int RadiiId = Shader.PropertyToID("_Radii");
 
@@ -262,12 +279,48 @@ public class CelestialBody_NEW : MonoBehaviour
     void Track()
     {
         if (_surface == null) return;
+        if (!_ringsFound)
+        {
+            _ringsFound = true;
+            foreach (Renderer r in GetComponentsInChildren<Renderer>(true))
+                if (r.sharedMaterial != null && r.sharedMaterial.shader != null && r.sharedMaterial.shader.name == "Journey/Planet Rings")
+                    _rings.Add(r);
+        }
         if (sun == null) sun = FindSun();
 
         Vector3 sunPosition = sun != null ? sun.position : transform.position + Vector3.right * 1000f;
         float ground = _meshRadius * transform.lossyScale.x;
 
+        // The art light: the Sun put where the key light comes from, at its own distance, so
+        // the surface, the air and the rings all take it alike.
+        Vector3 toSun = sunPosition - transform.position;
+        Vector3 lightDir = toSun.normalized;
+        Camera eye = kind != Kind.Earth && artKey > 0f ? GetReal3DView_NEW.ScreenCamera : null;
+        if (eye != null && toSun.sqrMagnitude > 1e-12f)
+        {
+            Vector3 toEye = (eye.transform.position - transform.position).normalized;
+            // The Sun's side of the planet as seen: across the line of sight, towards the Sun.
+            Vector3 side = Vector3.ProjectOnPlane(lightDir, toEye);
+            side = side.sqrMagnitude > 1e-6f ? side.normalized : -eye.transform.right;
+            float a = keyTowardCamera * Mathf.Deg2Rad;
+            Vector3 key = (side * Mathf.Cos(a) + toEye * Mathf.Sin(a)).normalized;
+            lightDir = Vector3.Slerp(lightDir, key, artKey);
+            sunPosition = transform.position + lightDir * toSun.magnitude;
+        }
+
         foreach (Material m in _materials) m.SetVector(SunId, sunPosition);
+        if (_rings.Count > 0)
+        {
+            if (_ringBlock == null) _ringBlock = new MaterialPropertyBlock();
+            foreach (Renderer ring in _rings)
+            {
+                if (ring == null) continue;
+                Vector3 local = ring.transform.InverseTransformDirection(lightDir).normalized;
+                ring.GetPropertyBlock(_ringBlock);
+                _ringBlock.SetVector(RingSunId, new Vector4(local.x, local.y, local.z, 0f));
+                ring.SetPropertyBlock(_ringBlock);
+            }
+        }
         if (_air != null)
         {
             _air.SetVector(CentreId, transform.position);
@@ -405,7 +458,7 @@ public class CelestialBody_NEW : MonoBehaviour
 
         _surface.SetTexture("_MainTex", dayMap);
         _surface.SetTexture("_Noise", noise);
-        _surface.SetFloat("_Exposure", exposure);
+        _surface.SetFloat("_Exposure", exposure * (kind != Kind.Earth ? Mathf.Lerp(1f, keyExposure, artKey) : 1f));
         _surface.SetFloat("_Bump", relief);
         _surface.SetFloat("_Regolith", regolith);
         _surface.SetColor("_Night", nightSide);
@@ -454,7 +507,7 @@ public class CelestialBody_NEW : MonoBehaviour
             _air.SetColor("_Scatter", scattering);
             _air.SetColor("_Sunset", sunset);
             _air.SetFloat("_Strength", airStrength);
-            _air.SetFloat("_Forward", kind != Kind.Earth ? backlight * 0.25f : 0f);
+            _air.SetFloat("_Forward", kind != Kind.Earth ? backlight * 0.4f : 0f);
         }
     }
 }

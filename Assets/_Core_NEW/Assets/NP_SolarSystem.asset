@@ -21,9 +21,12 @@ MonoBehaviour:
   persistence: 0.5
   density: 0.8
   sharpness: 1.5
-  starScale: 80
-  starThreshold: 0.992
-  starBrightness: 1.3
+  starScale: 120
+  starThreshold: 0.986
+  starBrightness: 0.9
   animate: 1
   speed: 0.05
   blendDuration: 0
+  milkyWay: 0.7
+  milkyWayPole: {x: 0, y: 0.5, z: 0.866}
+  milkyWayColor: {r: 0.16, g: 0.15, b: 0.14, a: 1}

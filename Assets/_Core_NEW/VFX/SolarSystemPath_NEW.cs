@@ -24,7 +24,8 @@ using UnityEditor;
 ///
 /// The planets in passBy are put where the line crosses their orbits, moved round them until
 /// the line passes passClearance clear (beyond two and a half of their radii, or their rings),
-/// on alternate sides, outermost first: the photon flies past each in turn. The rest are
+/// off the Sun's side - far side, below, far side... (passAwayFromSun; or on alternate sides), outermost first:
+/// the photon flies past each in turn. The rest are
 /// spread evenly round the Sun — round the part of the circle the line and the planets on it
 /// leave free — each on its own orbit, the biggest orbits where they are furthest from the
 /// line, so the system reads as orbits seen at an angle, not as a queue. Every orbit keeps its
@@ -88,6 +89,11 @@ public class SolarSystemPath_NEW : MonoBehaviour
     [Tooltip("The planets the light passes on its way to Earth. Each needs an orbit bigger than " +
              "the Sun's distance from the line. The rest are spread round their orbits.")]
     [SerializeField] Transform[] passBy = new Transform[0];
+
+    [Tooltip("Keep the planets passed off the Sun's side of the line, so none is seen crossing the Sun's " +
+             "disc as it comes up: the first on the far side, the next below the line, and so on, so they " +
+             "do not line up one behind another either. Off: alternate sides, outermost on the far side.")]
+    [SerializeField] bool passAwayFromSun = true;
 
     [Tooltip("How far clear of each planet it passes the line goes, beyond two and a half of its radii.")]
     [Min(0f)] [SerializeField] float passClearance = 0.6f;
@@ -230,9 +236,14 @@ public class SolarSystemPath_NEW : MonoBehaviour
             float orbit = passing[i].Key;
             Transform planet = passing[i].Value;
             float clear = Clearance(planet);
-            float first = i % 2 == 0 ? -clear : clear;
+            float first = passAwayFromSun || i % 2 == 0 ? -clear : clear;
+            bool below = passAwayFromSun && i % 2 == 1;
             Vector3 at;
-            if (Crossing(orbit, first, b, sSun, out float s)) at = At(s, first);
+            // Below the line: where the line itself crosses the orbit, dropped clear under it
+            // (the orbit tilted that little out of the plane). The camera rides above the
+            // light, so it sees it beneath the light's path.
+            if (below && Crossing(orbit, 0f, b, sSun, out float under)) at = At(under, 0f) - up * clear;
+            else if (Crossing(orbit, first, b, sSun, out float s)) at = At(s, first);
             else if (Crossing(orbit, -first, b, sSun, out s)) at = At(s, -first);
             else
             {

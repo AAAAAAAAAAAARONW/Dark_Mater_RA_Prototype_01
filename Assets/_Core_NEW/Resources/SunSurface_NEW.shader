@@ -9,6 +9,11 @@ Shader "Custom/SunSurface_NEW"
     //                  Faded to its mean as the cells come under a pixel, so a far Sun does not
     //                  shimmer.
     //   warmth         a broad, slow brightness variation over that, so the disc is not even.
+    //   patchiness     the network is not the same everywhere (_Patchy): over most of the disc
+    //                  the quiet Sun, its mottling faint; clumped, busier and more contrasted
+    //                  in patches along the activity belts (10 to 30 degrees north and south);
+    //                  dark coronal holes towards the poles. (22 Nov: it was even all over,
+    //                  and read as a sponge.)
     //   filaments      a few thin dark threads lying across the disc: cool gas held up above it.
     //   active regions bright patches in the activity belts (_Regions, world space, from
     //                  SunLook_NEW, which turns them with the Sun), where the network brightens
@@ -63,7 +68,7 @@ Shader "Custom/SunSurface_NEW"
 
             fixed4 _Color;
             float _Contrast;
-            float _Brightness, _Network, _CellScale, _Flow, _Filaments, _Active, _ActiveGlow, _LimbBright, _Turn;
+            float _Brightness, _Network, _CellScale, _Flow, _Filaments, _Active, _ActiveGlow, _LimbBright, _Turn, _Patchy;
             float4 _Regions[REGIONS];       // xyz: direction from the centre, world space; w: size
             float _RegionFlare[REGIONS];    // 0 to 1
 
@@ -186,7 +191,18 @@ Shader "Custom/SunSurface_NEW"
                 // over it, the filaments cut out of it.
                 // Spread about a median of 0.72 by _Contrast; at 2.1 the tenths fall where
                 // the picture's do (0.33 to 0.97).
-                float brightness = 0.72 + _Contrast * (0.55 * lerp(0.5, net, _Network) + 0.3 * warmth - 0.48);
+                // Where the Sun is busy: in patches along the belts, a little elsewhere; quiet
+                // over the rest. The network shows by that, and coronal holes darken the high
+                // latitudes. s.y is the sine of the latitude: the Sun turns about its y.
+                float belt = exp(-pow((abs(s.y) - 0.34) / 0.16, 2.0));
+                float clumps = smoothstep(0.38, 0.72, Noise(s * 3.0 + 11.0) * 0.7 + Noise(s * 7.0 + 5.0) * 0.3);
+                float busy = saturate(belt * (0.35 + 0.9 * clumps) + 0.2 * clumps);
+                // (22 Nov, later: smaller and fainter; a big black cap read as a stain.)
+                float hole = smoothstep(0.74, 0.93, abs(s.y)) * smoothstep(0.5, 0.68, Noise(s * 2.6 + 23.0));
+                float showNet = _Network * lerp(1.0, lerp(0.3, 1.15, busy), _Patchy);
+
+                float brightness = 0.72 + _Contrast * (0.55 * lerp(0.5, net, showNet) + 0.3 * warmth - 0.48);
+                brightness += _Patchy * (0.1 * (busy - 0.35) - 0.16 * hole);
                 brightness *= 1.0 - 0.7 * filament * _Filaments;
 
                 // Active regions brighten to amber, their knots past 1 for the bloom; a flare, more.

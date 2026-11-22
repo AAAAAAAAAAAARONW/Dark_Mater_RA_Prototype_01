@@ -35,7 +35,7 @@ No story lines. Button prompts only.
 | --- | --- | --- | --- |
 | C1 | Cue 2 s into the spin-up. | [softly] In a moment, you will leave the quasar as a beam of light: a stream of tiny particles called photons. | 9 s |
 | N_C2 | If the visitor has not pressed A 5 s in. | [gently] When you are ready, press A, and become light. | 3.5 s |
-| C4 | Looking back, once the quasar is in frame. Holds until the line ends. | [in awe] Behind you, the quasar is already shrinking: a bright point at the heart of a faint galaxy. Nothing in the universe moves faster than you. | 11 s |
+| C4 | Looking back, once the quasar is in frame. Holds until the line ends. | [in awe] Behind you, the quasar is already shrinking: a bright point at the heart of a faint galaxy. Nothing can travel through space faster than you. | 11 s |
 | C5 | Once the view faces forward again. Holds until the line ends. | [warmly] Ahead of you is twelve billion years of travel. At the far end, a telescope on Earth is waiting. | 7.5 s |
 
 ### Phase 3 · Spectrum and absorption
@@ -46,11 +46,11 @@ No story lines. Button prompts only.
 | D2 | As the visible band flashes. | [softly] Human eyes can only see this narrow band in the middle. The rest is invisible. | 6.5 s |
 | D3 | As the spectrum bar appears. | [calmly] This bar is your spectrum: the same colors, laid out in a line from purple toward red. | 6 s |
 | D4 | Cue 1.5 s after the cloud appears. Ends before contact. | [curious] Ahead is a cloud of hydrogen gas. Hydrogen is the simplest element, and the most common in the universe. | 7 s |
-| D5 | Cue 0.8 s after contact, in slow motion, so the impact lands first. | [softly] The gas has absorbed one wavelength of your light. That color is gone, and the black line marks where it was. | 9 s |
+| D5 | Cue 0.8 s after contact, in slow motion, so the impact lands first. | [softly] The gas has absorbed one wavelength of your light. That part of the light is gone, and the black line marks where it was. | 9 s |
 | D6 | As the slow motion ends and the line starts to slide. | [thoughtfully] Now the line is moving. Space itself is expanding, stretching your light as you travel, so the line slides toward the red. This is redshift. | 9.5 s |
 | D7 | As more gas arrives. | [calmly] Every cloud of hydrogen absorbs that same wavelength. But your light has stretched since the last one, so each cloud cuts a fresh line. The more gas, the deeper the line. | 10.5 s |
 | D8 | As one more cloud arrives. "Another line" lands near its impact, about 6 s in. | [curious] Another cloud, another line, and every line keeps sliding toward the red. Line by line, a pattern builds. | 7 s |
-| D9 | As ultraviolet and infrared fold away. | [softly] These lines stay with you forever: a barcode of everything you pass through. | 6 s |
+| D9 | As ultraviolet and infrared fold away. | [softly] These lines travel with you: a barcode of every cloud of gas you pass through. | 5.5 s |
 | N_D10 | If the visitor has not paused and resumed 5 s in. | [gently] Press B to pause. Press it again to carry on. | 3.5 s |
 
 ### Ending
@@ -71,7 +71,7 @@ No story lines. Button prompts only.
 
 | ID | When | Line | ≈ |
 | --- | --- | --- | --- |
-| J0 | As the picture fades up from black. | [softly] The universe here is less than two billion years old. Its galaxies are young, still gathering gas and making stars faster every year. | 10 s |
+| J0 | As the picture fades up from black. | [softly] At this moment, the universe is less than two billion years old. Its galaxies are young, still gathering gas and making stars faster every year. | 10 s |
 | J1 | Straight after J0, as the camera turns to look back. | [warmly] Behind you is where you began. You cannot steer light, but you can look wherever you like. | 7 s |
 
 ### First cosmic web
@@ -88,13 +88,13 @@ No story lines. Button prompts only.
 | --- | --- | --- | --- |
 | J3_DMoff_Before | Straight after J3. The hint `Y · SHOW DARK MATTER` appears. | [curious] There is far too little gas here to pull itself into threads like these. Something you cannot see is holding it in place. | 10 s |
 | N_J3_DMoff | If Y has not been pressed 1.5 s after the line above. | [gently] Press Y to see the dark matter. | 2.5 s |
-| J3_DMoff_After | When Y is pressed (or on its own, 6 s after the line above), as the dark matter appears. | [in awe] This is dark matter, invisible scaffolding of the cosmic web, five times heavier than ordinary matter. The gas gathers along it, a beacon that shows us where the dark matter lies. | 14.5 s |
+| J3_DMoff_After | When Y is pressed (or on its own, 6 s after the line above), as the dark matter appears. | [in awe] This is dark matter, drawn so you can see it: the invisible scaffolding of the cosmic web. There is five times more of it than ordinary matter. The gas gathers along it, a beacon that shows us where the dark matter lies. | 16 s |
 
 *Version A · the dark matter starts shown, Y hides it*
 
 | ID | When | Line | ≈ |
 | --- | --- | --- | --- |
-| J3_DMon_Before | Straight after J3. The hint `Y · HIDE DARK MATTER` appears. | [softly] The wider haze around these threads is dark matter, drawn so you can see it. It is invisible scaffolding of the cosmic web, five times heavier than ordinary matter. | 11 s |
+| J3_DMon_Before | Straight after J3. The hint `Y · HIDE DARK MATTER` appears. | [softly] The wider haze around these threads is dark matter, drawn so you can see it. It is the invisible scaffolding of the cosmic web, and there is five times more of it than ordinary matter. | 12 s |
 | N_J3_DMon | If Y has not been pressed 1.5 s after the line above. | [gently] Press Y to hide the dark matter. | 2.5 s |
 | J3_DMon_After | When Y is pressed (or on its own, 6 s after the line above), as the dark matter fades. | [thoughtfully] Without the drawing, only the gas remains. It gathers along that scaffolding, a beacon that shows us where the dark matter lies. | 10 s |
 
@@ -102,7 +102,7 @@ No story lines. Button prompts only.
 
 | ID | When | Line | ≈ |
 | --- | --- | --- | --- |
-| J3b | The first time the light passes through a filament and a new line appears. Once per run. | [softly] These threads are hydrogen gas. No stars light them, but each one you pass through absorbs a wavelength of your light and leaves a line on your spectrum. | 12 s |
+| J3b | The first time the light passes through a filament and a new line appears. Once per run. | [softly] The gas in these threads is mostly hydrogen. No stars light it, but each thread you pass through absorbs a wavelength of your light and leaves a line on your spectrum. | 12 s |
 
 ### Galaxy, ten billion years ago
 
@@ -128,6 +128,6 @@ No story lines. Button prompts only.
 | --- | --- | --- | --- |
 | J7 | Approaching the Milky Way. | [warmly] Ahead is the Milky Way, home to hundreds of billions of stars. You set out more than seven billion years before our Sun was born. | 10 s |
 | J8 | Entering the Solar System. | [softly] Light from our Sun takes eight minutes to reach Earth. Your journey has taken twelve billion years. | 7.5 s |
-| J9 | Arriving on Earth's night side, at the Magellan Telescopes, Las Campanas Observatory, Chile. | [warmly] You have arrived, on Earth's night side, high in the mountains of Chile. At Las Campanas Observatory, the Magellan Telescopes collect your light, and astronomers read the lines you carried. Each one marks a moment of your journey: twelve billion years of cosmic history. | 18 s |
-| J6_4 | At the telescope, once the spectrum fills the screen, as each line drops to the gas that cut it and the dark matter appears around the gas. | [thoughtfully] Each of these lines is a cloud of gas you passed through, laid out along your path. Gas gathers where dark matter is. Without ever seeing it, your light has mapped the dark matter along its way. | 12 s |
-| Closing | Straight after J6_4, over the finished map. | [softly] From lines like these, astronomers around the world learn how the cosmic web formed and what it is made of. Observations, simulations and theory together turn your light into the story of where we came from, and where we are going. | 16 s |
+| J9 | Arriving on Earth's night side, at the Magellan Telescopes, Las Campanas Observatory, Chile. | [warmly] You have arrived, on Earth's night side, high in the mountains of Chile. At Las Campanas Observatory, one of the twin Magellan Telescopes collects your light, and astronomers read the lines you carried. Each one marks a moment of your journey, written billions of years ago. | 18 s |
+| J6_4 | At the telescope, once the spectrum fills the screen, as each line drops to the gas that cut it and the dark matter appears around the gas. | [thoughtfully] Each of these lines is a cloud of gas you passed through, laid out along your path. Gas gathers where dark matter is. Without ever seeing it, your light has traced the dark matter along its way. | 12 s |
+| Closing | Straight after J6_4, over the finished map. | [softly] From lines like these, astronomers around the world learn how the cosmic web formed and what it is made of. With telescopes, simulations and theory together, every beam of light adds a little more to the map of the universe. | 14 s |

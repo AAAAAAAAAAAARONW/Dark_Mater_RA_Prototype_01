@@ -116,7 +116,31 @@ Shader "Custom/PhotonTrail"
         // head over _SoftConverge world units; fades out close to the camera. 0 = unchanged.
         _Soft           ("Soft Beam (set by script)", Float) = 0
         _SoftPalette    ("Soft Beam Palette (set by script)", 2D) = "black" {}
-        _SoftBrightness ("Soft Beam Brightness", Range(0, 4)) = 1.5
+        _SoftBrightness ("Soft Beam Brightness", Range(0, 4)) = 1.9
+        // Values from the Photon Beam Tuner page (2026-11-22).
+        _SoftFlux       ("Soft Beam Flux (set by script)", 2D) = "white" {}
+        _SoftFluxAmount ("Soft Beam: follow the real flux", Range(0, 1)) = 1
+        _SoftMargin     ("Soft Beam: far-UV margin (set by script)", Float) = 0.1
+        _SoftDisperse   ("Soft Beam: white light spreads over (set by script)", Float) = 5
+        _SoftWhite      ("Soft Beam: white at the head", Range(0, 1)) = 1
+        _SoftWhiteCover ("Soft Beam: white across the whole width", Range(0, 1)) = 1
+        _SoftWarm       ("Soft Beam: head warmth (0 white, 1 warm yellow)", Range(0, 1)) = 0.3
+        _SoftHeadBright ("Soft Beam: head brightness", Range(0.2, 2)) = 0.75
+        _SoftRound      ("Soft Beam: head start width", Range(0, 1)) = 0
+        _SoftHeadFade   ("Soft Beam: head fade-in (set by script)", Float) = 0
+        _SoftGas        ("Soft Beam: gas texture amount", Range(0, 0.6)) = 0.04
+        _SoftGasScale   ("Soft Beam: gas scale", Range(0.05, 3)) = 0.3
+        _SoftGasSpeed   ("Soft Beam: gas speed", Range(0, 2)) = 0.4
+        _SoftWisp       ("Soft Beam: edge spread", Range(0, 1)) = 0.5
+        _SoftBleed      ("Soft Beam: colour bleed", Range(0, 1)) = 0.5
+        _SoftTail       ("Soft Beam: tail fades out", Range(0, 1.5)) = 0.3
+        // Tutorial (PC_Tutorial): colours from the spectrum texture the tutorial already paints,
+        // and its teaching effects (band unfolding, visible flash, UV/IR glow, line outline),
+        // driven by the properties TutorialTrailBands_NEW already writes. 0 in the journey.
+        _SoftUseSpecTex ("Soft Beam: colours from the spectrum texture (set by script)", Float) = 0
+        _SoftTeach      ("Soft Beam: tutorial teaching effects (set by script)", Float) = 0
+        _SoftSaturation ("Soft Beam: saturation", Range(0, 2)) = 1.3
+        _SoftEdge       ("Soft Beam: edge softness", Range(0.02, 0.45)) = 0.19
         _SoftConverge   ("Soft Beam Converge (set by script)", Float) = 1.5
         _SoftDistance   ("Soft Beam Distance (set by script)", Float) = 0
     }
@@ -375,6 +399,36 @@ Shader "Custom/PhotonTrail"
             float  _SoftBrightness;
             float  _SoftConverge;
             float  _SoftDistance;
+            sampler2D _SoftFlux;
+            float  _SoftFluxAmount;
+            float  _SoftMargin;
+            float  _SoftDisperse;
+            float  _SoftWhite;
+            float  _SoftSaturation;
+            float  _SoftEdge;
+            float  _SoftWhiteCover, _SoftWarm, _SoftHeadBright, _SoftRound, _SoftHeadFade;
+            float  _SoftGas, _SoftGasScale, _SoftGasSpeed, _SoftWisp, _SoftBleed, _SoftTail;
+            float  _SoftUseSpecTex, _SoftTeach;
+
+            float SoftHash(float3 p) { return frac(sin(dot(p, float3(127.1, 311.7, 74.7))) * 43758.5453); }
+            float SoftNoise(float3 p)
+            {
+                float3 i = floor(p), f = frac(p); f = f * f * (3.0 - 2.0 * f);
+                return lerp(lerp(lerp(SoftHash(i), SoftHash(i + float3(1, 0, 0)), f.x), lerp(SoftHash(i + float3(0, 1, 0)), SoftHash(i + float3(1, 1, 0)), f.x), f.y),
+                            lerp(lerp(SoftHash(i + float3(0, 0, 1)), SoftHash(i + float3(1, 0, 1)), f.x), lerp(SoftHash(i + float3(0, 1, 1)), SoftHash(i + float3(1, 1, 1)), f.x), f.y), f.z);
+            }
+            // Two octaves of soft gas, fixed to where the light has been, drifting slowly.
+            float SoftGasAt(float s, float across)
+            {
+                float3 q = float3(s * _SoftGasScale, across * _SoftGasScale * 1.6, _Time.y * _SoftGasSpeed * 0.3);
+                return SoftNoise(q) * 0.65 + SoftNoise(q * 2.3 + 7.0) * 0.35;
+            }
+
+            // The quasar's flux now, 0..1, at spectrum-texture place st (bar axis after the margin).
+            float SoftFluxAt(float st)
+            {
+                return tex2Dlod(_SoftFlux, float4(saturate((st - _SoftMargin) / max(1.0 - _SoftMargin, 1e-3)), 0.5, 0, 0)).r;
+            }
             float  _BeamHeadFade;
 
             // The tube's edge: a gaussian, taken to exactly zero at the rim.
@@ -433,17 +487,28 @@ Shader "Custom/PhotonTrail"
             {
                 float2 uv = i.uv;
                 float fromHead = uv.x * _TrailLength;
-                float spread = max(sqrt(saturate(fromHead / max(_SoftConverge, 0.001))), 0.03);
-                float v = (uv.y - 0.5) / spread + 0.5;                       // place across the light
-                if (v <= 0.0 || v >= 1.0) return fixed4(0, 0, 0, 0);
+                float s = _SoftDistance - fromHead;                                // fixed in the world
+                // From the head's start width out to the full width along a quarter circle: no crease.
+                float cx = saturate(fromHead / max(_SoftConverge, 0.001));
+                float spread = max(lerp(_SoftRound, 1.0, sqrt(cx * (2.0 - cx))), 0.03);
+                float v = (uv.y - 0.5) / spread + 0.5;                             // place across the light
+                float gasN = SoftGasAt(s, (uv.y - 0.5) * spread);
+                // The edge moves with the gas a little, so the outline is not a perfect curve.
+                float vE = v + (gasN - 0.5) * _SoftWisp * 0.22;
+                if (vE <= 0.0 || vE >= 1.0) return fixed4(0, 0, 0, 0);
+                v = saturate(v);
 
-                // Colour, blurred a little across so neighbouring colours melt into each other.
+                // Colour, blurred across, more at the edges and towards the tail; brightness from the real flux.
+                float blur = 0.012 * (1.0 + _SoftBleed * (abs(v - 0.5) * 4.0 + uv.x * 4.0));
                 float3 col = 0; float wsum = 0;
                 for (int k = -3; k <= 3; k++)
                 {
                     float w = exp(-(k * k) / 4.5);
-                    float4 p = tex2Dlod(_SoftPalette, float4(SpecT(saturate(v + k * 0.012)), 0.5, 0, 0));
-                    col += p.rgb * p.a * w; wsum += w;
+                    float  st = SpecT(saturate(v + k * blur));
+                    float4 p  = _SoftUseSpecTex > 0.5 ? tex2Dlod(_SpectrumTex, float4(st, 0.5, 0, 0))
+                                                      : tex2Dlod(_SoftPalette, float4(st, 0.5, 0, 0));
+                    float  fb = lerp(1.0, 0.3 + 0.95 * SoftFluxAt(st), _SoftFluxAmount * step(_SoftMargin, st));
+                    col += p.rgb * p.a * fb * w; wsum += w;
                 }
                 col /= wsum;
 
@@ -459,13 +524,56 @@ Shader "Custom/PhotonTrail"
                     ab = saturate(ab * _AbsorptionLineStrength);
                 }
 
-                float edge  = smoothstep(0.0, 0.2, v) * smoothstep(1.0, 0.8, v);   // no rim
-                float c     = abs(uv.y - 0.5) * 2.0;
-                float body  = lerp(0.65, 1.0, sqrt(saturate(1.0 - c * c)));        // a round beam
-                float s     = _SoftDistance - fromHead;                            // fixed in the world
-                float drift = 0.78 + 0.22 * sin(s * 0.31416 + _Time.y * 0.35) * sin(s * 0.10472 - _Time.y * 0.21 + 1.3);
-                float fade  = pow(saturate(i.color.a), 1.1) * smoothstep(0.3, 1.4, i.camDist);
-                return fixed4(col * (1.0 - ab) * edge * body * drift * fade * _SoftBrightness, 1.0);
+                // The tutorial's teaching effects, as the ribbon draws them: UV/IR glow at the edges
+                // (D6 redden), the visible band flashing (D2/D3), a rim of light round a line (D5).
+                float3 teach = 0;
+                if (_SoftTeach > 0.5)
+                {
+                    float st = SpecT(v);
+                    float uvF = pow(saturate((0.18 - st) * 6.0), 2.0), irF = pow(saturate((st - 0.82) * 6.0), 2.0);
+                    // Half the ribbon's strength: on the soft beam's open edges it read as a white veil.
+                    col += (_UVGlowColor.rgb * uvF * _UVGlowStrength + _IRGlowColor.rgb * irF * _IRGlowStrength) * 0.15;
+                    float vis = smoothstep(_VisibleBandStart - 0.004, _VisibleBandStart + 0.004, st)
+                              * (1.0 - smoothstep(_VisibleBandEnd - 0.004, _VisibleBandEnd + 0.004, st));
+                    float4 sc = tex2Dlod(_SpectrumTex, float4(st, 0.5, 0, 0));
+                    float3 hue = sc.rgb / max(max(sc.r, max(sc.g, sc.b)), 0.001);
+                    teach += hue * vis * _VisibleHighlight * 0.6 * (1.0 - ab);
+                    if (_UseAbsorptionLine > 0.5 && _AbsorptionOutlineWidth > 0.0001)
+                    {
+                        float nearAbs = 0;
+                        for (int o = 1; o <= 4; o++)
+                        {
+                            float od = _AbsorptionOutlineWidth * o * 0.25;
+                            nearAbs = max(nearAbs, tex2Dlod(_AbsorptionLineTex, float4(st - od, 0.5, 0, 0)).r);
+                            nearAbs = max(nearAbs, tex2Dlod(_AbsorptionLineTex, float4(st + od, 0.5, 0, 0)).r);
+                        }
+                        nearAbs = lerp(nearAbs, smoothstep(0.06, 0.22, nearAbs), _AbsorptionLineHardness);
+                        float outline = saturate(nearAbs - ab) * _AbsorptionOutlineStrength;
+                        if (_AbsorptionOutlineRange > 0.0001)
+                            outline *= 1.0 - smoothstep(_AbsorptionOutlineRange * 0.5, _AbsorptionOutlineRange, abs(st - _AbsorptionOutlineCenter));
+                        teach += _AbsorptionOutlineColor.rgb * outline;
+                    }
+                }
+
+                float lum = dot(col, float3(0.299, 0.587, 0.114));
+                col = lerp(lum.xxx, col, _SoftSaturation);
+                // White (to warm) light at the head, giving way to the colours towards the camera.
+                float dh = 1.0 - smoothstep(0.0, max(_SoftDisperse, 1e-3), fromHead);
+                dh *= dh;
+                float centre = 1.0 - abs(v - 0.5) * 2.0;
+                float cover  = lerp(0.35 + 0.65 * centre, 1.0, _SoftWhiteCover);
+                float3 headCol = lerp(float3(1, 1, 1), float3(1.0, 0.84, 0.58), _SoftWarm);
+                col = lerp(col, headCol * lerp(0.55 + 0.45 * centre, 0.9, _SoftWhiteCover) * 0.85, dh * _SoftWhite * cover);
+
+                float edge   = smoothstep(0.0, _SoftEdge, vE) * smoothstep(1.0, 1.0 - _SoftEdge, vE);   // no rim
+                float c      = abs(uv.y - 0.5) * 2.0;
+                float body   = lerp(0.65, 1.0, sqrt(saturate(1.0 - c * c)));     // a round beam
+                float drift  = 0.8 + 0.2 * sin(s * 0.31416 + _Time.y * 0.35) * sin(s * 0.10472 - _Time.y * 0.21 + 1.3);
+                float gasB   = max(1.0 + _SoftGas * (gasN * 2.0 - 1.0) * 1.4, 0.0);
+                float fade   = pow(saturate(i.color.a), 1.1 + _SoftTail) * smoothstep(0.3, 1.4, i.camDist);
+                float headIn = _SoftHeadFade > 1e-4 ? smoothstep(0.0, _SoftHeadFade, fromHead) : 1.0;
+                float hb     = lerp(1.0, _SoftHeadBright, dh);
+                return fixed4((col * (1.0 - ab) + teach) * edge * body * drift * gasB * fade * headIn * hb * _SoftBrightness, 1.0);
             }
 
             fixed4 frag(v2f i) : SV_Target
