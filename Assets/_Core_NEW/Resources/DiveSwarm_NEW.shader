@@ -104,7 +104,7 @@ Shader "Custom/DiveSwarm_NEW"
                 float2 uv       : TEXCOORD0;
                 float4 color    : TEXCOORD1;  // not COLOR: the gold is brighter than 1
                 float4 axes     : TEXCOORD2;  // xy its long axis on screen, z how open (1 face on), w kind
-                float4 gal      : TEXCOORD3;  // x how much a galaxy (0 a glow), y arm phase, z arm pitch
+                float4 gal      : TEXCOORD3;  // x how much a galaxy (0 a glow), y arm phase, z arm pitch, w radius in pixels
                 float3 bulgeRgb : TEXCOORD4;
             };
 
@@ -179,7 +179,7 @@ Shader "Custom/DiveSwarm_NEW"
                 float3 m3 = cross(n, toEye);
                 float2 major = dot(m3.xy, m3.xy) > 1e-8 ? normalize(m3.xy) : float2(1.0, 0.0);
                 o.axes = float4(major, max(abs(dot(n, toEye)), 0.08), v.disc.w);
-                o.gal = float4(shape, v.look.x, v.look.y, 0.0);
+                o.gal = float4(shape, v.look.x, v.look.y, wide / max(pixel, 1e-6));
                 return o;
             }
 
@@ -209,16 +209,28 @@ Shader "Custom/DiveSwarm_NEW"
                     {
                         // A spiral: two logarithmic arms on an exponential disc, at its slant,
                         // a dust lane along its middle when near edge on, and a warm bulge.
-                        float2 e = float2(qx, qy / open);
+                        //
+                        // Nothing finer than the screen can show: a member moves a fraction of a
+                        // pixel each frame, and detail under a pixel lands on one pixel, then on
+                        // the next, and twinkles (the reason glows are never under MinPixels). So
+                        // the disc is never thinner than about a pixel, the arms fade to their
+                        // mean light where they are closer than about two pixels apart, the dust
+                        // lane shows only once it is a pixel wide, and the bulge is at least a
+                        // pixel and a half across. Each keeps its light.
+                        float px = max(i.gal.w, 1.0);
+                        float slant = max(open, min(1.0, 4.0 / px));
+                        float2 e = float2(qx, qy / slant);
                         float re = length(e);
                         float tanP = 0.2 + 0.25 * i.gal.z;
                         float th = atan2(e.y, e.x) + i.gal.y * 6.2831853;
                         float arms = pow(saturate(0.5 + 0.5 * cos(2.0 * (th - log(max(re, 0.02)) / tanP))), 2.5);
+                        arms = lerp(0.34, arms, saturate((re * px * 3.14159 * tanP - 2.0) * 0.5));
                         float disc = exp(-re / 0.22) * (0.25 + 1.2 * arms) * saturate(1.0 - re);
-                        disc *= 1.0 - 0.55 * (1.0 - open) * exp(-qy * qy / 0.0016);
-                        disc /= max(open, 0.3);
-                        float by = qy / max(open, 0.6);
-                        float bulge = exp(-(qx * qx + by * by) / 0.012);
+                        disc *= 1.0 - 0.55 * (1.0 - open) * saturate(0.028 * px - 0.5) * exp(-qy * qy / 0.0016);
+                        disc /= max(slant, 0.3);
+                        float by = qy / max(slant, 0.6);
+                        float bs = max(0.012, (1.5 / px) * (1.5 / px));
+                        float bulge = exp(-(qx * qx + by * by) / bs) * (0.012 / bs);
                         g = (i.bulgeRgb * bulge * 1.3 + i.color.rgb * disc) * (total / 0.164);
                     }
                     else if (kind < _ShapeScreen.w)
