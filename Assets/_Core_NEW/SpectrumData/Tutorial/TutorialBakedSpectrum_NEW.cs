@@ -224,6 +224,24 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
     [Range(0.1f, 0.8f)]
     [SerializeField] float visibleFraction = 0.40f;
 
+    // LARC review, 25 November: D2 says "Human eyes can only see this narrow band in the middle",
+    // and the band was 40% of the ribbon, off to one side: a scientist would object. So the ribbon
+    // starts with the visible band squeezed to a narrow strip in its middle (UV and IR wide on
+    // either side of it), and opens to visibleFraction once the bar is on screen (D3), while the
+    // bar lights its own visible band. Only the visible share changes, so the birth tick and every
+    // line on the trail stay where they are; IR takes what is left.
+    [Header("Visible band: narrow at first, opening at D3 (LARC 25 Nov)")]
+    [Tooltip("Start each run with the visible band squeezed (squeezedVisibleFraction), opening once the bar is on screen.")]
+    [SerializeField] bool squeezeVisibleAtStart = true;
+
+    [Tooltip("The visible band's share of the ribbon while squeezed. 0.16 puts it at 0.42 to 0.58: the middle.")]
+    [Range(0.05f, 0.4f)]
+    [SerializeField] float squeezedVisibleFraction = 0.16f;
+
+    [Tooltip("Seconds after the bar appears (D3) before the band starts to open, and seconds it takes. The bar " +
+             "lights its visible band about 2 s in (TutorialSpectrumBands_NEW): opening across that.")]
+    [SerializeField] Vector2 expandVisible = new Vector2(1.6f, 2.4f);
+
     [SerializeField] bool driveBands = true;
     [SerializeField] bool driveTrailColours = true;
 
@@ -311,6 +329,10 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
     Texture2D _trailTex;
     Color32[] _trailPixels;
     double _texLnMin = double.NaN;
+    float _texExpand = -1f;
+
+    // The visible band's opening: 0 squeezed, 1 visibleFraction. -1 while waiting for the bar.
+    float _expand = 1f, _expandTime = -1f;
     double _texLnMax = double.NaN;
 
     static readonly int SpectrumTexId = Shader.PropertyToID("_SpectrumTex");
@@ -368,7 +390,18 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
     public void OnReset()
     {
         ResetState();
+        Squeeze();
         _running = false;
+    }
+
+    /// <summary>
+    /// The visible band back to its narrow start, to open again when the bar next appears. At
+    /// activation and the attract reset only: not in ResetState, which D3's own Clear runs.
+    /// </summary>
+    void Squeeze()
+    {
+        _expand = squeezeVisibleAtStart ? 0f : 1f;
+        _expandTime = -1f;
     }
 
     public bool Absorb()
@@ -497,6 +530,19 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
             if (_revealTime >= revealSeconds) { _revealAll = 1f; _revealTime = -1f; }
         }
 
+        // The visible band opens once the bar is on screen (D3 shows it; a debug jump past D3
+        // replays that). Unscaled by the slow motion like the rest: the tutorial clock's.
+        if (_expand < 1f)
+        {
+            if (_expandTime < 0f && spectrum != null && spectrum.IsVisible) _expandTime = 0f;
+            if (_expandTime >= 0f)
+            {
+                _expandTime += TutorialClock_NEW.DeltaTime;
+                _expand = Smooth((_expandTime - expandVisible.x) / Mathf.Max(0.1f, expandVisible.y));
+                if (_expandTime >= expandVisible.x + expandVisible.y) _expand = 1f;
+            }
+        }
+
         Draw();
 
         // Every frame, so whenever the scene changes the journey gets the latest moment.
@@ -534,6 +580,7 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
 
         _active = true;
         ResetState();
+        Squeeze();
 
         spectrum.SetExternalSource(this);
         if (hud != null) hud.SetExternalCurve(_curve, _curve.Length);
@@ -579,6 +626,7 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
             _trail.SetPropertyBlock(_block);
         }
         _texLnMin = _texLnMax = double.NaN;
+        _texExpand = -1f;
 
         // Switched off by hand: the journey must not continue from a tutorial that is no
         // longer drawing the data.
@@ -703,7 +751,8 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
     /// <summary>Fill the piecewise axis: ln λ break points and where they sit on the ribbon.</summary>
     void BuildTrailAxis()
     {
-        float s0 = farUvFraction, s1 = lineRegionFraction, s2 = uvRestFraction, s3 = visibleFraction;
+        float s0 = farUvFraction, s1 = lineRegionFraction, s2 = uvRestFraction;
+        float s3 = Mathf.Lerp(Mathf.Min(squeezedVisibleFraction, visibleFraction), visibleFraction, _expand);
         float sum = s0 + s1 + s2 + s3;
         if (sum > 0.95f) { float k = 0.95f / sum; s0 *= k; s1 *= k; s2 *= k; s3 *= k; }
 
@@ -919,7 +968,8 @@ public class TutorialBakedSpectrum_NEW : MonoBehaviour, ITutorialSpectrumSource_
     {
         if (_trail == null) return;
         double k0 = TrailLn(0f), k1 = TrailLn(0.5f);
-        if (Math.Abs(k0 - _texLnMin) < 1e-5 && Math.Abs(k1 - _texLnMax) < 1e-5) return;
+        if (Math.Abs(k0 - _texLnMin) < 1e-5 && Math.Abs(k1 - _texLnMax) < 1e-5 && Mathf.Approximately(_expand, _texExpand)) return;
+        _texExpand = _expand;
         _texLnMin = k0;
         _texLnMax = k1;
 

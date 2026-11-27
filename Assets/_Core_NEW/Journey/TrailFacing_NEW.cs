@@ -136,6 +136,14 @@ public class TrailFacing_NEW : MonoBehaviour
     /// <summary>The trail's width curve as this draws it. TrailLook_NEW sets its taper here and on the trail.</summary>
     public void SetWidthCurve(AnimationCurve curve) { if (curve != null) _widthCurve = curve; }
 
+    /// <summary>
+    /// The colour and fade along the trail as this draws it, by share of its length (0 the head).
+    /// Read from the trail once, at Start; QuasarTether_NEW replaces it while the trail runs all
+    /// the way back to the quasar. Null until Start has run.
+    /// </summary>
+    public Gradient CurrentGradient => _gradient;
+    public void SetGradient(Gradient gradient) { if (gradient != null) _gradient = gradient; }
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Boot()
     {

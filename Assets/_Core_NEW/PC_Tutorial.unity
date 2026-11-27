@@ -7330,7 +7330,7 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   flashCount: 3
-  flashSeconds: 2.4
+  flashSeconds: 4.8
   flashPeak: 1.4
   spectrumBands: {fileID: 0}
   highlightPeak: 1.5

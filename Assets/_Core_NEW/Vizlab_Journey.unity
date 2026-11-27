@@ -145062,9 +145062,9 @@ MonoBehaviour:
     haloRadius: 0
     haloColor: {r: 1, g: 0.88, b: 0.62, a: 1}
     haloIntensity: 0.6
-    lookBackYaw: 165
-    lookBackLift: 2.2
-    lookBackFrame: 0.12
+    lookBackYaw: 180
+    lookBackLift: 0.5
+    lookBackFrame: 0.018
     lookBackFrom: 0.8
     lookBackUntil: 8.2
     lookBackSwing: 1.4

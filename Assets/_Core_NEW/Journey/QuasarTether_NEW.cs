@@ -22,6 +22,15 @@ using UnityEngine.SceneManagement;
 ///   first world    drawn in towards the light, a little every frame, until the trail is its
 ///                  own length again; then its lifetime is put back. Nothing is cut off.
 ///
+/// LATER: IT REACHES THE QUASAR (LARC review, 25 November: "the tail feels like it comes from
+/// the wrong direction; it doesn't feel like the light has left the quasar"). The trail fades
+/// by share of its length, 1 at the light to 0 at the far end, so stretched over three hundred
+/// and sixty units it was a quarter as bright a hundred units back and gone well short of the
+/// quasar: in perspective it stopped beside it. While the trail runs back to the quasar it is
+/// drawn with a fade of its own (tetherFade: bright at the light, holding most of that the
+/// whole way, out only at the quasar), handed to TrailFacing_NEW, which draws the trail in
+/// the journey; the trail's own fade comes back as it is drawn in.
+///
 /// NOTHING TO WIRE. It adds itself, at run time, to a scene that has a PlayerRig_NEW with a
 /// trail and a QuasarVFX_NEW.
 /// </summary>
@@ -41,11 +50,19 @@ public class QuasarTether_NEW : MonoBehaviour
     [Tooltip("How many points the stretch from the quasar to the light is laid with.")]
     [Range(8, 256)] [SerializeField] int points = 96;
 
+    [Tooltip("How bright the trail is along its length while it runs back to the quasar, by share " +
+             "of its length (0 at the light, 1 at the quasar): x at the middle, y just short of the " +
+             "quasar. Its own fade (1 to 0, evenly) would leave the far half unseen.")]
+    [SerializeField] Vector2 tetherFade = new Vector2(0.75f, 0.55f);
+
     const float LongTime = 100000f;
 
     float _ownTime, _ownLength, _drawIn;
     string _firstLayer;
     bool _ready, _leaving, _done;
+    TrailFacing_NEW _facing;
+    Gradient _ownGradient, _tetherGradient;
+    float _appliedOwn = -1f;
     Vector3[] _buffer = new Vector3[0];
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -99,12 +116,44 @@ public class QuasarTether_NEW : MonoBehaviour
         trail.time = LongTime;
         trail.AddPositions(laid);
 
+        _facing = trail.GetComponent<TrailFacing_NEW>();
         _ready = true;
+    }
+
+    /// <summary>
+    /// The trail's fade while it runs back to the quasar: bright at the light, held at
+    /// tetherFade the whole way, out only at the quasar. <paramref name="own"/>: 0 that, 1 the
+    /// trail's own fade back again, for the draw-in. The trail's colours are kept.
+    /// </summary>
+    void ApplyTetherFade(float own)
+    {
+        if (_facing == null) return;
+        if (_ownGradient == null)
+        {
+            _ownGradient = _facing.CurrentGradient;     // null until TrailFacing_NEW's Start has run
+            if (_ownGradient == null) return;
+        }
+        if (_tetherGradient == null) _tetherGradient = new Gradient();
+
+        // Only when it changes (every frame of the draw-in, once before it).
+        float k = Mathf.Clamp01(own);
+        if (Mathf.Approximately(k, _appliedOwn) && _facing.CurrentGradient == _tetherGradient) return;
+        _appliedOwn = k;
+        _tetherGradient.SetKeys(_ownGradient.colorKeys, new[]
+        {
+            new GradientAlphaKey(Mathf.Lerp(1f, _ownGradient.Evaluate(0f).a, k), 0f),
+            new GradientAlphaKey(Mathf.Lerp(tetherFade.x, _ownGradient.Evaluate(0.5f).a, k), 0.5f),
+            new GradientAlphaKey(Mathf.Lerp(tetherFade.y, _ownGradient.Evaluate(0.97f).a, k), 0.97f),
+            new GradientAlphaKey(Mathf.Lerp(0f, _ownGradient.Evaluate(1f).a, k), 1f),
+        });
+        _facing.SetGradient(_tetherGradient);
     }
 
     void LateUpdate()
     {
         if (!_ready || _done || trail == null) return;
+
+        ApplyTetherFade(_drawIn);
 
         // The first world the light is in is the quasar's. Once it is in another, and the dive
         // that took it there (which looks back at the quasar along this trail) is over, the
@@ -135,6 +184,7 @@ public class QuasarTether_NEW : MonoBehaviour
         if (_drawIn >= 1f)
         {
             trail.time = _ownTime;      // what was drawn in is all in one place, and goes unseen
+            if (_facing != null && _ownGradient != null) _facing.SetGradient(_ownGradient);
             _done = true;
             enabled = false;
         }
@@ -144,5 +194,6 @@ public class QuasarTether_NEW : MonoBehaviour
     {
         // Stopped part-way (the scene closing, the object switched off): the trail its own again.
         if (_ready && !_done && trail != null) trail.time = _ownTime;
+        if (_ready && !_done && _facing != null && _ownGradient != null) _facing.SetGradient(_ownGradient);
     }
 }

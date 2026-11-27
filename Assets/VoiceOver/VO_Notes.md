@@ -259,7 +259,7 @@ To do:
 | Line | Was | Now | Why |
 | --- | --- | --- | --- |
 | J8 | "Light from our Sun takes eight minutes to reach Earth. Your journey has taken twelve billion years." | "Light leaving our Sun reaches Earth in eight minutes. Your journey from the quasar has taken twelve billion years." | Snap the twelve billion years to where the light came from, the quasar, against the Sun's eight minutes |
-| D2 | (unchanged) | | The line says "this narrow band in the middle", but the band on screen was wide when it was said. The picture changes, not the line: the visible band is squeezed narrow from D1 to D2 and opens to its full width over D3 (`TutorialTrailBands_NEW`) |
+| D2 | (unchanged) | | The line says "this narrow band in the middle", but the band on screen was wide when it was said. The picture changes, not the line: the visible band is squeezed to the middle of the trail (16% of it) from the start, and opens to its full width once the bar appears at D3 (`TutorialBakedSpectrum_NEW`, *Visible band*). D2's flash now lasts 4.8 s, the length of the line |
 
 ### 22 November · fact check
 
