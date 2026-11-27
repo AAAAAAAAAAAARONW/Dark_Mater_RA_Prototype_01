@@ -335,6 +335,65 @@ public class LayerDive_NEW : MonoBehaviour
                  "when it starts to show through the glow, and when the glow has gone.")]
         public Vector2 particleReveal = new Vector2(0.06f, 0.45f);
 
+        // LARC review, 25 November, on the way into the Milky Way: "the Milky Way is the only
+        // distinct galaxy, everything else looks like a hazy point of light"; "the lights are
+        // gold and the galaxies appear blue, so they look like they are spawning: give them a
+        // lifetime, gold turning blue as we go in"; "make the Milky Way less distinct until the
+        // other galaxies are recognizable". So the crowd's members are galaxies: gold lights at
+        // first, like the web's, each turning to its own colour at its turn and, once big enough
+        // on screen, drawn as a spiral, an elliptical or an irregular (DiveSwarm_NEW). And the
+        // new world can be held inside its particle until they have (particleRevealAfter), its
+        // glow turning to particleLightTo as it opens. All off by default.
+        [Tooltip("Particle: never uncovered before this many seconds from the gate (it then opens over 1.5 s " +
+                 "as particleReveal says). 0 = only particleReveal decides.")]
+        [Min(0f)] public float particleRevealAfter = 0f;
+
+        [Tooltip("Particle: the largest the glow gets, as a share of the screen's height. 3 = no limit.")]
+        [Range(0.01f, 3f)] public float particleGlowMax = 3f;
+
+        [Tooltip("Particle: the glow's colour as the world inside it is uncovered (a gold light with a " +
+                 "blue halo, turning blue). Alpha 0 = it keeps lightColor.")]
+        [ColorUsage(true, true)] public Color particleLightTo = new Color(0f, 0f, 0f, 0f);
+
+        [Tooltip("Going in: how much the crowd's members are drawn as galaxies once big enough on screen " +
+                 "(spirals at their own slant, ellipticals, irregulars). 0 = glows, as before.")]
+        [Range(0f, 1f)] public float memberShapes = 0f;
+
+        [Tooltip("A member's radius, as a share of half the screen's height, over which it turns from a " +
+                 "glow into a galaxy (about 6 to 16 pixels at 1080).")]
+        public Vector2 shapeScreen = new Vector2(0.012f, 0.03f);
+
+        [Tooltip("Of the galaxies: the share that are spirals, and that are ellipticals. The rest are irregulars.")]
+        [Range(0f, 1f)] public float spiralShare = 0.6f;
+        [Range(0f, 1f)] public float ellipticalShare = 0.3f;
+
+        [Tooltip("A spiral's bulge, once it has turned from gold.")]
+        [ColorUsage(false, true)] public Color shapeCore = new Color(1f, 0.86f, 0.62f, 1f);
+
+        [Tooltip("Going in: members fade out between y and x world units from the camera, before one " +
+                 "fills the screen.")]
+        public Vector2 memberNearFade = new Vector2(0.5f, 3f);
+
+        [Tooltip("Going in: the members start gold, like the web's own lights, and each turns to its own " +
+                 "colour (memberCool, memberAccent, memberWarm) at its turn, between lifeSeconds from the gate.")]
+        public bool memberLife = false;
+        [ColorUsage(false, true)] public Color lifeFrom = new Color(1.05f, 0.78f, 0.40f, 1f);
+        [ColorUsage(false, true)] public Color lifeFromAccent = new Color(1f, 0.60f, 0.62f, 1f);
+        [Tooltip("The share of members that start the purpler gold.")]
+        [Range(0f, 1f)] public float lifeFromAccentShare = 0.35f;
+        [Tooltip("Seconds from the gate over which the crowd turns.")]
+        public Vector2 lifeSeconds = new Vector2(2f, 7.5f);
+        [Tooltip("Each member's share of that time.")]
+        [Range(0.05f, 1f)] public float lifeWidth = 0.35f;
+        [Tooltip("How much the members nearest the point turn first, so the colour spreads out from the " +
+                 "new world. 0 = in any order.")]
+        [Range(0f, 1f)] public float lifeInnerFirst = 0.5f;
+
+        [Tooltip("Continuous: the new world turns about its own up (emergeOverride's, as built), in its own " +
+                 "plane, instead of the world's up. A disc tilted to the world's up turned about that " +
+                 "wobbles: face on, then edge on, then back.")]
+        public bool spinOwnAxis = false;
+
         [Tooltip("Continuous: how much faster the new world grows after the peak than through the " +
                  "dive. 2.5 is the Solar System's: held at the point, then opening in a rush. 1 is " +
                  "one even growth from the gate to the end: something flown up to, not sprung.")]
@@ -701,6 +760,13 @@ public class LayerDive_NEW : MonoBehaviour
     static readonly int CoreId = Shader.PropertyToID("_Core");
     static readonly int SigmaId = Shader.PropertyToID("_Sigma");
     static readonly int ScatterId = Shader.PropertyToID("_Scatter");
+    static readonly int ShapesId = Shader.PropertyToID("_Shapes");
+    static readonly int ShapeScreenId = Shader.PropertyToID("_ShapeScreen");
+    static readonly int ShapeCoreId = Shader.PropertyToID("_ShapeCore");
+    static readonly int LifeId = Shader.PropertyToID("_Life");
+    static readonly int LifeWidthId = Shader.PropertyToID("_LifeWidth");
+    static readonly int LifeFromId = Shader.PropertyToID("_LifeFrom");
+    static readonly int LifeFromAccentId = Shader.PropertyToID("_LifeFromAccent");
 
     // Continuous: how long the crowd left in the new world takes to go out, after the peak,
     // and how quickly the zoom that carried it out lets go of it (an exponential's time).
@@ -726,6 +792,8 @@ public class LayerDive_NEW : MonoBehaviour
     float _previewLook;
     float _lookAtBegin;
     Vector3 _previewEmerge;
+    Vector3 _previewSpinAxis = Vector3.up;
+    Vector3 _spinAxis = Vector3.up;
     Camera _camera;
 
     GameObject _light;
@@ -920,10 +988,10 @@ public class LayerDive_NEW : MonoBehaviour
             // One particle of this world, ahead: what the dive will go into. The same point,
             // at the same size, that the dive starts from.
             EndPreview();
-            HideCrowd();
             if (dive.approachDistance <= 0f || ahead > dive.approachDistance)
             {
                 HideLight();
+                HideCrowd();
                 return;
             }
 
@@ -931,6 +999,13 @@ public class LayerDive_NEW : MonoBehaviour
             Vector3 point = FocusFor(dive, gate, state != null ? state.CurrentLayerId : null);
             SetLight(dive, point, 0f, Smooth(0f, 0.3f, near), dive.starSize * Mathf.Lerp(0.6f, 1f, near));
             SetSpikes(0f, 0f, 0f);
+
+            // With an approach crowd, the lights round it are there already, gold like the web's,
+            // so the dive opens what was seen rather than making something new.
+            if (dive.approachCrowd > 0f)
+                SetCrowd(dive, point, Quaternion.identity, 1f, dive.approachCrowd * Smooth(0f, 0.4f, near), 0f, 0f, 0f, 0f);
+            else
+                HideCrowd();
             return;
         }
 
@@ -982,17 +1057,29 @@ public class LayerDive_NEW : MonoBehaviour
             if (_preview == null) return;
             // Measured now, while the world is still as built: its star moves with it after this.
             _previewEmerge = dive.emergeOverride != null ? dive.emergeOverride.position : _preview.position;
+            _previewSpinAxis = SpinAxis(dive);
         }
 
         Vector3 focus = FocusFor(dive, gate, state != null ? state.CurrentLayerId : null);
         Vector3 emerge = _previewEmerge;
         Vector3 at = focus + (emerge - focus) * dive.enterScale;
         // Turned as the dive will have it at the gate: all of its spin still to come.
-        Quaternion turn = TipTurn(dive, 0f) * Quaternion.AngleAxis(-SpinTotal(dive), Vector3.up);
+        Quaternion turn = TipTurn(dive, 0f) * Quaternion.AngleAxis(-SpinTotal(dive), _previewSpinAxis);
         Place(_preview, new Placement { anchor = emerge, at = at, turn = turn, scale = dive.enterScale });
 
         _previewLook = Smooth(0f, 0.35f, 1f - ahead / dive.approachDistance);
         worlds.SetGroupLook(_previewId, _previewLook);
+    }
+
+    /// <summary>
+    /// Continuous: what the new world turns about. The world's up, or (spinOwnAxis) its star's
+    /// own up as built, read before the dive or the approach has moved it.
+    /// </summary>
+    static Vector3 SpinAxis(Dive d)
+    {
+        if (!d.spinOwnAxis || d.emergeOverride == null) return Vector3.up;
+        Vector3 up = d.emergeOverride.up;
+        return up.sqrMagnitude > 1e-6f ? up.normalized : Vector3.up;
     }
 
     /// <summary>Continuous: how far, in degrees, the new world turns in all (as SpinAt works it out).</summary>
@@ -1177,6 +1264,7 @@ public class LayerDive_NEW : MonoBehaviour
                      : NextWorldCentre();
         _leave = Capture(worlds != null ? worlds.GroupRoot(_fromId) : null);
         _enter = Capture(worlds != null ? worlds.GroupRoot(_toId) : null);
+        _spinAxis = SpinAxis(dive);
         _fovPush = 0f;
 
         // Collapsing, the point this gate left last time goes: it is made again.
@@ -1349,8 +1437,12 @@ public class LayerDive_NEW : MonoBehaviour
         // much less.
         Quaternion turn = Quaternion.AngleAxis(_dive.spin * p, Vector3.up);
         float spin = _dive.resolveZoom > 1f ? _dive.spin * Mathf.Deg2Rad / Mathf.Log(_dive.resolveZoom) : 0f;
-        SetCrowd(_dive, _focus, turn * _crowdAim, Mathf.Pow(_dive.resolveZoom, p), crowd, streak, spin, scatter);
+        SetCrowd(_dive, _focus, turn * _crowdAim, Mathf.Pow(_dive.resolveZoom, p), crowd, streak, spin, scatter,
+                 Life(u * _dive.diveSeconds));
     }
+
+    /// <summary>Going in, how far the crowd has turned from gold to its own colours, <paramref name="t"/> seconds from the gate.</summary>
+    float Life(float t) => Smooth(_dive.lifeSeconds.x, Mathf.Max(_dive.lifeSeconds.x + 0.01f, _dive.lifeSeconds.y), t);
 
     /// <summary>
     /// Continuous, after the peak: the half of the crowd still out is left in the new world.
@@ -1371,7 +1463,8 @@ public class LayerDive_NEW : MonoBehaviour
         Quaternion turn = Quaternion.AngleAxis(_dive.spin * p, Vector3.up);
         float spin = _dive.resolveZoom > 1f ? _dive.spin * Mathf.Deg2Rad / Mathf.Log(_dive.resolveZoom) : 0f;
         float scatter = Mathf.Lerp(0.5f, 1f, Smooth(0f, ScatterSeconds, since));
-        SetCrowd(_dive, _focus, turn * _crowdAim, Mathf.Pow(_dive.resolveZoom, p), _dive.diveCrowd, 0f, spin, scatter);
+        SetCrowd(_dive, _focus, turn * _crowdAim, Mathf.Pow(_dive.resolveZoom, p), _dive.diveCrowd, 0f, spin, scatter,
+                 Life(_dive.diveSeconds + since));
     }
 
     /// <summary>
@@ -1693,7 +1786,7 @@ public class LayerDive_NEW : MonoBehaviour
         // its planets sweep round the star as it opens.
         _enterNow = Mathf.Pow(_dive.enterScale, 1f - Growth(t / total));
         float turned = SpinAt(t, out float turns);
-        Quaternion turn = TipTurn(_dive, Growth(t / total)) * Quaternion.AngleAxis(turned - turns, Vector3.up);
+        Quaternion turn = TipTurn(_dive, Growth(t / total)) * Quaternion.AngleAxis(turned - turns, _spinAxis);
         Place(_enter, new Placement { anchor = _emergeFocus, at = Subject(), turn = turn, scale = _enterNow });
         if (worlds != null && !_dive.particle) worlds.SetGroupLook(_toId, Mathf.Max(_lookAtBegin, Smooth(0.5f, 2f, t)));
 
@@ -1740,8 +1833,11 @@ public class LayerDive_NEW : MonoBehaviour
             }
 
             float shows = Smooth(_dive.particleReveal.x, _dive.particleReveal.y, across);
+            if (_dive.particleRevealAfter > 0f)
+                shows *= Smooth(_dive.particleRevealAfter, _dive.particleRevealAfter + 1.5f, t);
             if (worlds != null) worlds.SetGroupLook(_toId, Smooth(0f, 0.55f, shows));
-            SetLight(_dive, star, 0f, 1f - Smooth(0.25f, 1f, shows), Mathf.Max(_dive.starSize, _dive.particleCover * across));
+            float glow = Mathf.Min(Mathf.Max(_dive.starSize, _dive.particleCover * across), Mathf.Max(_dive.starSize, _dive.particleGlowMax));
+            SetLight(_dive, star, 0f, 1f - Smooth(0.25f, 1f, shows), glow, shows);
             SetSpikes(0f, 0f, 0f);
             if (t >= dive) TickCrowdAfter(t - dive);
             if (_dive.endFacingStar) TickSettle(t, total);
@@ -2435,7 +2531,7 @@ public class LayerDive_NEW : MonoBehaviour
     /// <param name="size">World-space diameter.</param>
     /// <param name="screenSize">Above 0, a star instead: this diameter on screen, as a fraction
     /// of the screen's height, however near or far, and <paramref name="size"/> is ignored.</param>
-    void SetLight(Dive d, Vector3 at, float size, float fade, float screenSize = 0f)
+    void SetLight(Dive d, Vector3 at, float size, float fade, float screenSize = 0f, float turn = 0f)
     {
         EnsureLight();
         if (_light == null) return;
@@ -2448,7 +2544,9 @@ public class LayerDive_NEW : MonoBehaviour
         _lightPosition = at;
         _lightSize = size;
         _lightScreenSize = screenSize;
-        _lightMaterial.SetColor(ColorId, new Color(d.lightColor.r, d.lightColor.g, d.lightColor.b, intensity));
+        // A particle's glow can turn to another colour as the world inside it is uncovered.
+        Color c = d.particleLightTo.a > 0f ? Color.Lerp(d.lightColor, d.particleLightTo, Mathf.Clamp01(turn)) : d.lightColor;
+        _lightMaterial.SetColor(ColorId, new Color(c.r, c.g, c.b, intensity));
 
         // A star's glow takes the middle of a bigger quad, leaving room for its spikes
         // (SetSpikes); any other light is a plain glow filling its quad.
@@ -2553,7 +2651,9 @@ public class LayerDive_NEW : MonoBehaviour
     /// opens by, which slants the streaks (DiveSwarm_NEW's _Spin).</param>
     /// <param name="scatter">How far through going out one by one, 0 to 1 (DiveSwarm_NEW's
     /// _Scatter): 0 every member there, 1 none.</param>
-    void SetCrowd(Dive d, Vector3 at, Quaternion aim, float zoom, float alpha, float streak, float spin = 0f, float scatter = 0f)
+    /// <param name="life">Going in, with memberLife: 0 every member gold, 1 every member its own colour.</param>
+    void SetCrowd(Dive d, Vector3 at, Quaternion aim, float zoom, float alpha, float streak, float spin = 0f, float scatter = 0f,
+                  float life = 1f)
     {
         if (!d.resolve || d.memberCount <= 0 || alpha <= 0.001f || scatter >= 0.999f)
         {
@@ -2586,7 +2686,20 @@ public class LayerDive_NEW : MonoBehaviour
         bool inward = d.direction == Direction.In;
         _crowdMaterial.SetFloat(ResolveId, inward ? 1f : 0f);
         _crowdMaterial.SetFloat(CoreId, inward ? d.memberCore : 0.35f);
-        _crowdMaterial.SetVector(NearFadeId, inward ? new Vector4(0.5f, 3f, 0f, 0f) : new Vector4(2.5f, 10f, 0f, 0f));
+        _crowdMaterial.SetVector(NearFadeId, inward
+            ? new Vector4(d.memberNearFade.x, Mathf.Max(d.memberNearFade.x + 0.01f, d.memberNearFade.y), 0f, 0f)
+            : new Vector4(2.5f, 10f, 0f, 0f));
+
+        // Galaxies and their lifetime (DiveSwarm_NEW). Every row shares the one material, so all of
+        // it is set every time: a row without them gets them off.
+        _crowdMaterial.SetFloat(ShapesId, inward ? d.memberShapes : 0f);
+        _crowdMaterial.SetVector(ShapeScreenId, new Vector4(d.shapeScreen.x, Mathf.Max(d.shapeScreen.x + 1e-4f, d.shapeScreen.y),
+                                                            d.spiralShare, d.spiralShare + d.ellipticalShare));
+        _crowdMaterial.SetColor(ShapeCoreId, d.shapeCore);
+        _crowdMaterial.SetFloat(LifeId, inward && d.memberLife ? Mathf.Clamp01(life) : 1f);
+        _crowdMaterial.SetFloat(LifeWidthId, d.lifeWidth);
+        _crowdMaterial.SetColor(LifeFromId, d.lifeFrom);
+        _crowdMaterial.SetColor(LifeFromAccentId, d.lifeFromAccent);
     }
 
     void HideCrowd()
@@ -2650,6 +2763,8 @@ public class LayerDive_NEW : MonoBehaviour
             h = h * 31 + d.coolShare.GetHashCode();
             h = h * 31 + d.memberAccent.GetHashCode();
             h = h * 31 + d.accentShare.GetHashCode();
+            h = h * 31 + d.lifeInnerFirst.GetHashCode();
+            h = h * 31 + d.lifeFromAccentShare.GetHashCode();
             return h;
         }
     }
@@ -2682,10 +2797,15 @@ public class LayerDive_NEW : MonoBehaviour
         var colors = new Color[n * 4];
         var corners = new Vector2[n * 4];
         var sizes = new Vector2[n * 4];
+        var discs = new List<Vector4>(n * 4);
+        var looks = new List<Vector4>(n * 4);
         var triangles = new int[n * 6];
 
         var rng = new System.Random(7919);
         var turns = new System.Random(104729);
+        // What each member is as a galaxy, and when it turns from gold (DiveSwarm_NEW), from a
+        // generator of its own, so every crowd is otherwise the one it always was.
+        var kinds = new System.Random(15485863);
         bool outward = d.direction == Direction.Out;
         // Enough decades that members are still leaving the point when the dive peaks.
         float decades = Mathf.Log10(Mathf.Max(1f, d.resolveZoom)) + 1.4f;
@@ -2697,6 +2817,7 @@ public class LayerDive_NEW : MonoBehaviour
         {
             Vector3 p;
             float radius;
+            float depthShare = 0f;      // going in: 0 at crowdRadius, 1 at the point
             if (outward)
             {
                 // Evenly through the volume between inner and crowdRadius.
@@ -2707,7 +2828,9 @@ public class LayerDive_NEW : MonoBehaviour
             }
             else
             {
-                float fraction = Mathf.Pow(10f, -decades * (float)rng.NextDouble());
+                float u = (float)rng.NextDouble();
+                float fraction = Mathf.Pow(10f, -decades * u);
+                depthShare = u;
                 p = RandomUnit(rng) * (d.crowdRadius * fraction);
                 radius = d.memberSize * Mathf.Pow(fraction, d.memberGrowth)
                        * Mathf.Lerp(0.6f, 1.4f, (float)rng.NextDouble());
@@ -2721,12 +2844,20 @@ public class LayerDive_NEW : MonoBehaviour
             c.a = Mathf.Lerp(0.25f, 1f, (float)rng.NextDouble());   // brightness
             float turn = Mathf.Lerp(0.12f, 1f, (float)turns.NextDouble());
 
+            Vector4 disc = RandomUnit(kinds);
+            disc.w = (float)kinds.NextDouble();                       // which kind of galaxy
+            float order = Mathf.Lerp((float)kinds.NextDouble(), 1f - depthShare, d.lifeInnerFirst);
+            var look = new Vector4((float)kinds.NextDouble(), (float)kinds.NextDouble(), order,
+                                   kinds.NextDouble() < d.lifeFromAccentShare ? 1f : 0f);
+
             int v = i * 4;
             for (int k = 0; k < 4; k++)
             {
                 vertices[v + k] = p;
                 colors[v + k] = c;
                 sizes[v + k] = new Vector2(radius, turn);
+                discs.Add(disc);
+                looks.Add(look);
             }
             corners[v + 0] = new Vector2(-1f, -1f);
             corners[v + 1] = new Vector2(1f, -1f);
@@ -2745,6 +2876,8 @@ public class LayerDive_NEW : MonoBehaviour
         mesh.colors = colors;
         mesh.uv = corners;
         mesh.uv2 = sizes;
+        mesh.SetUVs(2, discs);
+        mesh.SetUVs(3, looks);
         mesh.triangles = triangles;
 
         // Every vertex sits at a member's centre, so the computed bounds would miss the

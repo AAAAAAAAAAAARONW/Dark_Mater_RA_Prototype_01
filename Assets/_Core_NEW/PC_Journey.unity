@@ -144666,6 +144666,23 @@ MonoBehaviour:
     spinOldWorld: 1
     particleCover: 1.3
     particleReveal: {x: 0.06, y: 0.45}
+    particleRevealAfter: 0
+    particleGlowMax: 3
+    particleLightTo: {r: 0, g: 0, b: 0, a: 0}
+    memberShapes: 0
+    shapeScreen: {x: 0.012, y: 0.03}
+    spiralShare: 0.6
+    ellipticalShare: 0.3
+    shapeCore: {r: 1, g: 0.86, b: 0.62, a: 1}
+    memberNearFade: {x: 0.5, y: 3}
+    memberLife: 0
+    lifeFrom: {r: 1.05, g: 0.78, b: 0.4, a: 1}
+    lifeFromAccent: {r: 1, g: 0.6, b: 0.62, a: 1}
+    lifeFromAccentShare: 0.35
+    lifeSeconds: {x: 2, y: 7.5}
+    lifeWidth: 0.35
+    lifeInnerFirst: 0.5
+    spinOwnAxis: 0
     emergeRate: 1.2
     tip: 0
     starSize: 0.03
@@ -144755,6 +144772,23 @@ MonoBehaviour:
     spinOldWorld: 1
     particleCover: 1.3
     particleReveal: {x: 0.06, y: 0.45}
+    particleRevealAfter: 0
+    particleGlowMax: 3
+    particleLightTo: {r: 0, g: 0, b: 0, a: 0}
+    memberShapes: 0
+    shapeScreen: {x: 0.012, y: 0.03}
+    spiralShare: 0.6
+    ellipticalShare: 0.3
+    shapeCore: {r: 1, g: 0.86, b: 0.62, a: 1}
+    memberNearFade: {x: 0.5, y: 3}
+    memberLife: 0
+    lifeFrom: {r: 1.05, g: 0.78, b: 0.4, a: 1}
+    lifeFromAccent: {r: 1, g: 0.6, b: 0.62, a: 1}
+    lifeFromAccentShare: 0.35
+    lifeSeconds: {x: 2, y: 7.5}
+    lifeWidth: 0.35
+    lifeInnerFirst: 0.5
+    spinOwnAxis: 0
     emergeRate: 2.5
     tip: 0
     starSize: 0.024
@@ -144826,36 +144860,53 @@ MonoBehaviour:
     direction: 0
     focusPastGate: 12
     focusOverride: {fileID: 0}
-    approachDistance: 0
+    approachDistance: 30
     diveSeconds: 5
     peakHoldSeconds: 0.3
     emergeSeconds: 6.5
     diveZoom: 14
     leaveGlow: 1.2
     dissolveFrom: 0.4
-    enterScale: 0.003
+    enterScale: 0.002
     emergeOverride: {fileID: 1233783612}
     crossfade: 0
     continuous: 1
-    particle: 0
+    particle: 1
     unfold: 0
     unfoldFrom: 0.7
     dissolveBy: 1
     spinOldWorld: 0
-    particleCover: 1.3
-    particleReveal: {x: 0.06, y: 0.45}
-    emergeRate: 2.5
-    tip: 70
-    starSize: 0.05
+    particleCover: 1
+    particleReveal: {x: 0.15, y: 0.5}
+    particleRevealAfter: 3.5
+    particleGlowMax: 0.12
+    particleLightTo: {r: 0.62, g: 0.75, b: 1, a: 1}
+    memberShapes: 1
+    shapeScreen: {x: 0.012, y: 0.03}
+    spiralShare: 0.6
+    ellipticalShare: 0.3
+    shapeCore: {r: 1, g: 0.86, b: 0.62, a: 1}
+    memberNearFade: {x: 2, y: 8}
+    memberLife: 1
+    lifeFrom: {r: 1.05, g: 0.78, b: 0.4, a: 1}
+    lifeFromAccent: {r: 1, g: 0.6, b: 0.62, a: 1}
+    lifeFromAccentShare: 0.35
+    lifeSeconds: {x: 2, y: 7.5}
+    lifeWidth: 0.35
+    lifeInnerFirst: 0.5
+    spinOwnAxis: 1
+    emergeRate: 3.5
+    tip: 0
+    starSize: 0.025
     watch: 0.35
-    watchRelease: 2.2
+    watchRelease: 3
     starSpikes: 0
     orbits: 0
     endFacingStar: 1
     endStarHeight: 0.1
     endSettleSeconds: 3
     lightColor: {r: 1, g: 0.8, b: 0.52, a: 1}
-    lightIntensity: 1.2
+    lightIntensity: 1
     pointSize: 3
     gateSize: 8
     peakSize: 40
@@ -144863,15 +144914,15 @@ MonoBehaviour:
     whiteoutFrom: 0.7
     lightHold: 0
     resolve: 1
-    memberCount: 1600
-    crowdRadius: 12
-    memberSize: 0.22
-    resolveZoom: 40
-    memberGrowth: 0.45
-    streak: 5
+    memberCount: 400
+    crowdRadius: 9
+    memberSize: 0.12
+    resolveZoom: 14
+    memberGrowth: 0.8
+    streak: 1.5
     spread: 40
-    crowdFlatten: 0.18
-    memberCore: 0.5
+    crowdFlatten: 0.35
+    memberCore: 0.8
     haloRadius: 0
     haloColor: {r: 1, g: 0.88, b: 0.62, a: 1}
     haloIntensity: 1
@@ -144883,13 +144934,13 @@ MonoBehaviour:
     lookBackSwing: 1.4
     lookBackDolly: 2
     ambientCrowd: 0
-    approachCrowd: 0
-    diveCrowd: 0.8
-    memberWarm: {r: 1, g: 0.82, b: 0.55, a: 1}
+    approachCrowd: 0.3
+    diveCrowd: 0.6
+    memberWarm: {r: 0.9, g: 0.88, b: 0.95, a: 1}
     memberCool: {r: 0.62, g: 0.75, b: 1, a: 1}
-    coolShare: 0.45
+    coolShare: 0.65
     memberAccent: {r: 0.96, g: 0.69, b: 0.92, a: 1}
-    accentShare: 0.3
+    accentShare: 0.1
     collapse: 0
     collapseRadius: 0
     remnantColor: {r: 1.6, g: 1.55, b: 1.8, a: 1}
@@ -144898,7 +144949,7 @@ MonoBehaviour:
     remnantSpikeAngle: 45
     remnantSpikeLength: 0.14
     remnantStreak: 0.3
-    spin: 200
+    spin: 45
     bank: 0
     dollyZoom: 1
     photonShrink: 0.5
@@ -144906,9 +144957,9 @@ MonoBehaviour:
     diveSound: {fileID: 0}
     diveSoundVolume: 0.8
     fieldOfViewScale: 1
-    targetFieldOfView: 26
+    targetFieldOfView: 32
     peakBloom: 1.5
-    peakChromaticAberration: 0.3
+    peakChromaticAberration: 0.1
     peakLensDistortion: 0
   - toLayerId: SolarSystem
     enabled: 1
@@ -144933,6 +144984,23 @@ MonoBehaviour:
     spinOldWorld: 1
     particleCover: 1.3
     particleReveal: {x: 0.06, y: 0.45}
+    particleRevealAfter: 0
+    particleGlowMax: 3
+    particleLightTo: {r: 0, g: 0, b: 0, a: 0}
+    memberShapes: 0
+    shapeScreen: {x: 0.012, y: 0.03}
+    spiralShare: 0.6
+    ellipticalShare: 0.3
+    shapeCore: {r: 1, g: 0.86, b: 0.62, a: 1}
+    memberNearFade: {x: 0.5, y: 3}
+    memberLife: 0
+    lifeFrom: {r: 1.05, g: 0.78, b: 0.4, a: 1}
+    lifeFromAccent: {r: 1, g: 0.6, b: 0.62, a: 1}
+    lifeFromAccentShare: 0.35
+    lifeSeconds: {x: 2, y: 7.5}
+    lifeWidth: 0.35
+    lifeInnerFirst: 0.5
+    spinOwnAxis: 0
     emergeRate: 2.5
     tip: 0
     starSize: 0.024
@@ -145022,6 +145090,23 @@ MonoBehaviour:
     spinOldWorld: 1
     particleCover: 1.3
     particleReveal: {x: 0.06, y: 0.45}
+    particleRevealAfter: 0
+    particleGlowMax: 3
+    particleLightTo: {r: 0, g: 0, b: 0, a: 0}
+    memberShapes: 0
+    shapeScreen: {x: 0.012, y: 0.03}
+    spiralShare: 0.6
+    ellipticalShare: 0.3
+    shapeCore: {r: 1, g: 0.86, b: 0.62, a: 1}
+    memberNearFade: {x: 0.5, y: 3}
+    memberLife: 0
+    lifeFrom: {r: 1.05, g: 0.78, b: 0.4, a: 1}
+    lifeFromAccent: {r: 1, g: 0.6, b: 0.62, a: 1}
+    lifeFromAccentShare: 0.35
+    lifeSeconds: {x: 2, y: 7.5}
+    lifeWidth: 0.35
+    lifeInnerFirst: 0.5
+    spinOwnAxis: 0
     emergeRate: 2.5
     tip: 0
     starSize: 0.024
