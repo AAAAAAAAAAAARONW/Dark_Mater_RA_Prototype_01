@@ -127,7 +127,7 @@ No story lines. Button prompts only.
 | ID | When | Line | ≈ |
 | --- | --- | --- | --- |
 | J7 | Approaching the Milky Way. | [warmly] Ahead is the Milky Way, home to hundreds of billions of stars. You set out more than seven billion years before our Sun was born. | 10 s |
-| J8 | Entering the Solar System. | [softly] Light from our Sun takes eight minutes to reach Earth. Your journey has taken twelve billion years. | 7.5 s |
+| J8 | Entering the Solar System. | [softly] Light leaving our Sun reaches Earth in eight minutes. Your journey from the quasar has taken twelve billion years. | 7.5 s |
 | J9 | Arriving on Earth's night side, at the Magellan Telescopes, Las Campanas Observatory, Chile. | [warmly] You have arrived, on Earth's night side, high in the mountains of Chile. At Las Campanas Observatory, one of the twin Magellan Telescopes collects your light, and astronomers read the lines you carried. Each one marks a moment of your journey, written billions of years ago. | 18 s |
 | J6_4 | At the telescope, once the spectrum fills the screen, as each line drops to the gas that cut it and the dark matter appears around the gas. | [thoughtfully] Each of these lines is a cloud of gas you passed through, laid out along your path. Gas gathers where dark matter is. Without ever seeing it, your light has traced the dark matter along its way. | 12 s |
 | Closing | Straight after J6_4, over the finished map. | [softly] From lines like these, astronomers around the world learn how the cosmic web formed and what it is made of. With telescopes, simulations and theory together, every beam of light adds a little more to the map of the universe. | 14 s |

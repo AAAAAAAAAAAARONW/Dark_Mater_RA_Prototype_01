@@ -233,6 +233,7 @@ The whole set is re-recorded in the female voice after the scientists' pass, so 
 | J6_3 | `J6_3_Forest` | 21 Nov: the forest's name and "forest" explained, back here. **Re-record** |
 | J9 | `J9_Earth` | 21 Nov: arrives at the Magellan Telescopes, Las Campanas, Chile. **Re-record** |
 | (all) | — | 21 Nov: every line has its own delivery tag, written at the start of the line in the script. The 32 lines whose tag changed are regenerated with the next `generate` |
+| J8 | `J8_SolarSystem` | 25 Nov LARC review: the twelve billion years tied to the quasar (§9). **Re-record with `--only J8`** |
 
 ## 7 · Status in Unity
 
@@ -252,6 +253,13 @@ To do:
 3. **Prompts at all?** The `N_` lines are for discussion with the team (§3).
 
 ## 9 · Feedback log
+
+### 25 November · LARC review (Sean, Martzi)
+
+| Line | Was | Now | Why |
+| --- | --- | --- | --- |
+| J8 | "Light from our Sun takes eight minutes to reach Earth. Your journey has taken twelve billion years." | "Light leaving our Sun reaches Earth in eight minutes. Your journey from the quasar has taken twelve billion years." | Snap the twelve billion years to where the light came from, the quasar, against the Sun's eight minutes |
+| D2 | (unchanged) | | The line says "this narrow band in the middle", but the band on screen was wide when it was said. The picture changes, not the line: the visible band is squeezed narrow from D1 to D2 and opens to its full width over D3 (`TutorialTrailBands_NEW`) |
 
 ### 22 November · fact check
 
